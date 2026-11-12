@@ -1,0 +1,496 @@
+@page "/danh-muc-gia"
+@model Pancras.Web.Pages.Catalog.IndexModel
+@using Pancras.Application.Catalog
+@using Pancras.Web.Formatting
+@{
+    ViewData["Title"] = "Danh mục sản phẩm và giá";
+    var inputClass = "mt-1.5 w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white outline-none focus:border-slate-900";
+    var fieldClass = "w-full px-3 py-2.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-800 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100";
+    var labelClass = "mb-1.5 block text-sm font-medium text-slate-600";
+}
+
+<section class="bg-white rounded-xl border border-slate-200 p-6">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+            <h1 class="text-lg sm:text-xl font-bold text-slate-900">Danh mục sản phẩm và giá</h1>
+            <p class="mt-1 text-sm text-slate-500"><span class="font-mono tabular-nums">@Model.ItemPage.TotalCount</span> mặt hàng</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <a href="@Model.ExportUrl" class="px-4 py-2 text-sm font-bold rounded-lg bg-emerald-50 text-emerald-700">Xuất</a>
+            <a href="@Model.AddUrl" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Thêm sản phẩm</a>
+        </div>
+    </div>
+    <form method="get" action="/danh-muc-gia" class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-[14rem_1fr_auto] sm:items-end">
+        <div>
+            <label class="block text-sm font-medium text-slate-600" for="catalog-category">Ngành</label>
+            <select id="catalog-category" name="nganh" class="@inputClass" onchange="this.form.requestSubmit()">
+                @if (string.IsNullOrEmpty(Model.CategoryToken))
+                {
+                    <option value="" selected>Tất cả</option>
+                }
+                else
+                {
+                    <option value="">Tất cả</option>
+                }
+                @if (Model.CategoryToken == ProductCategoryToken.Sanitary)
+                {
+                    <option value="@ProductCategoryToken.Sanitary" selected>Thiết bị vệ sinh</option>
+                }
+                else
+                {
+                    <option value="@ProductCategoryToken.Sanitary">Thiết bị vệ sinh</option>
+                }
+                @if (Model.CategoryToken == ProductCategoryToken.Bathroom)
+                {
+                    <option value="@ProductCategoryToken.Bathroom" selected>Nội thất phòng tắm</option>
+                }
+                else
+                {
+                    <option value="@ProductCategoryToken.Bathroom">Nội thất phòng tắm</option>
+                }
+                @if (Model.CategoryToken == ProductCategoryToken.Building)
+                {
+                    <option value="@ProductCategoryToken.Building" selected>Vật tư xây dựng</option>
+                }
+                else
+                {
+                    <option value="@ProductCategoryToken.Building">Vật tư xây dựng</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-600" for="catalog-search">Tìm kiếm</label>
+            <input id="catalog-search" name="q" value="@Model.Search" placeholder="Mã, tên hoặc thương hiệu" class="@inputClass" />
+        </div>
+        <div class="flex gap-2">
+            <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Lọc</button>
+            @if (Model.HasFilter)
+            {
+                <a href="/danh-muc-gia" class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 text-slate-600">Bỏ lọc</a>
+            }
+        </div>
+    </form>
+    @if (!string.IsNullOrEmpty(Model.Notice))
+    {
+        <p class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800" role="status">@Model.Notice</p>
+    }
+    @if (Model.ErrorMessages.Count > 0 && !Model.ShowForm && !Model.ShowPriceForm)
+    {
+        <div class="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
+            <p class="font-bold">@Model.ErrorTitle</p>
+            <ul class="mt-2 list-disc pl-5">
+                @foreach (var message in Model.ErrorMessages)
+                {
+                    <li>@message</li>
+                }
+            </ul>
+        </div>
+    }
+</section>
+
+@if (Model.Rows.Count == 0)
+{
+    <p class="mt-4 text-sm text-slate-600">@(Model.HasFilter ? "Không có mặt hàng khớp bộ lọc." : "Chưa có mặt hàng.")</p>
+}
+else
+{
+    <div class="mt-4 overflow-x-auto bg-white rounded-xl border border-slate-200">
+        <table class="min-w-full text-xs">
+            <thead class="bg-slate-50 text-left text-slate-500">
+                <tr>
+                    <th class="px-3 py-3 font-medium">Mã</th>
+                    <th class="px-3 py-3 font-medium">Tên</th>
+                    <th class="px-3 py-3 font-medium">Ngành</th>
+                    <th class="px-3 py-3 font-medium">Thương hiệu</th>
+                    <th class="px-3 py-3 font-medium">Đơn vị</th>
+                    <th class="px-3 py-3 font-medium text-right">Giá vốn</th>
+                    <th class="px-3 py-3 font-medium text-right">Giá lẻ</th>
+                    <th class="px-3 py-3 font-medium text-right">Giá đại lý</th>
+                    <th class="px-3 py-3 font-medium text-right">Giá nhà phân phối</th>
+                    <th class="px-3 py-3 font-medium text-right">Giá dự án</th>
+                    <th class="px-3 py-3 font-medium"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Rows)
+                {
+                    <tr class="border-t border-slate-100 hover:bg-slate-50">
+                        <td class="px-3 py-3 font-mono text-slate-700">@row.Code</td>
+                        <td class="px-3 py-3 font-medium text-slate-900">@row.Name</td>
+                        <td class="px-3 py-3 text-slate-700">@CatalogLabels.Category(row.Category)</td>
+                        <td class="px-3 py-3 text-slate-700">@CatalogLabels.Text(row.Brand)</td>
+                        <td class="px-3 py-3 text-slate-700">@CatalogLabels.Text(row.Unit)</td>
+                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.Format(row.CostPrice)</td>
+                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.Format(row.RetailPrice)</td>
+                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.Format(row.DealerPrice)</td>
+                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.Format(row.DistributorPrice)</td>
+                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.Format(row.ProjectPrice)</td>
+                        <td class="px-3 py-3 text-right whitespace-nowrap">
+                            <a href="@Model.DetailUrl(row.Id)" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Chi tiết</a>
+                            <a href="@Model.PriceUrl(row.Id)" class="ml-2 px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Sửa</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    @if (Model.ItemPage.TotalPages > 1)
+    {
+        <nav class="mt-4 flex flex-wrap items-center justify-center gap-2" aria-label="Phân trang">
+            @if (Model.ItemPage.HasPrevious)
+            {
+                <a href="@Model.PageUrl(Model.ItemPage.PageNumber - 1)" class="px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-slate-200 text-slate-700">Trước</a>
+            }
+            else
+            {
+                <span class="px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-slate-200 text-slate-300">Trước</span>
+            }
+            @foreach (var page in Model.VisiblePages)
+            {
+                if (page == Model.ItemPage.PageNumber)
+                {
+                    <span class="px-3 py-1.5 text-sm font-bold rounded-lg bg-sky-600 text-white" aria-current="page">@(page)</span>
+                }
+                else
+                {
+                    <a href="@Model.PageUrl(page)" class="px-3 py-1.5 text-sm font-bold rounded-lg bg-white border border-slate-200 text-slate-700">@(page)</a>
+                }
+            }
+            @if (Model.ItemPage.HasNext)
+            {
+                <a href="@Model.PageUrl(Model.ItemPage.PageNumber + 1)" class="px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-slate-200 text-slate-700">Sau</a>
+            }
+            else
+            {
+                <span class="px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-slate-200 text-slate-300">Sau</span>
+            }
+        </nav>
+    }
+}
+
+<div id="catalog-dialog" class="@(Model.ShowForm ? "" : "hidden ")fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 p-4">
+    <div class="mx-auto my-6 w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8">
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.27 6.96 12 12.01l8.73-5.05M12 22.08V12" />
+                    </svg>
+                </span>
+                <h2 class="text-base font-semibold text-slate-900">Thêm sản phẩm vào danh mục</h2>
+            </div>
+            <a href="@Model.FilteredListUrl" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600" aria-label="Đóng">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <path stroke-linecap="round" d="M6 6l12 12M18 6L6 18" />
+                </svg>
+            </a>
+        </div>
+        <form method="post" asp-page-handler="Create" class="mt-6">
+            <input type="hidden" name="q" value="@Model.Search" />
+            <input type="hidden" name="nganh" value="@Model.CategoryToken" />
+            <input type="hidden" name="page" value="@Model.ItemPage.PageNumber" />
+            @if (Model.ShowForm && Model.ErrorMessages.Count > 0)
+            {
+                <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
+                    <p class="font-bold">@Model.ErrorTitle</p>
+                    <ul class="mt-2 list-disc pl-5">
+                        @foreach (var message in Model.ErrorMessages)
+                        {
+                            <li>@message</li>
+                        }
+                    </ul>
+                </div>
+            }
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                    <label class="@labelClass" for="Form_Code">Mã SKU</label>
+                    <input asp-for="Form.Code" id="Form_Code" maxlength="32" class="@fieldClass" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Form_Brand">Thương hiệu</label>
+                    <input asp-for="Form.Brand" id="Form_Brand" maxlength="100" class="@fieldClass" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Form_Unit">Đơn vị tính</label>
+                    <input asp-for="Form.Unit" id="Form_Unit" maxlength="32" class="@fieldClass" />
+                </div>
+            </div>
+            <div class="mt-4">
+                <label class="@labelClass" for="Form_Name">Tên sản phẩm</label>
+                <input asp-for="Form.Name" id="Form_Name" maxlength="200" class="@fieldClass" />
+            </div>
+            <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                    <label class="@labelClass" for="Form_Category">Danh mục</label>
+                    <select asp-for="Form.Category" id="Form_Category" class="@fieldClass">
+                        @if (Model.Form.Category == ProductCategoryToken.Sanitary)
+                        {
+                            <option value="@ProductCategoryToken.Sanitary" selected>Thiết bị vệ sinh</option>
+                        }
+                        else
+                        {
+                            <option value="@ProductCategoryToken.Sanitary">Thiết bị vệ sinh</option>
+                        }
+                        @if (Model.Form.Category == ProductCategoryToken.Bathroom)
+                        {
+                            <option value="@ProductCategoryToken.Bathroom" selected>Nội thất phòng tắm</option>
+                        }
+                        else
+                        {
+                            <option value="@ProductCategoryToken.Bathroom">Nội thất phòng tắm</option>
+                        }
+                        @if (Model.Form.Category == ProductCategoryToken.Building)
+                        {
+                            <option value="@ProductCategoryToken.Building" selected>Vật tư xây dựng</option>
+                        }
+                        else
+                        {
+                            <option value="@ProductCategoryToken.Building">Vật tư xây dựng</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="@labelClass" for="Form_Origin">Xuất xứ</label>
+                    <input asp-for="Form.Origin" id="Form_Origin" maxlength="100" class="@fieldClass" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Form_WarrantyMonths">Bảo hành (tháng)</label>
+                    <input asp-for="Form.WarrantyMonths" id="Form_WarrantyMonths" inputmode="numeric" class="@fieldClass" />
+                </div>
+            </div>
+            <p class="mt-4 text-xs font-medium text-slate-500">@CatalogLabels.PricesIncludeVat</p>
+            <div class="mt-2 grid grid-cols-2 gap-4 lg:grid-cols-5">
+                <div>
+                    <label class="@labelClass" for="Form_CostPrice">Giá vốn (đ)</label>
+                    <input asp-for="Form.CostPrice" id="Form_CostPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Form_RetailPrice">Giá lẻ (đ)</label>
+                    <input asp-for="Form.RetailPrice" id="Form_RetailPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Form_DealerPrice">Giá đại lý (đ)</label>
+                    <input asp-for="Form.DealerPrice" id="Form_DealerPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Form_DistributorPrice">Giá nhà phân phối (đ)</label>
+                    <input asp-for="Form.DistributorPrice" id="Form_DistributorPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Form_ProjectPrice">Giá dự án (đ)</label>
+                    <input asp-for="Form.ProjectPrice" id="Form_ProjectPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
+                </div>
+            </div>
+            <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                    <label class="@labelClass" for="Form_WeightKg">Khối lượng (kg)</label>
+                    <input asp-for="Form.WeightKg" id="Form_WeightKg" inputmode="decimal" class="@fieldClass" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Form_VolumeM3">Thể tích (m³)</label>
+                    <input asp-for="Form.VolumeM3" id="Form_VolumeM3" inputmode="decimal" class="@fieldClass" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Form_MinimumStock">Định mức tồn tối thiểu</label>
+                    <input asp-for="Form.MinimumStock" id="Form_MinimumStock" inputmode="decimal" class="@fieldClass" />
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
+                <a href="@Model.FilteredListUrl" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600">Hủy</a>
+                <button type="submit" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white">Lưu sản phẩm</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="catalog-price-dialog" class="@(Model.ShowPriceForm ? "" : "hidden ")fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 p-4">
+    <div class="mx-auto my-6 w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8">
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.27 6.96 12 12.01l8.73-5.05M12 22.08V12" />
+                    </svg>
+                </span>
+                <h2 class="text-base font-semibold text-slate-900">Sửa sản phẩm</h2>
+            </div>
+            <a href="@Model.FilteredListUrl" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600" aria-label="Đóng">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <path stroke-linecap="round" d="M6 6l12 12M18 6L6 18" />
+                </svg>
+            </a>
+        </div>
+        <form method="post" asp-page-handler="UpdatePrices" class="mt-6">
+            <input type="hidden" asp-for="Prices.Id" />
+            <input type="hidden" asp-for="Prices.IncludeDetails" />
+            <input type="hidden" name="q" value="@Model.Search" />
+            <input type="hidden" name="nganh" value="@Model.CategoryToken" />
+            <input type="hidden" name="page" value="@Model.ItemPage.PageNumber" />
+            @if (Model.ShowPriceForm && Model.ErrorMessages.Count > 0)
+            {
+                <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
+                    <p class="font-bold">@Model.ErrorTitle</p>
+                    <ul class="mt-2 list-disc pl-5">
+                        @foreach (var message in Model.ErrorMessages)
+                        {
+                            <li>@message</li>
+                        }
+                    </ul>
+                </div>
+            }
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                    <label class="@labelClass" for="Prices_Code">Mã SKU</label>
+                    <input asp-for="Prices.Code" id="Prices_Code" maxlength="32" class="@fieldClass" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Prices_Brand">Thương hiệu</label>
+                    <input asp-for="Prices.Brand" id="Prices_Brand" maxlength="100" class="@fieldClass" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Prices_Unit">Đơn vị tính</label>
+                    <input asp-for="Prices.Unit" id="Prices_Unit" maxlength="32" class="@fieldClass" />
+                </div>
+            </div>
+            <div class="mt-4">
+                <label class="@labelClass" for="Prices_Name">Tên sản phẩm</label>
+                <input asp-for="Prices.Name" id="Prices_Name" maxlength="200" class="@fieldClass" />
+            </div>
+            <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                    <label class="@labelClass" for="Prices_Category">Danh mục</label>
+                    <select asp-for="Prices.Category" id="Prices_Category" class="@fieldClass">
+                        @if (Model.Prices.Category == ProductCategoryToken.Sanitary)
+                        {
+                            <option value="@ProductCategoryToken.Sanitary" selected>Thiết bị vệ sinh</option>
+                        }
+                        else
+                        {
+                            <option value="@ProductCategoryToken.Sanitary">Thiết bị vệ sinh</option>
+                        }
+                        @if (Model.Prices.Category == ProductCategoryToken.Bathroom)
+                        {
+                            <option value="@ProductCategoryToken.Bathroom" selected>Nội thất phòng tắm</option>
+                        }
+                        else
+                        {
+                            <option value="@ProductCategoryToken.Bathroom">Nội thất phòng tắm</option>
+                        }
+                        @if (Model.Prices.Category == ProductCategoryToken.Building)
+                        {
+                            <option value="@ProductCategoryToken.Building" selected>Vật tư xây dựng</option>
+                        }
+                        else
+                        {
+                            <option value="@ProductCategoryToken.Building">Vật tư xây dựng</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="@labelClass" for="Prices_Origin">Xuất xứ</label>
+                    <input asp-for="Prices.Origin" id="Prices_Origin" maxlength="100" class="@fieldClass" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Prices_WarrantyMonths">Bảo hành (tháng)</label>
+                    <input asp-for="Prices.WarrantyMonths" id="Prices_WarrantyMonths" inputmode="numeric" class="@fieldClass" />
+                </div>
+            </div>
+            <p class="mt-4 text-xs font-medium text-slate-500">@CatalogLabels.PricesIncludeVat</p>
+            <div class="mt-2 grid grid-cols-2 gap-4 lg:grid-cols-5">
+                <div>
+                    <label class="@labelClass" for="Prices_CostPrice">Giá vốn (đ)</label>
+                    <input asp-for="Prices.CostPrice" id="Prices_CostPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Prices_RetailPrice">Giá lẻ (đ)</label>
+                    <input asp-for="Prices.RetailPrice" id="Prices_RetailPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Prices_DealerPrice">Giá đại lý (đ)</label>
+                    <input asp-for="Prices.DealerPrice" id="Prices_DealerPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Prices_DistributorPrice">Giá nhà phân phối (đ)</label>
+                    <input asp-for="Prices.DistributorPrice" id="Prices_DistributorPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Prices_ProjectPrice">Giá dự án (đ)</label>
+                    <input asp-for="Prices.ProjectPrice" id="Prices_ProjectPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
+                </div>
+            </div>
+            <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                    <label class="@labelClass" for="Prices_WeightKg">Khối lượng (kg)</label>
+                    <input asp-for="Prices.WeightKg" id="Prices_WeightKg" inputmode="decimal" class="@fieldClass" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Prices_VolumeM3">Thể tích (m³)</label>
+                    <input asp-for="Prices.VolumeM3" id="Prices_VolumeM3" inputmode="decimal" class="@fieldClass" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Prices_MinimumStock">Định mức tồn tối thiểu</label>
+                    <input asp-for="Prices.MinimumStock" id="Prices_MinimumStock" inputmode="decimal" class="@fieldClass" />
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
+                <a href="@Model.FilteredListUrl" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600">Hủy</a>
+                <button type="submit" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white">Lưu sản phẩm</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.Detail is not null)
+{
+    var detail = Model.Detail;
+    <div id="catalog-detail-dialog" class="@(Model.ShowDetail ? "" : "hidden ")fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 p-4">
+        <div class="mx-auto my-8 w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-slate-200 p-6">
+            <div class="flex items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900">@detail.Name</h2>
+                    <p class="mt-1 font-mono text-xs text-slate-400">@detail.Code</p>
+                </div>
+                <a href="@Model.FilteredListUrl" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Đóng</a>
+            </div>
+            <dl class="mt-6 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                <div><dt class="text-slate-500">Ngành</dt><dd class="font-medium text-slate-900">@CatalogLabels.Category(detail.Category)</dd></div>
+                <div><dt class="text-slate-500">Thương hiệu</dt><dd class="font-medium text-slate-900">@CatalogLabels.Text(detail.Brand)</dd></div>
+                <div><dt class="text-slate-500">Xuất xứ</dt><dd class="font-medium text-slate-900">@CatalogLabels.Text(detail.Origin)</dd></div>
+                <div><dt class="text-slate-500">Đơn vị</dt><dd class="font-medium text-slate-900">@CatalogLabels.Text(detail.Unit)</dd></div>
+                <div><dt class="text-slate-500">Trọng lượng</dt><dd class="font-mono tabular-nums text-slate-900">@CatalogLabels.Measure(detail.WeightKg)</dd></div>
+                <div><dt class="text-slate-500">Thể tích</dt><dd class="font-mono tabular-nums text-slate-900">@CatalogLabels.Measure(detail.VolumeM3)</dd></div>
+                <div><dt class="text-slate-500">Số tháng bảo hành</dt><dd class="font-mono tabular-nums text-slate-900">@CatalogLabels.Months(detail.WarrantyMonths)</dd></div>
+                <div><dt class="text-slate-500">Mức tồn tối thiểu</dt><dd class="font-mono tabular-nums text-slate-900">@CatalogLabels.Measure(detail.MinimumStock)</dd></div>
+                <div><dt class="text-slate-500">Giá vốn</dt><dd class="font-mono tabular-nums text-slate-900">@VndMoney.Format(detail.CostPrice)</dd></div>
+                <div><dt class="text-slate-500">Giá lẻ</dt><dd class="font-mono tabular-nums text-slate-900">@VndMoney.Format(detail.RetailPrice)</dd></div>
+                <div><dt class="text-slate-500">Giá đại lý</dt><dd class="font-mono tabular-nums text-slate-900">@VndMoney.Format(detail.DealerPrice)</dd></div>
+                <div><dt class="text-slate-500">Giá nhà phân phối</dt><dd class="font-mono tabular-nums text-slate-900">@VndMoney.Format(detail.DistributorPrice)</dd></div>
+                <div><dt class="text-slate-500">Giá dự án</dt><dd class="font-mono tabular-nums text-slate-900">@VndMoney.Format(detail.ProjectPrice)</dd></div>
+            </dl>
+            <p class="mt-6 text-sm font-medium text-slate-700">@CatalogLabels.PricesIncludeVat</p>
+        </div>
+    </div>
+}
+
+<script>
+    document.querySelectorAll("[data-vnd]").forEach(function (input) {
+        input.addEventListener("focus", function () {
+            input.value = input.value.replace(/VNĐ/gi, "").replace(/đ/gi, "").replace(/\./g, "").replace(/\s/g, "").trim();
+        });
+        input.addEventListener("blur", function () {
+            var text = input.value.trim();
+            if (text === "") {
+                return;
+            }
+            var normalized = text.replace(/\./g, "").replace(",", ".");
+            var number = Number(normalized);
+            if (!Number.isFinite(number)) {
+                return;
+            }
+            var whole = Math.max(0, Math.round(number));
+            input.value = new Intl.NumberFormat("vi-VN").format(whole) + " đ";
+        });
+    });
+</script>

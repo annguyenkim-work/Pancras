@@ -1,0 +1,46 @@
+@page "/nhan-vien/sua/{id:guid}"
+@model Pancras.Web.Pages.Employees.EditModel
+@{
+    ViewData["Title"] = "Sửa nhân viên";
+}
+
+<section class="bg-white rounded-xl border border-slate-200 p-6 max-w-xl">
+    <h1 class="text-lg sm:text-xl font-bold text-slate-900">Sửa nhân viên</h1>
+    @if (Model.Error == EmployeeError.NotFound)
+    {
+        <p class="mt-4 text-xs font-medium text-rose-700">Không tìm thấy hồ sơ nhân viên.</p>
+    }
+    else
+    {
+        <p class="mt-4 text-sm text-slate-700">Mã nhân viên: <span class="font-mono tabular-nums font-bold">@Model.Code</span></p>
+        <form method="post" class="mt-6 space-y-4">
+            <input type="hidden" asp-for="Command.Id" />
+            <div>
+                <label class="block text-sm font-medium text-slate-700" asp-for="Command.FullName">Họ tên</label>
+                <input asp-for="Command.FullName" class="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300" />
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700" asp-for="Command.Password">Mật khẩu</label>
+                <input asp-for="Command.Password" type="password" class="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300" />
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700" asp-for="Command.Role">Vai trò</label>
+                <select asp-for="Command.Role" class="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300">
+                    @foreach (var role in EmployeeRoles.All)
+                    {
+                        <option value="@role">@role</option>
+                    }
+                </select>
+            </div>
+            @if (Model.Error == EmployeeError.ProfileIncomplete)
+            {
+                <p class="text-xs font-medium text-rose-700">Cần nhập họ tên.</p>
+            }
+            else if (Model.Error == EmployeeError.InvalidRole)
+            {
+                <p class="text-xs font-medium text-rose-700">Vai trò không hợp lệ.</p>
+            }
+            <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Lưu</button>
+        </form>
+    }
+</section>

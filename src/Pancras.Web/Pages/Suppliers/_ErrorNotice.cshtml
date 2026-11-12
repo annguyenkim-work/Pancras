@@ -1,0 +1,13 @@
+@model Pancras.Web.Pages.Suppliers.IndexModel
+@if (Model.ErrorMessages.Count > 0)
+{
+    <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3" role="alert">
+        <p class="text-sm font-bold text-rose-800">@Model.ErrorTitle</p>
+        <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-rose-700">
+            @foreach (var message in Model.ErrorMessages)
+            {
+                <li>@message</li>
+            }
+        </ul>
+    </div>
+}

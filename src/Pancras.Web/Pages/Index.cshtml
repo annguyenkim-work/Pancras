@@ -1,0 +1,15 @@
+@page "/"
+@model Pancras.Web.Pages.IndexModel
+@{
+    ViewData["Title"] = "Trang làm việc";
+}
+
+<section class="bg-white rounded-xl border border-slate-200 p-6">
+    <h1 class="text-lg sm:text-xl font-bold text-slate-900">Trang làm việc</h1>
+    <p class="mt-2 text-sm text-slate-600">@Model.EmployeeName</p>
+    <p class="mt-1 text-sm font-medium text-sky-700">@Model.Role</p>
+    @if (Model.Role is "Admin" or "Giám đốc")
+    {
+        <a class="inline-block mt-4 px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg" href="/nhan-vien/them">Thêm nhân viên</a>
+    }
+</section>
