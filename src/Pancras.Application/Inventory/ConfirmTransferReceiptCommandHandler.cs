@@ -1,3 +1,4 @@
+using Pancras.Application.Auditing;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Common;
 using Pancras.Domain.Inventory;
@@ -6,7 +7,10 @@ namespace Pancras.Application.Inventory;
 
 public sealed class ConfirmTransferReceiptCommandHandler(
     IInventoryRepository repository,
-    ILogger<ConfirmTransferReceiptCommandHandler> logger)
+    ILogger<ConfirmTransferReceiptCommandHandler> logger,
+    TimeProvider? clock = null,
+    Pancras.Application.Auditing.IAuditLog? audit = null,
+    Pancras.Application.Auditing.IRequestInfo? request = null)
 {
     public async Task<Result<Guid>> HandleAsync(ConfirmTransferCommand command, CancellationToken cancellationToken)
     {
@@ -66,6 +70,7 @@ public sealed class ConfirmTransferReceiptCommandHandler(
         }
 
         logger.LogInformation("Confirmed receipt {TransferSlipId}.", slip.Id);
+        await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, Pancras.Domain.Auditing.AuditActions.TransferReceived, "transfer_slip", slip.Id.ToString("D"), null, cancellationToken);
         return Result<Guid>.Ok(slip.Id);
     }
 }

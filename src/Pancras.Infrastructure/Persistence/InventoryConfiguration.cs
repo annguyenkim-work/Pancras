@@ -13,7 +13,9 @@ public sealed class StockLocationConfiguration : IEntityTypeConfiguration<StockL
         builder.HasKey(location => location.Id);
         builder.Property(location => location.Name).HasMaxLength(StockLocation.NameMaxLength).IsRequired();
         builder.Property(location => location.Kind).HasConversion<int>().IsRequired();
-        builder.HasIndex(location => location.Name).IsUnique();
+        builder.Property(location => location.IsDeleted).IsRequired();
+        builder.HasQueryFilter(location => !location.IsDeleted);
+        builder.HasIndex(location => location.Name).IsUnique().HasFilter("NOT is_deleted");
     }
 }
 

@@ -92,7 +92,7 @@ public class InventoryScopeTests
     [Fact]
     public async Task KeeperCannotShipFromAnotherLocation_AndSalesCannotShipAtAll()
     {
-        var handler = new CreateTransferSlipCommandHandler(_store, NullLogger<CreateTransferSlipCommandHandler>.Instance);
+        var handler = new CreateAndShipTransferCommandHandler(_store, NullLogger<CreateAndShipTransferCommandHandler>.Instance);
 
         var ok = await handler.HandleAsync(Transfer(TestActors.Keeper(_a.Id), _a.Id, _b.Id), CancellationToken.None);
         var otherSource = await handler.HandleAsync(Transfer(TestActors.Keeper(_a.Id), _b.Id, _a.Id), CancellationToken.None);
@@ -121,7 +121,7 @@ public class InventoryScopeTests
     [Fact]
     public async Task DocumentListsAreScopedAndClosedToSales()
     {
-        var create = new CreateTransferSlipCommandHandler(_store, NullLogger<CreateTransferSlipCommandHandler>.Instance);
+        var create = new CreateAndShipTransferCommandHandler(_store, NullLogger<CreateAndShipTransferCommandHandler>.Instance);
         await create.HandleAsync(Transfer(TestActors.Admin, _a.Id, _b.Id), CancellationToken.None);
         var documents = new ListInventoryDocumentsHandler(_store, NullLogger<ListInventoryDocumentsHandler>.Instance);
         var third = StockLocation.Create("Kho C", StockLocationKind.Warehouse);

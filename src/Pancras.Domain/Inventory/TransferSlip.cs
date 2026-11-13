@@ -4,7 +4,8 @@ public enum TransferStatus
 {
     Draft = 1,
     InTransit = 2,
-    Received = 3
+    Received = 3,
+    Cancelled = 4
 }
 
 public sealed class TransferLine
@@ -138,6 +139,36 @@ public sealed class TransferSlip : Pancras.Domain.Auditing.AuditStamped
         }
 
         Status = TransferStatus.Received;
+        return true;
+    }
+
+    /// <summary>Hủy phiếu đang chuyển: hoàn hàng về kho nguồn, bỏ phần đang chuyển ở kho đích.</summary>
+    public bool TryCancel(
+        IReadOnlyDictionary<Guid, StockBalance> sources,
+        IReadOnlyDictionary<Guid, StockBalance> destinations)
+    {
+        if (Status != TransferStatus.InTransit)
+        {
+            return false;
+        }
+
+        foreach (var (itemId, quantity) in Totals())
+        {
+            if (!sources.ContainsKey(itemId) || !destinations.TryGetValue(itemId, out var destination) || destination.InTransit < quantity)
+            {
+                return false;
+            }
+        }
+
+        foreach (var (itemId, quantity) in Totals())
+        {
+            if (!destinations[itemId].TryRemoveInTransit(quantity) || !sources[itemId].TryAddOnHand(quantity))
+            {
+                throw new InvalidOperationException("Cancel precheck did not hold.");
+            }
+        }
+
+        Status = TransferStatus.Cancelled;
         return true;
     }
 

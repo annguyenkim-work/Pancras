@@ -91,112 +91,111 @@
 }
 else
 {
-    <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        @foreach (var card in Model.Cards)
-        {
-            var signedIn = string.Equals(card.Code, Model.SignedInCode, StringComparison.OrdinalIgnoreCase);
-            <article class="flex flex-col bg-white rounded-xl border border-slate-200 p-5 shadow-sm @(card.IsActive ? "" : "opacity-70")">
-                <div class="flex items-start justify-between gap-3">
-                    <div>
-                        <h2 class="text-sm font-bold text-slate-900">@card.FullName</h2>
-                        <p class="mt-1 font-mono text-xs font-medium tracking-wide text-slate-500">@card.Code</p>
-                    </div>
-                    <div class="flex shrink-0 flex-col items-end gap-1">
-                        <span class="rounded-md bg-sky-50 px-2 py-1 text-xs font-medium text-sky-700">@card.Role</span>
-                        @if (!card.IsActive)
-                        {
-                            <span class="rounded-md bg-slate-200 px-2 py-1 text-xs font-medium text-slate-700">Đã vô hiệu hóa</span>
-                        }
-                        @if (Model.IsLocked(card))
-                        {
-                            <span class="rounded-md bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800">Bị khóa tạm</span>
-                        }
-                        @if (card.TwoFactorEnabled)
-                        {
-                            <span class="rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">2FA bật</span>
-                        }
-                    </div>
-                </div>
-                @{
-                    var details = new (string Label, string? Value)[]
-                    {
-                        ("Kho/showroom", string.IsNullOrWhiteSpace(card.LocationName) ? null : card.LocationName),
-                        ("Email", card.Email),
-                        ("Điện thoại", card.Phone),
-                        ("Địa chỉ", card.Address),
-                        ("Chức vụ", card.JobTitle),
-                        ("Phòng ban", card.Department)
-                    }.Where(d => !string.IsNullOrWhiteSpace(d.Value)).ToList();
-                }
-                @if (details.Count == 0)
+    <div class="mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <table class="w-full min-w-[64rem] text-left text-sm">
+            <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                    <th class="px-3 py-3 font-semibold">Nhân viên</th>
+                    <th class="px-3 py-3 font-semibold">Vai trò</th>
+                    <th class="px-3 py-3 font-semibold">Kho/showroom</th>
+                    <th class="px-3 py-3 font-semibold">Liên hệ</th>
+                    <th class="px-3 py-3 font-semibold">Chức vụ / Phòng ban</th>
+                    <th class="px-3 py-3 text-right font-semibold">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var card in Model.Cards)
                 {
-                    <p class="mt-4 text-sm text-slate-500">Chưa có thông tin liên hệ.</p>
-                }
-                else
-                {
-                    <dl class="mt-4 space-y-2 text-sm">
-                        @foreach (var d in details)
-                        {
-                            <div class="grid grid-cols-[6.5rem_1fr] gap-3">
-                                <dt class="text-slate-500">@d.Label</dt>
-                                <dd class="break-words text-right text-slate-800">@d.Value</dd>
+                    var signedIn = string.Equals(card.Code, Model.SignedInCode, StringComparison.OrdinalIgnoreCase);
+                    <tr class="border-t border-slate-100 align-top hover:bg-slate-50 @(card.IsActive ? "" : "opacity-70")">
+                        <td class="px-3 py-3">
+                            <p class="font-bold text-slate-900">@card.FullName</p>
+                            <p class="font-mono text-xs font-medium tracking-wide text-slate-500">@card.Code</p>
+                            @if (signedIn)
+                            {
+                                <p class="text-xs font-medium text-emerald-700">Đang đăng nhập</p>
+                            }
+                            <partial name="_AuditStamp" model="card.Stamp" />
+                        </td>
+                        <td class="px-3 py-3">
+                            <div class="flex flex-wrap gap-1">
+                                <span class="rounded-md bg-sky-50 px-2 py-1 text-xs font-medium text-sky-700">@card.Role</span>
+                                @if (!card.IsActive)
+                                {
+                                    <span class="rounded-md bg-slate-200 px-2 py-1 text-xs font-medium text-slate-700">Đã vô hiệu hóa</span>
+                                }
+                                @if (Model.IsLocked(card))
+                                {
+                                    <span class="rounded-md bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800">Bị khóa tạm</span>
+                                }
+                                @if (card.TwoFactorEnabled)
+                                {
+                                    <span class="rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">2FA bật</span>
+                                }
                             </div>
-                        }
-                    </dl>
+                        </td>
+                        <td class="px-3 py-3 text-slate-700">@(string.IsNullOrWhiteSpace(card.LocationName) ? "—" : card.LocationName)</td>
+                        <td class="px-3 py-3 text-slate-700">
+                            <p class="break-all">@(string.IsNullOrWhiteSpace(card.Email) ? "—" : card.Email)</p>
+                            <p class="font-mono text-xs tabular-nums">@card.Phone</p>
+                            @if (!string.IsNullOrWhiteSpace(card.Address))
+                            {
+                                <p class="text-xs text-slate-500">@card.Address</p>
+                            }
+                        </td>
+                        <td class="px-3 py-3 text-slate-700">
+                            <p>@(string.IsNullOrWhiteSpace(card.JobTitle) ? "—" : card.JobTitle)</p>
+                            @if (!string.IsNullOrWhiteSpace(card.Department))
+                            {
+                                <p class="text-xs text-slate-500">@card.Department</p>
+                            }
+                        </td>
+                        <td class="px-3 py-3">
+                            <div class="flex flex-wrap items-center justify-end gap-2">
+                            @if (Model.CanResetPassword && Model.IsLocked(card))
+                            {
+                                <form method="post" asp-page-handler="Unlock">
+                                    <input type="hidden" name="id" value="@card.Id" />
+                                    <input type="hidden" name="q" value="@Model.Search" />
+                                    <input type="hidden" name="role" value="@Model.Role" />
+                                    <input type="hidden" name="location" value="@Model.LocationFilter" />
+                                    <input type="hidden" name="pageNumber" value="@Model.PageNumber" />
+                                    <button type="submit" class="px-3 py-1.5 text-sm font-medium rounded-lg text-amber-700 hover:bg-amber-50">Mở khóa</button>
+                                </form>
+                            }
+                            @if (Model.CanResetPassword && card.TwoFactorEnabled)
+                            {
+                                <form method="post" asp-page-handler="ResetTwoFactor" onsubmit="return confirm('Tắt xác thực hai bước của nhân viên này? Họ sẽ đăng nhập chỉ bằng mật khẩu cho tới khi bật lại.');">
+                                    <input type="hidden" name="id" value="@card.Id" />
+                                    <input type="hidden" name="q" value="@Model.Search" />
+                                    <input type="hidden" name="role" value="@Model.Role" />
+                                    <input type="hidden" name="location" value="@Model.LocationFilter" />
+                                    <input type="hidden" name="pageNumber" value="@Model.PageNumber" />
+                                    <button type="submit" class="px-3 py-1.5 text-sm font-medium rounded-lg text-slate-700 hover:bg-slate-100">Tắt 2FA</button>
+                                </form>
+                            }
+                            @if (Model.CanToggle(card))
+                            {
+                                <form method="post" asp-page-handler="SetActive" onsubmit="return @(card.IsActive ? "confirm('Xóa nhân viên này? Hồ sơ được vô hiệu hóa và có thể kích hoạt lại.')" : "true");">
+                                    <input type="hidden" name="id" value="@card.Id" />
+                                    <input type="hidden" name="active" value="@(card.IsActive ? "false" : "true")" />
+                                    <input type="hidden" name="q" value="@Model.Search" />
+                                    <input type="hidden" name="role" value="@Model.Role" />
+                                    <input type="hidden" name="location" value="@Model.LocationFilter" />
+                                    <input type="hidden" name="pageNumber" value="@Model.PageNumber" />
+                                    <button type="submit" class="px-3 py-1.5 text-sm font-medium rounded-lg @(card.IsActive ? "text-rose-700 hover:bg-rose-50" : "text-emerald-700 hover:bg-emerald-50")">@(card.IsActive ? "Xóa" : "Kích hoạt lại")</button>
+                                </form>
+                            }
+                            @if (Model.CanEdit(card))
+                            {
+                                <a class="px-3 py-1.5 text-sm font-bold rounded-lg bg-slate-100 text-slate-700" href="@Model.EditUrl(card.Id)">Sửa</a>
+                            }
+                            </div>
+                        </td>
+                    </tr>
                 }
-                <partial name="_AuditStamp" model="card.Stamp" />
-                <div class="mt-auto flex items-center justify-between gap-3 pt-4">
-                    @if (signedIn)
-                    {
-                        <p class="text-sm font-medium text-emerald-700">Đang đăng nhập</p>
-                    }
-                    else
-                    {
-                        <span></span>
-                    }
-                    <div class="flex flex-wrap items-center justify-end gap-2">
-                        @if (Model.CanResetPassword && Model.IsLocked(card))
-                        {
-                            <form method="post" asp-page-handler="Unlock">
-                                <input type="hidden" name="id" value="@card.Id" />
-                                <input type="hidden" name="q" value="@Model.Search" />
-                                <input type="hidden" name="role" value="@Model.Role" />
-                                <input type="hidden" name="location" value="@Model.LocationFilter" />
-                                <input type="hidden" name="pageNumber" value="@Model.PageNumber" />
-                                <button type="submit" class="px-3 py-1.5 text-sm font-medium rounded-lg text-amber-700 hover:bg-amber-50">Mở khóa</button>
-                            </form>
-                        }
-                        @if (Model.CanResetPassword && card.TwoFactorEnabled)
-                        {
-                            <form method="post" asp-page-handler="ResetTwoFactor" onsubmit="return confirm('Tắt xác thực hai bước của nhân viên này? Họ sẽ đăng nhập chỉ bằng mật khẩu cho tới khi bật lại.');">
-                                <input type="hidden" name="id" value="@card.Id" />
-                                <input type="hidden" name="q" value="@Model.Search" />
-                                <input type="hidden" name="role" value="@Model.Role" />
-                                <input type="hidden" name="location" value="@Model.LocationFilter" />
-                                <input type="hidden" name="pageNumber" value="@Model.PageNumber" />
-                                <button type="submit" class="px-3 py-1.5 text-sm font-medium rounded-lg text-slate-700 hover:bg-slate-100">Tắt 2FA</button>
-                            </form>
-                        }
-                        @if (Model.CanToggle(card))
-                        {
-                            <form method="post" asp-page-handler="SetActive">
-                                <input type="hidden" name="id" value="@card.Id" />
-                                <input type="hidden" name="active" value="@(card.IsActive ? "false" : "true")" />
-                                <input type="hidden" name="q" value="@Model.Search" />
-                                <input type="hidden" name="role" value="@Model.Role" />
-                                <input type="hidden" name="location" value="@Model.LocationFilter" />
-                                <input type="hidden" name="pageNumber" value="@Model.PageNumber" />
-                                <button type="submit" class="px-3 py-1.5 text-sm font-medium rounded-lg @(card.IsActive ? "text-rose-700 hover:bg-rose-50" : "text-emerald-700 hover:bg-emerald-50")">@(card.IsActive ? "Vô hiệu hóa" : "Kích hoạt lại")</button>
-                            </form>
-                        }
-                        @if (Model.CanEdit(card))
-                        {
-                            <a class="px-3 py-1.5 text-sm font-bold rounded-lg bg-slate-100 text-slate-700" href="@Model.EditUrl(card.Id)">Sửa hồ sơ</a>
-                        }
-                    </div>
-                </div>
-            </article>
-        }
+            </tbody>
+        </table>
     </div>
     @if (Model.PageCount > 1)
     {

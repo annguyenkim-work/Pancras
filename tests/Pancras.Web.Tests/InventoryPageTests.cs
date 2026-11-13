@@ -99,8 +99,12 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
     {
         using var client = _factory.CreateClient(NoRedirect);
         var inventory = Reset();
-        var source = Guid.CreateVersion7();
-        var destination = Guid.CreateVersion7();
+        var sourceLocation = StockLocation.Create("Kho A", StockLocationKind.Warehouse);
+        var destinationLocation = StockLocation.Create("Kho B", StockLocationKind.Warehouse);
+        inventory.Locations.Add(sourceLocation);
+        inventory.Locations.Add(destinationLocation);
+        var source = sourceLocation.Id;
+        var destination = destinationLocation.Id;
         var item = Guid.CreateVersion7();
         var here = StockBalance.Create(item, source, 10, 0, 0);
         inventory.Balances.Add(here);
@@ -134,6 +138,7 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
     {
         var inventory = _factory.Services.GetRequiredService<InventoryDirectoryDouble>();
         inventory.Rows.Clear();
+        inventory.Locations.Clear();
         var employees = _factory.Services.GetRequiredService<FakeEmployeeRepository>();
         employees.Employees.Clear();
         return inventory;
@@ -172,12 +177,14 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
 
     public List<StockBalance> Balances { get; } = [];
 
+    public List<StockLocation> Locations { get; } = [];
+
     public List<TransferSlip> Transfers { get; } = [];
 
     public List<StockMovement> Movements { get; } = [];
 
     public Task<IReadOnlyList<StockLocation>> ListLocationsAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<StockLocation>>([]);
+        Task.FromResult<IReadOnlyList<StockLocation>>(Locations.ToArray());
 
     public Task<IReadOnlyList<StockItemChoice>> ListItemChoicesAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<StockItemChoice>>([]);

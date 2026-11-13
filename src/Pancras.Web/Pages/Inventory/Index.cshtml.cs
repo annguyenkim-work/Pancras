@@ -17,9 +17,8 @@ public class IndexModel(
     ListStockBalancesHandler listHandler,
     ListInventoryDocumentsHandler documentsHandler,
     GetStockItemDetailHandler detailHandler,
-    CreateTransferSlipCommandHandler createTransferHandler,
     CreateAndShipTransferCommandHandler createAndShipHandler,
-    ConfirmTransferShipmentCommandHandler shipmentHandler,
+    CancelTransferCommandHandler cancelTransferHandler,
     ConfirmTransferReceiptCommandHandler receiptHandler,
     CreateStocktakeCommandHandler createStocktakeHandler,
     ApproveStocktakeCommandHandler approveStocktakeHandler,
@@ -197,31 +196,12 @@ public class IndexModel(
         }
 
         // CreateAndShipTransferCommandHandler đã tạo phiếu và xuất kho trong một transaction (phiếu đã ở trạng thái đang chuyển).
-        // Không gọi thêm ConfirmTransferShipmentCommandHandler: nó chỉ nhận phiếu nháp và sẽ báo lỗi dù hàng đã xuất.
         View = "transfers";
         return Redirect(PageUrl(includeItem: false));
     }
 
-    public Task<IActionResult> OnPostCreateTransferAsync(CancellationToken cancellationToken) =>
-        SaveAsync(
-            createTransferHandler.HandleAsync(
-                new CreateTransferSlipCommand
-                {
-                    SourceLocationId = Transfer.SourceLocationId,
-                    DestinationLocationId = Transfer.DestinationLocationId,
-                    Note = Transfer.Note,
-                    Actor = Actor,
-                    Lines = (Transfer.Lines ?? [])
-                        .Where(line => line.CatalogItemId != Guid.Empty && line.Quantity > 0)
-                        .Select(line => new TransferLineInput(line.CatalogItemId, line.Quantity))
-                        .ToArray()
-                },
-                cancellationToken),
-            "transfers",
-            cancellationToken);
-
-    public Task<IActionResult> OnPostConfirmShipmentAsync(CancellationToken cancellationToken) =>
-        SaveAsync(shipmentHandler.HandleAsync(new ConfirmTransferCommand(DocumentId, Actor), cancellationToken), "transfers", cancellationToken);
+    public Task<IActionResult> OnPostCancelTransferAsync(CancellationToken cancellationToken) =>
+        SaveAsync(cancelTransferHandler.HandleAsync(new ConfirmTransferCommand(DocumentId, Actor), cancellationToken), "transfers", cancellationToken);
 
     public Task<IActionResult> OnPostConfirmReceiptAsync(CancellationToken cancellationToken) =>
         SaveAsync(receiptHandler.HandleAsync(new ConfirmTransferCommand(DocumentId, Actor), cancellationToken), "transfers", cancellationToken);

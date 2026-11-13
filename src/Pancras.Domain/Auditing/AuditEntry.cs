@@ -88,6 +88,11 @@ public static class AuditActions
     public const string EmployeeDeactivated = "employee.deactivated";
     public const string EmployeeUnlocked = "employee.unlocked";
     public const string LocationCreated = "location.created";
+    public const string LocationUpdated = "location.updated";
+    public const string LocationDeleted = "location.deleted";
+    public const string TransferShipped = "stock.transfer_shipped";
+    public const string TransferReceived = "stock.transfer_received";
+    public const string TransferCancelled = "stock.transfer_cancelled";
     public const string StocktakeApproved = "stock.stocktake_approved";
     public const string AdjustmentApproved = "stock.adjustment_approved";
     public const string DisposalApproved = "stock.disposal_approved";

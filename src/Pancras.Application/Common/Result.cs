@@ -111,6 +111,7 @@ public enum StockError
     InvalidTransfer,
     ShipmentRejected,
     ReceiptRejected,
+    CancelRejected,
     MissingEvidence,
     NegativeStock,
     ApprovalForbidden,

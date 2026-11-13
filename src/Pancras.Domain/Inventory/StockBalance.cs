@@ -81,6 +81,18 @@ public sealed class StockBalance
         return true;
     }
 
+    public bool TryRemoveInTransit(int quantity)
+    {
+        if (quantity <= 0 || InTransit < quantity)
+        {
+            return false;
+        }
+
+        InTransit -= quantity;
+        Version++;
+        return true;
+    }
+
     public bool TryReceiveTransfer(int quantity)
     {
         if (quantity <= 0 || InTransit < quantity || (long)OnHand + quantity > int.MaxValue)

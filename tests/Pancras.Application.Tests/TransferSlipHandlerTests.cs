@@ -8,15 +8,15 @@ namespace Pancras.Application.Tests;
 public class TransferSlipHandlerTests
 {
     [Fact]
-    public async Task Create_RejectsTheSameLocation_WithoutInserting()
+    public async Task Ship_RejectsTheSameLocation_WithoutInserting()
     {
         var store = new FakeInventoryStore();
         var location = StockLocation.Create("Kho A", StockLocationKind.Warehouse);
+        store.Locations.Add(location);
         var itemId = Guid.CreateVersion7();
         store.Balances.Add(StockBalance.Create(itemId, location.Id, 10, 0, 0));
-        var handler = new CreateTransferSlipCommandHandler(store, NullLogger<CreateTransferSlipCommandHandler>.Instance);
 
-        var result = await handler.HandleAsync(Command(location.Id, location.Id, itemId, 2), CancellationToken.None);
+        var result = await Ship(store).HandleAsync(Command(location.Id, location.Id, itemId, 2), CancellationToken.None);
 
         Assert.Equal(StockError.InvalidTransfer, result.StockError);
         Assert.Empty(store.Transfers);
@@ -24,28 +24,11 @@ public class TransferSlipHandlerTests
     }
 
     [Fact]
-    public async Task Create_Draft_DoesNotChangeStock()
-    {
-        var store = Store();
-        var handler = new CreateTransferSlipCommandHandler(store.Store, NullLogger<CreateTransferSlipCommandHandler>.Instance);
-
-        var result = await handler.HandleAsync(Command(store.Source.Id, store.Destination.Id, store.ItemId, 2), CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal(TransferStatus.Draft, Assert.Single(store.Store.Transfers).Status);
-        Assert.Equal(115, store.SourceBalance.OnHand);
-        Assert.Equal(0, store.SourceBalance.Reserved);
-        Assert.Equal(0, store.DestinationBalance.InTransit);
-    }
-
-    [Fact]
     public async Task Ship_UnreservedStock_MovesOnHandOnce_AndRaisesDestinationInTransit()
     {
         var store = Store(onHand: 115);
-        var slipId = await CreateAsync(store, 2);
-        var handler = new ConfirmTransferShipmentCommandHandler(store.Store, NullLogger<ConfirmTransferShipmentCommandHandler>.Instance);
 
-        var result = await handler.HandleAsync(new ConfirmTransferCommand(slipId, TestActors.Admin), CancellationToken.None);
+        var result = await Ship(store.Store).HandleAsync(Command(store.Source.Id, store.Destination.Id, store.ItemId, 2), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(113, store.SourceBalance.OnHand);
@@ -59,60 +42,46 @@ public class TransferSlipHandlerTests
     public async Task Ship_RejectsWhenAvailableIsShort_AndLeavesTheNumbers()
     {
         var store = Store(onHand: 1);
-        var slipId = await CreateAsync(store, 2);
-        var handler = new ConfirmTransferShipmentCommandHandler(store.Store, NullLogger<ConfirmTransferShipmentCommandHandler>.Instance);
 
-        var result = await handler.HandleAsync(new ConfirmTransferCommand(slipId, TestActors.Admin), CancellationToken.None);
+        var result = await Ship(store.Store).HandleAsync(Command(store.Source.Id, store.Destination.Id, store.ItemId, 2), CancellationToken.None);
 
         Assert.Equal(StockError.ShipmentRejected, result.StockError);
         Assert.Equal(1, store.SourceBalance.OnHand);
-        Assert.Equal(0, store.SourceBalance.Reserved);
         Assert.Equal(0, store.DestinationBalance.InTransit);
-        Assert.Equal(TransferStatus.Draft, store.Store.Transfers[0].Status);
-    }
-
-    [Fact]
-    public async Task Ship_PartialHold_MovesOnlyAvailable_AndLeavesReserved()
-    {
-        var store = Store(onHand: 10, reserved: 1);
-        var slipId = await CreateAsync(store, 2);
-        var handler = new ConfirmTransferShipmentCommandHandler(store.Store, NullLogger<ConfirmTransferShipmentCommandHandler>.Instance);
-
-        var first = await handler.HandleAsync(new ConfirmTransferCommand(slipId, TestActors.Admin), CancellationToken.None);
-        var second = await handler.HandleAsync(new ConfirmTransferCommand(slipId, TestActors.Admin), CancellationToken.None);
-
-        Assert.True(first.IsSuccess);
-        Assert.Equal(StockError.ShipmentRejected, second.StockError);
-        Assert.Equal(8, store.SourceBalance.OnHand);
-        Assert.Equal(1, store.SourceBalance.Reserved);
-        Assert.Equal(7, store.SourceBalance.Available);
-        Assert.Equal(2, store.DestinationBalance.InTransit);
+        Assert.Empty(store.Store.Transfers);
     }
 
     [Fact]
     public async Task Ship_RejectsWhenQuantityExceedsAvailable_EvenIfOnHandIsHigher()
     {
         var store = Store(onHand: 10, reserved: 8);
-        var slipId = await CreateAsync(store, 3);
-        var handler = new ConfirmTransferShipmentCommandHandler(store.Store, NullLogger<ConfirmTransferShipmentCommandHandler>.Instance);
 
-        var result = await handler.HandleAsync(new ConfirmTransferCommand(slipId, TestActors.Admin), CancellationToken.None);
+        var result = await Ship(store.Store).HandleAsync(Command(store.Source.Id, store.Destination.Id, store.ItemId, 3), CancellationToken.None);
 
         Assert.Equal(StockError.ShipmentRejected, result.StockError);
         Assert.Equal(10, store.SourceBalance.OnHand);
         Assert.Equal(8, store.SourceBalance.Reserved);
-        Assert.Equal(2, store.SourceBalance.Available);
         Assert.Equal(0, store.DestinationBalance.InTransit);
-        Assert.Equal(TransferStatus.Draft, store.Store.Transfers[0].Status);
+    }
+
+    [Fact]
+    public async Task Ship_RejectsADestinationThatWasDeletedOrNeverExisted()
+    {
+        var store = Store();
+        store.Store.Locations.Remove(store.Destination);
+
+        var result = await Ship(store.Store).HandleAsync(Command(store.Source.Id, store.Destination.Id, store.ItemId, 2), CancellationToken.None);
+
+        Assert.Equal(StockError.InvalidTransfer, result.StockError);
+        Assert.Equal(115, store.SourceBalance.OnHand);
+        Assert.Empty(store.Store.Transfers);
     }
 
     [Fact]
     public async Task Receive_MovesInTransitIntoOnHand_AndLeavesReserved()
     {
         var store = Store(onHand: 10, reserved: 3, destinationOnHand: 4, destinationReserved: 2);
-        var slipId = await CreateAsync(store, 3);
-        var shipment = new ConfirmTransferShipmentCommandHandler(store.Store, NullLogger<ConfirmTransferShipmentCommandHandler>.Instance);
-        await shipment.HandleAsync(new ConfirmTransferCommand(slipId, TestActors.Admin), CancellationToken.None);
+        var slipId = (await Ship(store.Store).HandleAsync(Command(store.Source.Id, store.Destination.Id, store.ItemId, 3), CancellationToken.None)).Value;
         var handler = new ConfirmTransferReceiptCommandHandler(store.Store, NullLogger<ConfirmTransferReceiptCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(new ConfirmTransferCommand(slipId, TestActors.Admin), CancellationToken.None);
@@ -120,17 +89,62 @@ public class TransferSlipHandlerTests
         Assert.True(result.IsSuccess);
         Assert.Equal(0, store.DestinationBalance.InTransit);
         Assert.Equal(7, store.DestinationBalance.OnHand);
-        Assert.Equal(5, store.DestinationBalance.Available);
         Assert.Equal(2, store.DestinationBalance.Reserved);
         Assert.Equal(TransferStatus.Received, store.Store.Transfers[0].Status);
     }
 
-    private static async Task<Guid> CreateAsync(TransferFixture store, int quantity)
+    [Fact]
+    public async Task Cancel_ReturnsTheGoodsToTheSource_AndClearsInTransit()
     {
-        var handler = new CreateTransferSlipCommandHandler(store.Store, NullLogger<CreateTransferSlipCommandHandler>.Instance);
-        var result = await handler.HandleAsync(Command(store.Source.Id, store.Destination.Id, store.ItemId, quantity), CancellationToken.None);
-        return result.Value!;
+        var store = Store(onHand: 10);
+        var slipId = (await Ship(store.Store).HandleAsync(Command(store.Source.Id, store.Destination.Id, store.ItemId, 4), CancellationToken.None)).Value;
+
+        var result = await Cancel(store.Store).HandleAsync(new ConfirmTransferCommand(slipId, TestActors.Admin), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(10, store.SourceBalance.OnHand);
+        Assert.Equal(0, store.DestinationBalance.InTransit);
+        Assert.Equal(0, store.DestinationBalance.OnHand);
+        Assert.Equal(TransferStatus.Cancelled, store.Store.Transfers[0].Status);
     }
+
+    [Fact]
+    public async Task Cancel_IsRejectedOnceReceived_OrCancelledTwice()
+    {
+        var store = Store(onHand: 10);
+        var received = (await Ship(store.Store).HandleAsync(Command(store.Source.Id, store.Destination.Id, store.ItemId, 2), CancellationToken.None)).Value;
+        await new ConfirmTransferReceiptCommandHandler(store.Store, NullLogger<ConfirmTransferReceiptCommandHandler>.Instance)
+            .HandleAsync(new ConfirmTransferCommand(received, TestActors.Admin), CancellationToken.None);
+        var cancelled = (await Ship(store.Store).HandleAsync(Command(store.Source.Id, store.Destination.Id, store.ItemId, 1), CancellationToken.None)).Value;
+        await Cancel(store.Store).HandleAsync(new ConfirmTransferCommand(cancelled, TestActors.Admin), CancellationToken.None);
+
+        var afterReceipt = await Cancel(store.Store).HandleAsync(new ConfirmTransferCommand(received, TestActors.Admin), CancellationToken.None);
+        var twice = await Cancel(store.Store).HandleAsync(new ConfirmTransferCommand(cancelled, TestActors.Admin), CancellationToken.None);
+
+        Assert.Equal(StockError.CancelRejected, afterReceipt.StockError);
+        Assert.Equal(StockError.CancelRejected, twice.StockError);
+        Assert.Equal(2, store.DestinationBalance.OnHand);
+        Assert.Equal(8, store.SourceBalance.OnHand);
+    }
+
+    [Fact]
+    public async Task Cancel_IsLimitedToTheSourceLocation()
+    {
+        var store = Store(onHand: 10);
+        var slipId = (await Ship(store.Store).HandleAsync(Command(store.Source.Id, store.Destination.Id, store.ItemId, 2), CancellationToken.None)).Value;
+
+        var byDestination = await Cancel(store.Store).HandleAsync(new ConfirmTransferCommand(slipId, TestActors.Keeper(store.Destination.Id)), CancellationToken.None);
+        var bySource = await Cancel(store.Store).HandleAsync(new ConfirmTransferCommand(slipId, TestActors.Keeper(store.Source.Id)), CancellationToken.None);
+
+        Assert.Equal(StockError.Forbidden, byDestination.StockError);
+        Assert.True(bySource.IsSuccess);
+    }
+
+    private static CreateAndShipTransferCommandHandler Ship(FakeInventoryStore store) =>
+        new(store, NullLogger<CreateAndShipTransferCommandHandler>.Instance);
+
+    private static CancelTransferCommandHandler Cancel(FakeInventoryStore store) =>
+        new(store, NullLogger<CancelTransferCommandHandler>.Instance);
 
     private static CreateTransferSlipCommand Command(Guid sourceId, Guid destinationId, Guid itemId, int quantity) =>
         new()

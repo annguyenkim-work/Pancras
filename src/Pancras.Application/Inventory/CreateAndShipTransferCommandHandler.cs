@@ -1,3 +1,4 @@
+using Pancras.Application.Auditing;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Common;
 using Pancras.Domain.Inventory;
@@ -6,7 +7,10 @@ namespace Pancras.Application.Inventory;
 
 public sealed class CreateAndShipTransferCommandHandler(
     IInventoryRepository repository,
-    ILogger<CreateAndShipTransferCommandHandler> logger)
+    ILogger<CreateAndShipTransferCommandHandler> logger,
+    TimeProvider? clock = null,
+    Pancras.Application.Auditing.IAuditLog? audit = null,
+    Pancras.Application.Auditing.IRequestInfo? request = null)
 {
     public async Task<Result<Guid>> HandleAsync(CreateTransferSlipCommand command, CancellationToken cancellationToken)
     {
@@ -23,6 +27,13 @@ public sealed class CreateAndShipTransferCommandHandler(
         if (slip is null)
         {
             logger.LogWarning("Transfer slip was rejected for {StockLocationId}.", command.SourceLocationId);
+            return Result<Guid>.Fail(StockError.InvalidTransfer);
+        }
+
+        var knownLocations = (await repository.ListLocationsAsync(cancellationToken)).Select(location => location.Id).ToHashSet();
+        if (!knownLocations.Contains(slip.SourceLocationId) || !knownLocations.Contains(slip.DestinationLocationId))
+        {
+            logger.LogWarning("Transfer rejected: unknown or deleted location for {StockLocationId}.", slip.SourceLocationId);
             return Result<Guid>.Fail(StockError.InvalidTransfer);
         }
 
@@ -87,6 +98,7 @@ public sealed class CreateAndShipTransferCommandHandler(
         }
 
         logger.LogInformation("Created and shipped transfer {TransferSlipId}.", slip.Id);
+        await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, Pancras.Domain.Auditing.AuditActions.TransferShipped, "transfer_slip", slip.Id.ToString("D"), null, cancellationToken);
         return Result<Guid>.Ok(slip.Id);
     }
 }

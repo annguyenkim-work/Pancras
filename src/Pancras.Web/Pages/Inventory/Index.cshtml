@@ -189,7 +189,7 @@
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div class="flex items-center gap-2">
                             <span class="font-mono text-sm font-bold text-slate-900">@StockLabels.DocumentCode("CK", slip.Id)</span>
-                            <span class="rounded-full px-2 py-0.5 text-xs font-bold @(slip.Status == TransferStatus.InTransit ? "bg-amber-100 text-amber-800" : slip.Status == TransferStatus.Received ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600")">@StockLabels.TransferPill(slip.Status)</span>
+                            <span class="rounded-full px-2 py-0.5 text-xs font-bold @(slip.Status == TransferStatus.InTransit ? "bg-amber-100 text-amber-800" : slip.Status == TransferStatus.Received ? "bg-emerald-100 text-emerald-800" : slip.Status == TransferStatus.Cancelled ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-600")">@StockLabels.TransferPill(slip.Status)</span>
                         </div>
                         @if (!string.IsNullOrEmpty(when))
                         {
@@ -235,21 +235,20 @@
                     {
                         <p class="mt-3 text-sm text-slate-600">Ghi chú: @slip.Note</p>
                     }
-                    @if (slip.Status == TransferStatus.Draft)
-                    {
-                        <form method="post" action="/inventory?handler=ConfirmShipment" class="mt-4 flex justify-end">
-                            <input type="hidden" name="DocumentId" value="@slip.Id" />
-                            <input type="hidden" name="view" value="transfers" />
-                            <button type="submit" class="rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white">Xác nhận xuất</button>
-                        </form>
-                    }
                     @if (slip.Status == TransferStatus.InTransit)
                     {
-                        <form method="post" action="/inventory?handler=ConfirmReceipt" class="mt-4 flex justify-end">
-                            <input type="hidden" name="DocumentId" value="@slip.Id" />
-                            <input type="hidden" name="view" value="transfers" />
-                            <button type="submit" class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white">Xác Nhận Đã Nhận Hàng &amp; Nhập Kho</button>
-                        </form>
+                        <div class="mt-4 flex flex-wrap justify-end gap-2">
+                            <form method="post" action="/inventory?handler=CancelTransfer" onsubmit="return confirm('Hủy phiếu chuyển này? Hàng sẽ được hoàn về kho nguồn.');">
+                                <input type="hidden" name="DocumentId" value="@slip.Id" />
+                                <input type="hidden" name="view" value="transfers" />
+                                <button type="submit" class="rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-bold text-rose-700">Hủy phiếu</button>
+                            </form>
+                            <form method="post" action="/inventory?handler=ConfirmReceipt">
+                                <input type="hidden" name="DocumentId" value="@slip.Id" />
+                                <input type="hidden" name="view" value="transfers" />
+                                <button type="submit" class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white">Xác Nhận Đã Nhận Hàng &amp; Nhập Kho</button>
+                            </form>
+                        </div>
                     }
                 </article>
             }

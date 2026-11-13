@@ -9,7 +9,11 @@ using Pancras.Web.Security;
 namespace Pancras.Web.Pages.Locations;
 
 [Authorize(Roles = LocationAccess.ViewRoles)]
-public class IndexModel(ListLocationsHandler list, CreateLocationCommandHandler create) : PageModel
+public class IndexModel(
+    ListLocationsHandler list,
+    CreateLocationCommandHandler create,
+    UpdateLocationCommandHandler update,
+    DeleteLocationCommandHandler delete) : PageModel
 {
     public IReadOnlyList<StockLocation> Locations { get; private set; } = [];
 
@@ -29,10 +33,28 @@ public class IndexModel(ListLocationsHandler list, CreateLocationCommandHandler 
     [BindProperty]
     public CreateLocationCommand Command { get; set; } = new();
 
-    public async Task OnGetAsync(string? form, CancellationToken cancellationToken)
+    public Guid? EditId { get; private set; }
+
+    public string? ManageError { get; private set; }
+
+    [BindProperty]
+    public UpdateLocationCommand Edit { get; set; } = new();
+
+    public async Task OnGetAsync(string? form, string? edit, CancellationToken cancellationToken)
     {
         ShowForm = form == "1" && CanManage;
         Notice = TempData["LocationCreated"] as string;
+        if (CanManage && Guid.TryParse(edit, out var editId))
+        {
+            await LoadAsync(cancellationToken);
+            var target = Locations.FirstOrDefault(location => location.Id == editId);
+            if (target is not null)
+            {
+                EditId = editId;
+                Edit = new UpdateLocationCommand { Id = editId, Name = target.Name, Kind = target.Kind };
+            }
+        }
+
         await LoadAsync(cancellationToken);
     }
 
@@ -48,6 +70,28 @@ public class IndexModel(ListLocationsHandler list, CreateLocationCommandHandler 
         }
 
         TempData["LocationCreated"] = "Đã thêm kho/showroom.";
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostUpdateAsync(CancellationToken cancellationToken)
+    {
+        var error = await update.HandleAsync(Edit, User.ToActor(), cancellationToken);
+        if (error != LocationManageError.None)
+        {
+            ManageError = ManageErrorText(error);
+            EditId = Edit.Id;
+            await LoadAsync(cancellationToken);
+            return Page();
+        }
+
+        TempData["LocationCreated"] = "Đã cập nhật kho/showroom.";
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostDeleteAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var error = await delete.HandleAsync(id, User.ToActor(), cancellationToken);
+        TempData["LocationCreated"] = error == LocationManageError.None ? "Đã xóa kho/showroom." : ManageErrorText(error);
         return RedirectToPage();
     }
 
@@ -69,6 +113,19 @@ public class IndexModel(ListLocationsHandler list, CreateLocationCommandHandler 
         LocationError.InvalidKind => "Loại không hợp lệ.",
         LocationError.DuplicateName => "Đã có kho/showroom trùng tên.",
         _ => string.Empty
+    };
+
+    public static string ManageErrorText(LocationManageError error) => error switch
+    {
+        LocationManageError.Forbidden => "Bạn không có quyền thực hiện thao tác này.",
+        LocationManageError.NotFound => "Không tìm thấy kho/showroom.",
+        LocationManageError.NameMissing => "Cần nhập tên.",
+        LocationManageError.NameTooLong => "Tên quá dài (tối đa 200 ký tự).",
+        LocationManageError.InvalidKind => "Loại không hợp lệ.",
+        LocationManageError.DuplicateName => "Đã có kho/showroom trùng tên.",
+        LocationManageError.HasStock => "Không xóa được: kho/showroom còn tồn hàng. Hãy chuyển hết hàng đi trước.",
+        LocationManageError.HasActiveEmployees => "Không xóa được: còn nhân viên đang hoạt động gắn với địa điểm này.",
+        _ => "Không thực hiện được. Thử lại sau."
     };
 
     public static string KindLabel(StockLocationKind kind) =>

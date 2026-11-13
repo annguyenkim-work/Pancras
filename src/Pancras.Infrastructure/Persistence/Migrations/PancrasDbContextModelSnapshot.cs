@@ -586,6 +586,10 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("created_by");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
                     b.Property<int>("Kind")
                         .HasColumnType("integer")
                         .HasColumnName("kind");
@@ -611,7 +615,8 @@ namespace Pancras.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Name")
                         .IsUnique()
-                        .HasDatabaseName("ix_stock_location_name");
+                        .HasDatabaseName("ix_stock_location_name")
+                        .HasFilter("NOT is_deleted");
 
                     b.ToTable("stock_location", (string)null);
                 });
