@@ -23,7 +23,15 @@ public sealed class UpdatePurchaseOrderCommandHandler(
 {
     public async Task<Result<Guid>> HandleAsync(UpdatePurchaseOrderCommand command, CancellationToken cancellationToken)
     {
-        var lines = (command.Lines ?? []).Where(line => line.Quantity > 0).ToArray();
+        // Dòng trống hoàn toàn (chưa chọn mặt hàng, số lượng 0) bị bỏ qua. Dòng đã chọn mặt hàng mà số lượng <= 0 là lỗi:
+        // không được âm thầm coi là "xóa dòng", vì dòng bị xóa kéo theo phần chia chi phí của nó.
+        var submitted = command.Lines ?? [];
+        if (submitted.Any(line => line.Quantity <= 0 && line.CatalogItemId != Guid.Empty))
+        {
+            return Result<Guid>.Fail(PurchaseError.InvalidQuantity);
+        }
+
+        var lines = submitted.Where(line => line.Quantity > 0).ToArray();
         if (command.ExchangeRate < 0 || command.VatRate < 0 || lines.Any(HasNegativeMoney))
         {
             return Result<Guid>.Fail(PurchaseError.NegativeMoney);
@@ -113,7 +121,7 @@ public sealed class UpdatePurchaseOrderCommandHandler(
         if (!await orders.CommitAsync(cancellationToken))
         {
             logger.LogWarning("Purchase order update commit failed for {PurchaseOrderId}.", order.Id);
-            return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+            return Result<Guid>.Fail(PurchaseError.SaveFailed);
         }
 
         logger.LogInformation("Updated purchase order {PurchaseOrderId}.", order.Id);
@@ -151,7 +159,7 @@ public sealed class DeletePurchaseChargeCommandHandler(
         if (!await orders.CommitAsync(cancellationToken))
         {
             logger.LogWarning("Charge delete commit failed for purchase order {PurchaseOrderId}.", order.Id);
-            return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+            return Result<Guid>.Fail(PurchaseError.SaveFailed);
         }
 
         logger.LogInformation("Deleted charge {PurchaseChargeId} from purchase order {PurchaseOrderId}.", command.ChargeId, order.Id);

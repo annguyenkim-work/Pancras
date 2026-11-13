@@ -231,9 +231,9 @@ public class LoginLockoutAndTwoFactorTests
     }
 
     [Fact]
-    public async Task ReactivatingAnEmployee_ClearsTwoFactorAndTheLock_SoThePasswordAloneWorks()
+    public async Task ReactivatingAnEmployee_KeepsTwoFactorAndTheLock_SoOnlyAdminCanClearThem()
     {
-        var (_, _) = await EnableAsync();
+        var (secret, _) = await EnableAsync();
         for (var index = 0; index < 5; index++)
         {
             await Attempt("wrong");
@@ -242,16 +242,30 @@ public class LoginLockoutAndTwoFactorTests
         var stamp = _employee.SecurityStamp;
         _employee.Deactivate();
         _employee.Activate();
-        var login = await Attempt("Secret12");
+        var whileLocked = await Attempt("Secret12");
+        _clock.Advance(TimeSpan.FromMinutes(16));
+        var afterLock = await Attempt("Secret12");
+        var code = Totp.Generate(Totp.FromBase32(secret)!, Totp.StepFor(_clock.GetUtcNow()));
+        var verified = await Verify().HandleAsync(new VerifyTwoFactorCommand { EmployeeId = _employee.Id, Code = code }, CancellationToken.None);
 
-        Assert.False(_employee.TwoFactorEnabled);
-        Assert.Equal(string.Empty, _employee.TotpSecret);
-        Assert.Equal(0, _employee.LastTotpStep);
-        Assert.Equal(0, _employee.FailedLoginCount);
-        Assert.Null(_employee.LockedUntil);
+        Assert.True(_employee.IsActive);
+        Assert.True(_employee.TwoFactorEnabled);
+        Assert.NotEqual(string.Empty, _employee.TotpSecret);
         Assert.NotEqual(stamp, _employee.SecurityStamp);
-        Assert.True(login.IsSuccess);
-        Assert.False(login.Value!.RequiresTwoFactor);
+        Assert.Equal(LoginError.InvalidCredentials, whileLocked.LoginError);
+        Assert.True(afterLock.Value!.RequiresTwoFactor);
+        Assert.True(verified.IsSuccess);
+    }
+
+    [Fact]
+    public async Task DeactivateThenActivate_DoesNotConsumeTheRecoveryCodes()
+    {
+        await EnableAsync();
+        _employee.Deactivate();
+        _employee.Activate();
+
+        Assert.True(_employee.TwoFactorEnabled);
+        Assert.Equal(RecoveryCodes.Count, _employee.RecoveryCodesLeft);
     }
 
     [Fact]

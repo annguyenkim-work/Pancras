@@ -125,7 +125,7 @@ public sealed class ReceivePurchaseOrderCommandHandler(
         {
             Restore(order, balances, previous, items, previousCosts);
             logger.LogWarning("Receipt commit failed for purchase order {PurchaseOrderId}.", order.Id);
-            return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+            return Result<Guid>.Fail(PurchaseError.SaveFailed);
         }
 
         logger.LogInformation("Received purchase order {PurchaseOrderId}.", order.Id);

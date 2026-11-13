@@ -126,6 +126,35 @@ public class EditPurchaseOrderTests
     }
 
     [Fact]
+    public async Task ASelectedLineWithQuantityZero_IsRefused_InsteadOfSilentlyDeletingIt()
+    {
+        AddFobCharge();
+
+        var result = await Update().HandleAsync(
+            Command(
+                Keep(0, 0, 10m),
+                Keep(1, 3, 30m),
+                new CreatePurchaseLineInput()),
+            CancellationToken.None);
+
+        Assert.Equal(PurchaseError.InvalidQuantity, result.PurchaseError);
+        Assert.Equal(2, _order.Lines.Count);
+        Assert.Equal(2, _order.Lines[0].Quantity);
+        Assert.Equal(40m, _order.Charges[0].Shares.Sum(share => share.Amount));
+    }
+
+    [Fact]
+    public async Task ABlankExtraRow_IsIgnored()
+    {
+        var result = await Update().HandleAsync(
+            Command(Keep(0, 2, 10m), Keep(1, 3, 30m), new CreatePurchaseLineInput()),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, _order.Lines.Count);
+    }
+
+    [Fact]
     public async Task AReceivedOrder_CannotBeEdited_NorLoseCharges()
     {
         var chargeId = AddFobCharge();

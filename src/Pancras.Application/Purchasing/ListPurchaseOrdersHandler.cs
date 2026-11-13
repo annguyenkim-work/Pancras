@@ -89,9 +89,6 @@ public sealed class GetPurchaseOrderHandler(
                     line.SupplementalDuty,
                     line.SpecialConsumptionTax,
                     line.EnvironmentTax,
-                    line.DeclaredCustomsValue,
-                    line.DeclaredDuty,
-                    line.DeclaredVat,
                     PurchaseCosting.For(order, line));
             }).ToArray(),
             order.Charges.Select(charge => new PurchaseChargeView(

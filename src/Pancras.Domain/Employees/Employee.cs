@@ -241,13 +241,12 @@ public sealed class Employee
             return;
         }
 
+        // Kích hoạt lại KHÔNG đụng tới 2FA hay khóa đăng nhập. Giám đốc được phép ngưng rồi kích hoạt lại nhân viên,
+        // nhưng quy tắc là chỉ Admin được tắt/reset 2FA và mở khóa (ResetTwoFactorCommandHandler, UnlockEmployeeCommandHandler).
+        // Nếu Activate xóa chúng, Giám đốc có thể vòng qua quy tắc đó bằng cách ngưng rồi kích hoạt lại.
+        // Cờ 2FA, khóa bí mật, mã khôi phục và bước TOTP luôn đi cùng nhau, nên không xóa một phần nào ở đây.
         IsActive = true;
-
-        // Khi kích hoạt lại, 2FA cũ bị xóa hẳn (khóa bí mật và mã khôi phục không còn). Phải tắt cờ 2FA và bước TOTP cũ,
-        // nếu không đăng nhập vẫn đòi mã mà không mã nào đúng được. Cũng bỏ khóa tạm do đăng nhập sai trước đó.
-        // Nhân viên đăng nhập lại bằng mật khẩu và tự bật 2FA lại trong trang hồ sơ nếu muốn.
-        DisableTwoFactor();
-        Unlock();
+        SecurityStamp = NewSecurityStamp();
     }
 
     private static string Fit(string? value, int maxLength)

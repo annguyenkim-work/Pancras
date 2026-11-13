@@ -185,7 +185,16 @@ public sealed class DeletePurchaseAttachmentCommandHandler(
         }
 
         await attachments.RemoveAsync(attachment.Id, cancellationToken);
-        await storage.DeleteAsync(attachment.StoredName, cancellationToken);
+        try
+        {
+            await storage.DeleteAsync(attachment.StoredName, cancellationToken);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Bản ghi đã xóa; file còn lại là rác trên đĩa, không làm hỏng thao tác của người dùng. Ghi log để dọn sau.
+            logger.LogError(exception, "Attachment file {StoredName} could not be deleted and is now orphaned.", attachment.StoredName);
+        }
+
         logger.LogInformation("Removed attachment {AttachmentId} from purchase order {PurchaseOrderId}.", attachment.Id, order.Id);
         await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, AuditActions.PurchaseAttachmentDeleted, "purchase_order", order.Id.ToString("D"), attachment.FileName, cancellationToken);
         return Result<Guid>.Ok(attachment.Id);

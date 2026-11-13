@@ -12,7 +12,6 @@ using Pancras.Web.Formatting;
 namespace Pancras.Web.Pages.Purchasing;
 
 [Authorize(Roles = EmployeeRole.Admin + "," + EmployeeRole.Director + "," + EmployeeRole.Accountant)]
-[RequestSizeLimit(12 * 1024 * 1024)]
 public class IndexModel(
     ListPurchaseOrdersHandler listOrders,
     GetPurchaseOrderHandler getOrder,
@@ -182,7 +181,7 @@ public class IndexModel(
         {
             ShowForm = true;
             EditingId = orderId;
-            ErrorMessage = PurchaseErrorMessages.For(result.PurchaseError);
+            ErrorMessage = PurchaseErrorMessages.For(result.PurchaseError, PurchaseErrorMessages.UpdateFailed);
             KeepDraftLines();
             await LoadAsync(orderId, null);
             return Page();
@@ -252,52 +251,27 @@ public class IndexModel(
             ExchangeRate = Form.ExchangeRate,
             VatRate = Form.VatPercent / 100m,
             VatDeductible = Form.VatDeductible,
-            Lines = Form.Lines ?? []
+            Lines = Form.Lines ?? [],
+            // Cước biển nằm trong trị giá tính thuế (mua FOB); các khoản sau thông quan là logistics.
+            Charges =
+            [
+                new CreatePurchaseChargeInput { Amount = Form.OceanFreight, Label = "Cước vận chuyển đường biển quốc tế (Ocean Freight)", Group = ChargeGroup.CustomsValueAdjustment, PreferVolume = true },
+                new CreatePurchaseChargeInput { Amount = Form.PortHandling, Label = "Phí nâng hạ bãi cảng (THC, D/O, vệ sinh container)", Group = ChargeGroup.Logistics, PreferVolume = true },
+                new CreatePurchaseChargeInput { Amount = Form.InspectionFee, Label = "Phí kiểm định chất lượng sản phẩm", Group = ChargeGroup.Logistics, PreferVolume = false },
+                new CreatePurchaseChargeInput { Amount = Form.InlandTrucking, Label = "Vận chuyển kéo xe container từ cảng về kho", Group = ChargeGroup.Logistics, PreferVolume = true }
+            ]
         };
         var result = await createOrder.HandleAsync(command, HttpContext.RequestAborted);
         if (result.IsFailure)
         {
             ShowForm = true;
-            ErrorMessage = PurchaseErrorMessages.For(result.PurchaseError);
+            ErrorMessage = PurchaseErrorMessages.For(result.PurchaseError, PurchaseErrorMessages.CreateFailed);
             KeepDraftLines();
             await LoadAsync(null, null);
             return Page();
         }
 
-        // Cước biển nằm trong trị giá tính thuế (mua FOB); các khoản sau thông quan là logistics.
-        var allAdded = true;
-        allAdded &= await AddInitialChargeAsync(result.Value, Form.OceanFreight, "Cước vận chuyển đường biển quốc tế (Ocean Freight)", ChargeGroup.CustomsValueAdjustment, true);
-        allAdded &= await AddInitialChargeAsync(result.Value, Form.PortHandling, "Phí nâng hạ bãi cảng (THC, D/O, vệ sinh container)", ChargeGroup.Logistics, true);
-        allAdded &= await AddInitialChargeAsync(result.Value, Form.InspectionFee, "Phí kiểm định chất lượng sản phẩm", ChargeGroup.Logistics, false);
-        allAdded &= await AddInitialChargeAsync(result.Value, Form.InlandTrucking, "Vận chuyển kéo xe container từ cảng về kho", ChargeGroup.Logistics, true);
-
-        // Không báo "đã tạo đơn" khi có khoản chi phí bị bỏ sót: giá vốn sẽ thiếu mà người dùng không biết.
-        return allAdded
-            ? Redirect($"/purchasing?order={result.Value}&notice=created")
-            : Redirect($"/purchasing?order={result.Value}&error={PurchaseError.ChargeFailed}");
-    }
-
-    private async Task<bool> AddInitialChargeAsync(Guid orderId, decimal amount, string label, ChargeGroup group, bool preferVolume)
-    {
-        if (amount <= 0)
-        {
-            return true;
-        }
-
-        // Chia theo thể tích nếu mọi mặt hàng đã khai báo; chưa đủ số đo thì chia theo trị giá FOB.
-        var methods = preferVolume ? new[] { ChargeSplitMethod.Volume, ChargeSplitMethod.FobValue } : new[] { ChargeSplitMethod.FobValue };
-        foreach (var method in methods)
-        {
-            var allocated = await allocateCharge.HandleAsync(
-                new AllocateChargeCommand { PurchaseOrderId = orderId, Amount = amount, Method = method, Label = label, Group = group },
-                HttpContext.RequestAborted);
-            if (allocated.IsSuccess)
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return Redirect($"/purchasing?order={result.Value}&notice=created");
     }
 
     public async Task<IActionResult> OnPostReceiveAsync(Guid orderId)

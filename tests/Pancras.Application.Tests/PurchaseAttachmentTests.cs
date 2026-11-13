@@ -88,6 +88,8 @@ public class PurchaseAttachmentTests
     }
 
     [Theory]
+    [InlineData("old.doc")]
+    [InlineData("old.xls")]
     [InlineData("tool.exe")]
     [InlineData("page.html")]
     [InlineData("script.js")]

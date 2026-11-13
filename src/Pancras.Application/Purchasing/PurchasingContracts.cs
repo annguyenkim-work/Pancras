@@ -41,9 +41,6 @@ public sealed record PurchaseLineView(
     decimal SupplementalDuty,
     decimal SpecialConsumptionTax,
     decimal EnvironmentTax,
-    decimal? DeclaredCustomsValue,
-    decimal? DeclaredDuty,
-    decimal? DeclaredVat,
     PurchaseLineCost Cost);
 
 public sealed record PurchaseChargeView(
@@ -118,6 +115,21 @@ public sealed class CreatePurchaseOrderCommand
     public bool VatDeductible { get; set; }
 
     public IReadOnlyList<CreatePurchaseLineInput> Lines { get; set; } = [];
+
+    /// <summary>Chi phí container ban đầu. Được thêm và chia ngay trước khi lưu, cùng một lần lưu với đơn.</summary>
+    public IReadOnlyList<CreatePurchaseChargeInput> Charges { get; set; } = [];
+}
+
+public sealed class CreatePurchaseChargeInput
+{
+    public decimal Amount { get; set; }
+
+    public string? Label { get; set; }
+
+    public ChargeGroup Group { get; set; }
+
+    /// <summary>Chia theo thể tích nếu mọi mặt hàng có số đo; nếu không thì chia theo trị giá FOB.</summary>
+    public bool PreferVolume { get; set; }
 }
 
 public sealed class UpdatePurchaseOrderCommand
@@ -174,25 +186,6 @@ public sealed class AssignChargeGroupCommand
     public ChargeGroup Group { get; set; }
 
     public bool RetainCurrent { get; set; }
-}
-
-public sealed class RecordCustomsDeclarationCommand
-{
-    public Guid PurchaseOrderId { get; set; }
-
-    public Guid LineId { get; set; }
-
-    public decimal? DeclaredCustomsValue { get; set; }
-
-    public decimal? DeclaredDuty { get; set; }
-
-    public decimal? DeclaredVat { get; set; }
-
-    public bool HasCustoms { get; set; }
-
-    public bool HasDuty { get; set; }
-
-    public bool HasVat { get; set; }
 }
 
 public sealed record ReceivePurchaseOrderCommand(Guid PurchaseOrderId);

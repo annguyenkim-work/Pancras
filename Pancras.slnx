@@ -8,6 +8,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/Pancras.Application.Tests/Pancras.Application.Tests.csproj" />
     <Project Path="tests/Pancras.Domain.Tests/Pancras.Domain.Tests.csproj" />
+    <Project Path="tests/Pancras.Infrastructure.Tests/Pancras.Infrastructure.Tests.csproj" />
     <Project Path="tests/Pancras.Web.Tests/Pancras.Web.Tests.csproj" />
   </Folder>
 </Solution>

@@ -864,18 +864,6 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("catalog_item_id");
 
-                    b.Property<decimal?>("DeclaredCustomsValue")
-                        .HasColumnType("numeric(18,0)")
-                        .HasColumnName("declared_customs_value");
-
-                    b.Property<decimal?>("DeclaredDuty")
-                        .HasColumnType("numeric(18,0)")
-                        .HasColumnName("declared_duty");
-
-                    b.Property<decimal?>("DeclaredVat")
-                        .HasColumnType("numeric(18,0)")
-                        .HasColumnName("declared_vat");
-
                     b.Property<decimal>("DutyRate")
                         .HasColumnType("numeric(9,4)")
                         .HasColumnName("duty_rate");

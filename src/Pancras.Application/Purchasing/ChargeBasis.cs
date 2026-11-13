@@ -10,7 +10,7 @@ internal static class ChargeBasis
         PurchaseOrder order,
         ChargeSplitMethod method,
         IReadOnlyDictionary<Guid, decimal>? manualShares,
-        GetCatalogMeasuresHandler measures,
+        GetCatalogMeasuresHandler? measures,
         CancellationToken cancellationToken)
     {
         if (method == ChargeSplitMethod.Manual)
@@ -20,6 +20,11 @@ internal static class ChargeBasis
 
         if (method is ChargeSplitMethod.Weight or ChargeSplitMethod.Volume)
         {
+            if (measures is null)
+            {
+                return null;
+            }
+
             var ids = order.Lines.Select(line => line.CatalogItemId).Distinct().ToArray();
             var catalog = await measures.HandleAsync(ids, cancellationToken);
             var basis = new Dictionary<Guid, decimal>();

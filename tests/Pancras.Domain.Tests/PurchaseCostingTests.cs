@@ -102,7 +102,7 @@ public class PurchaseCostingTests
     }
 
     [Fact]
-    public void Declaration_UsesOfficialNumbersAndWarns()
+    public void FreightInTheCustomsAdjustmentGroup_RaisesTheCustomsValueAndTheDuty()
     {
         var order = PurchaseOrder.TryCreate(
             "PO-1",
@@ -119,16 +119,13 @@ public class PurchaseCostingTests
         Assert.True(order.TryAddCharge(20m, ChargeSplitMethod.Manual, out var freight));
         Assert.True(order.TryAllocate(freight, new Dictionary<Guid, decimal> { [line.Id] = 20m }, true));
         Assert.True(order.TryAssignGroup(freight, ChargeGroup.CustomsValueAdjustment, false));
-        Assert.True(order.TryDeclare(line.Id, 125m, 15m, null));
 
         var cost = PurchaseCosting.For(order, line);
 
         Assert.Equal(12m, cost.ExpectedDuty);
-        Assert.Equal(125m, cost.CustomsInUse);
-        Assert.Equal(15m, cost.DutyInUse);
-        Assert.True(cost.CustomsValueWarn);
-        Assert.True(cost.DutyWarn);
-        Assert.False(cost.VatWarn);
-        Assert.NotEqual(12m, cost.DutyInUse);
+        Assert.Equal(120m, cost.ExpectedCustomsValue);
+        Assert.Equal(120m, cost.CustomsInUse);
+        Assert.Equal(12m, cost.DutyInUse);
+        Assert.Equal(20m, cost.LandedCost - cost.FobConverted - cost.DutyInUse);
     }
 }

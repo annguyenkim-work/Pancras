@@ -47,9 +47,6 @@ public sealed class PurchaseLineConfiguration : IEntityTypeConfiguration<Purchas
         builder.Property(line => line.SupplementalDuty).HasColumnType("numeric(18,0)").IsRequired();
         builder.Property(line => line.SpecialConsumptionTax).HasColumnType("numeric(18,0)").IsRequired();
         builder.Property(line => line.EnvironmentTax).HasColumnType("numeric(18,0)").IsRequired();
-        builder.Property(line => line.DeclaredCustomsValue).HasColumnType("numeric(18,0)");
-        builder.Property(line => line.DeclaredDuty).HasColumnType("numeric(18,0)");
-        builder.Property(line => line.DeclaredVat).HasColumnType("numeric(18,0)");
         builder.HasOne<CatalogItem>().WithMany().HasForeignKey(line => line.CatalogItemId).OnDelete(DeleteBehavior.Restrict);
     }
 }

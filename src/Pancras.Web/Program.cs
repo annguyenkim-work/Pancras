@@ -152,7 +152,6 @@ builder.Services.AddScoped<AllocateChargeCommandHandler>();
 builder.Services.AddScoped<AssignChargeGroupCommandHandler>();
 builder.Services.AddScoped<UpdatePurchaseOrderCommandHandler>();
 builder.Services.AddScoped<DeletePurchaseChargeCommandHandler>();
-builder.Services.AddScoped<RecordCustomsDeclarationCommandHandler>();
 builder.Services.AddScoped<ReceivePurchaseOrderCommandHandler>();
 builder.Services.AddScoped<EmployeeSignIn>();
 builder.Services.AddSingleton(TimeProvider.System);
@@ -196,6 +195,12 @@ if (builder.Environment.IsProduction())
     });
     builder.Services.AddHttpsRedirection(options => options.HttpsPort = 443);
 }
+
+// Giới hạn kích thước request ở mức máy chủ (file chứng từ tối đa 10 MB cộng phần form). Không dùng [RequestSizeLimit]
+// trên trang: nó là resource filter, chạy sau bộ kiểm tra antiforgery vốn đã đọc cả form nên không chặn được sớm.
+const long MaxRequestBytes = 12L * 1024 * 1024;
+builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = MaxRequestBytes);
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options => options.MultipartBodyLengthLimit = MaxRequestBytes);
 
 var app = builder.Build();
 

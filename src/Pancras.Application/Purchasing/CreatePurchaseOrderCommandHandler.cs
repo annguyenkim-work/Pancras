@@ -12,7 +12,8 @@ public sealed class CreatePurchaseOrderCommandHandler(
     ISupplierRepository suppliers,
     IInventoryRepository inventory,
     ICatalogItemRepository catalog,
-    ILogger<CreatePurchaseOrderCommandHandler> logger)
+    ILogger<CreatePurchaseOrderCommandHandler> logger,
+    GetCatalogMeasuresHandler? measures = null)
 {
     public async Task<Result<Guid>> HandleAsync(CreatePurchaseOrderCommand command, CancellationToken cancellationToken)
     {
@@ -85,6 +86,16 @@ public sealed class CreatePurchaseOrderCommandHandler(
             return Result<Guid>.Fail(PurchaseError.InvalidOrder);
         }
 
+        // Chi phí ban đầu được thêm trước khi lưu: đơn và chi phí vào DB trong cùng một lần lưu, hoặc không có gì cả.
+        foreach (var charge in command.Charges ?? [])
+        {
+            if (charge.Amount > 0 && !await TryAddChargeAsync(order, charge, cancellationToken))
+            {
+                logger.LogWarning("Purchase order rejected because an initial charge could not be split.");
+                return Result<Guid>.Fail(PurchaseError.ChargeFailed);
+            }
+        }
+
         if (!await orders.TryAddAsync(order, cancellationToken))
         {
             logger.LogWarning("Purchase order code is already used.");
@@ -95,9 +106,34 @@ public sealed class CreatePurchaseOrderCommandHandler(
         return Result<Guid>.Ok(order.Id);
     }
 
+    private async Task<bool> TryAddChargeAsync(PurchaseOrder order, CreatePurchaseChargeInput charge, CancellationToken cancellationToken)
+    {
+        var methods = charge.PreferVolume
+            ? new[] { ChargeSplitMethod.Volume, ChargeSplitMethod.FobValue }
+            : new[] { ChargeSplitMethod.FobValue };
+        foreach (var method in methods)
+        {
+            if (!order.TryAddCharge(charge.Amount, method, out var chargeId, charge.Label))
+            {
+                return false;
+            }
+
+            var basis = await ChargeBasis.ComputeAsync(order, method, null, measures, cancellationToken);
+            if (basis is not null && order.TryAllocate(chargeId, basis, manual: false))
+            {
+                return order.TryAssignGroup(chargeId, charge.Group, retainCurrent: false);
+            }
+
+            order.DropCharge(chargeId);
+        }
+
+        return false;
+    }
+
     private static bool HasNegativeMoney(CreatePurchaseOrderCommand command) =>
         command.ExchangeRate < 0
         || command.VatRate < 0
+        || (command.Charges ?? []).Any(charge => charge.Amount < 0)
         || (command.Lines ?? []).Any(line =>
             line.FobUsd < 0
             || line.DutyRate < 0

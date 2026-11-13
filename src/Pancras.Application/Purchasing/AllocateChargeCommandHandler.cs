@@ -69,7 +69,7 @@ public sealed class AllocateChargeCommandHandler(
         if (!await orders.CommitAsync(cancellationToken))
         {
             logger.LogWarning("Charge commit failed for purchase order {PurchaseOrderId}.", order.Id);
-            return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+            return Result<Guid>.Fail(PurchaseError.SaveFailed);
         }
 
         logger.LogInformation("Allocated charge {PurchaseChargeId} on purchase order {PurchaseOrderId}.", chargeId, order.Id);

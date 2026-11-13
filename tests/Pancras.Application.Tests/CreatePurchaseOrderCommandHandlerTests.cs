@@ -58,6 +58,45 @@ public class CreatePurchaseOrderCommandHandlerTests
     }
 
     [Fact]
+    public async Task InitialCharges_AreSavedTogetherWithTheOrder()
+    {
+        var fixture = new PurchaseFixture();
+        var item = Item("SP01", 2m);
+        fixture.Catalog.Items.Add(item);
+        var command = Command(fixture, item.Id, item.Id, 0.1m, 0.1m);
+        command.Charges =
+        [
+            new CreatePurchaseChargeInput { Amount = 1000m, Label = "THC", Group = ChargeGroup.Logistics, PreferVolume = true },
+            new CreatePurchaseChargeInput { Amount = 0m, Label = "Bỏ qua", Group = ChargeGroup.Logistics }
+        ];
+
+        var result = await fixture.Create.HandleAsync(command, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var order = Assert.Single(fixture.Orders.Orders);
+        var charge = Assert.Single(order.Charges);
+        Assert.Equal("THC", charge.Label);
+        Assert.Equal(ChargeGroup.Logistics, charge.Group);
+        Assert.Equal(1000m, charge.Shares.Sum(share => share.Amount));
+        Assert.False(order.HasUngroupedCharges);
+    }
+
+    [Fact]
+    public async Task IfAnInitialChargeCannotBeAdded_NoOrderIsSaved()
+    {
+        var fixture = new PurchaseFixture();
+        var item = Item("SP01", 2m);
+        fixture.Catalog.Items.Add(item);
+        var command = Command(fixture, item.Id, item.Id, 0.1m, 0.1m);
+        command.Charges = [new CreatePurchaseChargeInput { Amount = 500m, Label = "Sai nhóm", Group = (ChargeGroup)99 }];
+
+        var result = await fixture.Create.HandleAsync(command, CancellationToken.None);
+
+        Assert.Equal(PurchaseError.ChargeFailed, result.PurchaseError);
+        Assert.Empty(fixture.Orders.Orders);
+    }
+
+    [Fact]
     public async Task ZeroQuantity_DoesNotStoreTheLine()
     {
         var fixture = new PurchaseFixture();

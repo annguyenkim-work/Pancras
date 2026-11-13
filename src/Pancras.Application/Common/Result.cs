@@ -134,7 +134,11 @@ public enum PurchaseError
     AttachmentLimit,
     AttachmentNotFound,
     ZeroPrice,
-    ChargeFailed
+    ChargeFailed,
+
+    /// <summary>Dữ liệu hợp lệ nhưng không ghi được (lỗi hệ thống hoặc có người khác vừa sửa). Khác với <see cref="InvalidOrder"/>.</summary>
+    SaveFailed,
+    InvalidQuantity
 }
 
 public sealed record CatalogIssue(CatalogField Field, CatalogIssueKind Kind, int? Limit = null);

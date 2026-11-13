@@ -94,12 +94,10 @@ public static class AttachmentRules
         [".jpeg"] = "image/jpeg",
         [".png"] = "image/png",
         [".xlsx"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        [".xls"] = "application/vnd.ms-excel",
-        [".docx"] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        [".doc"] = "application/msword"
+        [".docx"] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     };
 
-    public static string AllowedExtensionsText => "PDF, JPG, PNG, Excel (xlsx, xls), Word (docx, doc)";
+    public static string AllowedExtensionsText => "PDF, JPG, PNG, Excel (xlsx), Word (docx)";
 
     public static string? ContentTypeFor(string? extension) =>
         extension is not null && ContentTypes.TryGetValue(extension, out var type) ? type : null;
@@ -158,7 +156,6 @@ public static class AttachmentRules
             ".png" => header.StartsWith(new byte[] { 0x89, 0x50, 0x4E, 0x47 }),
             ".jpg" or ".jpeg" => header.StartsWith(new byte[] { 0xFF, 0xD8, 0xFF }),
             ".xlsx" or ".docx" => header.StartsWith(new byte[] { 0x50, 0x4B, 0x03, 0x04 }),
-            ".xls" or ".doc" => header.StartsWith(new byte[] { 0xD0, 0xCF, 0x11, 0xE0 }),
             _ => false
         };
     }

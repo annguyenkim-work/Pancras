@@ -47,12 +47,6 @@ public sealed class PurchaseLine
 
     public decimal EnvironmentTax { get; private set; }
 
-    public decimal? DeclaredCustomsValue { get; private set; }
-
-    public decimal? DeclaredDuty { get; private set; }
-
-    public decimal? DeclaredVat { get; private set; }
-
     internal static PurchaseLine? Create(
         Guid orderId,
         Guid catalogItemId,
@@ -99,19 +93,6 @@ public sealed class PurchaseLine
         SupplementalDuty = PurchaseMoney.RoundDong(supplementalDuty);
         SpecialConsumptionTax = PurchaseMoney.RoundDong(specialConsumptionTax);
         EnvironmentTax = PurchaseMoney.RoundDong(environmentTax);
-    }
-
-    internal bool TryDeclare(decimal? customs, decimal? duty, decimal? vat)
-    {
-        if (customs < 0 || duty < 0 || vat < 0)
-        {
-            return false;
-        }
-
-        DeclaredCustomsValue = customs is null ? null : PurchaseMoney.RoundDong(customs.Value);
-        DeclaredDuty = duty is null ? null : PurchaseMoney.RoundDong(duty.Value);
-        DeclaredVat = vat is null ? null : PurchaseMoney.RoundDong(vat.Value);
-        return true;
     }
 }
 
@@ -538,12 +519,6 @@ public sealed class PurchaseOrder
 
         charge.SetGroup(group);
         return true;
-    }
-
-    public bool TryDeclare(Guid lineId, decimal? customs, decimal? duty, decimal? vat)
-    {
-        var line = _lines.FirstOrDefault(item => item.Id == lineId);
-        return line is not null && line.TryDeclare(customs, duty, vat);
     }
 
     public bool TryReceive()

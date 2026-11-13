@@ -27,9 +27,6 @@ public sealed record PurchaseLineCost(
     decimal LogisticsAllocated,
     decimal LandedCost,
     decimal UnitCost,
-    bool CustomsValueWarn,
-    bool DutyWarn,
-    bool VatWarn,
     decimal OtherTaxes = 0,
     decimal NonDeductibleAllocated = 0,
     decimal VatInCost = 0);
@@ -42,15 +39,15 @@ public static class PurchaseCosting
         var customsAdjustment = Sum(order, line.Id, ChargeGroup.CustomsValueAdjustment);
         var expectedCustoms = fobConverted + customsAdjustment;
         var expectedDuty = expectedCustoms * line.DutyRate;
-        var customsInUse = line.DeclaredCustomsValue ?? expectedCustoms;
-        var dutyInUse = line.DeclaredDuty ?? expectedDuty;
+        var customsInUse = expectedCustoms;
+        var dutyInUse = expectedDuty;
         var vatBase = customsInUse
             + dutyInUse
             + line.SupplementalDuty
             + line.SpecialConsumptionTax
             + line.EnvironmentTax;
         var expectedVat = vatBase * order.VatRate;
-        var vatInUse = line.DeclaredVat ?? expectedVat;
+        var vatInUse = expectedVat;
         var logistics = Sum(order, line.Id, ChargeGroup.Logistics);
         var nonDeductible = Sum(order, line.Id, ChargeGroup.NonDeductibleTax);
         var otherTaxes = line.SupplementalDuty + line.SpecialConsumptionTax + line.EnvironmentTax;
@@ -69,9 +66,6 @@ public static class PurchaseCosting
             logistics,
             landed,
             unit,
-            line.DeclaredCustomsValue is decimal declaredCustoms && declaredCustoms != expectedCustoms,
-            line.DeclaredDuty is decimal declaredDuty && declaredDuty != expectedDuty,
-            line.DeclaredVat is decimal declaredVat && declaredVat != expectedVat,
             otherTaxes,
             nonDeductible,
             vatInCost);

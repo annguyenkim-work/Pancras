@@ -32,7 +32,7 @@ public sealed class AssignChargeGroupCommandHandler(
         if (!await orders.CommitAsync(cancellationToken))
         {
             logger.LogWarning("Charge group commit failed for purchase order {PurchaseOrderId}.", order.Id);
-            return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+            return Result<Guid>.Fail(PurchaseError.SaveFailed);
         }
 
         logger.LogInformation("Assigned charge group on purchase order {PurchaseOrderId}.", order.Id);
