@@ -57,3 +57,10 @@ public sealed class ListAuditHandler(IAuditLog log)
         return (entries, total);
     }
 }
+
+/// <summary>Dấu vết bản ghi để hiển thị: ai tạo, ai sửa lần cuối và lúc nào (mã nhân viên, giờ UTC).</summary>
+public sealed record AuditStampView(DateTimeOffset CreatedAt, string CreatedBy, DateTimeOffset? UpdatedAt, string UpdatedBy)
+{
+    public static AuditStampView From(Pancras.Domain.Auditing.AuditStamped entity) =>
+        new(entity.CreatedAt, entity.CreatedBy, entity.UpdatedAt, entity.UpdatedBy);
+}

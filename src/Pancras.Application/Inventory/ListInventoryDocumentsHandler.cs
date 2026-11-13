@@ -1,3 +1,4 @@
+using Pancras.Application.Auditing;
 using Microsoft.Extensions.Logging;
 using Pancras.Domain.Employees;
 using Pancras.Domain.Inventory;
@@ -57,7 +58,8 @@ public sealed class ListInventoryDocumentsHandler(
                 names.Code(line.CatalogItemId),
                 names.Item(line.CatalogItemId),
                 line.Quantity,
-                names.Unit(line.CatalogItemId))).ToArray()))
+                names.Unit(line.CatalogItemId))).ToArray(),
+            AuditStampView.From(slip)))
             .ToArray();
     }
 
@@ -79,7 +81,8 @@ public sealed class ListInventoryDocumentsHandler(
             sheet.DocumentRef,
             sheet.Status,
             names.Unit(sheet.CatalogItemId),
-            sheet.Status == ApprovalStatus.Pending && InventoryAccess.CanApprove(actor, sheet.CreatedByRole, sheet.StockLocationId))).ToArray();
+            sheet.Status == ApprovalStatus.Pending && InventoryAccess.CanApprove(actor, sheet.CreatedByRole, sheet.StockLocationId),
+            AuditStampView.From(sheet))).ToArray();
     }
 
     public async Task<IReadOnlyList<AdjustmentRow>> ListAdjustmentsAsync(EmployeeActor actor, CancellationToken cancellationToken)
@@ -97,7 +100,8 @@ public sealed class ListInventoryDocumentsHandler(
             adjustment.Reason,
             adjustment.DocumentRef,
             adjustment.Status,
-            adjustment.Status == ApprovalStatus.Pending && InventoryAccess.CanApproveAdjustment(actor.Role))).ToArray();
+            adjustment.Status == ApprovalStatus.Pending && InventoryAccess.CanApproveAdjustment(actor.Role),
+            AuditStampView.From(adjustment))).ToArray();
     }
 
     public async Task<IReadOnlyList<DisposalRow>> ListDisposalsAsync(EmployeeActor actor, CancellationToken cancellationToken)
@@ -114,7 +118,8 @@ public sealed class ListInventoryDocumentsHandler(
             slip.Reason,
             slip.DocumentRef,
             slip.Status,
-            slip.Status == ApprovalStatus.Pending && InventoryAccess.CanApprove(actor, slip.CreatedByRole, slip.StockLocationId))).ToArray();
+            slip.Status == ApprovalStatus.Pending && InventoryAccess.CanApprove(actor, slip.CreatedByRole, slip.StockLocationId),
+            AuditStampView.From(slip))).ToArray();
     }
 
     private async Task<NameMap> NamesAsync(CancellationToken cancellationToken)

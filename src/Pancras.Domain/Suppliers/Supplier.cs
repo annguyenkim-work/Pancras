@@ -1,6 +1,6 @@
 namespace Pancras.Domain.Suppliers;
 
-public sealed class Supplier
+public sealed class Supplier : Pancras.Domain.Auditing.AuditStamped
 {
     public const int CodeMaxLength = 32;
 

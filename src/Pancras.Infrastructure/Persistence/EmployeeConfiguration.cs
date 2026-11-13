@@ -10,6 +10,10 @@ public sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
     {
         builder.ToTable("employee");
         builder.HasKey(employee => employee.Id);
+        // Bộ đếm đăng nhập sai, khóa tạm và bước TOTP đổi mỗi lần đăng nhập: không tính là "sửa hồ sơ nhân viên".
+        builder.HasAnnotation(
+            AuditStampInterceptor.IgnoredPropertiesAnnotation,
+            new[] { nameof(Employee.FailedLoginCount), nameof(Employee.LockedUntil), nameof(Employee.LastTotpStep), nameof(Employee.RecoveryCodeHashes) });
         builder.Property(employee => employee.FullName).HasMaxLength(200).IsRequired();
         builder.Property(employee => employee.Code).HasMaxLength(220).IsRequired();
         builder.Property(employee => employee.NormalizedCode).HasMaxLength(220).IsRequired();

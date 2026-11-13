@@ -78,6 +78,7 @@ else
                         <dd class="break-words text-right text-slate-800">@card.Account</dd>
                     </div>
                 </dl>
+                <div class="mt-3"><partial name="_AuditStamp" model="card.Stamp" /></div>
                 <div class="mt-auto flex items-center justify-between gap-2 border-t border-slate-100 pt-4">
                     <a href="@Model.DeleteUrl(card.Id)" class="px-3 py-2 text-sm font-medium rounded-lg text-rose-700 hover:bg-rose-50" data-supplier-id="@card.Id" data-supplier-name="@card.Name" onclick="openDeleteSupplier(this); return false;">Xóa</a>
                     <a href="@Model.EditUrl(card.Id)" class="px-4 py-2 text-sm font-bold rounded-lg bg-slate-100 text-slate-700">Sửa</a>

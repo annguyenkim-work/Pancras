@@ -6,7 +6,7 @@ public enum StockLocationKind
     Showroom = 2
 }
 
-public sealed class StockLocation
+public sealed class StockLocation : Pancras.Domain.Auditing.AuditStamped
 {
     public const int NameMaxLength = 200;
 

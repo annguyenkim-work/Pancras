@@ -1,6 +1,6 @@
 namespace Pancras.Domain.Catalog;
 
-public sealed class CatalogItem
+public sealed class CatalogItem : Pancras.Domain.Auditing.AuditStamped
 {
     public const int CodeMaxLength = 32;
 

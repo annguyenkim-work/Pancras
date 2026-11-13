@@ -1,6 +1,6 @@
 namespace Pancras.Domain.Inventory;
 
-public sealed class QuantityAdjustment
+public sealed class QuantityAdjustment : Pancras.Domain.Auditing.AuditStamped
 {
     private QuantityAdjustment()
     {

@@ -48,5 +48,15 @@ public sealed class PancrasDbContext(DbContextOptions<PancrasDbContext> options)
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(PancrasDbContext).Assembly);
+
+        // Dấu vết (ai tạo/sửa, lúc nào) có cùng cột và độ dài ở mọi thực thể kế thừa AuditStamped.
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes()
+                     .Where(type => typeof(Pancras.Domain.Auditing.AuditStamped).IsAssignableFrom(type.ClrType))
+                     .ToList())
+        {
+            var builder = modelBuilder.Entity(entityType.ClrType);
+            builder.Property(nameof(Pancras.Domain.Auditing.AuditStamped.CreatedBy)).HasMaxLength(Pancras.Domain.Auditing.AuditStamped.ActorMaxLength).IsRequired();
+            builder.Property(nameof(Pancras.Domain.Auditing.AuditStamped.UpdatedBy)).HasMaxLength(Pancras.Domain.Auditing.AuditStamped.ActorMaxLength).IsRequired();
+        }
     }
 }

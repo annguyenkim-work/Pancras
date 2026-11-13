@@ -190,7 +190,7 @@ public sealed class PurchaseCharge
     internal void RemoveSharesOf(IReadOnlySet<Guid> lineIds) => _shares.RemoveAll(share => lineIds.Contains(share.LineId));
 }
 
-public sealed class PurchaseOrder
+public sealed class PurchaseOrder : Pancras.Domain.Auditing.AuditStamped
 {
     public const int CodeMaxLength = 32;
 
@@ -238,18 +238,8 @@ public sealed class PurchaseOrder
     /// <summary>VAT đầu vào được khấu trừ thì không vào giá vốn; không được khấu trừ thì cộng vào giá vốn.</summary>
     public bool VatDeductible { get; private set; } = true;
 
-    public const int ActorMaxLength = 64;
-
-    /// <summary>Thời điểm tạo đơn (UTC).</summary>
-    public DateTimeOffset CreatedAt { get; private set; }
-
-    /// <summary>Mã nhân viên tạo đơn (rỗng với đơn cũ chưa ghi nhận).</summary>
-    public string CreatedBy { get; private set; } = string.Empty;
-
-    /// <summary>Lần sửa cuối (sửa thông tin, mặt hàng, chi phí, hoặc nhập kho). null nếu chưa từng sửa.</summary>
-    public DateTimeOffset? UpdatedAt { get; private set; }
-
-    public string UpdatedBy { get; private set; } = string.Empty;
+    // CreatedAt/By và UpdatedAt/By kế thừa từ AuditStamped. Đơn mua tự đóng dấu bằng handler (thời điểm của đồng hồ ứng dụng)
+    // để nhập kho ghi được cả ReceivedAt; các thực thể khác do tầng lưu trữ đóng dấu tự động.
 
     public DateTimeOffset? ReceivedAt { get; private set; }
 
@@ -599,11 +589,6 @@ public sealed class PurchaseOrder
         ReceivedBy = string.Empty;
     }
 
-    private static string FitActor(string? by)
-    {
-        var trimmed = by?.Trim() ?? string.Empty;
-        return trimmed.Length <= ActorMaxLength ? trimmed : trimmed[..ActorMaxLength];
-    }
 
     private static bool TryOptional(string? value, int max, out string stored)
     {

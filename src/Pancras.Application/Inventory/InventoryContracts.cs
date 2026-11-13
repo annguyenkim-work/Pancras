@@ -1,3 +1,4 @@
+using Pancras.Application.Auditing;
 using Pancras.Domain.Catalog;
 using Pancras.Domain.Employees;
 using Pancras.Domain.Inventory;
@@ -265,7 +266,8 @@ public sealed record TransferSlipRow(
     string DestinationName,
     string Note,
     TransferStatus Status,
-    IReadOnlyList<TransferLineRow> Lines);
+    IReadOnlyList<TransferLineRow> Lines,
+    AuditStampView? Stamp = null);
 
 public sealed record StocktakeRow(
     Guid Id,
@@ -279,7 +281,8 @@ public sealed record StocktakeRow(
     string DocumentRef,
     ApprovalStatus Status,
     string Unit = "",
-    bool CanApprove = false);
+    bool CanApprove = false,
+    AuditStampView? Stamp = null);
 
 public sealed record AdjustmentRow(
     Guid Id,
@@ -290,7 +293,8 @@ public sealed record AdjustmentRow(
     string Reason,
     string DocumentRef,
     ApprovalStatus Status,
-    bool CanApprove = false);
+    bool CanApprove = false,
+    AuditStampView? Stamp = null);
 
 public sealed record DisposalRow(
     Guid Id,
@@ -300,4 +304,5 @@ public sealed record DisposalRow(
     string Reason,
     string DocumentRef,
     ApprovalStatus Status,
-    bool CanApprove = false);
+    bool CanApprove = false,
+    AuditStampView? Stamp = null);

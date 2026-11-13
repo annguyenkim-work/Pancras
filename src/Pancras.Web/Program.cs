@@ -85,8 +85,10 @@ if (string.IsNullOrWhiteSpace(connectionString))
         "Thiếu ConnectionStrings:DefaultConnection. Đặt chuỗi kết nối bằng user-secrets, không ghi mật khẩu vào git.");
 }
 
-builder.Services.AddDbContext<PancrasDbContext>(options =>
-    options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention());
+builder.Services.AddScoped<AuditStampInterceptor>();
+builder.Services.AddDbContext<PancrasDbContext>((provider, options) =>
+    options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention()
+        .AddInterceptors(provider.GetRequiredService<AuditStampInterceptor>()));
 builder.Services.AddScoped<IPasswordHasher, Pbkdf2PasswordHasher>();
 builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
 builder.Services.AddScoped<ISupplierRepository, SupplierRepository>();

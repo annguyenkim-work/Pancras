@@ -53,7 +53,8 @@ public sealed record CatalogItemRow(
     int? HeightMm,
     int? LengthMm,
     int? WidthMm,
-    string ImagePath)
+    string ImagePath,
+    Pancras.Application.Auditing.AuditStampView? Stamp = null)
 {
     public static CatalogItemRow From(CatalogItem item) =>
         new(
@@ -76,7 +77,8 @@ public sealed record CatalogItemRow(
             item.HeightMm,
             item.LengthMm,
             item.WidthMm,
-            item.ImagePath);
+            item.ImagePath,
+            Pancras.Application.Auditing.AuditStampView.From(item));
 }
 
 public static class ProductCategoryToken

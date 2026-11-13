@@ -125,7 +125,7 @@ else
                             }
                         </td>
                         <td class="px-3 py-3 font-mono text-slate-700">@row.Code</td>
-                        <td class="px-3 py-3 font-medium text-slate-900">@row.Name</td>
+                        <td class="px-3 py-3 font-medium text-slate-900">@row.Name<partial name="_AuditStamp" model="row.Stamp" /></td>
                         <td class="px-3 py-3 text-slate-700">@CatalogLabels.Category(row.Category)</td>
                         <td class="px-3 py-3 text-slate-700">@CatalogLabels.Text(row.Brand)</td>
                         <td class="px-3 py-3 text-slate-700">@CatalogLabels.Text(row.Unit)</td>

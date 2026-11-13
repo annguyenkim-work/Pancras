@@ -1,6 +1,6 @@
 namespace Pancras.Domain.Inventory;
 
-public sealed class DisposalSlip
+public sealed class DisposalSlip : Pancras.Domain.Auditing.AuditStamped
 {
     private DisposalSlip()
     {

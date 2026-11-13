@@ -37,7 +37,8 @@ public sealed class ListSupplierCardsHandler(
                 supplier.Email,
                 supplier.Account,
                 row?.PurchaseOrderCount ?? 0,
-                row?.LotsNotReceived ?? 0);
+                row?.LotsNotReceived ?? 0,
+                Pancras.Application.Auditing.AuditStampView.From(supplier));
         }).ToArray();
 
         return new SupplierCardPage(cards, slice.PageNumber, page.Size, slice.TotalCount);

@@ -1,6 +1,6 @@
 namespace Pancras.Domain.Inventory;
 
-public sealed class StocktakeSheet
+public sealed class StocktakeSheet : Pancras.Domain.Auditing.AuditStamped
 {
     public const int ReasonMaxLength = 500;
 

@@ -86,7 +86,8 @@ public sealed record SupplierCard(
     string Email,
     string Account,
     int PurchaseOrderCount,
-    int LotsNotReceived);
+    int LotsNotReceived,
+    Pancras.Application.Auditing.AuditStampView? Stamp = null);
 
 public sealed record SupplierPurchaseOption(Guid Id, string Code, string Name);
 

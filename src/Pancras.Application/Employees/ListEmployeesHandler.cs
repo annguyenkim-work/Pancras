@@ -1,3 +1,4 @@
+using Pancras.Application.Auditing;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Locations;
 using Pancras.Domain.Employees;
@@ -18,7 +19,8 @@ public sealed record EmployeeCard(
     string Department,
     bool IsActive,
     bool TwoFactorEnabled = false,
-    DateTimeOffset? LockedUntil = null);
+    DateTimeOffset? LockedUntil = null,
+    AuditStampView? Stamp = null);
 
 public sealed class ListEmployeesHandler(
     IEmployeeRepository repository,
@@ -71,7 +73,8 @@ public sealed class ListEmployeesHandler(
                 employee.Department,
                 employee.IsActive,
                 employee.TwoFactorEnabled,
-                employee.LockedUntil))
+                employee.LockedUntil,
+                AuditStampView.From(employee)))
             .ToArray();
         logger.LogInformation("Listed {EmployeeCount} employee cards.", cards.Length);
         return cards;

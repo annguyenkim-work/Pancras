@@ -196,6 +196,7 @@
                             <p class="text-xs text-slate-500">Khởi tạo: @when</p>
                         }
                     </div>
+                    <div class="mt-1"><partial name="_AuditStamp" model="slip.Stamp" /></div>
                     <div class="mt-4 grid grid-cols-1 items-center gap-3 md:grid-cols-[1fr_auto_1fr]">
                         <div>
                             <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Kho xuất hàng</p>
@@ -291,6 +292,7 @@
                             <span class="ml-auto text-xs text-slate-500">@when</span>
                         }
                     </div>
+                    <div class="mt-1"><partial name="_AuditStamp" model="sheet.Stamp" /></div>
                     <div class="mt-4 overflow-x-auto">
                         <table class="w-full text-left text-sm">
                             <thead class="text-xs uppercase tracking-wide text-slate-500">
@@ -339,6 +341,7 @@
                     <article id="document-@sheet.Id" class="bg-white rounded-2xl border border-slate-200 p-4 text-sm">
                         <p class="font-semibold">@sheet.Code — @sheet.Name <span class="font-normal text-slate-500">@sheet.LocationName</span></p>
                         <p class="mt-1 text-slate-600">Chênh lệch @sheet.Delta. @sheet.Reason. @StockLabels.Approval(sheet.Status)</p>
+                        <partial name="_AuditStamp" model="sheet.Stamp" />
                         @if (sheet.Status == ApprovalStatus.Pending && sheet.CanApprove)
                         {
                             <form method="post" action="/inventory?handler=ApproveAdjustment" class="mt-3">
@@ -357,6 +360,7 @@
                     <article id="document-@slip.Id" class="bg-white rounded-2xl border border-slate-200 p-4 text-sm">
                         <p class="font-semibold">@slip.Code — @slip.Name <span class="font-normal text-slate-500">@slip.LocationName</span></p>
                         <p class="mt-1 text-slate-600">@slip.Reason. @StockLabels.Approval(slip.Status)</p>
+                        <partial name="_AuditStamp" model="slip.Stamp" />
                         @if (slip.Status == ApprovalStatus.Pending && slip.CanApprove)
                         {
                             <form method="post" action="/inventory?handler=ApproveDisposal" class="mt-3">

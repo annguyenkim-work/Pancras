@@ -1,6 +1,6 @@
 namespace Pancras.Domain.Employees;
 
-public sealed class Employee
+public sealed class Employee : Pancras.Domain.Auditing.AuditStamped
 {
     private Employee()
     {
