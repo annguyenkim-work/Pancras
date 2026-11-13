@@ -20,7 +20,8 @@
     {
         <p class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800" role="status">@Model.Notice</p>
     }
-    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    @* Khi modal đang mở, lỗi hiện trong modal (bên dưới); hiện ở đây sẽ nằm sau lớp phủ và người dùng không thấy. *@
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage) && !Model.ShowForm)
     {
         <p class="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800" role="alert">@Model.ErrorMessage</p>
     }
@@ -367,6 +368,10 @@ else
             <a href="/purchasing" class="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-2xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Đóng">×</a>
         </div>
         <form method="post" asp-page-handler="@(Model.EditingId is null ? "Create" : "Update")" id="purchase-draft" class="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+            @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+            {
+                <p id="form-error" class="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800" role="alert">@Model.ErrorMessage</p>
+            }
             @if (Model.EditingId is Guid editingId)
             {
                 <input type="hidden" name="orderId" value="@editingId" />

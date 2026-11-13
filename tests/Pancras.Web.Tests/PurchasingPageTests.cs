@@ -108,6 +108,34 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
     }
 
     [Fact]
+    public async Task RejectedSave_ShowsTheReasonInsideTheOpenDialog_NotBehindIt()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        Reset();
+        await SignInAsync(client);
+        var formPage = await client.GetAsync("/purchasing?form=1");
+        var token = Regex.Match(await formPage.Content.ReadAsStringAsync(), "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+
+        var response = await client.PostAsync("/purchasing?handler=Create", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = token,
+            ["Form.Code"] = "PO-GIA-0",
+            ["Form.ExchangeRate"] = "25000",
+            ["Form.Lines[0].CatalogItemId"] = Guid.CreateVersion7().ToString(),
+            ["Form.Lines[0].Quantity"] = "5",
+            ["Form.UnitPrices[0]"] = "0"
+        }));
+        var text = System.Net.WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        var dialogStart = text.IndexOf("<dialog", StringComparison.Ordinal);
+        var dialogEnd = text.IndexOf("</dialog>", StringComparison.Ordinal);
+        const string reason = "Đơn không được tạo.";
+
+        Assert.True(dialogStart > 0 && dialogEnd > dialogStart);
+        Assert.Contains(reason, text[dialogStart..dialogEnd], StringComparison.Ordinal);
+        Assert.DoesNotContain(reason, text[..dialogStart], StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Attachment_CanBeUploadedAndDownloaded_ByFinanceRoles()
     {
         using var client = _factory.CreateClient(NoRedirect);
