@@ -97,6 +97,8 @@ public static class AuditActions
     public const string TransferDiscrepancyResolved = "stock.transfer_discrepancy_resolved";
     public const string TransferAttachmentAdded = "stock.transfer_attachment_added";
     public const string TransferAttachmentDownloaded = "stock.transfer_attachment_downloaded";
+    public const string StockDocumentAttachmentAdded = "stock.document_attachment_added";
+    public const string StockDocumentAttachmentDownloaded = "stock.document_attachment_downloaded";
     public const string TransferShipped = "stock.transfer_shipped";
     public const string TransferReceived = "stock.transfer_received";
     public const string TransferCancelled = "stock.transfer_cancelled";

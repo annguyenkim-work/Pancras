@@ -8,7 +8,8 @@ namespace Pancras.Application.Inventory;
 public sealed class ListInventoryDocumentsHandler(
     IInventoryRepository repository,
     ILogger<ListInventoryDocumentsHandler> logger,
-    ITransferAttachmentRepository? transferAttachments = null)
+    ITransferAttachmentRepository? transferAttachments = null,
+    IStockDocumentAttachmentRepository? stockAttachments = null)
 {
     public async Task<IReadOnlyList<StockLocationChoice>> ListLocationsAsync(EmployeeActor actor, CancellationToken cancellationToken)
     {
@@ -148,6 +149,7 @@ public sealed class ListInventoryDocumentsHandler(
         var sheets = InventoryAccess.CanOperate(actor.Role)
             ? (await repository.ListStocktakesAsync(cancellationToken)).Where(sheet => InventoryAccess.CanAccessLocation(actor, sheet.StockLocationId)).ToArray()
             : [];
+        var files = await FilesAsync(sheets.Select(sheet => sheet.Id), cancellationToken);
         var names = await NamesAsync(cancellationToken);
         return sheets.Select(sheet => new StocktakeRow(
             sheet.Id,
@@ -162,7 +164,8 @@ public sealed class ListInventoryDocumentsHandler(
             sheet.Status,
             names.Unit(sheet.CatalogItemId),
             sheet.Status == ApprovalStatus.Pending && InventoryAccess.CanApprove(actor, sheet.CreatedByRole, sheet.StockLocationId),
-            AuditStampView.From(sheet))).ToArray();
+            AuditStampView.From(sheet),
+            files.GetValueOrDefault(sheet.Id))).ToArray();
     }
 
     public async Task<IReadOnlyList<AdjustmentRow>> ListAdjustmentsAsync(EmployeeActor actor, CancellationToken cancellationToken)
@@ -170,6 +173,7 @@ public sealed class ListInventoryDocumentsHandler(
         var adjustments = InventoryAccess.CanOperate(actor.Role)
             ? (await repository.ListAdjustmentsAsync(cancellationToken)).Where(item => InventoryAccess.CanAccessLocation(actor, item.StockLocationId)).ToArray()
             : [];
+        var files = await FilesAsync(adjustments.Select(adjustment => adjustment.Id), cancellationToken);
         var names = await NamesAsync(cancellationToken);
         return adjustments.Select(adjustment => new AdjustmentRow(
             adjustment.Id,
@@ -182,7 +186,8 @@ public sealed class ListInventoryDocumentsHandler(
             adjustment.Status,
             adjustment.Status == ApprovalStatus.Pending && InventoryAccess.CanApproveAdjustment(actor.Role),
             AuditStampView.From(adjustment),
-            adjustment.TransferSlipId)).ToArray();
+            adjustment.TransferSlipId,
+            files.GetValueOrDefault(adjustment.Id))).ToArray();
     }
 
     public async Task<IReadOnlyList<DisposalRow>> ListDisposalsAsync(EmployeeActor actor, CancellationToken cancellationToken)
@@ -190,6 +195,7 @@ public sealed class ListInventoryDocumentsHandler(
         var slips = InventoryAccess.CanOperate(actor.Role)
             ? (await repository.ListDisposalsAsync(cancellationToken)).Where(item => InventoryAccess.CanAccessLocation(actor, item.StockLocationId)).ToArray()
             : [];
+        var files = await FilesAsync(slips.Select(slip => slip.Id), cancellationToken);
         var names = await NamesAsync(cancellationToken);
         return slips.Select(slip => new DisposalRow(
             slip.Id,
@@ -200,7 +206,21 @@ public sealed class ListInventoryDocumentsHandler(
             slip.DocumentRef,
             slip.Status,
             slip.Status == ApprovalStatus.Pending && InventoryAccess.CanApprove(actor, slip.CreatedByRole, slip.StockLocationId),
-            AuditStampView.From(slip))).ToArray();
+            AuditStampView.From(slip),
+            files.GetValueOrDefault(slip.Id))).ToArray();
+    }
+
+    private async Task<Dictionary<Guid, IReadOnlyList<TransferAttachmentView>>> FilesAsync(IEnumerable<Guid> documentIds, CancellationToken cancellationToken)
+    {
+        var ids = documentIds.ToArray();
+        if (stockAttachments is null || ids.Length == 0)
+        {
+            return [];
+        }
+
+        return (await stockAttachments.ListForDocumentsAsync(ids, cancellationToken)).ToDictionary(
+            pair => pair.Key,
+            pair => (IReadOnlyList<TransferAttachmentView>)pair.Value.OrderBy(file => file.UploadedAt).Select(file => new TransferAttachmentView(file.Id, file.FileName, file.SizeBytes, file.UploadedAt, file.UploadedBy)).ToArray());
     }
 
     private async Task<NameMap> NamesAsync(CancellationToken cancellationToken)

@@ -218,6 +218,46 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
         Assert.DoesNotContain("Giá vốn", html, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task StocktakeForms_TakeRealFiles_InsteadOfAFreeTextImageReference()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        Reset();
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+
+        var html = await (await client.GetAsync("/inventory?view=stocktakes")).Content.ReadAsStringAsync();
+        var forms = Regex.Matches(html, "<form[^>]*handler=Create(?:Stocktake|Adjustment|Disposal)[^>]*>(.*?)</form>", RegexOptions.Singleline);
+
+        Assert.Equal(3, forms.Count);
+        Assert.All(forms, form =>
+        {
+            Assert.Contains("multipart/form-data", form.Value, StringComparison.Ordinal);
+            Assert.Contains("type=\"file\" name=\"files\"", form.Value, StringComparison.Ordinal);
+        });
+        Assert.DoesNotContain("ImageRef", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ReceiveForm_OffersAFillAllButton_ThatStillLeavesEveryQuantityRequired()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        var slip = SeedRequestedSlip(inventory);
+        var item = slip.Lines[0].CatalogItemId;
+        var source = StockBalance.Create(item, slip.SourceLocationId, 10, 0, 0);
+        var destination = StockBalance.Create(item, slip.DestinationLocationId, 0, 0, 0);
+        var sources = new Dictionary<Guid, StockBalance> { [item] = source };
+        Assert.True(slip.TryApprove(sources));
+        Assert.True(slip.TryConfirmShipment(sources, new Dictionary<Guid, StockBalance> { [item] = destination }));
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+
+        var html = await (await client.GetAsync("/inventory?view=transfers&open=" + slip.Id)).Content.ReadAsStringAsync();
+
+        Assert.Contains("data-fill-received", html, StringComparison.Ordinal);
+        Assert.Contains("data-shipped=\"2\"", html, StringComparison.Ordinal);
+        Assert.Matches("<input type=\"number\" min=\"0\" required name=\"receiveLines\\[0\\]\\.Quantity\"", html);
+    }
+
     private static TransferSlip SeedRequestedSlip(InventoryDirectoryDouble inventory)
     {
         var from = StockLocation.Create("Kho A", StockLocationKind.Warehouse);
@@ -397,4 +437,18 @@ internal sealed class TransferAttachmentDouble : ITransferAttachmentRepository
         Task.FromResult<IReadOnlyDictionary<Guid, IReadOnlyList<TransferAttachment>>>(new Dictionary<Guid, IReadOnlyList<TransferAttachment>>());
 
     public Task AddAsync(TransferAttachment attachment, CancellationToken cancellationToken) => Task.CompletedTask;
+}
+
+internal sealed class StockDocumentAttachmentDouble : IStockDocumentAttachmentRepository
+{
+    public Task<IReadOnlyList<StockDocumentAttachment>> ListAsync(StockDocumentKind kind, Guid documentId, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<StockDocumentAttachment>>([]);
+
+    public Task<StockDocumentAttachment?> FindAsync(Guid id, CancellationToken cancellationToken) =>
+        Task.FromResult<StockDocumentAttachment?>(null);
+
+    public Task<IReadOnlyDictionary<Guid, IReadOnlyList<StockDocumentAttachment>>> ListForDocumentsAsync(IReadOnlyCollection<Guid> documentIds, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyDictionary<Guid, IReadOnlyList<StockDocumentAttachment>>>(new Dictionary<Guid, IReadOnlyList<StockDocumentAttachment>>());
+
+    public Task AddAsync(StockDocumentAttachment attachment, CancellationToken cancellationToken) => Task.CompletedTask;
 }

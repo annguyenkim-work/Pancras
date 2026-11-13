@@ -511,9 +511,10 @@
                                             <div class="flex flex-wrap items-center gap-3 text-sm">
                                                 <input type="hidden" name="receiveLines[@index].LineId" value="@line.LineId" />
                                                 <span class="min-w-[12rem] flex-1">@line.Code · @line.Name <span class="text-slate-500">(xuất @IndexModel.Count(line.Quantity))</span></span>
-                                                <input type="number" min="0" required name="receiveLines[@index].Quantity" value="@echoed" placeholder="Thực nhận" aria-label="Thực nhận @line.Code" class="w-28 rounded-lg border border-slate-300 px-3 py-1.5" />
+                                                <input type="number" min="0" required name="receiveLines[@index].Quantity" data-shipped="@line.Quantity" value="@echoed" placeholder="Thực nhận" aria-label="Thực nhận @line.Code" class="w-28 rounded-lg border border-slate-300 px-3 py-1.5" />
                                             </div>
                                         }
+                                        <div><button type="button" data-fill-received class="rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-xs font-bold text-emerald-700">Nhận đủ tất cả (điền số đã xuất)</button></div>
                                         <label class="block text-sm">Lý do chênh lệch (bắt buộc nếu số nhận khác số xuất)
                                             <textarea name="receiveNote" maxlength="500" rows="3" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">@(attention ? Model.EchoReceiveNote : "")</textarea>
                                         </label>
@@ -656,6 +657,16 @@
                     {
                         <p class="mt-3 text-sm text-slate-600">Chứng từ: @sheet.DocumentRef</p>
                     }
+                    @if (sheet.Files is { Count: > 0 })
+                    {
+                        <ul class="mt-2 flex flex-wrap gap-2 text-sm">
+                            @foreach (var file in sheet.Files)
+                            {
+                                <li><a href="/inventory?handler=StockFile&amp;id=@file.Id" class="inline-flex items-center rounded-lg border border-slate-200 px-3 py-1 text-sky-700 hover:bg-sky-50">@file.FileName</a></li>
+                            }
+                        </ul>
+                    }
+
                     @if (sheet.Status == ApprovalStatus.Pending && sheet.CanApprove)
                     {
                         <form method="post" asp-antiforgery="true" action="/inventory?handler=ApproveStocktake" class="mt-4 flex justify-end">
@@ -678,6 +689,15 @@
                         {
                             <p class="mt-1 text-xs text-slate-500">Ghi nhận tự động khi nhận hàng chuyển kho <a class="font-mono font-semibold text-sky-700" href="/inventory?view=transfers&open=@fromTransfer">@StockLabels.DocumentCode("CK", fromTransfer)</a>. Tồn kho đã đúng số thực nhận, phiếu này không cộng trừ thêm.</p>
                         }
+                        @if (sheet.Files is { Count: > 0 })
+                        {
+                            <ul class="mt-2 flex flex-wrap gap-2 text-sm">
+                                @foreach (var file in sheet.Files)
+                                {
+                                    <li><a href="/inventory?handler=StockFile&amp;id=@file.Id" class="inline-flex items-center rounded-lg border border-slate-200 px-3 py-1 text-sky-700 hover:bg-sky-50">@file.FileName</a></li>
+                                }
+                            </ul>
+                        }
                         <partial name="_AuditStamp" model="sheet.Stamp" />
                         @if (sheet.Status == ApprovalStatus.Pending && sheet.CanApprove)
                         {
@@ -697,6 +717,15 @@
                     <article id="document-@slip.Id" class="bg-white rounded-2xl border border-slate-200 p-4 text-sm">
                         <p class="font-semibold">@slip.Code — @slip.Name <span class="font-normal text-slate-500">@slip.LocationName</span></p>
                         <p class="mt-1 text-slate-600">@slip.Reason. @StockLabels.Approval(slip.Status)</p>
+                        @if (slip.Files is { Count: > 0 })
+                        {
+                            <ul class="mt-2 flex flex-wrap gap-2 text-sm">
+                                @foreach (var file in slip.Files)
+                                {
+                                    <li><a href="/inventory?handler=StockFile&amp;id=@file.Id" class="inline-flex items-center rounded-lg border border-slate-200 px-3 py-1 text-sky-700 hover:bg-sky-50">@file.FileName</a></li>
+                                }
+                            </ul>
+                        }
                         <partial name="_AuditStamp" model="slip.Stamp" />
                         @if (slip.Status == ApprovalStatus.Pending && slip.CanApprove)
                         {
@@ -802,7 +831,7 @@
 </dialog>
 
 <dialog id="stocktake-dialog" class="w-[min(36rem,calc(100%-2rem))] rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/50">
-    <form method="post" asp-antiforgery="true" action="/inventory?handler=CreateStocktake" class="p-6">
+    <form method="post" asp-antiforgery="true" action="/inventory?handler=CreateStocktake" enctype="multipart/form-data" class="p-6">
         <div class="flex items-start justify-between gap-3">
             <div>
                 <h2 class="font-display text-lg font-bold">Lập Biên Bản Kiểm Kê Kho</h2>
@@ -838,8 +867,9 @@
         <label class="mt-3 block text-sm font-medium text-slate-700">Chứng từ
             <input name="Stocktake.DocumentRef" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
         </label>
-        <label class="mt-3 block text-sm font-medium text-slate-700">Ảnh hàng
-            <input name="Stocktake.ImageRef" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" placeholder="Đường dẫn hoặc mã ảnh" />
+        <label class="mt-3 block text-sm font-medium text-slate-700">Ảnh hàng, chứng từ (file đính kèm)
+            <input type="file" name="files" multiple accept="image/*,.pdf,.jpg,.jpeg,.png,.xlsx,.docx" class="mt-1 block w-full text-xs text-slate-600" />
+            <span class="mt-1 block text-xs font-normal text-slate-500">Tối đa 10 MB mỗi file. Trên điện thoại có thể chụp ảnh trực tiếp.</span>
         </label>
         <div class="mt-5 flex justify-end gap-2">
             <button type="button" class="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" onclick="this.closest('dialog').close()">Hủy</button>
@@ -849,7 +879,7 @@
 </dialog>
 
 <dialog id="adjustment-dialog" class="w-[min(36rem,calc(100%-2rem))] rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/50">
-    <form method="post" asp-antiforgery="true" action="/inventory?handler=CreateAdjustment" class="p-6">
+    <form method="post" asp-antiforgery="true" action="/inventory?handler=CreateAdjustment" enctype="multipart/form-data" class="p-6">
         <div class="flex items-start justify-between gap-3">
             <h2 class="font-display text-lg font-bold">Phiếu điều chỉnh số lượng</h2>
             <button type="button" class="text-slate-400" onclick="this.closest('dialog').close()" aria-label="Đóng">×</button>
@@ -882,8 +912,9 @@
         <label class="mt-3 block text-sm font-medium text-slate-700">Chứng từ
             <input name="Adjustment.DocumentRef" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
         </label>
-        <label class="mt-3 block text-sm font-medium text-slate-700">Ảnh hàng
-            <input name="Adjustment.ImageRef" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" placeholder="Đường dẫn hoặc mã ảnh" />
+        <label class="mt-3 block text-sm font-medium text-slate-700">Ảnh hàng, chứng từ (file đính kèm)
+            <input type="file" name="files" multiple accept="image/*,.pdf,.jpg,.jpeg,.png,.xlsx,.docx" class="mt-1 block w-full text-xs text-slate-600" />
+            <span class="mt-1 block text-xs font-normal text-slate-500">Tối đa 10 MB mỗi file. Trên điện thoại có thể chụp ảnh trực tiếp.</span>
         </label>
         <div class="mt-5 flex justify-end gap-2">
             <button type="button" class="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" onclick="this.closest('dialog').close()">Hủy</button>
@@ -893,7 +924,7 @@
 </dialog>
 
 <dialog id="disposal-dialog" class="w-[min(36rem,calc(100%-2rem))] rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/50">
-    <form method="post" asp-antiforgery="true" action="/inventory?handler=CreateDisposal" class="p-6">
+    <form method="post" asp-antiforgery="true" action="/inventory?handler=CreateDisposal" enctype="multipart/form-data" class="p-6">
         <div class="flex items-start justify-between gap-3">
             <h2 class="font-display text-lg font-bold">Phiếu hủy một sản phẩm</h2>
             <button type="button" class="text-slate-400" onclick="this.closest('dialog').close()" aria-label="Đóng">×</button>
@@ -922,8 +953,9 @@
         <label class="mt-3 block text-sm font-medium text-slate-700">Chứng từ
             <input name="Disposal.DocumentRef" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
         </label>
-        <label class="mt-3 block text-sm font-medium text-slate-700">Ảnh hàng hỏng
-            <input name="Disposal.ImageRef" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" placeholder="Đường dẫn hoặc mã ảnh" />
+        <label class="mt-3 block text-sm font-medium text-slate-700">Ảnh hàng hỏng, chứng từ (file đính kèm)
+            <input type="file" name="files" multiple accept="image/*,.pdf,.jpg,.jpeg,.png,.xlsx,.docx" class="mt-1 block w-full text-xs text-slate-600" />
+            <span class="mt-1 block text-xs font-normal text-slate-500">Tối đa 10 MB mỗi file. Trên điện thoại có thể chụp ảnh trực tiếp.</span>
         </label>
         <div class="mt-5 flex justify-end gap-2">
             <button type="button" class="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" onclick="this.closest('dialog').close()">Hủy</button>
@@ -1182,6 +1214,16 @@
         refreshTransferLines();
     });
     refreshTransferLines();
+
+    document.addEventListener('click', event => {
+        const button = event.target.closest('[data-fill-received]');
+        if (!button) {
+            return;
+        }
+        button.closest('form').querySelectorAll('input[data-shipped]').forEach(input => {
+            input.value = input.dataset.shipped;
+        });
+    });
 
     // Hộp xác nhận dùng chung: form có data-confirm sẽ hiện hộp này trước khi gửi.
     // Nút gửi có thể mang data-confirm-title, data-confirm-message, data-confirm-label, data-confirm-tone="danger" và

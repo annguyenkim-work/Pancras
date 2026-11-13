@@ -33,7 +33,9 @@ public class IndexModel(
     ApproveQuantityAdjustmentCommandHandler approveAdjustmentHandler,
     CreateDisposalSlipCommandHandler createDisposalHandler,
     ApproveDisposalSlipCommandHandler approveDisposalHandler,
-    ListStockNoticesHandler noticesHandler) : PageModel
+    ListStockNoticesHandler noticesHandler,
+    UploadStockDocumentAttachmentCommandHandler uploadStockDocumentFile,
+    OpenStockDocumentAttachmentHandler openStockDocumentFile) : PageModel
 {
     private static readonly CultureInfo Vietnamese = CultureInfo.GetCultureInfo("vi-VN");
 
@@ -463,9 +465,10 @@ public class IndexModel(
         return File(download.Content, download.ContentType, download.FileName);
     }
 
-    public Task<IActionResult> OnPostCreateStocktakeAsync(CancellationToken cancellationToken) =>
-        SaveStocktakeAsync(
-            createStocktakeHandler.HandleAsync(
+    public Task<IActionResult> OnPostCreateStocktakeAsync(List<IFormFile>? files, CancellationToken cancellationToken) =>
+        CreateStockDocumentAsync(
+            StockDocumentKind.Stocktake,
+            () => createStocktakeHandler.HandleAsync(
                 new CreateStocktakeCommand
                 {
                     Actor = Actor,
@@ -473,18 +476,19 @@ public class IndexModel(
                     CatalogItemId = Stocktake.CatalogItemId,
                     CountedQuantity = Stocktake.CountedQuantity,
                     Reason = Stocktake.Reason,
-                    DocumentRef = Stocktake.DocumentRef,
-                    ImageRef = Stocktake.ImageRef
+                    DocumentRef = Stocktake.DocumentRef
                 },
                 cancellationToken),
+            files,
             cancellationToken);
 
     public Task<IActionResult> OnPostApproveStocktakeAsync(CancellationToken cancellationToken) =>
         SaveAsync(approveStocktakeHandler.HandleAsync(new ApproveDocumentCommand(DocumentId, Actor), cancellationToken), "stocktakes", cancellationToken);
 
-    public Task<IActionResult> OnPostCreateAdjustmentAsync(CancellationToken cancellationToken) =>
-        SaveAsync(
-            createAdjustmentHandler.HandleAsync(
+    public Task<IActionResult> OnPostCreateAdjustmentAsync(List<IFormFile>? files, CancellationToken cancellationToken) =>
+        CreateStockDocumentAsync(
+            StockDocumentKind.Adjustment,
+            () => createAdjustmentHandler.HandleAsync(
                 new CreateQuantityAdjustmentCommand
                 {
                     Actor = Actor,
@@ -492,30 +496,29 @@ public class IndexModel(
                     CatalogItemId = Adjustment.CatalogItemId,
                     Delta = Adjustment.Delta,
                     Reason = Adjustment.Reason,
-                    DocumentRef = Adjustment.DocumentRef,
-                    ImageRef = Adjustment.ImageRef
+                    DocumentRef = Adjustment.DocumentRef
                 },
                 cancellationToken),
-            "stocktakes",
+            files,
             cancellationToken);
 
     public Task<IActionResult> OnPostApproveAdjustmentAsync(CancellationToken cancellationToken) =>
         SaveAsync(approveAdjustmentHandler.HandleAsync(new ApproveDocumentCommand(DocumentId, Actor), cancellationToken), "stocktakes", cancellationToken);
 
-    public Task<IActionResult> OnPostCreateDisposalAsync(CancellationToken cancellationToken) =>
-        SaveAsync(
-            createDisposalHandler.HandleAsync(
+    public Task<IActionResult> OnPostCreateDisposalAsync(List<IFormFile>? files, CancellationToken cancellationToken) =>
+        CreateStockDocumentAsync(
+            StockDocumentKind.Disposal,
+            () => createDisposalHandler.HandleAsync(
                 new CreateDisposalSlipCommand
                 {
                     Actor = Actor,
                     StockLocationId = Disposal.StockLocationId,
                     CatalogItemId = Disposal.CatalogItemId,
                     Reason = Disposal.Reason,
-                    DocumentRef = Disposal.DocumentRef,
-                    ImageRef = Disposal.ImageRef
+                    DocumentRef = Disposal.DocumentRef
                 },
                 cancellationToken),
-            "stocktakes",
+            files,
             cancellationToken);
 
     public async Task<IActionResult> OnPostOpenNoticeAsync(Guid noticeId, CancellationToken cancellationToken)
@@ -643,20 +646,74 @@ public class IndexModel(
         return Redirect(PageUrl(includeItem: false));
     }
 
-    private async Task<IActionResult> SaveStocktakeAsync(Task<Result<Guid>> operation, CancellationToken cancellationToken)
+    /// <summary>
+    /// Lập biên bản kiểm kê, phiếu điều chỉnh hoặc phiếu hủy kèm file đính kèm (ảnh hàng, chứng từ).
+    /// File được kiểm tra trước khi tạo phiếu để một file sai không để lại phiếu nửa vời.
+    /// </summary>
+    private async Task<IActionResult> CreateStockDocumentAsync(
+        StockDocumentKind kind,
+        Func<Task<Result<Guid>>> create,
+        List<IFormFile>? files,
+        CancellationToken cancellationToken)
     {
-        var result = await operation;
-        if (result.IsFailure)
+        var chosen = (files ?? []).Where(file => file.Length > 0).ToArray();
+        var pending = new List<PendingTransferFile>();
+        foreach (var file in chosen)
         {
-            ErrorMessage = StockErrorMessages.Describe(result.StockError);
-            ShowStocktakeDialog = true;
-            View = "stocktakes";
-            await LoadAsync(cancellationToken);
-            return Page();
+            var header = new byte[8];
+            await using var probe = file.OpenReadStream();
+            var read = await probe.ReadAtLeastAsync(header, header.Length, throwOnEndOfStream: false, cancellationToken);
+            pending.Add(new PendingTransferFile(file.FileName, file.Length, header[..read]));
+        }
+
+        var verdict = UploadStockDocumentAttachmentCommandHandler.CheckFiles(pending);
+        if (verdict.IsFailure)
+        {
+            return await FailStockDocumentAsync(kind, verdict.StockError, verdict.Detail, cancellationToken);
+        }
+
+        var created = await create();
+        if (created.IsFailure)
+        {
+            return await FailStockDocumentAsync(kind, created.StockError, created.Detail, cancellationToken);
+        }
+
+        foreach (var file in chosen)
+        {
+            await using var content = file.OpenReadStream();
+            var uploaded = await uploadStockDocumentFile.HandleAsync(
+                new UploadStockDocumentAttachmentCommand { Kind = kind, DocumentId = created.Value, FileName = file.FileName, Content = content, Actor = Actor },
+                cancellationToken);
+            if (uploaded.IsFailure)
+            {
+                return await FailStockDocumentAsync(kind, uploaded.StockError, uploaded.Detail, cancellationToken);
+            }
         }
 
         View = "stocktakes";
         return Redirect(PageUrl(includeItem: false));
+    }
+
+    private async Task<IActionResult> FailStockDocumentAsync(StockDocumentKind kind, StockError error, string? detail, CancellationToken cancellationToken)
+    {
+        ErrorMessage = StockErrorMessages.Describe(error, detail);
+        ShowStocktakeDialog = kind == StockDocumentKind.Stocktake;
+        View = "stocktakes";
+        await LoadAsync(cancellationToken);
+        return Page();
+    }
+
+    public async Task<IActionResult> OnGetStockFileAsync(Guid id)
+    {
+        var result = await openStockDocumentFile.HandleAsync(id, Actor, HttpContext.RequestAborted);
+        if (result.IsFailure)
+        {
+            return NotFound();
+        }
+
+        var download = result.Value!;
+        Response.Headers.CacheControl = "private, no-store";
+        return File(download.Content, download.ContentType, download.FileName);
     }
 
     private async Task<IActionResult> FailAsync(StockError error, string? detail, bool openTransfer, string view, CancellationToken cancellationToken)
@@ -917,8 +974,6 @@ public sealed class StocktakeInput
     public string? Reason { get; set; }
 
     public string? DocumentRef { get; set; }
-
-    public string? ImageRef { get; set; }
 }
 
 public sealed class AdjustmentInput
@@ -932,8 +987,6 @@ public sealed class AdjustmentInput
     public string? Reason { get; set; }
 
     public string? DocumentRef { get; set; }
-
-    public string? ImageRef { get; set; }
 }
 
 public sealed class DisposalInput
@@ -945,8 +998,6 @@ public sealed class DisposalInput
     public string? Reason { get; set; }
 
     public string? DocumentRef { get; set; }
-
-    public string? ImageRef { get; set; }
 }
 
 public sealed class ReceiveLineForm

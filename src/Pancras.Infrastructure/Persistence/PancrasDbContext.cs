@@ -49,6 +49,8 @@ public sealed class PancrasDbContext(DbContextOptions<PancrasDbContext> options)
 
     public DbSet<TransferAttachment> TransferAttachments => Set<TransferAttachment>();
 
+    public DbSet<StockDocumentAttachment> StockDocumentAttachments => Set<StockDocumentAttachment>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(PancrasDbContext).Assembly);

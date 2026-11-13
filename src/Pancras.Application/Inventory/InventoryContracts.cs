@@ -322,7 +322,8 @@ public sealed record StocktakeRow(
     ApprovalStatus Status,
     string Unit = "",
     bool CanApprove = false,
-    AuditStampView? Stamp = null);
+    AuditStampView? Stamp = null,
+    IReadOnlyList<TransferAttachmentView>? Files = null);
 
 public sealed record AdjustmentRow(
     Guid Id,
@@ -335,7 +336,8 @@ public sealed record AdjustmentRow(
     ApprovalStatus Status,
     bool CanApprove = false,
     AuditStampView? Stamp = null,
-    Guid? TransferSlipId = null);
+    Guid? TransferSlipId = null,
+    IReadOnlyList<TransferAttachmentView>? Files = null);
 
 public sealed record DisposalRow(
     Guid Id,
@@ -346,4 +348,5 @@ public sealed record DisposalRow(
     string DocumentRef,
     ApprovalStatus Status,
     bool CanApprove = false,
-    AuditStampView? Stamp = null);
+    AuditStampView? Stamp = null,
+    IReadOnlyList<TransferAttachmentView>? Files = null);
