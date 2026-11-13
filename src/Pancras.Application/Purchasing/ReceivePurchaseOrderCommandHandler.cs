@@ -33,6 +33,19 @@ public sealed class ReceivePurchaseOrderCommandHandler(
             return Result<Guid>.Fail(PurchaseError.AlreadyReceived);
         }
 
+        if (order.Lines.Any(line => line.FobUsd <= 0))
+        {
+            // Giá FOB 0 sẽ được bình quân vào giá vốn công ty và kéo giá xuống.
+            logger.LogWarning("Purchase order {PurchaseOrderId} has a line without a price.", order.Id);
+            return Result<Guid>.Fail(PurchaseError.ZeroPrice);
+        }
+
+        if (order.HasUngroupedCharges)
+        {
+            logger.LogWarning("Purchase order {PurchaseOrderId} still has charges without a group.", order.Id);
+            return Result<Guid>.Fail(PurchaseError.UngroupedCharge);
+        }
+
         var items = new Dictionary<Guid, CatalogItem>();
         foreach (var line in order.Lines)
         {

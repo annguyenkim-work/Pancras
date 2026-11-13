@@ -46,6 +46,10 @@ internal sealed class FakeSupplierRepository : ISupplierRepository
     public Task<Supplier?> GetActiveForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         GetActiveReadOnlyAsync(id, cancellationToken);
 
+    public Task<IReadOnlyDictionary<Guid, string>> GetNamesAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyDictionary<Guid, string>>(
+            Suppliers.Where(supplier => ids.Contains(supplier.Id)).ToDictionary(supplier => supplier.Id, supplier => supplier.Name));
+
     public Task<bool> NormalizedCodeExistsAsync(
         string normalizedCode,
         Guid? excludingId,

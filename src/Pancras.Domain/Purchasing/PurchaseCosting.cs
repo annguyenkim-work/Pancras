@@ -29,7 +29,10 @@ public sealed record PurchaseLineCost(
     decimal UnitCost,
     bool CustomsValueWarn,
     bool DutyWarn,
-    bool VatWarn);
+    bool VatWarn,
+    decimal OtherTaxes = 0,
+    decimal NonDeductibleAllocated = 0,
+    decimal VatInCost = 0);
 
 public static class PurchaseCosting
 {
@@ -50,7 +53,9 @@ public static class PurchaseCosting
         var vatInUse = line.DeclaredVat ?? expectedVat;
         var logistics = Sum(order, line.Id, ChargeGroup.Logistics);
         var nonDeductible = Sum(order, line.Id, ChargeGroup.NonDeductibleTax);
-        var landed = customsInUse + dutyInUse + nonDeductible + logistics;
+        var otherTaxes = line.SupplementalDuty + line.SpecialConsumptionTax + line.EnvironmentTax;
+        var vatInCost = order.VatDeductible ? 0 : vatInUse;
+        var landed = customsInUse + dutyInUse + otherTaxes + nonDeductible + logistics + vatInCost;
         var unit = line.Quantity == 0 ? 0 : landed / line.Quantity;
         return new PurchaseLineCost(
             fobConverted,
@@ -66,7 +71,10 @@ public static class PurchaseCosting
             unit,
             line.DeclaredCustomsValue is decimal declaredCustoms && declaredCustoms != expectedCustoms,
             line.DeclaredDuty is decimal declaredDuty && declaredDuty != expectedDuty,
-            line.DeclaredVat is decimal declaredVat && declaredVat != expectedVat);
+            line.DeclaredVat is decimal declaredVat && declaredVat != expectedVat,
+            otherTaxes,
+            nonDeductible,
+            vatInCost);
     }
 
     private static decimal Sum(PurchaseOrder order, Guid lineId, ChargeGroup group)

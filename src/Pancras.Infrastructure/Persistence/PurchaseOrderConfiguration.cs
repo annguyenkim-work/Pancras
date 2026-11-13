@@ -21,6 +21,7 @@ public sealed class PurchaseOrderConfiguration : IEntityTypeConfiguration<Purcha
         builder.Property(order => order.ExchangeRate).HasColumnType("numeric(18,0)").IsRequired();
         builder.Property(order => order.VatRate).HasColumnType("numeric(9,4)").IsRequired();
         builder.Property(order => order.Status).HasConversion<int>().IsRequired();
+        builder.Property(order => order.VatDeductible).IsRequired();
         builder.HasIndex(order => order.NormalizedCode).IsUnique();
         builder.HasMany(order => order.Lines).WithOne().HasForeignKey(line => line.PurchaseOrderId).OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(order => order.Lines).UsePropertyAccessMode(PropertyAccessMode.Field);
@@ -62,6 +63,7 @@ public sealed class PurchaseChargeConfiguration : IEntityTypeConfiguration<Purch
         builder.Property(charge => charge.Amount).HasColumnType("numeric(18,0)").IsRequired();
         builder.Property(charge => charge.Method).HasConversion<int>().IsRequired();
         builder.Property(charge => charge.Group).HasColumnName("charge_group").HasConversion<int>();
+        builder.Property(charge => charge.Label).HasMaxLength(PurchaseCharge.LabelMaxLength).IsRequired();
         builder.HasMany(charge => charge.Shares).WithOne().HasForeignKey(share => share.PurchaseChargeId).OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(charge => charge.Shares).UsePropertyAccessMode(PropertyAccessMode.Field);
     }

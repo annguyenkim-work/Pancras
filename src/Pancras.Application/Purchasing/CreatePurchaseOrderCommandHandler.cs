@@ -37,6 +37,12 @@ public sealed class CreatePurchaseOrderCommandHandler(
             return Result<Guid>.Fail(PurchaseError.InvalidOrder);
         }
 
+        if (usable.Any(line => line.FobUsd <= 0))
+        {
+            logger.LogWarning("Purchase order rejected because a line has no FOB price.");
+            return Result<Guid>.Fail(PurchaseError.ZeroPrice);
+        }
+
         foreach (var line in usable)
         {
             var item = await catalog.GetByIdReadOnlyAsync(line.CatalogItemId, cancellationToken);
@@ -71,7 +77,8 @@ public sealed class CreatePurchaseOrderCommandHandler(
                 line.DutyRate,
                 line.SupplementalDuty,
                 line.SpecialConsumptionTax,
-                line.EnvironmentTax)).ToArray());
+                line.EnvironmentTax)).ToArray(),
+            command.VatDeductible);
         if (order is null)
         {
             logger.LogWarning("Purchase order was rejected.");

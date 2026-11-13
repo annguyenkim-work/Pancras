@@ -47,9 +47,18 @@ public sealed class SupplierRepository(PancrasDbContext context) : ISupplierRepo
 
     public Task<int> CountActiveBeforeAsync(string name, string code, CancellationToken cancellationToken) =>
         context.Suppliers.AsNoTracking().CountAsync(
-            supplier => supplier.Name.CompareTo(name) < 0
-                || (supplier.Name == name && supplier.Code.CompareTo(code) < 0),
+            supplier => !supplier.IsDeleted
+                && (supplier.Name.CompareTo(name) < 0
+                    || (supplier.Name == name && supplier.Code.CompareTo(code) < 0)),
             cancellationToken);
+
+    public async Task<IReadOnlyDictionary<Guid, string>> GetNamesAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
+    {
+        var wanted = ids.ToArray();
+        return await context.Suppliers.AsNoTracking()
+            .Where(supplier => wanted.Contains(supplier.Id))
+            .ToDictionaryAsync(supplier => supplier.Id, supplier => supplier.Name, cancellationToken);
+    }
 
     public Task<Supplier?> GetActiveReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
         context.Suppliers.AsNoTracking()

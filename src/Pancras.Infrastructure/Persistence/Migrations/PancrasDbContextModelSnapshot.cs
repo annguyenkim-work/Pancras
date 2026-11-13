@@ -734,6 +734,62 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                     b.ToTable("transfer_slip", (string)null);
                 });
 
+            modelBuilder.Entity("Pancras.Domain.Purchasing.PurchaseAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("content_type");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("file_name");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer")
+                        .HasColumnName("kind");
+
+                    b.Property<Guid>("PurchaseOrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("purchase_order_id");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<string>("StoredName")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("stored_name");
+
+                    b.Property<DateTimeOffset>("UploadedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("uploaded_at");
+
+                    b.Property<string>("UploadedBy")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("uploaded_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_purchase_attachment");
+
+                    b.HasIndex("PurchaseOrderId")
+                        .HasDatabaseName("ix_purchase_attachment_purchase_order_id");
+
+                    b.ToTable("purchase_attachment", (string)null);
+                });
+
             modelBuilder.Entity("Pancras.Domain.Purchasing.PurchaseCharge", b =>
                 {
                     b.Property<Guid>("Id")
@@ -748,6 +804,12 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                     b.Property<int?>("Group")
                         .HasColumnType("integer")
                         .HasColumnName("charge_group");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("label");
 
                     b.Property<int>("Method")
                         .HasColumnType("integer")
@@ -913,6 +975,10 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("SupplierId")
                         .HasColumnType("uuid")
                         .HasColumnName("supplier_id");
+
+                    b.Property<bool>("VatDeductible")
+                        .HasColumnType("boolean")
+                        .HasColumnName("vat_deductible");
 
                     b.Property<decimal>("VatRate")
                         .HasColumnType("numeric(9,4)")
@@ -1142,6 +1208,16 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_transfer_slip_stock_location_source_location_id");
+                });
+
+            modelBuilder.Entity("Pancras.Domain.Purchasing.PurchaseAttachment", b =>
+                {
+                    b.HasOne("Pancras.Domain.Purchasing.PurchaseOrder", null)
+                        .WithMany()
+                        .HasForeignKey("PurchaseOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_purchase_attachment_purchase_orders_purchase_order_id");
                 });
 
             modelBuilder.Entity("Pancras.Domain.Purchasing.PurchaseCharge", b =>

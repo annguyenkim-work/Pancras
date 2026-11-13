@@ -33,7 +33,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.Name = "Pancras.Auth";
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.Cookie.SecurePolicy = builder.Environment.IsProduction() ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
         options.Events.OnValidatePrincipal = context =>
@@ -47,7 +47,7 @@ builder.Services.AddAuthentication().AddCookie(PendingTwoFactor.Scheme, options 
     options.Cookie.Name = PendingTwoFactor.CookieName;
     options.Cookie.HttpOnly = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    options.Cookie.SecurePolicy = builder.Environment.IsProduction() ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
     options.ExpireTimeSpan = TimeSpan.FromMinutes(5);
     options.SlidingExpiration = false;
 });
@@ -94,7 +94,18 @@ builder.Services.AddScoped<ICatalogItemRepository, CatalogItemRepository>();
 builder.Services.AddScoped<IInventoryRepository, InventoryRepository>();
 builder.Services.AddScoped<ILocationRepository, LocationRepository>();
 builder.Services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
-builder.Services.AddScoped<ISupplierPurchaseStatsReader, EmptySupplierPurchaseStatsReader>();
+builder.Services.AddScoped<IPurchaseAttachmentRepository, PurchaseAttachmentRepository>();
+// Chứng từ lưu ngoài wwwroot nên không thể tải trực tiếp bằng đường dẫn; chỉ tải qua trang có kiểm tra quyền.
+var attachmentsPath = builder.Configuration["Storage:AttachmentsPath"];
+builder.Services.AddSingleton<IAttachmentStorage>(_ => new FileSystemAttachmentStorage(
+    string.IsNullOrWhiteSpace(attachmentsPath)
+        ? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "attachments")
+        : attachmentsPath));
+builder.Services.AddScoped<UploadPurchaseAttachmentCommandHandler>();
+builder.Services.AddScoped<ListPurchaseAttachmentsHandler>();
+builder.Services.AddScoped<OpenPurchaseAttachmentHandler>();
+builder.Services.AddScoped<DeletePurchaseAttachmentCommandHandler>();
+builder.Services.AddScoped<ISupplierPurchaseStatsReader, PurchaseSupplierStatsReader>();
 builder.Services.AddScoped<LoginEmployeeCommandHandler>();
 builder.Services.AddScoped<CreateEmployeeCommandHandler>();
 builder.Services.AddScoped<UpdateEmployeeCommandHandler>();
@@ -139,6 +150,8 @@ builder.Services.AddScoped<GetPurchaseOrderHandler>();
 builder.Services.AddScoped<CreatePurchaseOrderCommandHandler>();
 builder.Services.AddScoped<AllocateChargeCommandHandler>();
 builder.Services.AddScoped<AssignChargeGroupCommandHandler>();
+builder.Services.AddScoped<UpdatePurchaseOrderCommandHandler>();
+builder.Services.AddScoped<DeletePurchaseChargeCommandHandler>();
 builder.Services.AddScoped<RecordCustomsDeclarationCommandHandler>();
 builder.Services.AddScoped<ReceivePurchaseOrderCommandHandler>();
 builder.Services.AddScoped<EmployeeSignIn>();
@@ -155,7 +168,70 @@ builder.Services.AddScoped<ResetTwoFactorCommandHandler>();
 builder.Services.AddScoped<UnlockEmployeeCommandHandler>();
 builder.Services.AddScoped<EmployeePrincipalValidator>();
 
+var behindProxy = builder.Configuration.GetValue("Deployment:BehindReverseProxy", builder.Environment.IsProduction());
+if (behindProxy)
+{
+    builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor
+            | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
+            | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedHost;
+        options.ForwardLimit = 1;
+        foreach (var proxy in builder.Configuration.GetSection("Deployment:KnownProxies").Get<string[]>() ?? [])
+        {
+            if (System.Net.IPAddress.TryParse(proxy, out var address))
+            {
+                options.KnownProxies.Add(address);
+            }
+        }
+    });
+}
+
+if (builder.Environment.IsProduction())
+{
+    builder.Services.AddHsts(options =>
+    {
+        options.MaxAge = TimeSpan.FromDays(365);
+        options.IncludeSubDomains = true;
+    });
+    builder.Services.AddHttpsRedirection(options => options.HttpsPort = 443);
+}
+
 var app = builder.Build();
+
+if (behindProxy)
+{
+    app.UseForwardedHeaders();
+}
+
+if (app.Environment.IsProduction())
+{
+    if (string.Equals(app.Configuration["AllowedHosts"], "*", StringComparison.Ordinal))
+    {
+        app.Logger.LogWarning("AllowedHosts is '*'. Set it to the real domain name in production.");
+    }
+
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
+
+app.Use(async (context, next) =>
+{
+    var headers = context.Response.Headers;
+    headers["X-Content-Type-Options"] = "nosniff";
+    headers["X-Frame-Options"] = "DENY";
+    headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()";
+    headers["Content-Security-Policy"] =
+        "default-src 'self'; "
+        + "script-src 'self' 'unsafe-inline'; "
+        + "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        + "font-src 'self' https://fonts.gstatic.com; "
+        + "img-src 'self' data:; "
+        + "connect-src 'self'; "
+        + "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
+    await next();
+});
 
 app.UseExceptionHandler(errorApp =>
 {
@@ -165,8 +241,16 @@ app.UseExceptionHandler(errorApp =>
         var failure = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
         logger.LogError(failure?.Error, "Unhandled exception.");
         context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-        context.Response.ContentType = "text/plain; charset=utf-8";
-        await context.Response.WriteAsync("Đã có lỗi. Thử lại sau.");
+        context.Response.ContentType = "text/html; charset=utf-8";
+        await context.Response.WriteAsync(
+            "<!DOCTYPE html><html lang=\"vi\"><head><meta charset=\"utf-8\" /><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />"
+            + "<title>Đã có lỗi - PancrasERP</title><link rel=\"stylesheet\" href=\"/css/site.css\" /></head>"
+            + "<body class=\"min-h-screen bg-slate-100 font-sans text-slate-900\"><main class=\"flex min-h-screen items-center justify-center p-4\">"
+            + "<div class=\"w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-sm\">"
+            + "<h1 class=\"text-xl font-bold\">Đã có lỗi</h1>"
+            + "<p class=\"mt-2 text-sm text-slate-600\">Hệ thống chưa xử lý được yêu cầu của bạn. Thử lại sau ít phút. Nếu lỗi lặp lại, báo cho quản trị viên.</p>"
+            + "<a href=\"/\" class=\"mt-6 inline-block rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white\">Về trang chủ</a>"
+            + "</div></main></body></html>");
     });
 });
 
@@ -176,6 +260,12 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapRazorPages();
 
+if (args.Length > 0 && string.Equals(args[0], AdminBootstrap.Command, StringComparison.Ordinal))
+{
+    return await AdminBootstrap.RunAsync(app);
+}
+
 app.Run();
+return 0;
 
 public partial class Program;

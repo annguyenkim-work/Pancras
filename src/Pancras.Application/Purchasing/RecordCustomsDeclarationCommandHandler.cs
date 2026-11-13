@@ -24,6 +24,12 @@ public sealed class RecordCustomsDeclarationCommandHandler(
             return Result<Guid>.Fail(PurchaseError.InvalidOrder);
         }
 
+        if (order.Status != Pancras.Domain.Purchasing.PurchaseStatus.Open)
+        {
+            logger.LogWarning("Declaration rejected because purchase order {PurchaseOrderId} is already received.", order.Id);
+            return Result<Guid>.Fail(PurchaseError.AlreadyReceived);
+        }
+
         var customs = command.HasCustoms ? command.DeclaredCustomsValue : null;
         var duty = command.HasDuty ? command.DeclaredDuty : null;
         var vat = command.HasVat ? command.DeclaredVat : null;

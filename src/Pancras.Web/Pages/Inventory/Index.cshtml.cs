@@ -196,12 +196,8 @@ public class IndexModel(
             return await FailAsync(created.StockError, openTransfer: true, "transfers", cancellationToken);
         }
 
-        var shipped = await shipmentHandler.HandleAsync(new ConfirmTransferCommand(created.Value, Actor), cancellationToken);
-        if (shipped.IsFailure)
-        {
-            return await FailAsync(shipped.StockError, openTransfer: true, "transfers", cancellationToken);
-        }
-
+        // CreateAndShipTransferCommandHandler đã tạo phiếu và xuất kho trong một transaction (phiếu đã ở trạng thái đang chuyển).
+        // Không gọi thêm ConfirmTransferShipmentCommandHandler: nó chỉ nhận phiếu nháp và sẽ báo lỗi dù hàng đã xuất.
         View = "transfers";
         return Redirect(PageUrl(includeItem: false));
     }

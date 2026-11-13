@@ -36,7 +36,8 @@ public enum SupplierError
     InvalidEmail,
     InvalidPhone,
     TooLong,
-    NotFound
+    NotFound,
+    HasOpenPurchases
 }
 
 public enum SupplierField
@@ -125,7 +126,15 @@ public enum PurchaseError
     MissingMeasure,
     SplitGroup,
     AlreadyReceived,
-    NegativeMoney
+    NegativeMoney,
+    UngroupedCharge,
+    ManualChargeLocked,
+    AttachmentInvalid,
+    AttachmentTooLarge,
+    AttachmentLimit,
+    AttachmentNotFound,
+    ZeroPrice,
+    ChargeFailed
 }
 
 public sealed record CatalogIssue(CatalogField Field, CatalogIssueKind Kind, int? Limit = null);

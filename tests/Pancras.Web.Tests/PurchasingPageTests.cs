@@ -107,6 +107,111 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         Assert.Contains("name=\"Form.Lines[0].CatalogItemId\"", text, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Attachment_CanBeUploadedAndDownloaded_ByFinanceRoles()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var (order, files) = SeedOrder();
+        await SignInAsync(client);
+        var token = await TokenAsync(client, order.Id);
+        var pdf = new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34, 0x0A, 0x31, 0x32, 0x33 };
+
+        var upload = await client.PostAsync("/purchasing?handler=Upload", Multipart(token, order.Id, "to-khai.pdf", pdf));
+        var stored = Assert.Single(files.Items);
+        var download = await client.GetAsync("/purchasing?handler=Download&id=" + stored.Id);
+
+        Assert.Equal(HttpStatusCode.Redirect, upload.StatusCode);
+        Assert.Contains("notice=attachment-added", upload.Headers.Location?.OriginalString, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.OK, download.StatusCode);
+        Assert.Equal(pdf, await download.Content.ReadAsByteArrayAsync());
+        Assert.Equal("attachment", download.Content.Headers.ContentDisposition?.DispositionType);
+        Assert.Equal("to-khai.pdf", download.Content.Headers.ContentDisposition?.FileName?.Trim('"'));
+        Assert.Contains("no-store", download.Headers.CacheControl?.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain(files.Files.Keys, name => name.Contains("to-khai", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Attachment_WithWrongContent_IsRejected()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var (order, files) = SeedOrder();
+        await SignInAsync(client);
+        var token = await TokenAsync(client, order.Id);
+
+        var response = await client.PostAsync("/purchasing?handler=Upload", Multipart(token, order.Id, "virus.pdf", "MZ-not-a-pdf"u8.ToArray()));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Contains("error=AttachmentInvalid", response.Headers.Location?.OriginalString, StringComparison.Ordinal);
+        Assert.Empty(files.Items);
+        Assert.Empty(files.Files);
+    }
+
+    [Fact]
+    public async Task Attachment_IsNotDownloadable_ByWarehouseStaff()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var (order, files) = SeedOrder();
+        var stored = PurchaseAttachment.TryCreate(order.Id, AttachmentKind.Other, "mat.pdf", "0123456789abcdef0123456789abcdef.pdf", 5, DateTimeOffset.UtcNow, "x")!;
+        files.Items.Add(stored);
+        files.Files[stored.StoredName] = "%PDF-"u8.ToArray();
+        var employees = _factory.Services.GetRequiredService<FakeEmployeeRepository>();
+        var hasher = _factory.Services.GetRequiredService<FakePasswordHasher>();
+        employees.Employees.Add(Employee.Create("kho", "kho", "KHO", hasher.Hash("Admin@12345"), EmployeeRole.WarehouseKeeper));
+        var login = await client.GetAsync("/login");
+        var token = Regex.Match(await login.Content.ReadAsStringAsync(), "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+        await client.PostAsync("/login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Command.EmployeeCode"] = "kho",
+            ["Command.Password"] = "Admin@12345",
+            ["__RequestVerificationToken"] = token
+        }));
+
+        var response = await client.GetAsync("/purchasing?handler=Download&id=" + stored.Id);
+
+        Assert.NotEqual(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    private (PurchaseOrder Order, AttachmentDouble Files) SeedOrder()
+    {
+        var orders = Reset();
+        var files = _factory.Services.GetRequiredService<AttachmentDouble>();
+        files.Items.Clear();
+        files.Files.Clear();
+        var order = PurchaseOrder.TryCreate(
+            "PO-CT",
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            "CONT",
+            "BL",
+            "Hải Phòng",
+            null,
+            25000m,
+            0.10m,
+            [(Guid.CreateVersion7(), 1, 10m, 0.05m, 0m, 0m, 0m)])!;
+        orders.Orders.Add(order);
+        return (order, files);
+    }
+
+    private static async Task<string> TokenAsync(HttpClient client, Guid orderId)
+    {
+        var page = await client.GetAsync("/purchasing?order=" + orderId);
+        return Regex.Match(await page.Content.ReadAsStringAsync(), "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+    }
+
+    private static MultipartFormDataContent Multipart(string token, Guid orderId, string fileName, byte[] bytes)
+    {
+        var form = new MultipartFormDataContent
+        {
+            { new StringContent(token), "__RequestVerificationToken" },
+            { new StringContent(orderId.ToString()), "orderId" },
+            { new StringContent("1"), "kind" }
+        };
+        var file = new ByteArrayContent(bytes);
+        file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/pdf");
+        form.Add(file, "file", fileName);
+        return form;
+    }
+
     private PurchaseDirectoryDouble Reset()
     {
         var orders = _factory.Services.GetRequiredService<PurchaseDirectoryDouble>();
@@ -138,6 +243,47 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         AllowAutoRedirect = false,
         HandleCookies = true
     };
+}
+
+internal sealed class AttachmentDouble : IPurchaseAttachmentRepository, IAttachmentStorage
+{
+    public List<PurchaseAttachment> Items { get; } = [];
+
+    public Dictionary<string, byte[]> Files { get; } = [];
+
+    public Task<IReadOnlyList<PurchaseAttachment>> ListAsync(Guid purchaseOrderId, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<PurchaseAttachment>>(Items.Where(item => item.PurchaseOrderId == purchaseOrderId).ToArray());
+
+    public Task<PurchaseAttachment?> FindAsync(Guid id, CancellationToken cancellationToken) =>
+        Task.FromResult(Items.FirstOrDefault(item => item.Id == id));
+
+    public Task AddAsync(PurchaseAttachment attachment, CancellationToken cancellationToken)
+    {
+        Items.Add(attachment);
+        return Task.CompletedTask;
+    }
+
+    public Task RemoveAsync(Guid id, CancellationToken cancellationToken)
+    {
+        Items.RemoveAll(item => item.Id == id);
+        return Task.CompletedTask;
+    }
+
+    public async Task SaveAsync(string storedName, Stream content, CancellationToken cancellationToken)
+    {
+        using var copy = new MemoryStream();
+        await content.CopyToAsync(copy, cancellationToken);
+        Files[storedName] = copy.ToArray();
+    }
+
+    public Task<Stream?> OpenReadAsync(string storedName, CancellationToken cancellationToken) =>
+        Task.FromResult<Stream?>(Files.TryGetValue(storedName, out var bytes) ? new MemoryStream(bytes) : null);
+
+    public Task DeleteAsync(string storedName, CancellationToken cancellationToken)
+    {
+        Files.Remove(storedName);
+        return Task.CompletedTask;
+    }
 }
 
 internal sealed class PurchaseDirectoryDouble : IPurchaseOrderRepository

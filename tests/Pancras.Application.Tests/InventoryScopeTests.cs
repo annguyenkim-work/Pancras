@@ -154,6 +154,24 @@ public class InventoryScopeTests
     }
 
     [Fact]
+    public async Task AccountantDisposal_WithNoStock_IsRejected_AndLeavesNoSlipBehind()
+    {
+        var create = DisposalCreator(out _);
+        var empty = StockBalance.Create(_itemId, _b.Id, 0, 0, 0);
+        _store.Balances.Remove(_balanceB);
+        _store.Balances.Add(empty);
+        var command = Disposal(TestActors.Accountant);
+        command.StockLocationId = _b.Id;
+
+        var rejected = await create.HandleAsync(command, CancellationToken.None);
+
+        Assert.True(rejected.IsFailure);
+        Assert.Empty(_store.Disposals);
+        Assert.Empty(await _store.ListDisposalsAsync(CancellationToken.None));
+        Assert.Equal(0, empty.OnHand);
+    }
+
+    [Fact]
     public async Task LeadApprovesAKeeperSlip_ButNotTheirOwn_AndNotInAnotherLocation()
     {
         var create = DisposalCreator(out var approve);

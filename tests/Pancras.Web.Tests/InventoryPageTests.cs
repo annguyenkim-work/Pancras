@@ -94,6 +94,39 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
         Assert.DoesNotContain("VNĐ", text, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task ShipTransfer_ShipsOnce_AndRedirectsWithoutAnError()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        var source = Guid.CreateVersion7();
+        var destination = Guid.CreateVersion7();
+        var item = Guid.CreateVersion7();
+        var here = StockBalance.Create(item, source, 10, 0, 0);
+        inventory.Balances.Add(here);
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+        var page = await client.GetAsync("/inventory?view=transfers");
+        var token = Regex.Match(await page.Content.ReadAsStringAsync(), "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+
+        var response = await client.PostAsync(
+            "/inventory?handler=ShipTransfer",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["__RequestVerificationToken"] = token,
+                ["Transfer.SourceLocationId"] = source.ToString(),
+                ["Transfer.DestinationLocationId"] = destination.ToString(),
+                ["Transfer.Lines[0].CatalogItemId"] = item.ToString(),
+                ["Transfer.Lines[0].Quantity"] = "3"
+            }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        var slip = Assert.Single(inventory.Transfers);
+        Assert.Equal(TransferStatus.InTransit, slip.Status);
+        Assert.Equal(7, here.OnHand);
+        Assert.Equal(3, inventory.Balances.Single(balance => balance.StockLocationId == destination).InTransit);
+        Assert.Single(inventory.Movements);
+    }
+
     private static StockBalanceRow Row(string code, string name, ProductCategory category, Guid locationId) =>
         new(Guid.CreateVersion7(), code, name, "Toto", category, locationId, "Kho A", 3, 1, 2, 4);
 
@@ -137,6 +170,12 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
 {
     public List<StockBalanceRow> Rows { get; } = [];
 
+    public List<StockBalance> Balances { get; } = [];
+
+    public List<TransferSlip> Transfers { get; } = [];
+
+    public List<StockMovement> Movements { get; } = [];
+
     public Task<IReadOnlyList<StockLocation>> ListLocationsAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<StockLocation>>([]);
 
@@ -149,11 +188,19 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
     public Task<int> SumOnHandAsync(Guid catalogItemId, CancellationToken cancellationToken) => Task.FromResult(0);
 
     public Task<StockBalance?> FindBalanceForUpdateAsync(Guid catalogItemId, Guid stockLocationId, CancellationToken cancellationToken) =>
-        Task.FromResult<StockBalance?>(null);
+        Task.FromResult(Balances.FirstOrDefault(balance => balance.CatalogItemId == catalogItemId && balance.StockLocationId == stockLocationId));
 
-    public Task AddBalanceAsync(StockBalance balance, CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task AddBalanceAsync(StockBalance balance, CancellationToken cancellationToken)
+    {
+        Balances.Add(balance);
+        return Task.CompletedTask;
+    }
 
-    public Task AddTransferAsync(TransferSlip slip, CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task AddTransferAsync(TransferSlip slip, CancellationToken cancellationToken)
+    {
+        Transfers.Add(slip);
+        return Task.CompletedTask;
+    }
 
     public Task<TransferSlip?> FindTransferForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         Task.FromResult<TransferSlip?>(null);
@@ -173,7 +220,11 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
     public Task<IReadOnlyList<StockMovement>> ListItemMovementsAsync(Guid catalogItemId, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<StockMovement>>([]);
 
-    public Task AddMovementAsync(StockMovement movement, CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task AddMovementAsync(StockMovement movement, CancellationToken cancellationToken)
+    {
+        Movements.Add(movement);
+        return Task.CompletedTask;
+    }
 
     public Task<IReadOnlyList<StockMovement>> ListHistoryAsync(Guid catalogItemId, Guid stockLocationId, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<StockMovement>>([]);

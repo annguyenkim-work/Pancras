@@ -51,7 +51,8 @@ public sealed record PurchaseChargeView(
     decimal Amount,
     ChargeSplitMethod Method,
     ChargeGroup? Group,
-    IReadOnlyList<PurchaseShareView> Shares);
+    IReadOnlyList<PurchaseShareView> Shares,
+    string Label = "");
 
 public sealed record PurchaseShareView(Guid LineId, decimal Amount);
 
@@ -69,10 +70,15 @@ public sealed record PurchaseOrderDetail(
     decimal VatRate,
     PurchaseStatus Status,
     IReadOnlyList<PurchaseLineView> Lines,
-    IReadOnlyList<PurchaseChargeView> Charges);
+    IReadOnlyList<PurchaseChargeView> Charges,
+    bool VatDeductible = true,
+    Guid SupplierId = default);
 
 public sealed class CreatePurchaseLineInput
 {
+    /// <summary>Chỉ dùng khi sửa đơn: mã dòng đã có để giữ nguyên dòng đó.</summary>
+    public Guid? LineId { get; set; }
+
     public Guid CatalogItemId { get; set; }
 
     public int Quantity { get; set; }
@@ -108,8 +114,40 @@ public sealed class CreatePurchaseOrderCommand
 
     public decimal VatRate { get; set; }
 
+    /// <summary>Theo khách hàng, VAT nhập khẩu tính vào giá vốn nên mặc định là không khấu trừ.</summary>
+    public bool VatDeductible { get; set; }
+
     public IReadOnlyList<CreatePurchaseLineInput> Lines { get; set; } = [];
 }
+
+public sealed class UpdatePurchaseOrderCommand
+{
+    public Guid PurchaseOrderId { get; set; }
+
+    public string? Code { get; set; }
+
+    public Guid SupplierId { get; set; }
+
+    public Guid ReceiveLocationId { get; set; }
+
+    public string? ContainerNumber { get; set; }
+
+    public string? BillOfLading { get; set; }
+
+    public string? Port { get; set; }
+
+    public DateOnly? ExpectedOn { get; set; }
+
+    public decimal ExchangeRate { get; set; }
+
+    public decimal VatRate { get; set; }
+
+    public bool VatDeductible { get; set; }
+
+    public IReadOnlyList<CreatePurchaseLineInput> Lines { get; set; } = [];
+}
+
+public sealed record DeletePurchaseChargeCommand(Guid PurchaseOrderId, Guid ChargeId);
 
 public sealed class AllocateChargeCommand
 {
@@ -118,6 +156,11 @@ public sealed class AllocateChargeCommand
     public decimal Amount { get; set; }
 
     public ChargeSplitMethod Method { get; set; }
+
+    public string? Label { get; set; }
+
+    /// <summary>Nếu có, khoản được gán nhóm ngay trong cùng một lần lưu.</summary>
+    public ChargeGroup? Group { get; set; }
 
     public IReadOnlyDictionary<Guid, decimal> ManualShares { get; set; } = new Dictionary<Guid, decimal>();
 }

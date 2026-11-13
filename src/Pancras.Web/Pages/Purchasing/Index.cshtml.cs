@@ -12,13 +12,19 @@ using Pancras.Web.Formatting;
 namespace Pancras.Web.Pages.Purchasing;
 
 [Authorize(Roles = EmployeeRole.Admin + "," + EmployeeRole.Director + "," + EmployeeRole.Accountant)]
+[RequestSizeLimit(12 * 1024 * 1024)]
 public class IndexModel(
     ListPurchaseOrdersHandler listOrders,
     GetPurchaseOrderHandler getOrder,
     CreatePurchaseOrderCommandHandler createOrder,
+    UpdatePurchaseOrderCommandHandler updateOrder,
+    DeletePurchaseChargeCommandHandler deleteCharge,
+    ListPurchaseAttachmentsHandler listAttachments,
+    UploadPurchaseAttachmentCommandHandler uploadAttachment,
+    OpenPurchaseAttachmentHandler openAttachment,
+    DeletePurchaseAttachmentCommandHandler deleteAttachment,
     AllocateChargeCommandHandler allocateCharge,
     AssignChargeGroupCommandHandler assignGroup,
-    RecordCustomsDeclarationCommandHandler recordDeclaration,
     ReceivePurchaseOrderCommandHandler receiveOrder,
     ListSuppliersForPurchaseHandler listSuppliers,
     ListInventoryDocumentsHandler inventory) : PageModel
@@ -32,6 +38,8 @@ public class IndexModel(
 
     public PurchaseOrderDetail? Selected { get; private set; }
 
+    public IReadOnlyList<PurchaseAttachmentView> Attachments { get; private set; } = [];
+
     public IReadOnlyList<SupplierPurchaseOption> Suppliers { get; private set; } = [];
 
     public IReadOnlyList<StockLocationChoice> Locations { get; private set; } = [];
@@ -39,6 +47,9 @@ public class IndexModel(
     public IReadOnlyList<StockItemChoice> Items { get; private set; } = [];
 
     public bool ShowForm { get; private set; }
+
+    /// <summary>Có giá trị khi form đang sửa một đơn chưa nhập kho.</summary>
+    public Guid? EditingId { get; private set; }
 
     public PurchaseLineView? FormulaLine { get; private set; }
 
@@ -61,25 +72,17 @@ public class IndexModel(
     [BindProperty]
     public AssignChargeGroupCommand GroupCommand { get; set; } = new();
 
-    [BindProperty]
-    public RecordCustomsDeclarationCommand DeclarationCommand { get; set; } = new();
-
-    [BindProperty]
-    public string? DeclaredCustomsText { get; set; }
-
-    [BindProperty]
-    public string? DeclaredDutyText { get; set; }
-
-    [BindProperty]
-    public string? DeclaredVatText { get; set; }
-
-    public async Task OnGetAsync(Guid? id, Guid? order, Guid? formula, string? form, string? notice, string? error)
+    public async Task OnGetAsync(Guid? id, Guid? order, Guid? formula, string? form, string? notice, string? error, Guid? edit)
     {
         ShowForm = string.Equals(form, "1", StringComparison.Ordinal);
         Notice = notice switch
         {
             "created" => "Đã tạo đơn nhập.",
             "received" => "Đã nhập kho.",
+            "updated" => "Đã lưu thay đổi.",
+            "charge-deleted" => "Đã xóa khoản chi phí.",
+            "attachment-added" => "Đã đính kèm chứng từ.",
+            "attachment-deleted" => "Đã xóa chứng từ.",
             _ => null
         };
         if (!string.IsNullOrEmpty(error) && Enum.TryParse<PurchaseError>(error, out var parsed) && parsed != PurchaseError.None)
@@ -88,10 +91,52 @@ public class IndexModel(
         }
 
         var selected = order is Guid orderId && orderId != Guid.Empty ? orderId : id;
+        if (edit is Guid editId && editId != Guid.Empty)
+        {
+            selected = editId;
+        }
+
         await LoadAsync(selected, formula);
+        if (edit is not null && Selected is { Status: PurchaseStatus.Open } editing && editing.Id == edit)
+        {
+            ShowForm = true;
+            EditingId = editing.Id;
+            FillFormFrom(editing);
+        }
     }
 
-    public async Task<IActionResult> OnPostCreateAsync()
+    private void FillFormFrom(PurchaseOrderDetail detail)
+    {
+        Form = new PurchaseForm
+        {
+            Code = detail.Code,
+            SupplierId = detail.SupplierId,
+            ReceiveLocationId = detail.ReceiveLocationId,
+            ContainerNumber = detail.ContainerNumber,
+            BillOfLading = detail.BillOfLading,
+            Port = detail.Port,
+            ExpectedOn = detail.ExpectedOn,
+            ExchangeRate = decimal.Truncate(detail.ExchangeRate),
+            VatPercent = Tidy(detail.VatRate * 100m),
+            VatDeductible = detail.VatDeductible,
+            Lines = detail.Lines
+                .Select(line => new CreatePurchaseLineInput
+                {
+                    LineId = line.Id,
+                    CatalogItemId = line.CatalogItemId,
+                    Quantity = line.Quantity,
+                    SupplementalDuty = line.SupplementalDuty + line.SpecialConsumptionTax + line.EnvironmentTax
+                })
+                .ToList(),
+            UnitPrices = detail.Lines.Select(line => Tidy(line.Quantity == 0 ? line.FobUsd : line.FobUsd / line.Quantity)).ToList(),
+            DutyPercents = detail.Lines.Select(line => Tidy(line.DutyRate * 100m)).ToList()
+        };
+    }
+
+    /// <summary>Làm tròn 4 số lẻ để hiện trong ô nhập.</summary>
+    private static decimal Tidy(decimal value) => decimal.Round(value, 4);
+
+    private void ApplyLineInputs()
     {
         var lines = Form.Lines ?? [];
         for (var index = 0; index < lines.Count; index++)
@@ -106,7 +151,90 @@ public class IndexModel(
                 lines[index].DutyRate = Form.DutyPercents[index] / 100m;
             }
         }
+    }
 
+    public async Task<IActionResult> OnPostUpdateAsync(Guid orderId)
+    {
+        ApplyLineInputs();
+        var result = await updateOrder.HandleAsync(
+            new UpdatePurchaseOrderCommand
+            {
+                PurchaseOrderId = orderId,
+                Code = Form.Code,
+                SupplierId = Form.SupplierId,
+                ReceiveLocationId = Form.ReceiveLocationId,
+                ContainerNumber = Form.ContainerNumber,
+                BillOfLading = Form.BillOfLading,
+                Port = Form.Port,
+                ExpectedOn = Form.ExpectedOn,
+                ExchangeRate = Form.ExchangeRate,
+                VatRate = Form.VatPercent / 100m,
+                VatDeductible = Form.VatDeductible,
+                Lines = Form.Lines ?? []
+            },
+            HttpContext.RequestAborted);
+        if (result.IsFailure)
+        {
+            ShowForm = true;
+            EditingId = orderId;
+            ErrorMessage = PurchaseErrorMessages.For(result.PurchaseError);
+            KeepDraftLines();
+            await LoadAsync(orderId, null);
+            return Page();
+        }
+
+        return Redirect($"/purchasing?order={orderId}&notice=updated");
+    }
+
+    public async Task<IActionResult> OnPostUploadAsync(Guid orderId, AttachmentKind kind, IFormFile? file)
+    {
+        if (file is null || file.Length == 0)
+        {
+            return Redirect($"/purchasing?order={orderId}&error={PurchaseError.AttachmentInvalid}");
+        }
+
+        await using var content = file.OpenReadStream();
+        var result = await uploadAttachment.HandleAsync(
+            new UploadPurchaseAttachmentCommand { PurchaseOrderId = orderId, Kind = kind, FileName = file.FileName, Content = content },
+            HttpContext.RequestAborted);
+        return result.IsFailure
+            ? Redirect($"/purchasing?order={orderId}&error={result.PurchaseError}")
+            : Redirect($"/purchasing?order={orderId}&notice=attachment-added");
+    }
+
+    public async Task<IActionResult> OnGetDownloadAsync(Guid id)
+    {
+        var result = await openAttachment.HandleAsync(id, HttpContext.RequestAborted);
+        if (result.IsFailure)
+        {
+            return NotFound();
+        }
+
+        var download = result.Value!;
+        Response.Headers.CacheControl = "private, no-store";
+        // Luôn tải về (attachment), không mở trong trình duyệt, và nội dung do hệ thống gán kiểu, không tin tên file.
+        return File(download.Content, download.ContentType, download.FileName);
+    }
+
+    public async Task<IActionResult> OnPostDeleteAttachmentAsync(Guid orderId, Guid attachmentId)
+    {
+        var result = await deleteAttachment.HandleAsync(attachmentId, HttpContext.RequestAborted);
+        return result.IsFailure
+            ? Redirect($"/purchasing?order={orderId}&error={result.PurchaseError}")
+            : Redirect($"/purchasing?order={orderId}&notice=attachment-deleted");
+    }
+
+    public async Task<IActionResult> OnPostDeleteChargeAsync(Guid orderId, Guid chargeId)
+    {
+        var result = await deleteCharge.HandleAsync(new DeletePurchaseChargeCommand(orderId, chargeId), HttpContext.RequestAborted);
+        return result.IsFailure
+            ? Redirect($"/purchasing?order={orderId}&error={result.PurchaseError}")
+            : Redirect($"/purchasing?order={orderId}&notice=charge-deleted");
+    }
+
+    public async Task<IActionResult> OnPostCreateAsync()
+    {
+        ApplyLineInputs();
         var command = new CreatePurchaseOrderCommand
         {
             Code = Form.Code,
@@ -118,7 +246,8 @@ public class IndexModel(
             ExpectedOn = Form.ExpectedOn,
             ExchangeRate = Form.ExchangeRate,
             VatRate = Form.VatPercent / 100m,
-            Lines = lines
+            VatDeductible = Form.VatDeductible,
+            Lines = Form.Lines ?? []
         };
         var result = await createOrder.HandleAsync(command, HttpContext.RequestAborted);
         if (result.IsFailure)
@@ -130,31 +259,40 @@ public class IndexModel(
             return Page();
         }
 
-        var logistics = Form.OceanFreight + Form.PortHandling + Form.InspectionFee + Form.InlandTrucking;
-        if (logistics > 0)
+        // Cước biển nằm trong trị giá tính thuế (mua FOB); các khoản sau thông quan là logistics.
+        var allAdded = true;
+        allAdded &= await AddInitialChargeAsync(result.Value, Form.OceanFreight, "Cước vận chuyển đường biển quốc tế (Ocean Freight)", ChargeGroup.CustomsValueAdjustment, true);
+        allAdded &= await AddInitialChargeAsync(result.Value, Form.PortHandling, "Phí nâng hạ bãi cảng (THC, D/O, vệ sinh container)", ChargeGroup.Logistics, true);
+        allAdded &= await AddInitialChargeAsync(result.Value, Form.InspectionFee, "Phí kiểm định chất lượng sản phẩm", ChargeGroup.Logistics, false);
+        allAdded &= await AddInitialChargeAsync(result.Value, Form.InlandTrucking, "Vận chuyển kéo xe container từ cảng về kho", ChargeGroup.Logistics, true);
+
+        // Không báo "đã tạo đơn" khi có khoản chi phí bị bỏ sót: giá vốn sẽ thiếu mà người dùng không biết.
+        return allAdded
+            ? Redirect($"/purchasing?order={result.Value}&notice=created")
+            : Redirect($"/purchasing?order={result.Value}&error={PurchaseError.ChargeFailed}");
+    }
+
+    private async Task<bool> AddInitialChargeAsync(Guid orderId, decimal amount, string label, ChargeGroup group, bool preferVolume)
+    {
+        if (amount <= 0)
+        {
+            return true;
+        }
+
+        // Chia theo thể tích nếu mọi mặt hàng đã khai báo; chưa đủ số đo thì chia theo trị giá FOB.
+        var methods = preferVolume ? new[] { ChargeSplitMethod.Volume, ChargeSplitMethod.FobValue } : new[] { ChargeSplitMethod.FobValue };
+        foreach (var method in methods)
         {
             var allocated = await allocateCharge.HandleAsync(
-                new AllocateChargeCommand
-                {
-                    PurchaseOrderId = result.Value,
-                    Amount = logistics,
-                    Method = ChargeSplitMethod.FobValue
-                },
+                new AllocateChargeCommand { PurchaseOrderId = orderId, Amount = amount, Method = method, Label = label, Group = group },
                 HttpContext.RequestAborted);
             if (allocated.IsSuccess)
             {
-                await assignGroup.HandleAsync(
-                    new AssignChargeGroupCommand
-                    {
-                        PurchaseOrderId = result.Value,
-                        ChargeId = allocated.Value,
-                        Group = ChargeGroup.Logistics
-                    },
-                    HttpContext.RequestAborted);
+                return true;
             }
         }
 
-        return Redirect($"/purchasing?order={result.Value}&notice=created");
+        return false;
     }
 
     public async Task<IActionResult> OnPostReceiveAsync(Guid orderId)
@@ -206,30 +344,6 @@ public class IndexModel(
         return Redirect($"/purchasing?order={GroupCommand.PurchaseOrderId}");
     }
 
-    public async Task<IActionResult> OnPostDeclarationAsync()
-    {
-        if (!TryMoney(DeclaredCustomsText, out var customs, out var hasCustoms)
-            || !TryMoney(DeclaredDutyText, out var duty, out var hasDuty)
-            || !TryMoney(DeclaredVatText, out var vat, out var hasVat))
-        {
-            return Redirect($"/purchasing?order={DeclarationCommand.PurchaseOrderId}&error={PurchaseError.InvalidOrder}");
-        }
-
-        DeclarationCommand.DeclaredCustomsValue = customs;
-        DeclarationCommand.DeclaredDuty = duty;
-        DeclarationCommand.DeclaredVat = vat;
-        DeclarationCommand.HasCustoms = hasCustoms;
-        DeclarationCommand.HasDuty = hasDuty;
-        DeclarationCommand.HasVat = hasVat;
-        var result = await recordDeclaration.HandleAsync(DeclarationCommand, HttpContext.RequestAborted);
-        if (result.IsFailure)
-        {
-            return Redirect($"/purchasing?order={DeclarationCommand.PurchaseOrderId}&error={result.PurchaseError}");
-        }
-
-        return Redirect($"/purchasing?order={DeclarationCommand.PurchaseOrderId}");
-    }
-
     public async Task<IActionResult> OnPostExportAsync(Guid orderId)
     {
         if (orderId == Guid.Empty)
@@ -261,26 +375,6 @@ public class IndexModel(
         Form.DutyPercents.Add(0m);
     }
 
-    private static bool TryMoney(string? text, out decimal? amount, out bool present)
-    {
-        amount = null;
-        present = false;
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return true;
-        }
-
-        if (decimal.TryParse(text, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.GetCultureInfo("vi-VN"), out var parsed)
-            || decimal.TryParse(text, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out parsed))
-        {
-            amount = parsed;
-            present = true;
-            return true;
-        }
-
-        return false;
-    }
-
     private async Task LoadAsync(Guid? id, Guid? formula)
     {
         var cancellationToken = HttpContext.RequestAborted;
@@ -306,6 +400,11 @@ public class IndexModel(
         if (id is Guid selected && selected != Guid.Empty)
         {
             Selected = await getOrder.HandleAsync(selected, cancellationToken);
+            if (Selected is not null)
+            {
+                Attachments = await listAttachments.HandleAsync(Selected.Id, cancellationToken);
+            }
+
             if (Selected is not null && formula is Guid formulaId)
             {
                 FormulaLine = Selected.Lines.FirstOrDefault(line => line.Id == formulaId);
@@ -333,6 +432,8 @@ public sealed class PurchaseForm
     public decimal ExchangeRate { get; set; }
 
     public decimal VatPercent { get; set; }
+
+    public bool VatDeductible { get; set; }
 
     public decimal OceanFreight { get; set; }
 

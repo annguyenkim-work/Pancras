@@ -26,6 +26,21 @@ public class AuthenticationPageTests : IClassFixture<PancrasWebFactory>
     }
 
     [Fact]
+    public async Task Responses_CarrySecurityHeaders_AndNoCdnScript()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+
+        var response = await client.GetAsync("/login");
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
+        Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
+        Assert.Contains("frame-ancestors 'none'", response.Headers.GetValues("Content-Security-Policy").Single(), StringComparison.Ordinal);
+        Assert.DoesNotContain("cdn.tailwindcss.com", html, StringComparison.Ordinal);
+        Assert.Contains("/css/site.css", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task AnonymousHome_RedirectsToLogin()
     {
         using var client = _factory.CreateClient(NoRedirect);
@@ -197,6 +212,14 @@ public sealed class PancrasWebFactory : WebApplicationFactory<Program>
             services.RemoveAll<IPurchaseOrderRepository>();
             services.AddSingleton<PurchaseDirectoryDouble>();
             services.AddSingleton<IPurchaseOrderRepository>(provider => provider.GetRequiredService<PurchaseDirectoryDouble>());
+            services.RemoveAll<ISupplierPurchaseStatsReader>();
+            services.AddSingleton<SupplierStatsDouble>();
+            services.AddSingleton<ISupplierPurchaseStatsReader>(provider => provider.GetRequiredService<SupplierStatsDouble>());
+            services.RemoveAll<IPurchaseAttachmentRepository>();
+            services.RemoveAll<IAttachmentStorage>();
+            services.AddSingleton<AttachmentDouble>();
+            services.AddSingleton<IPurchaseAttachmentRepository>(provider => provider.GetRequiredService<AttachmentDouble>());
+            services.AddSingleton<IAttachmentStorage>(provider => provider.GetRequiredService<AttachmentDouble>());
         });
     }
 }
@@ -246,6 +269,14 @@ internal sealed class FakeEmployeeRepository : IEmployeeRepository
         Task.CompletedTask;
 }
 
+internal sealed class SupplierStatsDouble : ISupplierPurchaseStatsReader
+{
+    public Dictionary<Guid, SupplierPurchaseStats> Stats { get; } = [];
+
+    public Task<IReadOnlyDictionary<Guid, SupplierPurchaseStats>> ReadAsync(IReadOnlyCollection<Guid> supplierIds, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyDictionary<Guid, SupplierPurchaseStats>>(Stats);
+}
+
 internal sealed class SupplierDirectoryDouble : ISupplierRepository
 {
     public List<Supplier> Suppliers { get; } = [];
@@ -268,6 +299,10 @@ internal sealed class SupplierDirectoryDouble : ISupplierRepository
 
     public Task<Supplier?> GetActiveForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         GetActiveReadOnlyAsync(id, cancellationToken);
+
+    public Task<IReadOnlyDictionary<Guid, string>> GetNamesAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyDictionary<Guid, string>>(
+            Suppliers.Where(supplier => ids.Contains(supplier.Id)).ToDictionary(supplier => supplier.Id, supplier => supplier.Name));
 
     public Task<bool> NormalizedCodeExistsAsync(string normalizedCode, Guid? excludingId, CancellationToken cancellationToken) =>
         Task.FromResult(Suppliers.Any(supplier =>

@@ -93,4 +93,10 @@ public static class AuditActions
     public const string DisposalApproved = "stock.disposal_approved";
     public const string PricesChanged = "catalog.prices_changed";
     public const string PurchaseReceived = "purchase.received";
+    public const string PurchaseUpdated = "purchase.updated";
+    public const string PurchaseChargeAdded = "purchase.charge_added";
+    public const string PurchaseChargeDeleted = "purchase.charge_deleted";
+    public const string PurchaseAttachmentAdded = "purchase.attachment_added";
+    public const string PurchaseAttachmentDownloaded = "purchase.attachment_downloaded";
+    public const string PurchaseAttachmentDeleted = "purchase.attachment_deleted";
 }

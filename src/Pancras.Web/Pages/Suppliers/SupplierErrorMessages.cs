@@ -24,6 +24,7 @@ public static class SupplierErrorMessages
             SupplierError.InvalidEmail => ["Email không đúng dạng địa chỉ thư."],
             SupplierError.InvalidPhone => ["Điện thoại không đúng định dạng."],
             SupplierError.DuplicateCode => ["Mã nhà cung cấp đã có trong danh bạ."],
+            SupplierError.HasOpenPurchases => ["Nhà cung cấp này còn đơn mua chưa nhập kho. Nhập kho hoặc xử lý các đơn đó trước khi xóa nhà cung cấp."],
             _ => []
         };
     }

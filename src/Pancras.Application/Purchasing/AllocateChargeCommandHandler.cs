@@ -8,7 +8,10 @@ namespace Pancras.Application.Purchasing;
 public sealed class AllocateChargeCommandHandler(
     IPurchaseOrderRepository orders,
     GetCatalogMeasuresHandler measures,
-    ILogger<AllocateChargeCommandHandler> logger)
+    ILogger<AllocateChargeCommandHandler> logger,
+    TimeProvider? clock = null,
+    Pancras.Application.Auditing.IAuditLog? audit = null,
+    Pancras.Application.Auditing.IRequestInfo? request = null)
 {
     public async Task<Result<Guid>> HandleAsync(AllocateChargeCommand command, CancellationToken cancellationToken)
     {
@@ -25,7 +28,18 @@ public sealed class AllocateChargeCommandHandler(
             return Result<Guid>.Fail(PurchaseError.InvalidOrder);
         }
 
-        if (!order.TryAddCharge(command.Amount, command.Method, out var chargeId))
+        if (order.Status != PurchaseStatus.Open)
+        {
+            logger.LogWarning("Charge rejected because purchase order {PurchaseOrderId} is already received.", order.Id);
+            return Result<Guid>.Fail(PurchaseError.AlreadyReceived);
+        }
+
+        if (command.Group is ChargeGroup requested && !Enum.IsDefined(requested))
+        {
+            return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+        }
+
+        if (!order.TryAddCharge(command.Amount, command.Method, out var chargeId, command.Label))
         {
             logger.LogWarning("Charge rejected for purchase order {PurchaseOrderId}.", command.PurchaseOrderId);
             return Result<Guid>.Fail(PurchaseError.InvalidOrder);
@@ -47,6 +61,11 @@ public sealed class AllocateChargeCommandHandler(
             return Result<Guid>.Fail(manual ? PurchaseError.InvalidOrder : PurchaseError.MissingMeasure);
         }
 
+        if (command.Group is ChargeGroup group)
+        {
+            order.TryAssignGroup(chargeId, group, false);
+        }
+
         if (!await orders.CommitAsync(cancellationToken))
         {
             logger.LogWarning("Charge commit failed for purchase order {PurchaseOrderId}.", order.Id);
@@ -54,45 +73,13 @@ public sealed class AllocateChargeCommandHandler(
         }
 
         logger.LogInformation("Allocated charge {PurchaseChargeId} on purchase order {PurchaseOrderId}.", chargeId, order.Id);
+        await Pancras.Application.Auditing.AuditLogExtensions.RecordAsync(audit, clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.PurchaseChargeAdded, "purchase_order", order.Id.ToString("D"), null, cancellationToken);
         return Result<Guid>.Ok(chargeId);
     }
 
-    private async Task<IReadOnlyDictionary<Guid, decimal>?> BasisAsync(
+    private Task<IReadOnlyDictionary<Guid, decimal>?> BasisAsync(
         Domain.Purchasing.PurchaseOrder order,
         AllocateChargeCommand command,
-        CancellationToken cancellationToken)
-    {
-        if (command.Method == ChargeSplitMethod.Manual)
-        {
-            return command.ManualShares ?? new Dictionary<Guid, decimal>();
-        }
-
-        if (command.Method is ChargeSplitMethod.Weight or ChargeSplitMethod.Volume)
-        {
-            var ids = order.Lines.Select(line => line.CatalogItemId).Distinct().ToArray();
-            var catalog = await measures.HandleAsync(ids, cancellationToken);
-            var basis = new Dictionary<Guid, decimal>();
-            foreach (var line in order.Lines)
-            {
-                if (!catalog.TryGetValue(line.CatalogItemId, out var measure))
-                {
-                    return null;
-                }
-
-                var unit = command.Method == ChargeSplitMethod.Weight ? measure.WeightKg : measure.VolumeM3;
-                if (unit is null)
-                {
-                    return null;
-                }
-
-                basis[line.Id] = unit.Value * line.Quantity;
-            }
-
-            return basis;
-        }
-
-        return order.Lines.ToDictionary(
-            line => line.Id,
-            line => command.Method == ChargeSplitMethod.Quantity ? (decimal)line.Quantity : line.FobUsd);
-    }
+        CancellationToken cancellationToken) =>
+        ChargeBasis.ComputeAsync(order, command.Method, command.ManualShares, measures, cancellationToken);
 }

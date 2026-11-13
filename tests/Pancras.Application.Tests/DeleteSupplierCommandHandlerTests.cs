@@ -54,6 +54,45 @@ public class DeleteSupplierCommandHandlerTests
     }
 
     [Fact]
+    public async Task ASupplierWithAnOpenPurchaseOrder_CannotBeDeleted()
+    {
+        var supplier = Supplier.Create("NCC01", "Kim An", "Trung Quốc", "Nguyễn An", "0901000111", "a@b.co", "123456");
+        _repository.Suppliers.Add(supplier);
+        var stats = new FakeSupplierPurchaseStatsReader();
+        stats.Stats[supplier.Id] = new SupplierPurchaseStats(3, 1);
+
+        var result = await new DeleteSupplierCommandHandler(_repository, NullLogger<DeleteSupplierCommandHandler>.Instance, stats)
+            .HandleAsync(supplier.Id, CancellationToken.None);
+
+        Assert.Equal(SupplierError.HasOpenPurchases, result.SupplierError);
+        Assert.False(supplier.IsDeleted);
+    }
+
+    [Fact]
+    public async Task ASupplierWithOnlyReceivedOrders_CanBeDeleted_AndTheOrdersStillShowItsName()
+    {
+        var supplier = Supplier.Create("NCC01", "Kim An", "Trung Quốc", "Nguyễn An", "0901000111", "a@b.co", "123456");
+        _repository.Suppliers.Add(supplier);
+        var stats = new FakeSupplierPurchaseStatsReader();
+        stats.Stats[supplier.Id] = new SupplierPurchaseStats(2, 0);
+        var orders = new FakePurchaseStore();
+        var order = Pancras.Domain.Purchasing.PurchaseOrder.TryCreate("PO-1", supplier.Id, Guid.CreateVersion7(), null, null, null, null, 25000m, 0m, [(Guid.CreateVersion7(), 1, 10m, 0m, 0m, 0m, 0m)])!;
+        orders.Orders.Add(order);
+
+        var deleted = await new DeleteSupplierCommandHandler(_repository, NullLogger<DeleteSupplierCommandHandler>.Instance, stats)
+            .HandleAsync(supplier.Id, CancellationToken.None);
+        var list = await new Pancras.Application.Purchasing.ListPurchaseOrdersHandler(
+                orders,
+                _repository,
+                new FakeInventoryStore(),
+                NullLogger<Pancras.Application.Purchasing.ListPurchaseOrdersHandler>.Instance)
+            .HandleAsync(CancellationToken.None);
+
+        Assert.True(deleted.IsSuccess);
+        Assert.Equal("Kim An", Assert.Single(list).SupplierName);
+    }
+
+    [Fact]
     public async Task MissingSupplier_IsNotFound()
     {
         var result = await new DeleteSupplierCommandHandler(_repository, NullLogger<DeleteSupplierCommandHandler>.Instance)

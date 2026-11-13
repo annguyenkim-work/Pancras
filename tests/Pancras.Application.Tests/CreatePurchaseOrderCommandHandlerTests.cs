@@ -45,6 +45,19 @@ public class CreatePurchaseOrderCommandHandlerTests
     }
 
     [Fact]
+    public async Task ALineWithoutAFobPrice_IsRejected_InsteadOfSilentlyBreakingTheChargeSplit()
+    {
+        var fixture = new PurchaseFixture();
+        var item = Item("SP01", 2m);
+        fixture.Catalog.Items.Add(item);
+
+        var result = await fixture.Create.HandleAsync(Command(fixture, item.Id, item.Id, 0.1m, 0.1m, firstFob: 0m), CancellationToken.None);
+
+        Assert.Equal(PurchaseError.ZeroPrice, result.PurchaseError);
+        Assert.Empty(fixture.Orders.Orders);
+    }
+
+    [Fact]
     public async Task ZeroQuantity_DoesNotStoreTheLine()
     {
         var fixture = new PurchaseFixture();
@@ -112,6 +125,7 @@ public class CreatePurchaseOrderCommandHandlerTests
         fixture.Catalog.Items.Add(item);
         var command = Command(fixture, item.Id, item.Id, 0m, 0m, 100m, 100m, 1, 1);
         command.ExchangeRate = 1m;
+        command.VatDeductible = true;
         await fixture.Create.HandleAsync(command, CancellationToken.None);
         var order = fixture.Orders.Orders[0];
         Assert.True(order.TryAddCharge(13m, ChargeSplitMethod.Manual, out var vat));

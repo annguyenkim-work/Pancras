@@ -242,9 +242,12 @@ public sealed class Employee
         }
 
         IsActive = true;
-        TotpSecret = string.Empty;
-        RecoveryCodeHashes = string.Empty;
-        SecurityStamp = NewSecurityStamp();
+
+        // Khi kích hoạt lại, 2FA cũ bị xóa hẳn (khóa bí mật và mã khôi phục không còn). Phải tắt cờ 2FA và bước TOTP cũ,
+        // nếu không đăng nhập vẫn đòi mã mà không mã nào đúng được. Cũng bỏ khóa tạm do đăng nhập sai trước đó.
+        // Nhân viên đăng nhập lại bằng mật khẩu và tự bật 2FA lại trong trang hồ sơ nếu muốn.
+        DisableTwoFactor();
+        Unlock();
     }
 
     private static string Fit(string? value, int maxLength)

@@ -10,6 +10,9 @@ public interface ISupplierRepository
 
     Task<Supplier?> GetActiveReadOnlyAsync(Guid id, CancellationToken cancellationToken);
 
+    /// <summary>Tên nhà cung cấp theo mã, kể cả nhà cung cấp đã xóa, để lịch sử đơn mua luôn hiện đúng tên.</summary>
+    Task<IReadOnlyDictionary<Guid, string>> GetNamesAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
+
     Task<Supplier?> GetActiveForUpdateAsync(Guid id, CancellationToken cancellationToken);
 
     Task<bool> NormalizedCodeExistsAsync(string normalizedCode, Guid? excludingId, CancellationToken cancellationToken);

@@ -44,6 +44,64 @@ public class PurchaseCostingTests
     }
 
     [Fact]
+    public void OtherNonDeductibleTaxes_AreCountedInTheLandedCost()
+    {
+        var order = PurchaseOrder.TryCreate(
+            "PO-T",
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            null, null, null, null,
+            1m,
+            0.10m,
+            [(Guid.CreateVersion7(), 1, 100m, 0.10m, 5m, 3m, 2m)])!;
+
+        var cost = PurchaseCosting.For(order, order.Lines[0]);
+
+        Assert.Equal(10m, cost.OtherTaxes);
+        Assert.Equal(120m, cost.LandedCost);
+    }
+
+    [Fact]
+    public void VatCountsInTheCost_OnlyWhenItIsNotDeductible()
+    {
+        PurchaseOrder Make(bool deductible) => PurchaseOrder.TryCreate(
+            "PO-V",
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            null, null, null, null,
+            1m,
+            0.10m,
+            [(Guid.CreateVersion7(), 1, 100m, 0.10m, 0m, 0m, 0m)],
+            deductible)!;
+
+        var deductible = Make(true);
+        var notDeductible = Make(false);
+
+        Assert.Equal(110m, PurchaseCosting.For(deductible, deductible.Lines[0]).LandedCost);
+        Assert.Equal(121m, PurchaseCosting.For(notDeductible, notDeductible.Lines[0]).LandedCost);
+        Assert.Equal(11m, PurchaseCosting.For(notDeductible, notDeductible.Lines[0]).VatInCost);
+    }
+
+    [Fact]
+    public void AChargeWithoutAGroup_IsReported()
+    {
+        var order = PurchaseOrder.TryCreate(
+            "PO-G",
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            null, null, null, null,
+            1m,
+            0m,
+            [(Guid.CreateVersion7(), 1, 100m, 0m, 0m, 0m, 0m)])!;
+        Assert.True(order.TryAddCharge(10m, ChargeSplitMethod.FobValue, out var chargeId, "Phí D/O"));
+
+        Assert.True(order.HasUngroupedCharges);
+        Assert.Equal("Phí D/O", order.Charges[0].Label);
+        Assert.True(order.TryAssignGroup(chargeId, ChargeGroup.Logistics, false));
+        Assert.False(order.HasUngroupedCharges);
+    }
+
+    [Fact]
     public void Declaration_UsesOfficialNumbersAndWarns()
     {
         var order = PurchaseOrder.TryCreate(

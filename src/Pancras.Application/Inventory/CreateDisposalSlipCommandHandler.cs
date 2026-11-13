@@ -32,6 +32,21 @@ public sealed class CreateDisposalSlipCommandHandler(
             return Result<Guid>.Fail(decision == StockDecision.MissingEvidence ? StockError.MissingEvidence : StockError.DisposalRejected);
         }
 
+        if (InventoryAccess.IsGlobal(command.Actor.Role))
+        {
+            // Admin, Giám đốc, Kế toán ghi thẳng: lập và duyệt trong một lần lưu. Nếu không duyệt được
+            // (hết tồn, v.v.) thì không có phiếu nào được ghi, để phiếu chờ không thể duyệt lại sau này.
+            var direct = await approveHandler.ApplyAsync(slip, command.Actor, isNew: true, cancellationToken);
+            if (direct.IsFailure)
+            {
+                logger.LogWarning("Direct disposal for {CatalogItemId} was rejected and nothing was saved.", command.CatalogItemId);
+                return Result<Guid>.Fail(direct.StockError);
+            }
+
+            logger.LogInformation("Created and approved disposal slip {DisposalSlipId} for {CatalogItemId}.", slip.Id, command.CatalogItemId);
+            return Result<Guid>.Ok(slip.Id);
+        }
+
         await repository.AddDisposalAsync(slip, cancellationToken);
         if (!await repository.CommitAsync(cancellationToken))
         {
@@ -40,18 +55,6 @@ public sealed class CreateDisposalSlipCommandHandler(
         }
 
         logger.LogInformation("Created disposal slip {DisposalSlipId} for {CatalogItemId}.", slip.Id, command.CatalogItemId);
-
-        if (InventoryAccess.IsGlobal(command.Actor.Role))
-        {
-            // Admin, Giám đốc, Kế toán ghi thẳng: duyệt ngay phiếu vừa lập.
-            var approved = await approveHandler.HandleAsync(new ApproveDocumentCommand(slip.Id, command.Actor), cancellationToken);
-            if (approved.IsFailure)
-            {
-                logger.LogWarning("Direct disposal of {DisposalSlipId} was left pending.", slip.Id);
-                return Result<Guid>.Fail(approved.StockError);
-            }
-        }
-
         return Result<Guid>.Ok(slip.Id);
     }
 }

@@ -14,7 +14,8 @@ public sealed class ListPurchaseOrdersHandler(
     public async Task<IReadOnlyList<PurchaseOrderSummary>> HandleAsync(CancellationToken cancellationToken)
     {
         var list = await orders.ListAsync(cancellationToken);
-        var supplierNames = (await suppliers.ListAsync(cancellationToken)).ToDictionary(supplier => supplier.Id, supplier => supplier.Name);
+        // Tên lấy cả của nhà cung cấp đã xóa để lịch sử đơn mua không mất tên.
+        var supplierNames = await suppliers.GetNamesAsync(list.Select(order => order.SupplierId).Distinct().ToArray(), cancellationToken);
         var locations = (await inventory.ListLocationsAsync(cancellationToken)).ToDictionary(location => location.Id, location => location.Name);
         logger.LogInformation("Listed {PurchaseOrderCount} purchase orders.", list.Count);
         return list
@@ -55,7 +56,7 @@ public sealed class GetPurchaseOrderHandler(
             return null;
         }
 
-        var supplier = await suppliers.GetActiveReadOnlyAsync(order.SupplierId, cancellationToken);
+        var supplierNames = await suppliers.GetNamesAsync([order.SupplierId], cancellationToken);
         var locations = await inventory.ListLocationsAsync(cancellationToken);
         var items = await inventory.ListItemChoicesAsync(cancellationToken);
         var itemMap = items.ToDictionary(item => item.Id);
@@ -64,7 +65,7 @@ public sealed class GetPurchaseOrderHandler(
         return new PurchaseOrderDetail(
             order.Id,
             order.Code,
-            supplier?.Name ?? string.Empty,
+            supplierNames.GetValueOrDefault(order.SupplierId, string.Empty),
             order.ContainerNumber,
             order.BillOfLading,
             order.Port,
@@ -98,6 +99,9 @@ public sealed class GetPurchaseOrderHandler(
                 charge.Amount,
                 charge.Method,
                 charge.Group,
-                charge.Shares.Select(share => new PurchaseShareView(share.LineId, share.Amount)).ToArray())).ToArray());
+                charge.Shares.Select(share => new PurchaseShareView(share.LineId, share.Amount)).ToArray(),
+                charge.Label)).ToArray(),
+            order.VatDeductible,
+            order.SupplierId);
     }
 }

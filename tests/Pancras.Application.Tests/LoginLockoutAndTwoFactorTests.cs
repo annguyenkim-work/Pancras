@@ -231,6 +231,30 @@ public class LoginLockoutAndTwoFactorTests
     }
 
     [Fact]
+    public async Task ReactivatingAnEmployee_ClearsTwoFactorAndTheLock_SoThePasswordAloneWorks()
+    {
+        var (_, _) = await EnableAsync();
+        for (var index = 0; index < 5; index++)
+        {
+            await Attempt("wrong");
+        }
+
+        var stamp = _employee.SecurityStamp;
+        _employee.Deactivate();
+        _employee.Activate();
+        var login = await Attempt("Secret12");
+
+        Assert.False(_employee.TwoFactorEnabled);
+        Assert.Equal(string.Empty, _employee.TotpSecret);
+        Assert.Equal(0, _employee.LastTotpStep);
+        Assert.Equal(0, _employee.FailedLoginCount);
+        Assert.Null(_employee.LockedUntil);
+        Assert.NotEqual(stamp, _employee.SecurityStamp);
+        Assert.True(login.IsSuccess);
+        Assert.False(login.Value!.RequiresTwoFactor);
+    }
+
+    [Fact]
     public async Task OnlyAdminUnlocks()
     {
         for (var index = 0; index < 5; index++)

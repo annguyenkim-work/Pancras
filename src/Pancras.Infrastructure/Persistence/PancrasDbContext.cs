@@ -43,6 +43,8 @@ public sealed class PancrasDbContext(DbContextOptions<PancrasDbContext> options)
 
     public DbSet<PurchaseChargeShare> PurchaseChargeShares => Set<PurchaseChargeShare>();
 
+    public DbSet<PurchaseAttachment> PurchaseAttachments => Set<PurchaseAttachment>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(PancrasDbContext).Assembly);

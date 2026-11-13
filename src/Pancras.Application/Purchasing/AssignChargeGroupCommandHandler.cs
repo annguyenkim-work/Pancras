@@ -17,6 +17,12 @@ public sealed class AssignChargeGroupCommandHandler(
             return Result<Guid>.Fail(PurchaseError.InvalidOrder);
         }
 
+        if (order.Status != PurchaseStatus.Open)
+        {
+            logger.LogWarning("Charge group rejected because purchase order {PurchaseOrderId} is already received.", order.Id);
+            return Result<Guid>.Fail(PurchaseError.AlreadyReceived);
+        }
+
         if (!order.TryAssignGroup(command.ChargeId, command.Group, command.RetainCurrent))
         {
             logger.LogWarning("Charge group kept for purchase order {PurchaseOrderId}.", order.Id);

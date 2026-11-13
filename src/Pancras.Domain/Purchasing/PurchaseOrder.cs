@@ -83,6 +83,24 @@ public sealed class PurchaseLine
         };
     }
 
+    internal void Update(
+        Guid catalogItemId,
+        int quantity,
+        decimal fobUsd,
+        decimal dutyRate,
+        decimal supplementalDuty,
+        decimal specialConsumptionTax,
+        decimal environmentTax)
+    {
+        CatalogItemId = catalogItemId;
+        Quantity = quantity;
+        FobUsd = PurchaseMoney.RoundUsd(fobUsd);
+        DutyRate = PurchaseMoney.RoundRate(dutyRate);
+        SupplementalDuty = PurchaseMoney.RoundDong(supplementalDuty);
+        SpecialConsumptionTax = PurchaseMoney.RoundDong(specialConsumptionTax);
+        EnvironmentTax = PurchaseMoney.RoundDong(environmentTax);
+    }
+
     internal bool TryDeclare(decimal? customs, decimal? duty, decimal? vat)
     {
         if (customs < 0 || duty < 0 || vat < 0)
@@ -139,11 +157,16 @@ public sealed class PurchaseCharge
 
     public ChargeGroup? Group { get; private set; }
 
+    public string Label { get; private set; } = string.Empty;
+
+    public const int LabelMaxLength = 200;
+
     public IReadOnlyList<PurchaseChargeShare> Shares => _shares;
 
-    internal static PurchaseCharge? Create(Guid orderId, decimal amount, ChargeSplitMethod method)
+    internal static PurchaseCharge? Create(Guid orderId, decimal amount, ChargeSplitMethod method, string? label = null)
     {
-        if (amount < 0 || !Enum.IsDefined(method))
+        var trimmed = label?.Trim() ?? string.Empty;
+        if (amount < 0 || !Enum.IsDefined(method) || trimmed.Length > LabelMaxLength)
         {
             return null;
         }
@@ -153,7 +176,8 @@ public sealed class PurchaseCharge
             Id = Guid.CreateVersion7(),
             PurchaseOrderId = orderId,
             Amount = PurchaseMoney.RoundDong(amount),
-            Method = method
+            Method = method,
+            Label = trimmed
         };
     }
 
@@ -167,6 +191,8 @@ public sealed class PurchaseCharge
     }
 
     internal void SetGroup(ChargeGroup group) => Group = group;
+
+    internal void RemoveSharesOf(IReadOnlySet<Guid> lineIds) => _shares.RemoveAll(share => lineIds.Contains(share.LineId));
 }
 
 public sealed class PurchaseOrder
@@ -214,9 +240,14 @@ public sealed class PurchaseOrder
 
     public PurchaseStatus Status { get; private set; }
 
+    /// <summary>VAT đầu vào được khấu trừ thì không vào giá vốn; không được khấu trừ thì cộng vào giá vốn.</summary>
+    public bool VatDeductible { get; private set; } = true;
+
     public IReadOnlyList<PurchaseLine> Lines => _lines;
 
     public IReadOnlyList<PurchaseCharge> Charges => _charges;
+
+    public bool HasUngroupedCharges => _charges.Any(charge => charge.Group is null);
 
     public static PurchaseOrder? TryCreate(
         string? code,
@@ -228,7 +259,8 @@ public sealed class PurchaseOrder
         DateOnly? expectedOn,
         decimal exchangeRate,
         decimal vatRate,
-        IReadOnlyList<(Guid CatalogItemId, int Quantity, decimal FobUsd, decimal DutyRate, decimal SupplementalDuty, decimal SpecialConsumptionTax, decimal EnvironmentTax)> lines)
+        IReadOnlyList<(Guid CatalogItemId, int Quantity, decimal FobUsd, decimal DutyRate, decimal SupplementalDuty, decimal SpecialConsumptionTax, decimal EnvironmentTax)> lines,
+        bool vatDeductible = true)
     {
         var trimmedCode = code?.Trim() ?? string.Empty;
         if (trimmedCode.Length is < 1 or > CodeMaxLength || supplierId == Guid.Empty || receiveLocationId == Guid.Empty)
@@ -267,6 +299,7 @@ public sealed class PurchaseOrder
             ExpectedOn = expectedOn,
             ExchangeRate = roundedRate,
             VatRate = PurchaseMoney.RoundRate(vatRate),
+            VatDeductible = vatDeductible,
             Status = PurchaseStatus.Open
         };
         if (order.NormalizedCode.Length is < 1 or > CodeMaxLength)
@@ -296,10 +329,124 @@ public sealed class PurchaseOrder
         return order;
     }
 
-    public bool TryAddCharge(decimal amount, ChargeSplitMethod method, out Guid chargeId)
+    /// <summary>Sửa thông tin chung. Chỉ khi đơn chưa nhập kho.</summary>
+    public bool TryUpdateHeader(
+        string? code,
+        Guid supplierId,
+        Guid receiveLocationId,
+        string? containerNumber,
+        string? billOfLading,
+        string? port,
+        DateOnly? expectedOn,
+        decimal exchangeRate,
+        decimal vatRate,
+        bool vatDeductible)
+    {
+        var trimmedCode = code?.Trim() ?? string.Empty;
+        if (Status != PurchaseStatus.Open
+            || trimmedCode.Length is < 1 or > CodeMaxLength
+            || supplierId == Guid.Empty
+            || receiveLocationId == Guid.Empty
+            || exchangeRate <= 0
+            || vatRate < 0
+            || !TryOptional(containerNumber, ContainerMaxLength, out var container)
+            || !TryOptional(billOfLading, ContainerMaxLength, out var bill)
+            || !TryOptional(port, PortMaxLength, out var storedPort))
+        {
+            return false;
+        }
+
+        var roundedRate = PurchaseMoney.RoundDong(exchangeRate);
+        if (roundedRate <= 0)
+        {
+            return false;
+        }
+
+        Code = trimmedCode;
+        NormalizedCode = trimmedCode.ToUpperInvariant();
+        SupplierId = supplierId;
+        ReceiveLocationId = receiveLocationId;
+        ContainerNumber = container;
+        BillOfLading = bill;
+        Port = storedPort;
+        ExpectedOn = expectedOn;
+        ExchangeRate = roundedRate;
+        VatRate = PurchaseMoney.RoundRate(vatRate);
+        VatDeductible = vatDeductible;
+        return true;
+    }
+
+    /// <summary>
+    /// Thay danh sách dòng hàng. Dòng có <c>LineId</c> khớp giữ nguyên mã (và số tờ khai), dòng không còn thì bị bỏ,
+    /// dòng mới được thêm. <paramref name="lineSetChanged"/> cho biết tập dòng có đổi để chia lại chi phí nhập tay.
+    /// </summary>
+    public bool TryUpdateLines(
+        IReadOnlyList<(Guid? LineId, Guid CatalogItemId, int Quantity, decimal FobUsd, decimal DutyRate, decimal SupplementalDuty, decimal SpecialConsumptionTax, decimal EnvironmentTax)> lines,
+        out bool lineSetChanged)
+    {
+        lineSetChanged = false;
+        if (Status != PurchaseStatus.Open || lines is null || lines.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (var line in lines)
+        {
+            if (PurchaseLine.Create(Id, line.CatalogItemId, line.Quantity, line.FobUsd, line.DutyRate, line.SupplementalDuty, line.SpecialConsumptionTax, line.EnvironmentTax) is null)
+            {
+                return false;
+            }
+        }
+
+        var keptIds = new HashSet<Guid>();
+        foreach (var line in lines)
+        {
+            if (line.LineId is Guid existingId && _lines.Any(item => item.Id == existingId) && !keptIds.Add(existingId))
+            {
+                return false;
+            }
+        }
+
+        var removed = _lines.Where(item => !keptIds.Contains(item.Id)).Select(item => item.Id).ToHashSet();
+        var added = false;
+        var result = new List<PurchaseLine>(lines.Count);
+        foreach (var line in lines)
+        {
+            var existing = line.LineId is Guid id ? _lines.FirstOrDefault(item => item.Id == id) : null;
+            if (existing is not null)
+            {
+                existing.Update(line.CatalogItemId, line.Quantity, line.FobUsd, line.DutyRate, line.SupplementalDuty, line.SpecialConsumptionTax, line.EnvironmentTax);
+                result.Add(existing);
+                continue;
+            }
+
+            added = true;
+            result.Add(PurchaseLine.Create(Id, line.CatalogItemId, line.Quantity, line.FobUsd, line.DutyRate, line.SupplementalDuty, line.SpecialConsumptionTax, line.EnvironmentTax)!);
+        }
+
+        lineSetChanged = added || removed.Count > 0;
+        if (removed.Count > 0)
+        {
+            foreach (var charge in _charges)
+            {
+                charge.RemoveSharesOf(removed);
+            }
+
+            _lines.RemoveAll(item => removed.Contains(item.Id));
+        }
+
+        foreach (var line in result.Where(item => !_lines.Contains(item)))
+        {
+            _lines.Add(line);
+        }
+
+        return true;
+    }
+
+    public bool TryAddCharge(decimal amount, ChargeSplitMethod method, out Guid chargeId, string? label = null)
     {
         chargeId = Guid.Empty;
-        var charge = PurchaseCharge.Create(Id, amount, method);
+        var charge = PurchaseCharge.Create(Id, amount, method, label);
         if (charge is null)
         {
             return false;

@@ -54,6 +54,12 @@ public class IndexModel(ListAuditHandler list) : PageModel
         AuditActions.DisposalApproved => "Duyệt phiếu hủy",
         AuditActions.PricesChanged => "Đổi giá sản phẩm",
         AuditActions.PurchaseReceived => "Nhận đơn mua vào kho",
+        AuditActions.PurchaseUpdated => "Sửa đơn mua",
+        AuditActions.PurchaseChargeAdded => "Thêm chi phí đơn mua",
+        AuditActions.PurchaseChargeDeleted => "Xóa chi phí đơn mua",
+        AuditActions.PurchaseAttachmentAdded => "Đính kèm chứng từ đơn mua",
+        AuditActions.PurchaseAttachmentDownloaded => "Tải chứng từ đơn mua",
+        AuditActions.PurchaseAttachmentDeleted => "Xóa chứng từ đơn mua",
         _ => action
     };
 }

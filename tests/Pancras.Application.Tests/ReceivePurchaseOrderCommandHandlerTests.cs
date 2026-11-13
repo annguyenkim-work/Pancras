@@ -58,6 +58,55 @@ public class ReceivePurchaseOrderCommandHandlerTests
     }
 
     [Fact]
+    public async Task Receive_IsBlocked_WhileAChargeHasNoGroup_AndChargesLockAfterwards()
+    {
+        var item = CatalogItem.Create("SP03", "Bồn", ProductCategory.SanitaryEquipment, "Toto", "Việt Nam", "Cái", null, null, null, null, 9m, 1m, 1m, 1m, 1m);
+        var warehouse = StockLocation.Create("Kho C", StockLocationKind.Warehouse);
+        var catalog = new FakeCatalogRepository();
+        catalog.Items.Add(item);
+        var inventory = new FakeInventoryStore();
+        var orders = new FakePurchaseStore();
+        var order = PurchaseOrder.TryCreate("PO-3", Guid.CreateVersion7(), warehouse.Id, "CONT", null, null, null, 1m, 0m, [(item.Id, 2, 50m, 0m, 0m, 0m, 0m)])!;
+        Assert.True(order.TryAddCharge(20m, ChargeSplitMethod.FobValue, out var chargeId, "THC"));
+        Assert.True(order.TryAllocate(chargeId, new Dictionary<Guid, decimal> { [order.Lines[0].Id] = 100m }, false));
+        orders.Orders.Add(order);
+        var receive = new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance);
+        var assign = new AssignChargeGroupCommandHandler(orders, NullLogger<AssignChargeGroupCommandHandler>.Instance);
+
+        var blocked = await receive.HandleAsync(new ReceivePurchaseOrderCommand(order.Id), CancellationToken.None);
+        await assign.HandleAsync(new AssignChargeGroupCommand { PurchaseOrderId = order.Id, ChargeId = chargeId, Group = ChargeGroup.Logistics }, CancellationToken.None);
+        var received = await receive.HandleAsync(new ReceivePurchaseOrderCommand(order.Id), CancellationToken.None);
+        var late = await assign.HandleAsync(new AssignChargeGroupCommand { PurchaseOrderId = order.Id, ChargeId = chargeId, Group = ChargeGroup.NonDeductibleTax }, CancellationToken.None);
+
+        Assert.Equal(PurchaseError.UngroupedCharge, blocked.PurchaseError);
+        Assert.True(received.IsSuccess);
+        Assert.Equal(35m, item.CostPrice);
+        Assert.Equal(PurchaseError.AlreadyReceived, late.PurchaseError);
+        Assert.Equal(ChargeGroup.Logistics, order.Charges[0].Group);
+    }
+
+    [Fact]
+    public async Task Receive_IsRefused_ForALineWithoutAPrice_AndTheCompanyCostIsUntouched()
+    {
+        var item = CatalogItem.Create("SP04", "Gương", ProductCategory.SanitaryEquipment, "Toto", "Việt Nam", "Cái", null, null, null, null, 500m, 1m, 1m, 1m, 1m);
+        var warehouse = StockLocation.Create("Kho D", StockLocationKind.Warehouse);
+        var catalog = new FakeCatalogRepository();
+        catalog.Items.Add(item);
+        var inventory = new FakeInventoryStore();
+        inventory.Balances.Add(StockBalance.Create(item.Id, warehouse.Id, 10, 0, 0));
+        var orders = new FakePurchaseStore();
+        var order = PurchaseOrder.TryCreate("PO-0", Guid.CreateVersion7(), warehouse.Id, "CONT", null, null, null, 25000m, 0m, [(item.Id, 10, 0m, 0m, 0m, 0m, 0m)])!;
+        orders.Orders.Add(order);
+
+        var result = await new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance)
+            .HandleAsync(new ReceivePurchaseOrderCommand(order.Id), CancellationToken.None);
+
+        Assert.Equal(PurchaseError.ZeroPrice, result.PurchaseError);
+        Assert.Equal(PurchaseStatus.Open, order.Status);
+        Assert.Equal(500m, item.CostPrice);
+    }
+
+    [Fact]
     public async Task Receive_WhenStockIsEmpty_UsesTheNewUnitCost()
     {
         var item = CatalogItem.Create("SP02", "Sen", ProductCategory.SanitaryEquipment, "Toto", "Việt Nam", "Cái", null, null, null, null, 9m, 1m, 1m, 1m, 1m);

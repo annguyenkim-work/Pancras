@@ -1,0 +1,11 @@
+{
+  "name": "pancras-web-styles",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -c tailwind.config.js -i Styles/site.css -o wwwroot/css/site.css --minify",
+    "watch:css": "tailwindcss -c tailwind.config.js -i Styles/site.css -o wwwroot/css/site.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.17"
+  }
+}
