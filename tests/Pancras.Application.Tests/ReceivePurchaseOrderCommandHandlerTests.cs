@@ -37,7 +37,7 @@ public class ReceivePurchaseOrderCommandHandlerTests
         orders.Orders.Add(order);
         var handler = new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance);
 
-        var first = await handler.HandleAsync(new ReceivePurchaseOrderCommand(order.Id), CancellationToken.None);
+        var first = await handler.HandleAsync(new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant), CancellationToken.None);
         var stored = await orders.FindReadOnlyAsync(order.Id, CancellationToken.None);
 
         Assert.True(first.IsSuccess);
@@ -49,7 +49,7 @@ public class ReceivePurchaseOrderCommandHandlerTests
         Assert.Equal(8m, item.CostPrice);
         Assert.Equal(1m, stored.ExchangeRate);
 
-        var second = await handler.HandleAsync(new ReceivePurchaseOrderCommand(order.Id), CancellationToken.None);
+        var second = await handler.HandleAsync(new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant), CancellationToken.None);
 
         Assert.Equal(PurchaseError.AlreadyReceived, second.PurchaseError);
         Assert.Equal(7, here.OnHand);
@@ -72,9 +72,9 @@ public class ReceivePurchaseOrderCommandHandlerTests
         orders.Orders.Add(order);
         var receive = new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance);
 
-        var blocked = await receive.HandleAsync(new ReceivePurchaseOrderCommand(order.Id), CancellationToken.None);
+        var blocked = await receive.HandleAsync(new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant), CancellationToken.None);
         Assert.True(order.TryAssignGroup(chargeId, ChargeGroup.Logistics, false));
-        var received = await receive.HandleAsync(new ReceivePurchaseOrderCommand(order.Id), CancellationToken.None);
+        var received = await receive.HandleAsync(new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant), CancellationToken.None);
 
         Assert.Equal(PurchaseError.UngroupedCharge, blocked.PurchaseError);
         Assert.True(received.IsSuccess);
@@ -96,7 +96,7 @@ public class ReceivePurchaseOrderCommandHandlerTests
         orders.Orders.Add(order);
 
         var result = await new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance)
-            .HandleAsync(new ReceivePurchaseOrderCommand(order.Id), CancellationToken.None);
+            .HandleAsync(new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant), CancellationToken.None);
 
         Assert.Equal(PurchaseError.ZeroPrice, result.PurchaseError);
         Assert.Equal(PurchaseStatus.Open, order.Status);
@@ -126,7 +126,7 @@ public class ReceivePurchaseOrderCommandHandlerTests
         orders.Orders.Add(order);
 
         var result = await new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance)
-            .HandleAsync(new ReceivePurchaseOrderCommand(order.Id), CancellationToken.None);
+            .HandleAsync(new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(33m, item.CostPrice);

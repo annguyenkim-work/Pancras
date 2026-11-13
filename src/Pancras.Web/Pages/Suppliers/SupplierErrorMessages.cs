@@ -8,7 +8,12 @@ public static class SupplierErrorMessages
     {
         if (error == SupplierError.NotFound)
         {
-            return ["Không tìm thấy nhà cung cấp này. Có thể nhà cung cấp đã bị xóa."];
+            return ["Không tìm thấy nhà cung cấp này. Có thể nhà cung cấp đã ngừng hợp tác hoặc bị xóa."];
+        }
+
+        if (error == SupplierError.Forbidden)
+        {
+            return ["Bạn không có quyền thực hiện thao tác này."];
         }
 
         var messages = issues.Select(issue => Sentence(issue, code)).ToArray();
@@ -19,12 +24,13 @@ public static class SupplierErrorMessages
 
         return error switch
         {
-            SupplierError.Incomplete => ["Cần nhập đủ mã, tên, quốc gia, người liên hệ, điện thoại, email và tài khoản."],
+            SupplierError.Incomplete => ["Cần nhập đủ mã, tên, quốc gia và người liên hệ."],
             SupplierError.TooLong => ["Một mục dài hơn mức cho phép."],
             SupplierError.InvalidEmail => ["Email không đúng dạng địa chỉ thư."],
             SupplierError.InvalidPhone => ["Điện thoại không đúng định dạng."],
+            SupplierError.InvalidSwift => ["Mã SWIFT không đúng định dạng. Cần 8 hoặc 11 ký tự chữ và số."],
             SupplierError.DuplicateCode => ["Mã nhà cung cấp đã có trong danh bạ."],
-            SupplierError.HasOpenPurchases => ["Nhà cung cấp này còn đơn mua chưa nhập kho. Nhập kho hoặc xử lý các đơn đó trước khi xóa nhà cung cấp."],
+            SupplierError.HasOpenPurchases => ["Nhà cung cấp này còn đơn mua chưa nhập kho. Nhập kho hoặc xử lý các đơn đó trước khi ngừng hợp tác."],
             _ => []
         };
     }
@@ -40,8 +46,12 @@ public static class SupplierErrorMessages
                 "Email không đúng dạng địa chỉ thư. Cần đúng một dấu @, không có khoảng trắng, và tên miền phải có dấu chấm. Ví dụ: ten@congty.com.",
             SupplierIssueKind.InvalidPhone =>
                 "Điện thoại không đúng định dạng. Cần 8–15 chữ số, có thể bắt đầu bằng 0 hoặc +. Ví dụ: 0901234567, +84901234567.",
+            SupplierIssueKind.InvalidSwift =>
+                "Mã SWIFT không đúng định dạng. Cần 8 hoặc 11 ký tự chữ và số. Ví dụ: BKCHCNBJ hoặc BKCHCNBJ300.",
             SupplierIssueKind.Duplicate =>
                 $"Mã nhà cung cấp \"{code?.Trim()}\" đã có trong danh bạ. Mã không phân biệt chữ hoa và chữ thường. Hãy nhập mã khác.",
+            SupplierIssueKind.DuplicateInactive =>
+                $"Mã nhà cung cấp \"{code?.Trim()}\" đang thuộc một nhà cung cấp đã ngừng hợp tác. Hãy chọn bộ lọc \"Đã ngừng hợp tác\" để nhờ Admin khôi phục, hoặc dùng mã khác.",
             _ => $"{label} không hợp lệ."
         };
     }
@@ -54,7 +64,9 @@ public static class SupplierErrorMessages
         SupplierField.ContactName => "Người liên hệ",
         SupplierField.Phone => "Điện thoại",
         SupplierField.Email => "Email",
-        SupplierField.Account => "Tài khoản",
+        SupplierField.BankName => "Ngân hàng",
+        SupplierField.Account => "Số tài khoản / IBAN",
+        SupplierField.SwiftCode => "Mã SWIFT",
         _ => "Mục"
     };
 }

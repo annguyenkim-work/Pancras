@@ -30,6 +30,7 @@ public static class PurchaseErrorMessages
         PurchaseError.AttachmentInvalid => "File không hợp lệ. Chỉ nhận PDF, JPG, PNG, Excel (xlsx), Word (docx), và nội dung phải đúng định dạng.",
         PurchaseError.AttachmentTooLarge => "File quá lớn. Tối đa 10 MB mỗi file.",
         PurchaseError.AttachmentLimit => "Đơn đã đủ số file đính kèm tối đa (30).",
+        PurchaseError.Forbidden => "Bạn không có quyền thực hiện thao tác này.",
         PurchaseError.AttachmentNotFound => "Không tìm thấy chứng từ.",
         _ => Generic
     };

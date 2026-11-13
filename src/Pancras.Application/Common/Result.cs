@@ -37,7 +37,9 @@ public enum SupplierError
     InvalidPhone,
     TooLong,
     NotFound,
-    HasOpenPurchases
+    HasOpenPurchases,
+    InvalidSwift,
+    Forbidden
 }
 
 public enum SupplierField
@@ -48,7 +50,9 @@ public enum SupplierField
     ContactName,
     Phone,
     Email,
-    Account
+    BankName,
+    Account,
+    SwiftCode
 }
 
 public enum SupplierIssueKind
@@ -57,7 +61,9 @@ public enum SupplierIssueKind
     TooLong,
     InvalidEmail,
     InvalidPhone,
-    Duplicate
+    Duplicate,
+    DuplicateInactive,
+    InvalidSwift
 }
 
 public enum CatalogError
@@ -153,7 +159,30 @@ public enum PurchaseError
 
     /// <summary>Dữ liệu hợp lệ nhưng không ghi được (lỗi hệ thống hoặc có người khác vừa sửa). Khác với <see cref="InvalidOrder"/>.</summary>
     SaveFailed,
-    InvalidQuantity
+    InvalidQuantity,
+
+    /// <summary>Đơn chưa duyệt, đã nhận đủ hoặc đã hủy nên không nhận hàng được.</summary>
+    NotReceivable,
+
+    /// <summary>Số thực nhận âm, nhận lố khi chưa phải lần cuối, hoặc không nhận món nào.</summary>
+    InvalidReceiptQuantity,
+
+    /// <summary>Lần nhận cuối lệch số đặt mà không ghi lý do.</summary>
+    ReceiptNoteRequired,
+
+    /// <summary>Trạng thái hiện tại không cho phép bước chuyển này.</summary>
+    InvalidTransition,
+
+    ReasonRequired,
+
+    /// <summary>Đơn đã có lần nhận hàng hoặc đã hủy nên không sửa được nữa.</summary>
+    NotEditable,
+
+    /// <summary>Khoản điều chỉnh sau nhập không hợp lệ (đơn chưa nhận đủ, số tiền 0, thiếu tên hoặc lý do).</summary>
+    AdjustmentInvalid,
+
+    /// <summary>Vai trò hiện tại không được thực hiện thao tác này.</summary>
+    Forbidden
 }
 
 public sealed record CatalogIssue(CatalogField Field, CatalogIssueKind Kind, int? Limit = null);

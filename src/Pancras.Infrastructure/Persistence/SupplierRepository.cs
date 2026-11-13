@@ -10,7 +10,7 @@ public sealed class SupplierRepository(PancrasDbContext context) : ISupplierRepo
     public async Task<IReadOnlyList<Supplier>> ListAsync(CancellationToken cancellationToken)
     {
         var suppliers = await context.Suppliers.AsNoTracking()
-            .Where(supplier => !supplier.IsDeleted)
+            .Where(supplier => !supplier.IsInactive)
             .OrderBy(supplier => supplier.Name)
             .ThenBy(supplier => supplier.Code)
             .ToListAsync(cancellationToken);
@@ -18,17 +18,35 @@ public sealed class SupplierRepository(PancrasDbContext context) : ISupplierRepo
     }
 
     public async Task<SupplierSlice> ListFilteredAsync(
-        string? term,
+        SupplierListFilter filter,
         int pageNumber,
         int pageSize,
         CancellationToken cancellationToken)
     {
-        var suppliers = context.Suppliers.AsNoTracking().Where(supplier => !supplier.IsDeleted);
-        if (!string.IsNullOrWhiteSpace(term))
+        IQueryable<Supplier> suppliers = context.Suppliers.AsNoTracking();
+        suppliers = filter.Status switch
         {
-            var pattern = SupplierTextSearch.ContainsPattern(term);
+            SupplierStatusFilter.Inactive => suppliers.Where(supplier => supplier.IsInactive),
+            SupplierStatusFilter.All => suppliers,
+            _ => suppliers.Where(supplier => !supplier.IsInactive)
+        };
+
+        if (filter.Country is not null)
+        {
+            var country = filter.Country;
+            suppliers = suppliers.Where(supplier => supplier.Country == country);
+        }
+
+        if (filter.Term is not null)
+        {
+            var pattern = SupplierTextSearch.ContainsPattern(filter.Term);
             suppliers = suppliers.Where(supplier =>
-                EF.Functions.ILike(supplier.Code, pattern) || EF.Functions.ILike(supplier.Name, pattern));
+                EF.Functions.ILike(supplier.Code, pattern)
+                || EF.Functions.ILike(supplier.Name, pattern)
+                || EF.Functions.ILike(supplier.ContactName, pattern)
+                || EF.Functions.ILike(supplier.Email, pattern)
+                || EF.Functions.ILike(supplier.Phone, pattern)
+                || EF.Functions.ILike(supplier.Country, pattern));
         }
 
         var ordered = suppliers
@@ -45,9 +63,16 @@ public sealed class SupplierRepository(PancrasDbContext context) : ISupplierRepo
         return new SupplierSlice(items, total, number);
     }
 
+    public async Task<IReadOnlyList<string>> ListCountriesAsync(CancellationToken cancellationToken) =>
+        await context.Suppliers.AsNoTracking()
+            .Select(supplier => supplier.Country)
+            .Distinct()
+            .OrderBy(country => country)
+            .ToListAsync(cancellationToken);
+
     public Task<int> CountActiveBeforeAsync(string name, string code, CancellationToken cancellationToken) =>
         context.Suppliers.AsNoTracking().CountAsync(
-            supplier => !supplier.IsDeleted
+            supplier => !supplier.IsInactive
                 && (supplier.Name.CompareTo(name) < 0
                     || (supplier.Name == name && supplier.Code.CompareTo(code) < 0)),
             cancellationToken);
@@ -62,17 +87,23 @@ public sealed class SupplierRepository(PancrasDbContext context) : ISupplierRepo
 
     public Task<Supplier?> GetActiveReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
         context.Suppliers.AsNoTracking()
-            .FirstOrDefaultAsync(supplier => supplier.Id == id && !supplier.IsDeleted, cancellationToken);
+            .FirstOrDefaultAsync(supplier => supplier.Id == id && !supplier.IsInactive, cancellationToken);
+
+    public Task<Supplier?> GetAnyReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
+        context.Suppliers.AsNoTracking().FirstOrDefaultAsync(supplier => supplier.Id == id, cancellationToken);
 
     public Task<Supplier?> GetActiveForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
-        context.Suppliers.FirstOrDefaultAsync(supplier => supplier.Id == id && !supplier.IsDeleted, cancellationToken);
+        context.Suppliers.FirstOrDefaultAsync(supplier => supplier.Id == id && !supplier.IsInactive, cancellationToken);
+
+    public Task<Supplier?> GetAnyForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
+        context.Suppliers.FirstOrDefaultAsync(supplier => supplier.Id == id, cancellationToken);
 
     public Task<bool> NormalizedCodeExistsAsync(
         string normalizedCode,
         Guid? excludingId,
         CancellationToken cancellationToken)
     {
-        var active = context.Suppliers.AsNoTracking().Where(supplier => !supplier.IsDeleted && supplier.NormalizedCode == normalizedCode);
+        var active = context.Suppliers.AsNoTracking().Where(supplier => !supplier.IsInactive && supplier.NormalizedCode == normalizedCode);
         if (excludingId is Guid id)
         {
             active = active.Where(supplier => supplier.Id != id);
@@ -80,6 +111,12 @@ public sealed class SupplierRepository(PancrasDbContext context) : ISupplierRepo
 
         return active.AnyAsync(cancellationToken);
     }
+
+    public Task<string?> InactiveNameWithCodeAsync(string normalizedCode, CancellationToken cancellationToken) =>
+        context.Suppliers.AsNoTracking()
+            .Where(supplier => supplier.IsInactive && supplier.NormalizedCode == normalizedCode)
+            .Select(supplier => (string?)supplier.Name)
+            .FirstOrDefaultAsync(cancellationToken);
 
     public async Task<bool> TryAddAsync(Supplier supplier, CancellationToken cancellationToken)
     {

@@ -2,8 +2,16 @@ namespace Pancras.Domain.Purchasing;
 
 public enum PurchaseStatus
 {
-    Open = 1,
-    Received = 2
+    /// <summary>Nháp: đang soạn (trước đây gọi là "Đang mở").</summary>
+    Draft = 1,
+    Received = 2,
+    PendingApproval = 3,
+    Approved = 4,
+    InTransit = 5,
+    Cancelled = 6,
+
+    /// <summary>Đã nhận một phần, còn hàng về sau.</summary>
+    PartiallyReceived = 7
 }
 
 public enum ChargeSplitMethod
@@ -46,6 +54,18 @@ public sealed class PurchaseLine
     public decimal SpecialConsumptionTax { get; private set; }
 
     public decimal EnvironmentTax { get; private set; }
+
+    /// <summary>Số lượng đã nhận thực tế, cộng dồn qua các lần nhận.</summary>
+    public int ReceivedQuantity { get; private set; }
+
+    /// <summary>Giá vốn (đồng) đã đưa vào tồn kho cho dòng này, cộng dồn qua các lần nhận.</summary>
+    public decimal CostedAmount { get; private set; }
+
+    internal void SetReceipt(int receivedQuantity, decimal costedAmount)
+    {
+        ReceivedQuantity = receivedQuantity;
+        CostedAmount = costedAmount;
+    }
 
     internal static PurchaseLine? Create(
         Guid orderId,
@@ -190,7 +210,7 @@ public sealed class PurchaseCharge
     internal void RemoveSharesOf(IReadOnlySet<Guid> lineIds) => _shares.RemoveAll(share => lineIds.Contains(share.LineId));
 }
 
-public sealed class PurchaseOrder : Pancras.Domain.Auditing.AuditStamped
+public sealed partial class PurchaseOrder : Pancras.Domain.Auditing.AuditStamped
 {
     public const int CodeMaxLength = 32;
 
@@ -219,6 +239,19 @@ public sealed class PurchaseOrder : Pancras.Domain.Auditing.AuditStamped
 
     public Guid SupplierId { get; private set; }
 
+    /// <summary>Mã nhà cung cấp tại thời điểm lập đơn. Giữ nguyên dù hồ sơ nhà cung cấp đổi mã sau đó.</summary>
+    public string SupplierCode { get; private set; } = string.Empty;
+
+    /// <summary>Tên nhà cung cấp tại thời điểm lập đơn. Chứng từ phải giữ đúng tên lúc đặt hàng.</summary>
+    public string SupplierName { get; private set; } = string.Empty;
+
+    /// <summary>Chụp lại mã và tên nhà cung cấp lên đơn (lúc lập đơn, hoặc khi đổi sang nhà cung cấp khác).</summary>
+    public void RecordSupplier(string code, string name)
+    {
+        SupplierCode = code.Trim();
+        SupplierName = name.Trim();
+    }
+
     public Guid ReceiveLocationId { get; private set; }
 
     public string ContainerNumber { get; private set; }
@@ -230,6 +263,14 @@ public sealed class PurchaseOrder : Pancras.Domain.Auditing.AuditStamped
     public DateOnly? ExpectedOn { get; private set; }
 
     public decimal ExchangeRate { get; private set; }
+
+    /// <summary>Ngày của tỷ giá (thường là ngày đăng ký tờ khai).</summary>
+    public DateOnly? ExchangeRateOn { get; private set; }
+
+    /// <summary>Nguồn tỷ giá (ví dụ: tờ khai hải quan, ngân hàng).</summary>
+    public string ExchangeRateSource { get; private set; } = string.Empty;
+
+    public const int RateSourceMaxLength = 100;
 
     public decimal VatRate { get; private set; }
 
@@ -264,7 +305,9 @@ public sealed class PurchaseOrder : Pancras.Domain.Auditing.AuditStamped
         IReadOnlyList<(Guid CatalogItemId, int Quantity, decimal FobUsd, decimal DutyRate, decimal SupplementalDuty, decimal SpecialConsumptionTax, decimal EnvironmentTax)> lines,
         bool vatDeductible = true,
         DateTimeOffset? createdAt = null,
-        string? createdBy = null)
+        string? createdBy = null,
+        DateOnly? exchangeRateOn = null,
+        string? exchangeRateSource = null)
     {
         var trimmedCode = code?.Trim() ?? string.Empty;
         if (trimmedCode.Length is < 1 or > CodeMaxLength || supplierId == Guid.Empty || receiveLocationId == Guid.Empty)
@@ -304,7 +347,9 @@ public sealed class PurchaseOrder : Pancras.Domain.Auditing.AuditStamped
             ExchangeRate = roundedRate,
             VatRate = PurchaseMoney.RoundRate(vatRate),
             VatDeductible = vatDeductible,
-            Status = PurchaseStatus.Open,
+            ExchangeRateOn = exchangeRateOn,
+            ExchangeRateSource = FitSource(exchangeRateSource),
+            Status = PurchaseStatus.Draft,
             CreatedAt = createdAt ?? DateTimeOffset.UtcNow,
             CreatedBy = FitActor(createdBy)
         };
@@ -332,6 +377,7 @@ public sealed class PurchaseOrder : Pancras.Domain.Auditing.AuditStamped
             order._lines.Add(created);
         }
 
+        order.Record(PurchaseEventKind.Created, order.CreatedAt, createdBy, null);
         return order;
     }
 
@@ -346,10 +392,12 @@ public sealed class PurchaseOrder : Pancras.Domain.Auditing.AuditStamped
         DateOnly? expectedOn,
         decimal exchangeRate,
         decimal vatRate,
-        bool vatDeductible)
+        bool vatDeductible,
+        DateOnly? exchangeRateOn = null,
+        string? exchangeRateSource = null)
     {
         var trimmedCode = code?.Trim() ?? string.Empty;
-        if (Status != PurchaseStatus.Open
+        if (!IsEditable
             || trimmedCode.Length is < 1 or > CodeMaxLength
             || supplierId == Guid.Empty
             || receiveLocationId == Guid.Empty
@@ -379,6 +427,8 @@ public sealed class PurchaseOrder : Pancras.Domain.Auditing.AuditStamped
         ExchangeRate = roundedRate;
         VatRate = PurchaseMoney.RoundRate(vatRate);
         VatDeductible = vatDeductible;
+        ExchangeRateOn = exchangeRateOn;
+        ExchangeRateSource = FitSource(exchangeRateSource);
         return true;
     }
 
@@ -391,7 +441,7 @@ public sealed class PurchaseOrder : Pancras.Domain.Auditing.AuditStamped
         out bool lineSetChanged)
     {
         lineSetChanged = false;
-        if (Status != PurchaseStatus.Open || lines is null || lines.Count == 0)
+        if (!IsEditable || lines is null || lines.Count == 0)
         {
             return false;
         }
@@ -531,7 +581,7 @@ public sealed class PurchaseOrder : Pancras.Domain.Auditing.AuditStamped
     public bool TryUpdateCharge(Guid chargeId, decimal amount, ChargeSplitMethod method, string? label)
     {
         var charge = _charges.FirstOrDefault(item => item.Id == chargeId);
-        return Status == PurchaseStatus.Open
+        return IsEditable
             && charge is not null
             && charge.Method != ChargeSplitMethod.Manual
             && method != ChargeSplitMethod.Manual
@@ -564,31 +614,11 @@ public sealed class PurchaseOrder : Pancras.Domain.Auditing.AuditStamped
         UpdatedBy = FitActor(by);
     }
 
-    public bool TryReceive(DateTimeOffset? at = null, string? by = null)
+    private static string FitSource(string? source)
     {
-        if (Status != PurchaseStatus.Open)
-        {
-            return false;
-        }
-
-        Status = PurchaseStatus.Received;
-        if (at is DateTimeOffset when)
-        {
-            ReceivedAt = when;
-            ReceivedBy = FitActor(by);
-            StampUpdated(when, by);
-        }
-
-        return true;
+        var trimmed = source?.Trim() ?? string.Empty;
+        return trimmed.Length <= RateSourceMaxLength ? trimmed : trimmed[..RateSourceMaxLength];
     }
-
-    public void RestoreOpen()
-    {
-        Status = PurchaseStatus.Open;
-        ReceivedAt = null;
-        ReceivedBy = string.Empty;
-    }
-
 
     private static bool TryOptional(string? value, int max, out string stored)
     {

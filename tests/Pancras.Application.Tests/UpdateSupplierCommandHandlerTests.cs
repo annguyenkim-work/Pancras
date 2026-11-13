@@ -55,15 +55,15 @@ public class UpdateSupplierCommandHandlerTests
     }
 
     [Fact]
-    public async Task DeletedSupplier_IsNotFound_AndStaysDeleted()
+    public async Task InactiveSupplier_IsNotFound_AndStaysInactive()
     {
         var supplier = AddSample();
-        supplier.MarkDeleted();
+        supplier.Deactivate();
 
         var result = await Handler().HandleAsync(Edit(supplier.Id, name: "Tên mới"), CancellationToken.None);
 
         Assert.Equal(SupplierError.NotFound, result.SupplierError);
-        Assert.True(supplier.IsDeleted);
+        Assert.True(supplier.IsInactive);
         Assert.Equal("Kim An", supplier.Name);
     }
 
@@ -86,6 +86,53 @@ public class UpdateSupplierCommandHandlerTests
         Assert.Equal(SupplierError.NotFound, result.SupplierError);
     }
 
+    [Fact]
+    public async Task OnlyManagersCanEdit()
+    {
+        var supplier = AddSample();
+        var command = Edit(supplier.Id, name: "Tên mới");
+        command.Actor = SupplierActors.Keeper;
+
+        var result = await Handler().HandleAsync(command, CancellationToken.None);
+
+        Assert.Equal(SupplierError.Forbidden, result.SupplierError);
+        Assert.Equal("Kim An", supplier.Name);
+    }
+
+    [Fact]
+    public async Task Edit_RecordsWhatChanged_WithoutLeakingTheFullAccountNumber()
+    {
+        var supplier = AddSample();
+        var audit = new MemoryAudit();
+        var command = Edit(supplier.Id, name: "Tên mới");
+        command.Account = "987654321";
+
+        var result = await new UpdateSupplierCommandHandler(_repository, NullLogger<UpdateSupplierCommandHandler>.Instance, audit: audit)
+            .HandleAsync(command, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var entry = Assert.Single(audit.Entries);
+        Assert.Equal(Pancras.Domain.Auditing.AuditActions.SupplierUpdated, entry.Action);
+        Assert.Contains("\"Kim An\" → \"Tên mới\"", entry.Detail, StringComparison.Ordinal);
+        Assert.Contains("••••3456 → ••••4321", entry.Detail, StringComparison.Ordinal);
+        Assert.DoesNotContain("987654321", entry.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RenamingTheCodeToOneHeldByAnInactiveSupplier_IsRefused()
+    {
+        var supplier = AddSample();
+        var old = Supplier.Create("NCC09", "Cũ", "Ý", "Lan", "", "", "");
+        old.Deactivate();
+        _repository.Suppliers.Add(old);
+
+        var result = await Handler().HandleAsync(Edit(supplier.Id, code: "ncc09"), CancellationToken.None);
+
+        Assert.Equal(SupplierError.DuplicateCode, result.SupplierError);
+        Assert.Contains(result.SupplierIssues, issue => issue.Kind == SupplierIssueKind.DuplicateInactive);
+        Assert.Equal("NCC01", supplier.Code);
+    }
+
     private UpdateSupplierCommandHandler Handler() =>
         new(_repository, NullLogger<UpdateSupplierCommandHandler>.Instance);
 
@@ -103,6 +150,7 @@ public class UpdateSupplierCommandHandlerTests
         string? email = null) =>
         new()
         {
+            Actor = SupplierActors.Admin,
             Id = id,
             Code = code ?? "NCC01",
             Name = name ?? "Kim An",

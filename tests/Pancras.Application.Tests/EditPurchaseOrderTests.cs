@@ -56,6 +56,7 @@ public class EditPurchaseOrderTests
     private UpdatePurchaseOrderCommand Command(params CreatePurchaseLineInput[] lines) =>
         new()
         {
+            Actor = TestActors.Accountant,
             PurchaseOrderId = _order.Id,
             Code = "PO-1",
             SupplierId = _supplier.Id,

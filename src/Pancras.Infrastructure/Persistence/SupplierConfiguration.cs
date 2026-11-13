@@ -17,11 +17,12 @@ public sealed class SupplierConfiguration : IEntityTypeConfiguration<Supplier>
         builder.Property(supplier => supplier.ContactName).HasMaxLength(Supplier.ContactNameMaxLength).IsRequired();
         builder.Property(supplier => supplier.Phone).HasMaxLength(Supplier.PhoneMaxLength).IsRequired();
         builder.Property(supplier => supplier.Email).HasMaxLength(Supplier.EmailMaxLength).IsRequired();
+        builder.Property(supplier => supplier.BankName).HasMaxLength(Supplier.BankNameMaxLength).IsRequired().HasDefaultValue(string.Empty);
         builder.Property(supplier => supplier.Account).HasMaxLength(Supplier.AccountMaxLength).IsRequired();
-        builder.Property(supplier => supplier.IsDeleted).IsRequired().HasDefaultValue(false);
-        builder.HasQueryFilter(supplier => !supplier.IsDeleted);
+        builder.Property(supplier => supplier.SwiftCode).HasMaxLength(Supplier.SwiftMaxLength).IsRequired().HasDefaultValue(string.Empty);
+        builder.Property(supplier => supplier.IsInactive).IsRequired().HasDefaultValue(false);
         builder.HasIndex(supplier => supplier.NormalizedCode)
             .IsUnique()
-            .HasFilter("is_deleted = false");
+            .HasFilter("is_inactive = false");
     }
 }

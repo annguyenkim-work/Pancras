@@ -88,7 +88,8 @@ public class AuthenticationPageTests : IClassFixture<PancrasWebFactory>
 
     [Theory]
     [InlineData(EmployeeRole.Sales, "/suppliers", true)]
-    [InlineData(EmployeeRole.WarehouseKeeper, "/suppliers", true)]
+    [InlineData(EmployeeRole.WarehouseKeeper, "/suppliers", false)]
+    [InlineData(EmployeeRole.ShowroomWarehouseLead, "/suppliers", false)]
     [InlineData(EmployeeRole.Accountant, "/suppliers", false)]
     [InlineData(EmployeeRole.Sales, "/employees", true)]
     [InlineData(EmployeeRole.CustomerCare, "/employees", true)]
@@ -286,11 +287,11 @@ internal sealed class SupplierDirectoryDouble : ISupplierRepository
     public List<Supplier> Suppliers { get; } = [];
 
     public Task<IReadOnlyList<Supplier>> ListAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<Supplier>>(Active(null));
+        Task.FromResult<IReadOnlyList<Supplier>>(Filtered(SupplierListFilter.From(null)));
 
-    public Task<SupplierSlice> ListFilteredAsync(string? term, int pageNumber, int pageSize, CancellationToken cancellationToken)
+    public Task<SupplierSlice> ListFilteredAsync(SupplierListFilter filter, int pageNumber, int pageSize, CancellationToken cancellationToken)
     {
-        var ordered = Active(term);
+        var ordered = Filtered(filter);
         var size = pageSize < 1 ? SupplierPageRequest.DefaultSize : pageSize;
         var totalPages = ordered.Count == 0 ? 1 : (ordered.Count + size - 1) / size;
         var number = Math.Clamp(pageNumber < 1 ? 1 : pageNumber, 1, totalPages);
@@ -298,11 +299,20 @@ internal sealed class SupplierDirectoryDouble : ISupplierRepository
         return Task.FromResult(new SupplierSlice(items, ordered.Count, number));
     }
 
+    public Task<IReadOnlyList<string>> ListCountriesAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<string>>(Suppliers.Select(supplier => supplier.Country).Distinct().Order().ToList());
+
     public Task<Supplier?> GetActiveReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult(Suppliers.FirstOrDefault(supplier => supplier.Id == id && !supplier.IsDeleted));
+        Task.FromResult(Suppliers.FirstOrDefault(supplier => supplier.Id == id && !supplier.IsInactive));
+
+    public Task<Supplier?> GetAnyReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
+        Task.FromResult(Suppliers.FirstOrDefault(supplier => supplier.Id == id));
 
     public Task<Supplier?> GetActiveForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         GetActiveReadOnlyAsync(id, cancellationToken);
+
+    public Task<Supplier?> GetAnyForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
+        GetAnyReadOnlyAsync(id, cancellationToken);
 
     public Task<IReadOnlyDictionary<Guid, string>> GetNamesAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyDictionary<Guid, string>>(
@@ -310,11 +320,14 @@ internal sealed class SupplierDirectoryDouble : ISupplierRepository
 
     public Task<bool> NormalizedCodeExistsAsync(string normalizedCode, Guid? excludingId, CancellationToken cancellationToken) =>
         Task.FromResult(Suppliers.Any(supplier =>
-            !supplier.IsDeleted && supplier.NormalizedCode == normalizedCode && supplier.Id != excludingId));
+            !supplier.IsInactive && supplier.NormalizedCode == normalizedCode && supplier.Id != excludingId));
+
+    public Task<string?> InactiveNameWithCodeAsync(string normalizedCode, CancellationToken cancellationToken) =>
+        Task.FromResult(Suppliers.FirstOrDefault(supplier => supplier.IsInactive && supplier.NormalizedCode == normalizedCode)?.Name);
 
     public Task<int> CountActiveBeforeAsync(string name, string code, CancellationToken cancellationToken) =>
         Task.FromResult(Suppliers.Count(supplier =>
-            !supplier.IsDeleted
+            !supplier.IsInactive
             && (string.CompareOrdinal(supplier.Name, name) < 0
                 || (supplier.Name == name && string.CompareOrdinal(supplier.Code, code) < 0))));
 
@@ -326,12 +339,22 @@ internal sealed class SupplierDirectoryDouble : ISupplierRepository
 
     public Task<bool> TrySaveAsync(CancellationToken cancellationToken) => Task.FromResult(true);
 
-    private List<Supplier> Active(string? term)
+    private List<Supplier> Filtered(SupplierListFilter filter)
     {
-        IEnumerable<Supplier> suppliers = Suppliers.Where(supplier => !supplier.IsDeleted);
-        if (!string.IsNullOrWhiteSpace(term))
+        IEnumerable<Supplier> suppliers = filter.Status switch
         {
-            var needle = term.Trim();
+            SupplierStatusFilter.Inactive => Suppliers.Where(supplier => supplier.IsInactive),
+            SupplierStatusFilter.All => Suppliers,
+            _ => Suppliers.Where(supplier => !supplier.IsInactive)
+        };
+        if (filter.Country is not null)
+        {
+            suppliers = suppliers.Where(supplier => supplier.Country == filter.Country);
+        }
+
+        if (filter.Term is not null)
+        {
+            var needle = filter.Term;
             suppliers = suppliers.Where(supplier =>
                 supplier.Code.Contains(needle, StringComparison.OrdinalIgnoreCase)
                 || supplier.Name.Contains(needle, StringComparison.OrdinalIgnoreCase));

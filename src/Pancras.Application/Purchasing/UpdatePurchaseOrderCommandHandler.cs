@@ -23,6 +23,12 @@ public sealed class UpdatePurchaseOrderCommandHandler(
 {
     public async Task<Result<Guid>> HandleAsync(UpdatePurchaseOrderCommand command, CancellationToken cancellationToken)
     {
+        if (!PurchaseAccess.CanManage(command.Actor))
+        {
+            logger.LogWarning("Purchase order update forbidden for role {Role}.", command.Actor.Role);
+            return Result<Guid>.Fail(PurchaseError.Forbidden);
+        }
+
         // Dòng trống hoàn toàn (chưa chọn mặt hàng, số lượng 0) bị bỏ qua. Dòng đã chọn mặt hàng mà số lượng <= 0 là lỗi:
         // không được âm thầm coi là "xóa dòng", vì dòng bị xóa kéo theo phần chia chi phí của nó.
         var submitted = command.Lines ?? [];
@@ -49,10 +55,10 @@ public sealed class UpdatePurchaseOrderCommandHandler(
             return Result<Guid>.Fail(PurchaseError.InvalidOrder);
         }
 
-        if (order.Status != PurchaseStatus.Open)
+        if (!order.IsEditable)
         {
             logger.LogWarning("Purchase order {PurchaseOrderId} is already received and cannot be edited.", order.Id);
-            return Result<Guid>.Fail(PurchaseError.AlreadyReceived);
+            return Result<Guid>.Fail(order.Status == PurchaseStatus.Received ? PurchaseError.AlreadyReceived : PurchaseError.NotEditable);
         }
 
         var supplier = await suppliers.GetActiveReadOnlyAsync(command.SupplierId, cancellationToken);
@@ -113,6 +119,8 @@ public sealed class UpdatePurchaseOrderCommandHandler(
             return Result<Guid>.Fail(PurchaseError.ManualChargeLocked);
         }
 
+        var rateBefore = order.ExchangeRate;
+        var supplierChanged = order.SupplierId != command.SupplierId;
         if (!order.TryUpdateHeader(
                 command.Code,
                 command.SupplierId,
@@ -123,12 +131,20 @@ public sealed class UpdatePurchaseOrderCommandHandler(
                 command.ExpectedOn,
                 command.ExchangeRate,
                 command.VatRate,
-                command.VatDeductible)
+                command.VatDeductible,
+                command.ExchangeRateOn,
+                command.ExchangeRateSource)
             || !order.TryUpdateLines(
                 lines.Select(line => (line.LineId, line.CatalogItemId, line.Quantity, line.FobUsd, line.DutyRate, line.SupplementalDuty, line.SpecialConsumptionTax, line.EnvironmentTax)).ToArray(),
                 out _))
         {
             return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+        }
+
+        // Giữ nguyên tên nhà cung cấp đã chụp lúc lập đơn; chỉ chụp lại khi đổi sang nhà cung cấp khác (hoặc đơn cũ chưa có bản chụp).
+        if (supplierChanged || string.IsNullOrEmpty(order.SupplierName))
+        {
+            order.RecordSupplier(supplier.Code, supplier.Name);
         }
 
         if (submittedCharges is not null)
@@ -180,7 +196,7 @@ public sealed class UpdatePurchaseOrderCommandHandler(
         }
 
         logger.LogInformation("Updated purchase order {PurchaseOrderId}.", order.Id);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, AuditActions.PurchaseUpdated, "purchase_order", order.Id.ToString("D"), null, cancellationToken);
+        await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, AuditActions.PurchaseUpdated, "purchase_order", order.Id.ToString("D"), rateBefore == order.ExchangeRate ? null : $"exchange_rate {rateBefore:0} -> {order.ExchangeRate:0}", cancellationToken);
         return Result<Guid>.Ok(order.Id);
     }
 

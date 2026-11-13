@@ -22,13 +22,24 @@ public sealed class PurchaseOrderConfiguration : IEntityTypeConfiguration<Purcha
         builder.Property(order => order.VatRate).HasColumnType("numeric(9,4)").IsRequired();
         builder.Property(order => order.Status).HasConversion<int>().IsRequired();
         builder.Property(order => order.VatDeductible).IsRequired();
+        builder.Property(order => order.ExchangeRateOn);
+        builder.Property(order => order.ExchangeRateSource).HasMaxLength(PurchaseOrder.RateSourceMaxLength).IsRequired();
         builder.Property(order => order.ReceivedAt);
         builder.Property(order => order.ReceivedBy).HasMaxLength(PurchaseOrder.ActorMaxLength).IsRequired();
+        builder.Property(order => order.SupplierCode).HasMaxLength(Supplier.CodeMaxLength).IsRequired().HasDefaultValue(string.Empty);
+        builder.Property(order => order.SupplierName).HasMaxLength(Supplier.NameMaxLength).IsRequired().HasDefaultValue(string.Empty);
         builder.HasIndex(order => order.NormalizedCode).IsUnique();
         builder.HasMany(order => order.Lines).WithOne().HasForeignKey(line => line.PurchaseOrderId).OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(order => order.Lines).UsePropertyAccessMode(PropertyAccessMode.Field);
         builder.HasMany(order => order.Charges).WithOne().HasForeignKey(charge => charge.PurchaseOrderId).OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(order => order.Charges).UsePropertyAccessMode(PropertyAccessMode.Field);
+        builder.HasMany(order => order.Events).WithOne().HasForeignKey(item => item.PurchaseOrderId).OnDelete(DeleteBehavior.Cascade);
+        builder.Navigation(order => order.Events).UsePropertyAccessMode(PropertyAccessMode.Field);
+        builder.HasMany(order => order.Adjustments).WithOne().HasForeignKey(item => item.PurchaseOrderId).OnDelete(DeleteBehavior.Cascade);
+        builder.Navigation(order => order.Adjustments).UsePropertyAccessMode(PropertyAccessMode.Field);
+        builder.Ignore(order => order.IsEditable);
+        builder.Ignore(order => order.IsReceivable);
+        builder.Ignore(order => order.IsOutstanding);
         builder.HasOne<Supplier>().WithMany().HasForeignKey(order => order.SupplierId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<StockLocation>().WithMany().HasForeignKey(order => order.ReceiveLocationId).OnDelete(DeleteBehavior.Restrict);
     }
@@ -49,6 +60,8 @@ public sealed class PurchaseLineConfiguration : IEntityTypeConfiguration<Purchas
         builder.Property(line => line.SupplementalDuty).HasColumnType("numeric(18,0)").IsRequired();
         builder.Property(line => line.SpecialConsumptionTax).HasColumnType("numeric(18,0)").IsRequired();
         builder.Property(line => line.EnvironmentTax).HasColumnType("numeric(18,0)").IsRequired();
+        builder.Property(line => line.ReceivedQuantity).IsRequired();
+        builder.Property(line => line.CostedAmount).HasColumnType("numeric(18,0)").IsRequired();
         builder.HasOne<CatalogItem>().WithMany().HasForeignKey(line => line.CatalogItemId).OnDelete(DeleteBehavior.Restrict);
     }
 }
@@ -80,5 +93,39 @@ public sealed class PurchaseChargeShareConfiguration : IEntityTypeConfiguration<
         builder.Property(share => share.PurchaseChargeId).IsRequired();
         builder.Property(share => share.LineId).IsRequired();
         builder.Property(share => share.Amount).HasColumnType("numeric(18,0)").IsRequired();
+    }
+}
+
+public sealed class PurchaseEventConfiguration : IEntityTypeConfiguration<PurchaseEvent>
+{
+    public void Configure(EntityTypeBuilder<PurchaseEvent> builder)
+    {
+        builder.ToTable("purchase_event");
+        builder.HasKey(item => item.Id);
+        builder.Property(item => item.Id).ValueGeneratedNever();
+        builder.Property(item => item.PurchaseOrderId).IsRequired();
+        builder.Property(item => item.Kind).HasConversion<int>().IsRequired();
+        builder.Property(item => item.OccurredAt).IsRequired();
+        builder.Property(item => item.ActorCode).HasMaxLength(PurchaseOrder.ActorMaxLength).IsRequired();
+        builder.Property(item => item.Note).HasMaxLength(PurchaseEvent.NoteMaxLength).IsRequired();
+    }
+}
+
+public sealed class PurchaseCostAdjustmentConfiguration : IEntityTypeConfiguration<PurchaseCostAdjustment>
+{
+    public void Configure(EntityTypeBuilder<PurchaseCostAdjustment> builder)
+    {
+        builder.ToTable("purchase_cost_adjustment");
+        builder.HasKey(item => item.Id);
+        builder.Property(item => item.Id).ValueGeneratedNever();
+        builder.Property(item => item.PurchaseOrderId).IsRequired();
+        builder.Property(item => item.Label).HasMaxLength(PurchaseCharge.LabelMaxLength).IsRequired();
+        builder.Property(item => item.Amount).HasColumnType("numeric(18,0)").IsRequired();
+        builder.Property(item => item.Method).HasConversion<int>().IsRequired();
+        builder.Property(item => item.Reason).HasMaxLength(PurchaseCostAdjustment.ReasonMaxLength).IsRequired();
+        builder.Property(item => item.AppliedToStock).HasColumnType("numeric(18,0)").IsRequired();
+        builder.Ignore(item => item.Variance);
+        builder.Property(item => item.CreatedAt).IsRequired();
+        builder.Property(item => item.CreatedBy).HasMaxLength(PurchaseOrder.ActorMaxLength).IsRequired();
     }
 }

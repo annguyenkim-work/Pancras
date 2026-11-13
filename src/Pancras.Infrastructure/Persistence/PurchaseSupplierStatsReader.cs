@@ -24,7 +24,7 @@ public sealed class PurchaseSupplierStatsReader(PancrasDbContext context) : ISup
             {
                 SupplierId = group.Key,
                 Total = group.Count(),
-                Open = group.Count(order => order.Status == PurchaseStatus.Open)
+                Open = group.Count(order => order.Status != PurchaseStatus.Received && order.Status != PurchaseStatus.Cancelled)
             })
             .ToListAsync(cancellationToken);
         return rows.ToDictionary(row => row.SupplierId, row => new SupplierPurchaseStats(row.Total, row.Open));

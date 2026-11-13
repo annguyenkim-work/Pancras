@@ -68,7 +68,7 @@ public class PurchaseAttachmentTests
 
     private Task<Result<Guid>> UploadAsync(string name, byte[] bytes, AttachmentKind kind = AttachmentKind.CustomsDeclaration) =>
         Upload().HandleAsync(
-            new UploadPurchaseAttachmentCommand { PurchaseOrderId = _order.Id, Kind = kind, FileName = name, Content = new MemoryStream(bytes) },
+            new UploadPurchaseAttachmentCommand { Actor = TestActors.Accountant, PurchaseOrderId = _order.Id, Kind = kind, FileName = name, Content = new MemoryStream(bytes) },
             CancellationToken.None);
 
     [Fact]
@@ -143,7 +143,7 @@ public class PurchaseAttachmentTests
     public async Task AnUnknownOrder_IsRefused()
     {
         var result = await Upload().HandleAsync(
-            new UploadPurchaseAttachmentCommand { PurchaseOrderId = Guid.CreateVersion7(), Kind = AttachmentKind.Other, FileName = "a.pdf", Content = new MemoryStream(Pdf) },
+            new UploadPurchaseAttachmentCommand { Actor = TestActors.Accountant, PurchaseOrderId = Guid.CreateVersion7(), Kind = AttachmentKind.Other, FileName = "a.pdf", Content = new MemoryStream(Pdf) },
             CancellationToken.None);
 
         Assert.Equal(PurchaseError.InvalidOrder, result.PurchaseError);
@@ -155,9 +155,9 @@ public class PurchaseAttachmentTests
         var id = (await UploadAsync("a.pdf", Pdf)).Value;
 
         var opened = await new OpenPurchaseAttachmentHandler(_store, _store, NullLogger<OpenPurchaseAttachmentHandler>.Instance, null, _audit)
-            .HandleAsync(id, CancellationToken.None);
+            .HandleAsync(id, TestActors.Accountant, CancellationToken.None);
         var missing = await new OpenPurchaseAttachmentHandler(_store, _store, NullLogger<OpenPurchaseAttachmentHandler>.Instance)
-            .HandleAsync(Guid.CreateVersion7(), CancellationToken.None);
+            .HandleAsync(Guid.CreateVersion7(), TestActors.Accountant, CancellationToken.None);
 
         Assert.True(opened.IsSuccess);
         using var stream = new MemoryStream();
@@ -175,9 +175,9 @@ public class PurchaseAttachmentTests
         var delete = new DeletePurchaseAttachmentCommandHandler(_orders, _store, _store, NullLogger<DeletePurchaseAttachmentCommandHandler>.Instance, null, _audit);
         Assert.True(_order.TryReceive());
 
-        var locked = await delete.HandleAsync(id, CancellationToken.None);
+        var locked = await delete.HandleAsync(id, TestActors.Accountant, CancellationToken.None);
         _order.RestoreOpen();
-        var removed = await delete.HandleAsync(id, CancellationToken.None);
+        var removed = await delete.HandleAsync(id, TestActors.Accountant, CancellationToken.None);
 
         Assert.Equal(PurchaseError.AlreadyReceived, locked.PurchaseError);
         Assert.True(removed.IsSuccess);

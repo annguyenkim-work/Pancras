@@ -107,11 +107,19 @@ public static class AuditActions
     public const string AdjustmentApproved = "stock.adjustment_approved";
     public const string DisposalApproved = "stock.disposal_approved";
     public const string PricesChanged = "catalog.prices_changed";
+    public const string PurchaseCreated = "purchase.created";
+    public const string PurchaseExported = "purchase.exported";
     public const string PurchaseReceived = "purchase.received";
     public const string PurchaseUpdated = "purchase.updated";
+    public const string PurchaseStatusChanged = "purchase.status_changed";
+    public const string PurchaseCostAdjusted = "purchase.cost_adjusted";
     public const string PurchaseChargeAdded = "purchase.charge_added";
     public const string PurchaseChargeDeleted = "purchase.charge_deleted";
     public const string PurchaseAttachmentAdded = "purchase.attachment_added";
     public const string PurchaseAttachmentDownloaded = "purchase.attachment_downloaded";
     public const string PurchaseAttachmentDeleted = "purchase.attachment_deleted";
+    public const string SupplierCreated = "supplier.created";
+    public const string SupplierUpdated = "supplier.updated";
+    public const string SupplierDeactivated = "supplier.deactivated";
+    public const string SupplierReactivated = "supplier.reactivated";
 }

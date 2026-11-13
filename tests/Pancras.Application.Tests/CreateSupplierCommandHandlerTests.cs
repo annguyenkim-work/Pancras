@@ -124,12 +124,91 @@ public class CreateSupplierCommandHandlerTests
         Assert.Equal(result.Value!.Id, supplier.Id);
     }
 
+    [Fact]
+    public async Task OnlyManagersCanCreate()
+    {
+        var keeper = await Handler().HandleAsync(Valid(actor: SupplierActors.Keeper), CancellationToken.None);
+        var sales = await Handler().HandleAsync(Valid(actor: SupplierActors.Sales), CancellationToken.None);
+
+        Assert.Equal(SupplierError.Forbidden, keeper.SupplierError);
+        Assert.Equal(SupplierError.Forbidden, sales.SupplierError);
+        Assert.Empty(_repository.Suppliers);
+    }
+
+    [Fact]
+    public async Task EmailPhoneAndPaymentDetails_AreOptional()
+    {
+        var command = Valid();
+        command.Email = null;
+        command.Phone = " ";
+        command.Account = null;
+
+        var result = await Handler().HandleAsync(command, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var supplier = Assert.Single(_repository.Suppliers);
+        Assert.Equal(string.Empty, supplier.Email);
+        Assert.Equal(string.Empty, supplier.Phone);
+        Assert.Equal(string.Empty, supplier.Account);
+    }
+
+    [Fact]
+    public async Task CodeNameCountryAndContact_StayRequired()
+    {
+        var noCountry = Valid();
+        noCountry.Country = " ";
+        var noContact = Valid();
+        noContact.ContactName = null;
+
+        var first = await Handler().HandleAsync(noCountry, CancellationToken.None);
+        var second = await Handler().HandleAsync(noContact, CancellationToken.None);
+
+        Assert.Contains(first.SupplierIssues, issue => issue.Field == SupplierField.Country && issue.Kind == SupplierIssueKind.Missing);
+        Assert.Contains(second.SupplierIssues, issue => issue.Field == SupplierField.ContactName && issue.Kind == SupplierIssueKind.Missing);
+        Assert.Empty(_repository.Suppliers);
+    }
+
+    [Fact]
+    public async Task BankDetails_AreStored_AndSwiftIsValidatedAndUppercased()
+    {
+        var bad = Valid();
+        bad.SwiftCode = "ABC";
+        var rejected = await Handler().HandleAsync(bad, CancellationToken.None);
+        Assert.Equal(SupplierError.InvalidSwift, rejected.SupplierError);
+        Assert.Empty(_repository.Suppliers);
+
+        var good = Valid();
+        good.BankName = "Bank of China";
+        good.SwiftCode = "bkchcnbj";
+        var accepted = await Handler().HandleAsync(good, CancellationToken.None);
+
+        Assert.True(accepted.IsSuccess);
+        var supplier = Assert.Single(_repository.Suppliers);
+        Assert.Equal("Bank of China", supplier.BankName);
+        Assert.Equal("BKCHCNBJ", supplier.SwiftCode);
+    }
+
+    [Fact]
+    public async Task Create_WritesAnAuditEntry()
+    {
+        var audit = new MemoryAudit();
+
+        var result = await new CreateSupplierCommandHandler(_repository, NullLogger<CreateSupplierCommandHandler>.Instance, audit: audit)
+            .HandleAsync(Valid(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var entry = Assert.Single(audit.Entries);
+        Assert.Equal(Pancras.Domain.Auditing.AuditActions.SupplierCreated, entry.Action);
+        Assert.Equal(result.Value!.Id.ToString("D"), entry.TargetId);
+    }
+
     private CreateSupplierCommandHandler Handler() =>
         new(_repository, NullLogger<CreateSupplierCommandHandler>.Instance);
 
-    private static CreateSupplierCommand Valid(string? code = null, string? name = null, string? email = null, string? phone = null) =>
+    private static CreateSupplierCommand Valid(string? code = null, string? name = null, string? email = null, string? phone = null, Pancras.Domain.Employees.EmployeeActor? actor = null) =>
         new()
         {
+            Actor = actor ?? SupplierActors.Admin,
             Code = code ?? "NCC01",
             Name = name ?? "Kim An",
             Country = "Trung Quốc",

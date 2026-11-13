@@ -34,6 +34,8 @@ public sealed record AttachmentDownload(Stream Content, string FileName, string 
 
 public sealed class UploadPurchaseAttachmentCommand
 {
+    public Pancras.Domain.Employees.EmployeeActor Actor { get; set; } = new(Guid.Empty, null, null);
+
     public Guid PurchaseOrderId { get; set; }
 
     public AttachmentKind Kind { get; set; }
@@ -54,6 +56,11 @@ public sealed class UploadPurchaseAttachmentCommandHandler(
 {
     public async Task<Result<Guid>> HandleAsync(UploadPurchaseAttachmentCommand command, CancellationToken cancellationToken)
     {
+        if (!PurchaseAccess.CanManage(command.Actor))
+        {
+            return Result<Guid>.Fail(PurchaseError.Forbidden);
+        }
+
         var now = (clock ?? TimeProvider.System).GetUtcNow();
         var cleanName = AttachmentRules.CleanFileName(command.FileName);
         if (command.Content is null || cleanName is null || !Enum.IsDefined(command.Kind))
@@ -140,8 +147,13 @@ public sealed class OpenPurchaseAttachmentHandler(
     IAuditLog? audit = null,
     IRequestInfo? request = null)
 {
-    public async Task<Result<AttachmentDownload>> HandleAsync(Guid attachmentId, CancellationToken cancellationToken)
+    public async Task<Result<AttachmentDownload>> HandleAsync(Guid attachmentId, Pancras.Domain.Employees.EmployeeActor actor, CancellationToken cancellationToken)
     {
+        if (!PurchaseAccess.CanManage(actor))
+        {
+            return Result<AttachmentDownload>.Fail(PurchaseError.Forbidden);
+        }
+
         var attachment = await attachments.FindAsync(attachmentId, cancellationToken);
         if (attachment is null)
         {
@@ -169,8 +181,13 @@ public sealed class DeletePurchaseAttachmentCommandHandler(
     IAuditLog? audit = null,
     IRequestInfo? request = null)
 {
-    public async Task<Result<Guid>> HandleAsync(Guid attachmentId, CancellationToken cancellationToken)
+    public async Task<Result<Guid>> HandleAsync(Guid attachmentId, Pancras.Domain.Employees.EmployeeActor actor, CancellationToken cancellationToken)
     {
+        if (!PurchaseAccess.CanManage(actor))
+        {
+            return Result<Guid>.Fail(PurchaseError.Forbidden);
+        }
+
         var attachment = await attachments.FindAsync(attachmentId, cancellationToken);
         if (attachment is null)
         {
@@ -179,7 +196,7 @@ public sealed class DeletePurchaseAttachmentCommandHandler(
 
         // Chứng từ của đơn đã nhập kho là chứng cứ kế toán: không xóa.
         var order = await orders.FindReadOnlyAsync(attachment.PurchaseOrderId, cancellationToken);
-        if (order is null || order.Status != PurchaseStatus.Open)
+        if (order is null || !order.IsEditable)
         {
             return Result<Guid>.Fail(PurchaseError.AlreadyReceived);
         }

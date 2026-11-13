@@ -80,7 +80,7 @@ Ai duyệt phiếu chờ duyệt của kiểm kê và phiếu hủy (**[Cần x�
 
 | Module | Quyền |
 | --- | --- |
-| Nhà cung cấp | Admin, Giám đốc, Kế toán: xem, tạo, sửa, xóa mềm. Vai trò khác: không vào |
+| Nhà cung cấp | Admin, Giám đốc, Kế toán: xem, tạo, sửa, ngừng hợp tác (thay cho xóa mềm), thấy tài khoản ngân hàng (che 4 số cuối ở danh sách, đầy đủ trong form sửa). Chỉ Admin khôi phục nhà cung cấp đã ngừng hợp tác. Thủ kho, Trưởng Showroom/Kho: chỉ xem danh bạ, không thấy tài khoản ngân hàng, không sửa. Vai trò khác: không vào. Không ngừng hợp tác được khi còn đơn mua chưa nhập kho |
 | Mua hàng và container | Admin, Giám đốc, Kế toán |
 | Danh mục sản phẩm và giá | Theo `CatalogAccess.ViewRoles` hiện tại |
 | Menu "Sắp có" (khách hàng, bán hàng, báo giá, combo, công nợ, bảo hành, kho & showroom, audit) | Chưa có quyền, định nghĩa khi làm module |

@@ -1,0 +1,178 @@
+using Microsoft.Extensions.Logging;
+using Pancras.Application.Auditing;
+using Pancras.Application.Catalog;
+using Pancras.Application.Common;
+using Pancras.Application.Inventory;
+using Pancras.Domain.Auditing;
+using Pancras.Domain.Catalog;
+using Pancras.Domain.Purchasing;
+
+namespace Pancras.Application.Purchasing;
+
+/// <summary>Chuyển trạng thái đơn mua: gửi duyệt, duyệt, trả về nháp, đánh dấu hàng đang về, hủy. Mỗi bước ghi vào lịch sử đơn.</summary>
+public sealed class ChangePurchaseStatusCommandHandler(
+    IPurchaseOrderRepository orders,
+    ILogger<ChangePurchaseStatusCommandHandler> logger,
+    TimeProvider? clock = null,
+    IAuditLog? audit = null,
+    IRequestInfo? request = null)
+{
+    public async Task<Result<Guid>> HandleAsync(ChangePurchaseStatusCommand command, CancellationToken cancellationToken)
+    {
+        if (!PurchaseAccess.CanManage(command.Actor))
+        {
+            logger.LogWarning("Purchase status change forbidden for role {Role}.", command.Actor.Role);
+            return Result<Guid>.Fail(PurchaseError.Forbidden);
+        }
+
+        var order = await orders.FindForUpdateAsync(command.PurchaseOrderId, cancellationToken);
+        if (order is null)
+        {
+            return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+        }
+
+        if (command.Action == PurchaseStatusAction.Cancel && string.IsNullOrWhiteSpace(command.Note))
+        {
+            return Result<Guid>.Fail(PurchaseError.ReasonRequired);
+        }
+
+        var at = (clock ?? TimeProvider.System).GetUtcNow();
+        var by = request?.ActorCode;
+        var moved = command.Action switch
+        {
+            PurchaseStatusAction.Submit => order.TrySubmit(at, by),
+            PurchaseStatusAction.Approve => order.TryApprove(at, by),
+            PurchaseStatusAction.ReturnToDraft => order.TryReturnToDraft(command.Note, at, by),
+            PurchaseStatusAction.MarkInTransit => order.TryMarkInTransit(at, by),
+            PurchaseStatusAction.Cancel => order.TryCancel(command.Note, at, by),
+            _ => false
+        };
+        if (!moved)
+        {
+            logger.LogWarning("Purchase order {PurchaseOrderId} cannot {Action} from {Status}.", order.Id, command.Action, order.Status);
+            return Result<Guid>.Fail(PurchaseError.InvalidTransition);
+        }
+
+        order.StampUpdated(at, by);
+        if (!await orders.CommitAsync(cancellationToken))
+        {
+            logger.LogWarning("Purchase status commit failed for {PurchaseOrderId}.", order.Id);
+            return Result<Guid>.Fail(PurchaseError.SaveFailed);
+        }
+
+        logger.LogInformation("Purchase order {PurchaseOrderId} moved to {Status}.", order.Id, order.Status);
+        await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.PurchaseStatusChanged, "purchase_order", order.Id.ToString("D"), command.Action.ToString(), cancellationToken);
+        return Result<Guid>.Ok(order.Id);
+    }
+}
+
+/// <summary>
+/// Điều chỉnh chi phí sau khi đơn đã nhận đủ. Khoản điều chỉnh được chia cho các dòng đã nhận theo cách chia đã chọn;
+/// phần ứng với hàng còn tồn cộng vào giá vốn bình quân, phần ứng với hàng đã xuất ghi là chênh lệch (không sửa ngược).
+/// </summary>
+public sealed class AdjustPurchaseCostCommandHandler(
+    IPurchaseOrderRepository orders,
+    IInventoryRepository inventory,
+    ICatalogItemRepository catalog,
+    GetCatalogMeasuresHandler measures,
+    ILogger<AdjustPurchaseCostCommandHandler> logger,
+    TimeProvider? clock = null,
+    IAuditLog? audit = null,
+    IRequestInfo? request = null)
+{
+    public async Task<Result<Guid>> HandleAsync(AdjustPurchaseCostCommand command, CancellationToken cancellationToken)
+    {
+        if (!PurchaseAccess.CanManage(command.Actor))
+        {
+            logger.LogWarning("Purchase cost adjustment forbidden for role {Role}.", command.Actor.Role);
+            return Result<Guid>.Fail(PurchaseError.Forbidden);
+        }
+
+        var order = await orders.FindForUpdateAsync(command.PurchaseOrderId, cancellationToken);
+        if (order is null)
+        {
+            return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+        }
+
+        var amount = PurchaseMoney.RoundDong(command.Amount);
+        var received = order.Lines.Where(line => line.ReceivedQuantity > 0).ToArray();
+        if (order.Status != PurchaseStatus.Received || amount == 0 || received.Length == 0)
+        {
+            return Result<Guid>.Fail(PurchaseError.AdjustmentInvalid);
+        }
+
+        var basis = await ChargeBasis.ComputeAsync(order, command.Method, null, measures, cancellationToken);
+        if (basis is null || command.Method == ChargeSplitMethod.Manual)
+        {
+            return Result<Guid>.Fail(command.Method == ChargeSplitMethod.Manual ? PurchaseError.AdjustmentInvalid : PurchaseError.MissingMeasure);
+        }
+
+        // Chia trị tuyệt đối rồi trả lại dấu: cách chia (cắt phần lẻ, dư về dòng cuối) chỉ định nghĩa cho số không âm.
+        if (!ChargeAllocation.TrySplit(Math.Abs(amount), received.Select(line => basis[line.Id]).ToArray(), out var shares))
+        {
+            return Result<Guid>.Fail(PurchaseError.MissingMeasure);
+        }
+
+        var sign = Math.Sign(amount);
+        var items = new Dictionary<Guid, CatalogItem>();
+        var onHand = new Dictionary<Guid, int>();
+        var uncovered = new Dictionary<Guid, int>();
+        var previousCosts = new Dictionary<Guid, decimal>();
+        decimal applied = 0;
+        for (var index = 0; index < received.Length; index++)
+        {
+            var line = received[index];
+            if (!items.TryGetValue(line.CatalogItemId, out var item))
+            {
+                item = await catalog.GetVisibleForUpdateAsync(line.CatalogItemId, cancellationToken);
+                if (item is null)
+                {
+                    Restore(items, previousCosts);
+                    return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+                }
+
+                items[line.CatalogItemId] = item;
+                previousCosts[line.CatalogItemId] = item.CostPrice;
+                onHand[line.CatalogItemId] = await inventory.SumOnHandAsync(line.CatalogItemId, cancellationToken);
+                uncovered[line.CatalogItemId] = onHand[line.CatalogItemId];
+            }
+
+            // Số món của dòng này còn nằm trong kho (không vượt quá tồn chưa được dòng khác của cùng mặt hàng tính).
+            var stillHeld = Math.Min(uncovered[line.CatalogItemId], line.ReceivedQuantity);
+            uncovered[line.CatalogItemId] -= stillHeld;
+            var portion = PurchaseMoney.RoundDong(shares[index] * stillHeld / line.ReceivedQuantity) * sign;
+            if (portion != 0)
+            {
+                item.SetCostPrice(PurchaseCostSpread.Apply(onHand[line.CatalogItemId], item.CostPrice, portion));
+                applied += portion;
+            }
+        }
+
+        var at = (clock ?? TimeProvider.System).GetUtcNow();
+        var adjustment = order.TryAddCostAdjustment(command.Label, amount, command.Method, command.Reason, applied, at, request?.ActorCode);
+        if (adjustment is null)
+        {
+            Restore(items, previousCosts);
+            return Result<Guid>.Fail(PurchaseError.AdjustmentInvalid);
+        }
+
+        if (!await orders.CommitAsync(cancellationToken))
+        {
+            Restore(items, previousCosts);
+            logger.LogWarning("Purchase cost adjustment commit failed for {PurchaseOrderId}.", order.Id);
+            return Result<Guid>.Fail(PurchaseError.SaveFailed);
+        }
+
+        logger.LogInformation("Adjusted cost of purchase order {PurchaseOrderId}.", order.Id);
+        await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.PurchaseCostAdjusted, "purchase_order", order.Id.ToString("D"), adjustment.Label, cancellationToken);
+        return Result<Guid>.Ok(adjustment.Id);
+    }
+
+    private static void Restore(Dictionary<Guid, CatalogItem> items, Dictionary<Guid, decimal> previousCosts)
+    {
+        foreach (var cost in previousCosts)
+        {
+            items[cost.Key].SetCostPrice(cost.Value);
+        }
+    }
+}

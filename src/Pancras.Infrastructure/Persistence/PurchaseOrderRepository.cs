@@ -19,12 +19,16 @@ public sealed class PurchaseOrderRepository(PancrasDbContext context, ILogger<Pu
         context.PurchaseOrders.AsNoTracking()
             .Include(order => order.Lines)
             .Include(order => order.Charges).ThenInclude(charge => charge.Shares)
+            .Include(order => order.Events)
+            .Include(order => order.Adjustments)
             .FirstOrDefaultAsync(order => order.Id == id, cancellationToken);
 
     public Task<PurchaseOrder?> FindForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         context.PurchaseOrders
             .Include(order => order.Lines)
             .Include(order => order.Charges).ThenInclude(charge => charge.Shares)
+            .Include(order => order.Events)
+            .Include(order => order.Adjustments)
             .FirstOrDefaultAsync(order => order.Id == id, cancellationToken);
 
     public Task<bool> NormalizedCodeExistsAsync(string normalizedCode, CancellationToken cancellationToken) =>

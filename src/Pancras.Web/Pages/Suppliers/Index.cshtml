@@ -1,22 +1,47 @@
 @page "/suppliers"
 @model Pancras.Web.Pages.Suppliers.IndexModel
+@using Pancras.Application.Common
+@using Pancras.Application.Suppliers
 @{
     ViewData["Title"] = "Nhà cung cấp nhập khẩu";
+    const string dialogClass = "m-auto !flex w-[min(42rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50";
+    var inputInvalid = new Func<SupplierField, string>(field => Model.HasIssue(field) ? "true" : "false");
 }
 
 <section class="bg-white rounded-xl border border-slate-200 p-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
-        <h1 class="font-display text-xl sm:text-2xl font-bold text-slate-900">Nhà cung cấp nhập khẩu</h1>
-        <a href="@Model.AddUrl" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg" onclick="document.getElementById('supplier-edit-dialog').classList.add('hidden'); document.getElementById('supplier-dialog').classList.remove('hidden'); return false;">Thêm nhà cung cấp</a>
+        <div>
+            <h1 class="font-display text-xl sm:text-2xl font-bold text-slate-900">Nhà cung cấp nhập khẩu</h1>
+            @if (!Model.CanManage)
+            {
+                <p class="mt-1 text-sm text-slate-500">Chỉ xem. Liên hệ Admin, Giám đốc hoặc Kế toán để thêm hoặc sửa thông tin.</p>
+            }
+        </div>
+        @if (Model.CanManage)
+        {
+            <a href="@Model.AddUrl" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Thêm nhà cung cấp</a>
+        }
     </div>
-    <form method="get" action="/suppliers" data-live-filter class="mt-5">
-        <input id="supplier-search" name="q" value="@Model.Search" type="search" placeholder="Tìm theo mã hoặc tên nhà cung cấp..." aria-label="Tìm kiếm nhà cung cấp" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white outline-none focus:border-sky-500" />
+    <form method="get" action="/suppliers" data-live-filter class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_12rem_12rem]">
+        <input id="supplier-search" name="q" value="@Model.Search" type="search" placeholder="Tìm theo mã, tên, người liên hệ, email, điện thoại, quốc gia..." aria-label="Tìm kiếm nhà cung cấp" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white outline-none focus:border-sky-500" />
+        <select name="country" aria-label="Lọc theo quốc gia" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white outline-none focus:border-sky-500">
+            <option value="">Mọi quốc gia</option>
+            @foreach (var country in Model.Countries)
+            {
+                <option value="@country" selected="@(string.Equals(country, Model.Country, StringComparison.Ordinal))">@country</option>
+            }
+        </select>
+        <select name="status" aria-label="Lọc theo trạng thái" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white outline-none focus:border-sky-500">
+            <option value="" selected="@(Model.StatusFilter == SupplierStatusFilter.Active)">Đang hợp tác</option>
+            <option value="inactive" selected="@(Model.StatusFilter == SupplierStatusFilter.Inactive)">Đã ngừng hợp tác</option>
+            <option value="all" selected="@(Model.StatusFilter == SupplierStatusFilter.All)">Tất cả</option>
+        </select>
     </form>
     @if (!string.IsNullOrEmpty(Model.Notice))
     {
         <p class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800" role="status">@Model.Notice</p>
     }
-    @if (Model.ErrorMessages.Count > 0 && !Model.ShowForm && !Model.ShowEditForm)
+    @if (Model.ErrorMessages.Count > 0 && !Model.ShowForm && !Model.ShowStop)
     {
         <div class="mt-4">
             <partial name="_ErrorNotice" />
@@ -27,64 +52,116 @@
 <div id="live-results">
 @if (Model.Cards.Count == 0)
 {
-    <partial name="_EmptyState" model='Model.HasSearch ? new EmptyStateModel("Không tìm thấy nhà cung cấp.", "Thử mã hoặc tên khác.", "Bỏ lọc", "/suppliers") : new EmptyStateModel("Chưa có nhà cung cấp.", "Thêm nhà cung cấp để lập đơn mua nhập khẩu.")' />
+    <partial name="_EmptyState" model='Model.HasSearch ? new EmptyStateModel("Không tìm thấy nhà cung cấp.", "Thử từ khóa hoặc bộ lọc khác.", "Bỏ lọc", "/suppliers") : (Model.CanManage ? new EmptyStateModel("Chưa có nhà cung cấp.", "Thêm nhà cung cấp để lập đơn mua nhập khẩu.", "Thêm nhà cung cấp", Model.AddUrl) : new EmptyStateModel("Chưa có nhà cung cấp.", "Admin, Giám đốc hoặc Kế toán cần thêm nhà cung cấp trước."))' />
 }
 else
 {
-    <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        @foreach (var card in Model.Cards)
-        {
-            <article class="flex flex-col bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-                <div class="flex items-start gap-3">
-                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
-                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M6 21V8l6-4 6 4v13M10 21v-5h4v5M9 11h.01M15 11h.01M9 15h.01M15 15h.01" />
-                        </svg>
-                    </div>
-                    <div class="min-w-0 flex-1">
-                        <div class="flex items-start justify-between gap-3">
-                            <h2 class="text-sm font-bold leading-snug text-slate-900">@card.Name</h2>
-                            <span class="shrink-0 rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-600">@card.Country</span>
-                        </div>
-                        <p class="mt-1 font-mono text-xs font-medium tracking-wide text-slate-500">@card.Code</p>
-                    </div>
-                </div>
-                <div class="mt-4 flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2.5 text-sm">
-                    <p class="text-slate-700"><span class="font-mono font-bold tabular-nums text-slate-900">@card.PurchaseOrderCount</span> đơn mua</p>
-                    @if (card.LotsNotReceived == 0)
+    <div class="mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <table class="w-full min-w-[56rem] text-left text-sm">
+            <thead class="bg-slate-50 text-xs tracking-wide text-slate-500">
+                <tr>
+                    <th class="px-3 py-3 font-semibold">Nhà cung cấp</th>
+                    <th class="px-3 py-3 font-semibold">Quốc gia</th>
+                    <th class="px-3 py-3 font-semibold">Liên hệ</th>
+                    @if (Model.CanViewBank)
                     {
-                        <p class="font-medium text-emerald-700">Không có lô đang về</p>
+                        <th class="px-3 py-3 font-semibold">Tài khoản</th>
                     }
-                    else
+                    <th class="px-3 py-3 font-semibold">Đơn mua</th>
+                    <th class="px-3 py-3 font-semibold">Dấu vết</th>
+                    @if (Model.CanManage)
                     {
-                        <p class="font-medium text-orange-600"><span class="font-mono tabular-nums">@card.LotsNotReceived</span> lô chưa nhập kho</p>
+                        <th class="px-3 py-3 text-right font-semibold">Thao tác</th>
                     }
-                </div>
-                <dl class="mt-4 space-y-2 text-sm">
-                    <div class="grid grid-cols-[5.25rem_1fr] gap-3">
-                        <dt class="text-slate-500">Liên hệ</dt>
-                        <dd class="text-right text-slate-800">@card.ContactName</dd>
-                    </div>
-                    <div class="grid grid-cols-[5.25rem_1fr] gap-3">
-                        <dt class="text-slate-500">Điện thoại</dt>
-                        <dd class="text-right font-mono tabular-nums text-slate-800">@card.Phone</dd>
-                    </div>
-                    <div class="grid grid-cols-[5.25rem_1fr] gap-3">
-                        <dt class="text-slate-500">Email</dt>
-                        <dd class="break-all text-right text-slate-800">@card.Email</dd>
-                    </div>
-                    <div class="grid grid-cols-[5.25rem_1fr] gap-3">
-                        <dt class="text-slate-500">Tài khoản</dt>
-                        <dd class="break-words text-right text-slate-800">@card.Account</dd>
-                    </div>
-                </dl>
-                <div class="mt-3"><partial name="_AuditStamp" model="card.Stamp" /></div>
-                <div class="mt-auto flex items-center justify-between gap-2 border-t border-slate-100 pt-4">
-                    <a href="@Model.DeleteUrl(card.Id)" class="px-3 py-2 text-sm font-medium rounded-lg text-rose-700 hover:bg-rose-50" data-supplier-id="@card.Id" data-supplier-name="@card.Name" onclick="openDeleteSupplier(this); return false;">Xóa</a>
-                    <a href="@Model.EditUrl(card.Id)" class="px-4 py-2 text-sm font-bold rounded-lg bg-slate-100 text-slate-700">Sửa</a>
-                </div>
-            </article>
-        }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var card in Model.Cards)
+                {
+                    <tr class="border-t border-slate-100 align-top hover:bg-slate-50 @(card.IsInactive ? "text-slate-500" : string.Empty)">
+                        <td class="px-3 py-3">
+                            <p class="font-bold @(card.IsInactive ? "text-slate-600" : "text-slate-900")">@card.Name</p>
+                            <p class="mt-0.5 font-mono text-xs tracking-wide text-slate-500">@card.Code</p>
+                            @if (card.IsInactive)
+                            {
+                                <span class="mt-1 inline-block rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">Ngừng hợp tác</span>
+                            }
+                        </td>
+                        <td class="px-3 py-3"><span class="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-600">@card.Country</span></td>
+                        <td class="px-3 py-3">
+                            <p class="text-slate-800">@card.ContactName</p>
+                            @if (!string.IsNullOrEmpty(card.Phone))
+                            {
+                                <p class="font-mono text-xs tabular-nums text-slate-600">@card.Phone</p>
+                            }
+                            @if (!string.IsNullOrEmpty(card.Email))
+                            {
+                                <p class="break-all text-xs text-slate-600">@card.Email</p>
+                            }
+                        </td>
+                        @if (Model.CanViewBank)
+                        {
+                            <td class="px-3 py-3 font-mono text-xs tabular-nums text-slate-700">@(string.IsNullOrEmpty(card.AccountMask) ? "—" : card.AccountMask)</td>
+                        }
+                        <td class="px-3 py-3">
+                            @if (Model.CanManage)
+                            {
+                                <a href="@IndexModel.PurchasesUrl(card.Id)" class="font-medium text-sky-700 hover:underline"><span class="font-mono font-bold tabular-nums">@card.PurchaseOrderCount</span> đơn mua</a>
+                            }
+                            else
+                            {
+                                <p class="text-slate-700"><span class="font-mono font-bold tabular-nums text-slate-900">@card.PurchaseOrderCount</span> đơn mua</p>
+                            }
+                            @if (card.LotsNotReceived == 0)
+                            {
+                                <p class="mt-0.5 text-xs font-medium text-emerald-700">Không có lô chưa nhập kho</p>
+                            }
+                            else if (Model.CanManage)
+                            {
+                                <a href="@IndexModel.PurchasesUrl(card.Id)" class="mt-0.5 block text-xs font-medium text-orange-600 hover:underline"><span class="font-mono tabular-nums">@card.LotsNotReceived</span> lô chưa nhập kho</a>
+                            }
+                            else
+                            {
+                                <p class="mt-0.5 text-xs font-medium text-orange-600"><span class="font-mono tabular-nums">@card.LotsNotReceived</span> lô chưa nhập kho</p>
+                            }
+                        </td>
+                        <td class="px-3 py-3"><partial name="_AuditStamp" model="card.Stamp" /></td>
+                        @if (Model.CanManage)
+                        {
+                            <td class="px-3 py-3">
+                                <div class="flex items-center justify-end gap-2">
+                                    @if (card.IsInactive)
+                                    {
+                                        @if (Model.CanReactivate)
+                                        {
+                                            <form method="post" asp-page-handler="Reactivate" asp-route-id="@card.Id">
+                                                <input type="hidden" name="q" value="@Model.Search" />
+                                                <input type="hidden" name="status" value="@Model.Status" />
+                                                <input type="hidden" name="country" value="@Model.Country" />
+                                                <input type="hidden" name="page" value="@Model.CardPage.PageNumber" />
+                                                <button type="submit" class="px-3 py-1.5 text-sm font-bold rounded-lg bg-slate-100 text-slate-700">Khôi phục</button>
+                                            </form>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <a href="@Model.EditUrl(card.Id)" class="px-3 py-1.5 text-sm font-bold rounded-lg bg-slate-100 text-slate-700">Sửa</a>
+                                        @if (card.LotsNotReceived > 0)
+                                        {
+                                            <button type="button" disabled class="px-3 py-1.5 text-sm font-medium rounded-lg text-slate-400 cursor-not-allowed" title="Còn @card.LotsNotReceived lô chưa nhập kho. Nhập kho hoặc xử lý các đơn đó trước khi ngừng hợp tác.">Ngừng hợp tác</button>
+                                        }
+                                        else
+                                        {
+                                            <a href="@Model.StopUrl(card.Id)" class="px-3 py-1.5 text-sm font-medium rounded-lg text-rose-700 hover:bg-rose-50">Ngừng hợp tác</a>
+                                        }
+                                    }
+                                </div>
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
     </div>
     @if (Model.CardPage.TotalPages > 1)
     {
@@ -121,14 +198,15 @@ else
 }
 </div>
 
-<div id="supplier-dialog" class="@(Model.ShowForm ? string.Empty : "hidden") fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 p-4">
-    <div class="mx-auto my-8 w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-slate-200 p-6">
-        <div class="flex items-center justify-between gap-3">
+@if (Model.CanManage && Model.ShowForm)
+{
+    <dialog id="supplier-dialog" class="@dialogClass" aria-labelledby="supplier-dialog-title">
+        <div class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-6 py-4">
             <div class="flex items-center gap-2.5">
                 <svg class="w-5 h-5 text-sky-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M6 21V8l6-4 6 4v13M10 21v-5h4v5M9 11h.01M15 11h.01M9 15h.01M15 15h.01" />
                 </svg>
-                <h2 class="text-base font-bold text-slate-900">Thêm nhà cung cấp</h2>
+                <h2 id="supplier-dialog-title" class="text-base font-bold text-slate-900">@(Model.IsEditing ? "Sửa nhà cung cấp" : "Thêm nhà cung cấp")</h2>
             </div>
             <a href="@Model.FilteredListUrl" class="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600" aria-label="Đóng">
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -136,132 +214,125 @@ else
                 </svg>
             </a>
         </div>
-        <form method="post" class="mt-6">
+        <form method="post" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
             <input type="hidden" name="q" value="@Model.Search" />
+            <input type="hidden" name="status" value="@Model.Status" />
+            <input type="hidden" name="country" value="@Model.Country" />
             <input type="hidden" name="page" value="@Model.CardPage.PageNumber" />
-            @if (Model.ShowForm)
-            {
+            <input type="hidden" asp-for="Form.Id" />
+            <div class="mt-4">
                 <partial name="_ErrorNotice" />
-            }
-            <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4">
+            </div>
+            <p class="mt-4 text-xs text-slate-500">Mục có dấu <span class="text-rose-600">*</span> là bắt buộc. Email, điện thoại và thông tin thanh toán có thể bổ sung sau.</p>
+            <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-slate-600" asp-for="Command.Code">Mã NCC</label>
-                    <input asp-for="Command.Code" maxlength="32" spellcheck="false" class="@Model.FieldClass(SupplierField.Code)" />
+                    <label class="block text-sm font-medium text-slate-600" asp-for="Form.Code">Mã NCC <span class="text-rose-600" aria-hidden="true">*</span></label>
+                    <input asp-for="Form.Code" maxlength="32" required spellcheck="false" aria-invalid="@inputInvalid(SupplierField.Code)" class="@Model.FieldClass(SupplierField.Code)" />
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-600" asp-for="Command.Country">Quốc gia / khu vực</label>
-                    <input asp-for="Command.Country" maxlength="100" class="@Model.FieldClass(SupplierField.Country)" />
+                    <label class="block text-sm font-medium text-slate-600" asp-for="Form.Country">Quốc gia / khu vực <span class="text-rose-600" aria-hidden="true">*</span></label>
+                    <select asp-for="Form.Country" required aria-invalid="@inputInvalid(SupplierField.Country)" class="@Model.FieldClass(SupplierField.Country)">
+                        <option value="">Chọn quốc gia / khu vực</option>
+                        @foreach (var country in Model.CountryChoices)
+                        {
+                            <option value="@country" selected="@(string.Equals(country, Model.Form.Country?.Trim(), StringComparison.OrdinalIgnoreCase))">@country</option>
+                        }
+                    </select>
                 </div>
                 <div class="sm:col-span-2">
-                    <label class="block text-sm font-medium text-slate-600" asp-for="Command.Name">Tên nhà cung cấp</label>
-                    <input asp-for="Command.Name" maxlength="200" class="@Model.FieldClass(SupplierField.Name)" />
+                    <label class="block text-sm font-medium text-slate-600" asp-for="Form.Name">Tên nhà cung cấp <span class="text-rose-600" aria-hidden="true">*</span></label>
+                    <input asp-for="Form.Name" maxlength="200" required aria-invalid="@inputInvalid(SupplierField.Name)" class="@Model.FieldClass(SupplierField.Name)" />
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-600" asp-for="Command.ContactName">Người liên hệ</label>
-                    <input asp-for="Command.ContactName" maxlength="200" class="@Model.FieldClass(SupplierField.ContactName)" />
+                    <label class="block text-sm font-medium text-slate-600" asp-for="Form.ContactName">Người liên hệ <span class="text-rose-600" aria-hidden="true">*</span></label>
+                    <input asp-for="Form.ContactName" maxlength="200" required aria-invalid="@inputInvalid(SupplierField.ContactName)" class="@Model.FieldClass(SupplierField.ContactName)" />
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-600" asp-for="Command.Phone">Điện thoại</label>
-                    <input asp-for="Command.Phone" inputmode="tel" maxlength="30" autocomplete="tel" spellcheck="false" placeholder="0901234567 hoặc +84901234567" aria-describedby="create-phone-hint" class="@Model.FieldClass(SupplierField.Phone)" />
-                    <p id="create-phone-hint" class="mt-1.5 text-xs text-slate-500">8–15 chữ số. Có thể bắt đầu bằng 0 hoặc +. Dấu cách, gạch ngang và ngoặc được giữ lại.</p>
+                    <label class="block text-sm font-medium text-slate-600" asp-for="Form.Phone">Điện thoại</label>
+                    <input asp-for="Form.Phone" inputmode="tel" maxlength="30" autocomplete="tel" spellcheck="false" placeholder="0901234567 hoặc +84901234567" aria-describedby="supplier-phone-hint" aria-invalid="@inputInvalid(SupplierField.Phone)" class="@Model.FieldClass(SupplierField.Phone)" />
+                    <p id="supplier-phone-hint" class="mt-1.5 text-xs text-slate-500">8–15 chữ số. Có thể bắt đầu bằng 0 hoặc +. Dấu cách, gạch ngang và ngoặc được giữ lại.</p>
                 </div>
                 <div class="sm:col-span-2">
-                    <label class="block text-sm font-medium text-slate-600" asp-for="Command.Email">Email</label>
-                    <input asp-for="Command.Email" maxlength="254" inputmode="email" autocomplete="email" spellcheck="false" placeholder="ten@congty.com" class="@Model.FieldClass(SupplierField.Email)" />
-                </div>
-                <div class="sm:col-span-2">
-                    <label class="block text-sm font-medium text-slate-600" asp-for="Command.Account">Tài khoản</label>
-                    <input asp-for="Command.Account" maxlength="64" spellcheck="false" class="@Model.FieldClass(SupplierField.Account)" />
+                    <label class="block text-sm font-medium text-slate-600" asp-for="Form.Email">Email</label>
+                    <input asp-for="Form.Email" type="email" maxlength="254" inputmode="email" autocomplete="email" spellcheck="false" placeholder="ten@congty.com" aria-invalid="@inputInvalid(SupplierField.Email)" class="@Model.FieldClass(SupplierField.Email)" />
                 </div>
             </div>
+            <fieldset class="mt-5 rounded-lg border border-slate-200 p-4">
+                <legend class="px-1 text-sm font-bold text-slate-700">Thông tin thanh toán</legend>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4">
+                    <div class="sm:col-span-2">
+                        <label class="block text-sm font-medium text-slate-600" asp-for="Form.BankName">Ngân hàng</label>
+                        <input asp-for="Form.BankName" maxlength="200" aria-invalid="@inputInvalid(SupplierField.BankName)" class="@Model.FieldClass(SupplierField.BankName)" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600" asp-for="Form.Account">Số tài khoản / IBAN</label>
+                        <input asp-for="Form.Account" maxlength="64" spellcheck="false" autocomplete="off" aria-invalid="@inputInvalid(SupplierField.Account)" class="@Model.FieldClass(SupplierField.Account)" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600" asp-for="Form.SwiftCode">Mã SWIFT / BIC</label>
+                        <input asp-for="Form.SwiftCode" maxlength="11" spellcheck="false" autocomplete="off" placeholder="BKCHCNBJ" aria-invalid="@inputInvalid(SupplierField.SwiftCode)" class="@Model.FieldClass(SupplierField.SwiftCode)" />
+                    </div>
+                </div>
+            </fieldset>
             <div class="flex justify-end gap-2 mt-6">
                 <a href="@Model.FilteredListUrl" class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 text-slate-600">Hủy</a>
-                <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Lưu nhà cung cấp</button>
+                <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">@(Model.IsEditing ? "Lưu thay đổi" : "Lưu nhà cung cấp")</button>
             </div>
         </form>
-    </div>
-</div>
+    </dialog>
+    <script>
+        (function () {
+            var dialog = document.getElementById('supplier-dialog');
+            dialog.addEventListener('cancel', function (event) {
+                event.preventDefault();
+                window.location.href = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.FilteredListUrl));
+            });
+            dialog.showModal();
+            var invalid = dialog.querySelector('[aria-invalid="true"]');
+            if (invalid) {
+                invalid.focus();
+            }
+        })();
+    </script>
+}
 
-<div id="supplier-edit-dialog" class="@(Model.ShowEditForm ? string.Empty : "hidden") fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 p-4">
-    <div class="mx-auto my-8 w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-slate-200 p-6">
-        <div class="flex items-center justify-between gap-3">
-            <div class="flex items-center gap-2.5">
-                <svg class="w-5 h-5 text-sky-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M6 21V8l6-4 6 4v13M10 21v-5h4v5M9 11h.01M15 11h.01M9 15h.01M15 15h.01" />
-                </svg>
-                <h2 class="text-base font-bold text-slate-900">Sửa nhà cung cấp</h2>
-            </div>
-            <a href="@Model.FilteredListUrl" class="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600" aria-label="Đóng">
-                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                    <path stroke-linecap="round" d="M6 6l12 12M18 6L6 18" />
-                </svg>
-            </a>
+@if (Model.CanManage && Model.ShowStop && Model.StopProfile is not null)
+{
+    var stop = Model.StopProfile;
+    <dialog id="supplier-stop-dialog" class="m-auto !flex w-[min(28rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50" aria-labelledby="supplier-stop-title">
+        <div class="flex shrink-0 items-center justify-between gap-3 px-6 pt-6">
+            <h2 id="supplier-stop-title" class="text-base font-bold text-slate-900">Ngừng hợp tác với nhà cung cấp</h2>
+            <a href="@Model.FilteredListUrl" class="text-slate-400" aria-label="Đóng">×</a>
         </div>
-        <form method="post" asp-page-handler="Edit" class="mt-6">
+        <form method="post" asp-page-handler="Stop" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
             <input type="hidden" name="q" value="@Model.Search" />
+            <input type="hidden" name="status" value="@Model.Status" />
+            <input type="hidden" name="country" value="@Model.Country" />
             <input type="hidden" name="page" value="@Model.CardPage.PageNumber" />
-            <input type="hidden" asp-for="EditCommand.Id" />
-            @if (Model.ShowEditForm)
+            <input type="hidden" asp-for="StopId" />
+            <p class="mt-3 text-sm text-slate-600"><span class="font-medium text-slate-900">@stop.Name</span> (@stop.Code) sẽ không còn xuất hiện khi lập đơn mua mới.</p>
+            <ul class="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-600">
+                <li>Lịch sử @stop.PurchaseOrderCount đơn mua vẫn được giữ nguyên.</li>
+                <li>Hồ sơ vẫn xem lại được ở bộ lọc "Đã ngừng hợp tác"; chỉ Admin khôi phục được.</li>
+            </ul>
+            @if (Model.ErrorMessages.Count > 0)
             {
-                <partial name="_ErrorNotice" />
+                <div class="mt-4"><partial name="_ErrorNotice" /></div>
             }
-            <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-600" asp-for="EditCommand.Code">Mã NCC</label>
-                    <input asp-for="EditCommand.Code" maxlength="32" spellcheck="false" class="@Model.FieldClass(SupplierField.Code)" />
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-600" asp-for="EditCommand.Country">Quốc gia / khu vực</label>
-                    <input asp-for="EditCommand.Country" maxlength="100" class="@Model.FieldClass(SupplierField.Country)" />
-                </div>
-                <div class="sm:col-span-2">
-                    <label class="block text-sm font-medium text-slate-600" asp-for="EditCommand.Name">Tên nhà cung cấp</label>
-                    <input asp-for="EditCommand.Name" maxlength="200" class="@Model.FieldClass(SupplierField.Name)" />
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-600" asp-for="EditCommand.ContactName">Người liên hệ</label>
-                    <input asp-for="EditCommand.ContactName" maxlength="200" class="@Model.FieldClass(SupplierField.ContactName)" />
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-600" asp-for="EditCommand.Phone">Điện thoại</label>
-                    <input asp-for="EditCommand.Phone" inputmode="tel" maxlength="30" autocomplete="tel" spellcheck="false" placeholder="0901234567 hoặc +84901234567" aria-describedby="edit-phone-hint" class="@Model.FieldClass(SupplierField.Phone)" />
-                    <p id="edit-phone-hint" class="mt-1.5 text-xs text-slate-500">8–15 chữ số. Có thể bắt đầu bằng 0 hoặc +. Dấu cách, gạch ngang và ngoặc được giữ lại.</p>
-                </div>
-                <div class="sm:col-span-2">
-                    <label class="block text-sm font-medium text-slate-600" asp-for="EditCommand.Email">Email</label>
-                    <input asp-for="EditCommand.Email" maxlength="254" inputmode="email" autocomplete="email" spellcheck="false" placeholder="ten@congty.com" class="@Model.FieldClass(SupplierField.Email)" />
-                </div>
-                <div class="sm:col-span-2">
-                    <label class="block text-sm font-medium text-slate-600" asp-for="EditCommand.Account">Tài khoản</label>
-                    <input asp-for="EditCommand.Account" maxlength="64" spellcheck="false" class="@Model.FieldClass(SupplierField.Account)" />
-                </div>
-            </div>
-            <div class="flex justify-end gap-2 mt-6">
+            <div class="mt-6 flex justify-end gap-2">
                 <a href="@Model.FilteredListUrl" class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 text-slate-600">Hủy</a>
-                <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Lưu thay đổi</button>
+                <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-rose-600 rounded-lg">Ngừng hợp tác</button>
             </div>
         </form>
-    </div>
-</div>
-
-<div id="delete-dialog" class="@(Model.ShowDelete ? string.Empty : "hidden") fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-    <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-6">
-        <h2 class="text-base font-bold text-slate-900">Xóa nhà cung cấp</h2>
-        <p class="mt-3 text-sm text-slate-600"><span id="delete-supplier-name" class="font-medium text-slate-900">@Model.DeleteName</span> sẽ không còn trên danh bạ.</p>
-        <form method="post" asp-page-handler="Delete" class="flex justify-end gap-2 mt-6">
-            <input type="hidden" name="q" value="@Model.Search" />
-            <input type="hidden" name="page" value="@Model.CardPage.PageNumber" />
-            <input asp-for="DeleteId" id="delete-supplier-id" type="hidden" />
-            <a href="@Model.FilteredListUrl" class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 text-slate-600">Hủy</a>
-            <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-rose-600 rounded-lg">Xóa</button>
-        </form>
-    </div>
-</div>
-
-<script>
-    function openDeleteSupplier(button) {
-        document.getElementById('delete-supplier-id').value = button.dataset.supplierId;
-        document.getElementById('delete-supplier-name').textContent = button.dataset.supplierName;
-        document.getElementById('delete-dialog').classList.remove('hidden');
-    }
-</script>
+    </dialog>
+    <script>
+        (function () {
+            var dialog = document.getElementById('supplier-stop-dialog');
+            dialog.addEventListener('cancel', function (event) {
+                event.preventDefault();
+                window.location.href = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.FilteredListUrl));
+            });
+            dialog.showModal();
+        })();
+    </script>
+}

@@ -8,10 +8,11 @@ using Pancras.Application.Suppliers;
 using Pancras.Domain.Employees;
 using Pancras.Domain.Purchasing;
 using Pancras.Web.Formatting;
+using Pancras.Web.Security;
 
 namespace Pancras.Web.Pages.Purchasing;
 
-[Authorize(Roles = EmployeeRole.Admin + "," + EmployeeRole.Director + "," + EmployeeRole.Accountant)]
+[Authorize(Roles = PurchaseAccess.ManageRoles)]
 public class IndexModel(
     ListPurchaseOrdersHandler listOrders,
     GetPurchaseOrderHandler getOrder,
@@ -22,6 +23,7 @@ public class IndexModel(
     OpenPurchaseAttachmentHandler openAttachment,
     DeletePurchaseAttachmentCommandHandler deleteAttachment,
     ReceivePurchaseOrderCommandHandler receiveOrder,
+    ExportPurchaseOrderHandler exportOrder,
     ListSuppliersForPurchaseHandler listSuppliers,
     ListInventoryDocumentsHandler inventory,
     Pancras.Application.Catalog.GetCatalogMeasuresHandler catalogMeasures) : PageModel
@@ -29,6 +31,8 @@ public class IndexModel(
     /// <summary>Cân nặng và thể tích theo mặt hàng, để bản xem thử trong form chia chi phí theo khối lượng/thể tích đúng như máy chủ.</summary>
     public IReadOnlyDictionary<Guid, Pancras.Application.Catalog.CatalogItemMeasure> ItemMeasures { get; private set; } =
         new Dictionary<Guid, Pancras.Application.Catalog.CatalogItemMeasure>();
+
+    private EmployeeActor Actor => User.ToActor();
 
     private bool NeedMeasures { get; set; }
 
@@ -38,6 +42,10 @@ public class IndexModel(
 
     [BindProperty(SupportsGet = true, Name = "q")]
     public string? Search { get; set; }
+
+    /// <summary>Lọc đơn theo nhà cung cấp (link từ danh bạ nhà cung cấp).</summary>
+    [BindProperty(SupportsGet = true, Name = "supplier")]
+    public Guid? SupplierFilter { get; set; }
 
     public PurchaseOrderDetail? Selected { get; private set; }
 
@@ -166,6 +174,7 @@ public class IndexModel(
         var result = await updateOrder.HandleAsync(
             new UpdatePurchaseOrderCommand
             {
+                Actor = Actor,
                 PurchaseOrderId = orderId,
                 Code = Form.Code,
                 SupplierId = Form.SupplierId,
@@ -207,7 +216,7 @@ public class IndexModel(
 
         await using var content = file.OpenReadStream();
         var result = await uploadAttachment.HandleAsync(
-            new UploadPurchaseAttachmentCommand { PurchaseOrderId = orderId, Kind = kind, FileName = file.FileName, Content = content },
+            new UploadPurchaseAttachmentCommand { Actor = Actor, PurchaseOrderId = orderId, Kind = kind, FileName = file.FileName, Content = content },
             HttpContext.RequestAborted);
         return result.IsFailure
             ? Redirect($"/purchasing?order={orderId}&error={result.PurchaseError}")
@@ -216,7 +225,7 @@ public class IndexModel(
 
     public async Task<IActionResult> OnGetDownloadAsync(Guid id)
     {
-        var result = await openAttachment.HandleAsync(id, HttpContext.RequestAborted);
+        var result = await openAttachment.HandleAsync(id, Actor, HttpContext.RequestAborted);
         if (result.IsFailure)
         {
             return NotFound();
@@ -230,7 +239,7 @@ public class IndexModel(
 
     public async Task<IActionResult> OnPostDeleteAttachmentAsync(Guid orderId, Guid attachmentId)
     {
-        var result = await deleteAttachment.HandleAsync(attachmentId, HttpContext.RequestAborted);
+        var result = await deleteAttachment.HandleAsync(attachmentId, Actor, HttpContext.RequestAborted);
         return result.IsFailure
             ? Redirect($"/purchasing?order={orderId}&error={result.PurchaseError}")
             : Redirect($"/purchasing?order={orderId}&notice=attachment-deleted");
@@ -241,6 +250,7 @@ public class IndexModel(
         ApplyLineInputs();
         var command = new CreatePurchaseOrderCommand
         {
+            Actor = Actor,
             Code = Form.Code,
             SupplierId = Form.SupplierId,
             ReceiveLocationId = Form.ReceiveLocationId,
@@ -272,10 +282,10 @@ public class IndexModel(
 
     public async Task<IActionResult> OnPostReceiveAsync(Guid orderId)
     {
-        var result = await receiveOrder.HandleAsync(new ReceivePurchaseOrderCommand(orderId), HttpContext.RequestAborted);
+        var result = await receiveOrder.HandleAsync(new ReceivePurchaseOrderCommand(orderId, Actor), HttpContext.RequestAborted);
         if (result.IsFailure)
         {
-            return Redirect($"/purchasing?id={orderId}&error={result.PurchaseError}");
+            return Redirect($"/purchasing?order={orderId}&error={result.PurchaseError}");
         }
 
         return Redirect($"/purchasing?order={orderId}&notice=received");
@@ -288,13 +298,14 @@ public class IndexModel(
             return Redirect("/purchasing");
         }
 
-        var detail = await getOrder.HandleAsync(orderId, HttpContext.RequestAborted);
-        if (detail is null)
+        var result = await exportOrder.HandleAsync(orderId, Actor, HttpContext.RequestAborted);
+        if (result.IsFailure)
         {
-            return Redirect("/purchasing");
+            return Redirect($"/purchasing?error={result.PurchaseError}");
         }
 
-        return File(PurchaseCsv.Build(detail), "text/csv", "don-mua.csv");
+        var export = result.Value!;
+        return File(PurchaseCsv.Build(export.Order, export.IncludeCost), "text/csv; charset=utf-8", "don-mua.csv");
     }
 
     private void KeepDraftLines()
@@ -318,6 +329,11 @@ public class IndexModel(
         var allOrders = await listOrders.HandleAsync(cancellationToken);
         HasAnyOrders = allOrders.Count > 0;
         var term = Search?.Trim();
+        if (SupplierFilter is Guid supplierId)
+        {
+            allOrders = allOrders.Where(order => order.SupplierId == supplierId).ToArray();
+        }
+
         Orders = string.IsNullOrEmpty(term)
             ? allOrders
             : allOrders.Where(order =>
@@ -326,7 +342,7 @@ public class IndexModel(
                 || order.ContainerNumber.Contains(term, StringComparison.OrdinalIgnoreCase)
                 || order.BillOfLading.Contains(term, StringComparison.OrdinalIgnoreCase)
                 || order.Port.Contains(term, StringComparison.OrdinalIgnoreCase)).ToArray();
-        Suppliers = await listSuppliers.HandleAsync(cancellationToken);
+        Suppliers = await listSuppliers.HandleAsync(Actor, cancellationToken);
         Locations = await inventory.ListAllLocationsAsync(cancellationToken);
         Items = await inventory.ListItemsAsync(cancellationToken);
         if (NeedMeasures)

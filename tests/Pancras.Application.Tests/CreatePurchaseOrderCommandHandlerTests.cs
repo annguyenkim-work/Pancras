@@ -12,6 +12,21 @@ namespace Pancras.Application.Tests;
 public class CreatePurchaseOrderCommandHandlerTests
 {
     [Fact]
+    public async Task ARoleOutsidePurchasing_CannotCreateAnOrder()
+    {
+        var fixture = new PurchaseFixture();
+        var item = Item("SP01", 2m);
+        fixture.Catalog.Items.Add(item);
+        var command = Command(fixture, item.Id, item.Id, 0.1m, 0.1m);
+        command.Actor = TestActors.Keeper(fixture.Location.Id);
+
+        var result = await fixture.Create.HandleAsync(command, CancellationToken.None);
+
+        Assert.Equal(PurchaseError.Forbidden, result.PurchaseError);
+        Assert.Empty(fixture.Orders.Orders);
+    }
+
+    [Fact]
     public async Task ValidOrder_StoresTwoLinesAndOneVatRate()
     {
         var fixture = new PurchaseFixture();
@@ -226,6 +241,7 @@ public class CreatePurchaseOrderCommandHandlerTests
         int secondQuantity = 3) =>
         new()
         {
+            Actor = TestActors.Accountant,
             Code = "PO-" + Guid.NewGuid().ToString("N")[..6],
             SupplierId = fixture.Supplier.Id,
             ReceiveLocationId = fixture.Location.Id,

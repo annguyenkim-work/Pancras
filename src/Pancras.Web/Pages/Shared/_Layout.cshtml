@@ -8,7 +8,7 @@
         || User.IsInRole(EmployeeRole.Accountant);
     var currentPath = Context.Request.Path.Value ?? "/";
     var roleName = User.FindFirstValue(ClaimTypes.Role);
-    var canManageSuppliers = SupplierAccess.CanManage(roleName);
+    var canViewSuppliers = SupplierAccess.CanView(roleName);
     var canViewLocations = LocationAccess.CanView(roleName);
     var canListEmployees = User.IsInRole(EmployeeRole.Admin) || User.IsInRole(EmployeeRole.Director) || User.IsInRole(EmployeeRole.Accountant) || User.IsInRole(EmployeeRole.ShowroomWarehouseLead);
     bool IsSoon(string path) => Pancras.Web.Pages.ComingSoonModel.Routes.Contains(path, StringComparer.OrdinalIgnoreCase);
@@ -77,7 +77,7 @@
                 {
                     <a href="/purchasing" class="@ItemClass("/purchasing")"><span class="min-w-0 leading-snug">Mua hàng &amp; Container Nhập</span>@SoonBadge("/purchasing")</a>
                 }
-                @if (canManageSuppliers)
+                @if (canViewSuppliers)
                 {
                     <a href="/suppliers" class="@ItemClass("/suppliers")"><span class="min-w-0 leading-snug">Nhà cung cấp nhập khẩu</span>@SoonBadge("/suppliers")</a>
                 }

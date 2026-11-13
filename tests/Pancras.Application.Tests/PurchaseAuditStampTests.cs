@@ -78,6 +78,7 @@ public class PurchaseAuditStampTests
         var result = await handler.HandleAsync(
             new CreatePurchaseOrderCommand
             {
+                Actor = TestActors.Accountant,
                 Code = "PO-1",
                 SupplierId = supplier.Id,
                 ReceiveLocationId = location.Id,
@@ -107,7 +108,7 @@ public class PurchaseAuditStampTests
             orders, new FakeInventoryStore(), catalog, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance,
             new TestClock(T0.AddDays(1)), null, new FakeRequestInfo("Thukho1"));
 
-        var result = await handler.HandleAsync(new ReceivePurchaseOrderCommand(order.Id), CancellationToken.None);
+        var result = await handler.HandleAsync(new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(T0.AddDays(1), order.ReceivedAt);

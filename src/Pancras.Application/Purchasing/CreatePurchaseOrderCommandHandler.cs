@@ -1,3 +1,4 @@
+using Pancras.Application.Auditing;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Catalog;
 using Pancras.Application.Common;
@@ -15,10 +16,17 @@ public sealed class CreatePurchaseOrderCommandHandler(
     ILogger<CreatePurchaseOrderCommandHandler> logger,
     GetCatalogMeasuresHandler? measures = null,
     TimeProvider? clock = null,
-    Pancras.Application.Auditing.IRequestInfo? request = null)
+    Pancras.Application.Auditing.IRequestInfo? request = null,
+    Pancras.Application.Auditing.IAuditLog? audit = null)
 {
     public async Task<Result<Guid>> HandleAsync(CreatePurchaseOrderCommand command, CancellationToken cancellationToken)
     {
+        if (!Pancras.Domain.Purchasing.PurchaseAccess.CanManage(command.Actor))
+        {
+            logger.LogWarning("Purchase order creation forbidden for role {Role}.", command.Actor.Role);
+            return Result<Guid>.Fail(PurchaseError.Forbidden);
+        }
+
         if (HasNegativeMoney(command))
         {
             logger.LogWarning("Purchase order rejected for negative money.");
@@ -83,12 +91,17 @@ public sealed class CreatePurchaseOrderCommandHandler(
                 line.EnvironmentTax)).ToArray(),
             command.VatDeductible,
             (clock ?? TimeProvider.System).GetUtcNow(),
-            request?.ActorCode);
+            request?.ActorCode,
+            command.ExchangeRateOn,
+            command.ExchangeRateSource);
         if (order is null)
         {
             logger.LogWarning("Purchase order was rejected.");
             return Result<Guid>.Fail(PurchaseError.InvalidOrder);
         }
+
+        // Chứng từ giữ đúng mã và tên nhà cung cấp tại thời điểm lập đơn, dù hồ sơ nhà cung cấp đổi sau này.
+        order.RecordSupplier(supplier.Code, supplier.Name);
 
         // Chi phí ban đầu được thêm trước khi lưu: đơn và chi phí vào DB trong cùng một lần lưu, hoặc không có gì cả.
         foreach (var charge in command.Charges ?? [])
@@ -107,6 +120,7 @@ public sealed class CreatePurchaseOrderCommandHandler(
         }
 
         logger.LogInformation("Created purchase order {PurchaseOrderId}.", order.Id);
+        await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, Pancras.Domain.Auditing.AuditActions.PurchaseCreated, "purchase_order", order.Id.ToString("D"), null, cancellationToken);
         return Result<Guid>.Ok(order.Id);
     }
 

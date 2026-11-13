@@ -28,7 +28,10 @@ public sealed record PurchaseOrderSummary(
     DateOnly? ExpectedOn,
     string ReceiveLocationName,
     PurchaseStatus Status,
-    decimal LandedTotal);
+    decimal LandedTotal,
+    decimal ExchangeRate = 0,
+    bool CostVisible = true,
+    Guid SupplierId = default);
 
 public sealed record PurchaseLineView(
     Guid Id,
@@ -41,7 +44,8 @@ public sealed record PurchaseLineView(
     decimal SupplementalDuty,
     decimal SpecialConsumptionTax,
     decimal EnvironmentTax,
-    PurchaseLineCost Cost);
+    PurchaseLineCost Cost,
+    int ReceivedQuantity = 0);
 
 public sealed record PurchaseChargeView(
     Guid Id,
@@ -75,7 +79,25 @@ public sealed record PurchaseOrderDetail(
     DateTimeOffset? UpdatedAt = null,
     string UpdatedBy = "",
     DateTimeOffset? ReceivedAt = null,
-    string ReceivedBy = "");
+    string ReceivedBy = "",
+    DateOnly? ExchangeRateOn = null,
+    string ExchangeRateSource = "",
+    bool CostVisible = true,
+    IReadOnlyList<PurchaseEventView>? Events = null,
+    IReadOnlyList<PurchaseAdjustmentView>? Adjustments = null);
+
+public sealed record PurchaseEventView(PurchaseEventKind Kind, DateTimeOffset OccurredAt, string ActorCode, string Note);
+
+public sealed record PurchaseAdjustmentView(
+    Guid Id,
+    string Label,
+    decimal Amount,
+    ChargeSplitMethod Method,
+    string Reason,
+    decimal AppliedToStock,
+    decimal Variance,
+    DateTimeOffset CreatedAt,
+    string CreatedBy);
 
 public sealed class CreatePurchaseLineInput
 {
@@ -99,6 +121,8 @@ public sealed class CreatePurchaseLineInput
 
 public sealed class CreatePurchaseOrderCommand
 {
+    public Pancras.Domain.Employees.EmployeeActor Actor { get; set; } = new(Guid.Empty, null, null);
+
     public string? Code { get; set; }
 
     public Guid SupplierId { get; set; }
@@ -114,6 +138,10 @@ public sealed class CreatePurchaseOrderCommand
     public DateOnly? ExpectedOn { get; set; }
 
     public decimal ExchangeRate { get; set; }
+
+    public DateOnly? ExchangeRateOn { get; set; }
+
+    public string? ExchangeRateSource { get; set; }
 
     public decimal VatRate { get; set; }
 
@@ -154,6 +182,8 @@ public sealed class UpdatePurchaseChargeInput
 
 public sealed class UpdatePurchaseOrderCommand
 {
+    public Pancras.Domain.Employees.EmployeeActor Actor { get; set; } = new(Guid.Empty, null, null);
+
     public Guid PurchaseOrderId { get; set; }
 
     public string? Code { get; set; }
@@ -172,6 +202,10 @@ public sealed class UpdatePurchaseOrderCommand
 
     public decimal ExchangeRate { get; set; }
 
+    public DateOnly? ExchangeRateOn { get; set; }
+
+    public string? ExchangeRateSource { get; set; }
+
     public decimal VatRate { get; set; }
 
     public bool VatDeductible { get; set; }
@@ -187,4 +221,47 @@ public sealed class UpdatePurchaseOrderCommand
 }
 
 
-public sealed record ReceivePurchaseOrderCommand(Guid PurchaseOrderId);
+/// <summary>
+/// Một lần nhận hàng. <see cref="Actuals"/> là số thực nhận lần này theo mã dòng; null nghĩa là nhận đủ phần còn lại của mọi dòng.
+/// <see cref="Final"/> = đây là lần nhận cuối (đóng đơn); sai thì đơn ở trạng thái "nhận một phần".
+/// </summary>
+public sealed record ReceivePurchaseOrderCommand(
+    Guid PurchaseOrderId,
+    Pancras.Domain.Employees.EmployeeActor Actor,
+    IReadOnlyDictionary<Guid, int>? Actuals = null,
+    bool Final = true,
+    string? Note = null);
+
+public enum PurchaseStatusAction
+{
+    Submit = 1,
+    Approve = 2,
+    ReturnToDraft = 3,
+    MarkInTransit = 4,
+    Cancel = 5
+}
+
+public sealed record ChangePurchaseStatusCommand(
+    Guid PurchaseOrderId,
+    Pancras.Domain.Employees.EmployeeActor Actor,
+    PurchaseStatusAction Action,
+    string? Note = null);
+
+public sealed class AdjustPurchaseCostCommand
+{
+    public Pancras.Domain.Employees.EmployeeActor Actor { get; set; } = new(Guid.Empty, null, null);
+
+    public Guid PurchaseOrderId { get; set; }
+
+    public string? Label { get; set; }
+
+    /// <summary>Có dấu: dương là tăng giá vốn, âm là giảm.</summary>
+    public decimal Amount { get; set; }
+
+    public ChargeSplitMethod Method { get; set; } = ChargeSplitMethod.FobValue;
+
+    public string? Reason { get; set; }
+}
+
+/// <summary>Tác động dự kiến lên giá vốn bình quân nếu nhận đủ phần còn lại của một dòng.</summary>
+public sealed record PurchaseReceiptPreviewLine(Guid LineId, int Remaining, int OnHand, decimal CurrentCost, decimal ProjectedCost);
