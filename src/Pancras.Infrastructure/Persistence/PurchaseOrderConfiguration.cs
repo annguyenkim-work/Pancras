@@ -38,6 +38,7 @@ public sealed class PurchaseLineConfiguration : IEntityTypeConfiguration<Purchas
     {
         builder.ToTable("purchase_line");
         builder.HasKey(line => line.Id);
+        builder.Property(line => line.Id).ValueGeneratedNever();
         builder.Property(line => line.PurchaseOrderId).IsRequired();
         builder.Property(line => line.CatalogItemId).IsRequired();
         builder.Property(line => line.Quantity).IsRequired();
@@ -59,6 +60,7 @@ public sealed class PurchaseChargeConfiguration : IEntityTypeConfiguration<Purch
     {
         builder.ToTable("purchase_charge");
         builder.HasKey(charge => charge.Id);
+        builder.Property(charge => charge.Id).ValueGeneratedNever();
         builder.Property(charge => charge.PurchaseOrderId).IsRequired();
         builder.Property(charge => charge.Amount).HasColumnType("numeric(18,0)").IsRequired();
         builder.Property(charge => charge.Method).HasConversion<int>().IsRequired();
@@ -75,6 +77,7 @@ public sealed class PurchaseChargeShareConfiguration : IEntityTypeConfiguration<
     {
         builder.ToTable("purchase_charge_share");
         builder.HasKey(share => share.Id);
+        builder.Property(share => share.Id).ValueGeneratedNever();
         builder.Property(share => share.PurchaseChargeId).IsRequired();
         builder.Property(share => share.LineId).IsRequired();
         builder.Property(share => share.Amount).HasColumnType("numeric(18,0)").IsRequired();

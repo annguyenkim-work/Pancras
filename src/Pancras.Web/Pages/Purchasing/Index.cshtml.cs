@@ -81,6 +81,8 @@ public class IndexModel(
             "received" => "Đã nhập kho.",
             "updated" => "Đã lưu thay đổi.",
             "charge-deleted" => "Đã xóa khoản chi phí.",
+            "charge-added" => "Đã thêm khoản chi phí.",
+            "group-saved" => "Đã cập nhật nhóm chi phí.",
             "attachment-added" => "Đã đính kèm chứng từ.",
             "attachment-deleted" => "Đã xóa chứng từ.",
             _ => null
@@ -119,6 +121,9 @@ public class IndexModel(
             ExchangeRate = decimal.Truncate(detail.ExchangeRate),
             VatPercent = Tidy(detail.VatRate * 100m),
             VatDeductible = detail.VatDeductible,
+            // Các khoản chi phí hiện có chỉ để bản xem thử trong form tính đúng; chúng không được ghi lại khi lưu (sửa ở chi tiết đơn).
+            OceanFreight = detail.Charges.Where(charge => charge.Group == ChargeGroup.CustomsValueAdjustment).Sum(charge => charge.Amount),
+            PortHandling = detail.Charges.Where(charge => charge.Group is ChargeGroup.Logistics or ChargeGroup.NonDeductibleTax).Sum(charge => charge.Amount),
             Lines = detail.Lines
                 .Select(line => new CreatePurchaseLineInput
                 {
@@ -228,8 +233,8 @@ public class IndexModel(
     {
         var result = await deleteCharge.HandleAsync(new DeletePurchaseChargeCommand(orderId, chargeId), HttpContext.RequestAborted);
         return result.IsFailure
-            ? Redirect($"/purchasing?order={orderId}&error={result.PurchaseError}")
-            : Redirect($"/purchasing?order={orderId}&notice=charge-deleted");
+            ? Redirect($"/purchasing?order={orderId}&error={result.PurchaseError}#charges")
+            : Redirect($"/purchasing?order={orderId}&notice=charge-deleted#charges");
     }
 
     public async Task<IActionResult> OnPostCreateAsync()
@@ -312,7 +317,7 @@ public class IndexModel(
         {
             if (ManualLineIds.Count != ManualAmounts.Count)
             {
-                return Redirect($"/purchasing?order={ChargeCommand.PurchaseOrderId}&error={PurchaseError.InvalidOrder}");
+                return Redirect($"/purchasing?order={ChargeCommand.PurchaseOrderId}&error={PurchaseError.InvalidOrder}#charges");
             }
 
             var shares = new Dictionary<Guid, decimal>();
@@ -327,10 +332,10 @@ public class IndexModel(
         var result = await allocateCharge.HandleAsync(ChargeCommand, HttpContext.RequestAborted);
         if (result.IsFailure)
         {
-            return Redirect($"/purchasing?order={ChargeCommand.PurchaseOrderId}&error={result.PurchaseError}");
+            return Redirect($"/purchasing?order={ChargeCommand.PurchaseOrderId}&error={result.PurchaseError}#charges");
         }
 
-        return Redirect($"/purchasing?order={ChargeCommand.PurchaseOrderId}");
+        return Redirect($"/purchasing?order={ChargeCommand.PurchaseOrderId}&notice=charge-added#charges");
     }
 
     public async Task<IActionResult> OnPostAssignGroupAsync()
@@ -338,10 +343,10 @@ public class IndexModel(
         var result = await assignGroup.HandleAsync(GroupCommand, HttpContext.RequestAborted);
         if (result.IsFailure)
         {
-            return Redirect($"/purchasing?order={GroupCommand.PurchaseOrderId}&error={result.PurchaseError}");
+            return Redirect($"/purchasing?order={GroupCommand.PurchaseOrderId}&error={result.PurchaseError}#charges");
         }
 
-        return Redirect($"/purchasing?order={GroupCommand.PurchaseOrderId}");
+        return Redirect($"/purchasing?order={GroupCommand.PurchaseOrderId}&notice=group-saved#charges");
     }
 
     public async Task<IActionResult> OnPostExportAsync(Guid orderId)

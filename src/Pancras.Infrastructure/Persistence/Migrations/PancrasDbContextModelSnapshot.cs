@@ -793,7 +793,6 @@ namespace Pancras.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Pancras.Domain.Purchasing.PurchaseCharge", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
@@ -831,7 +830,6 @@ namespace Pancras.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Pancras.Domain.Purchasing.PurchaseChargeShare", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
@@ -859,7 +857,6 @@ namespace Pancras.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Pancras.Domain.Purchasing.PurchaseLine", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 

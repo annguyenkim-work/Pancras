@@ -7,7 +7,7 @@ public static class PurchaseErrorMessages
     public static string For(PurchaseError error) => error switch
     {
         PurchaseError.DuplicateCode => "Mã đơn đã được dùng.",
-        PurchaseError.MissingMeasure => "Mặt hàng chưa có số đo để chia.",
+        PurchaseError.MissingMeasure => "Có mặt hàng chưa khai báo thể tích hoặc cân nặng ở Danh mục nên không chia theo cách này được. Chọn cách chia \"Theo trị giá FOB\" hoặc \"Theo số lượng\", hoặc bổ sung số đo cho mặt hàng.",
         PurchaseError.AlreadyReceived => "Đơn đã nhập kho.",
         PurchaseError.NegativeMoney => "Số tiền không được âm.",
         PurchaseError.SplitGroup => "Khoản không được đứng ở hai nhóm.",
