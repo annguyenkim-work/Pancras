@@ -17,7 +17,13 @@ public class IndexModel(
     ListStockBalancesHandler listHandler,
     ListInventoryDocumentsHandler documentsHandler,
     GetStockItemDetailHandler detailHandler,
-    CreateAndShipTransferCommandHandler createAndShipHandler,
+    CreateTransferRequestCommandHandler requestHandler,
+    DecideTransferCommandHandler decideHandler,
+    ShipTransferCommandHandler shipHandler,
+    ResolveTransferDiscrepancyCommandHandler resolveHandler,
+    UpdateTransferRequestCommandHandler updateRequestHandler,
+    UploadTransferAttachmentCommandHandler uploadTransferAttachment,
+    OpenTransferAttachmentHandler openTransferAttachment,
     CancelTransferCommandHandler cancelTransferHandler,
     ConfirmTransferReceiptCommandHandler receiptHandler,
     CreateStocktakeCommandHandler createStocktakeHandler,
@@ -174,13 +180,14 @@ public class IndexModel(
         return File(StockCsv.Write(rows), "text/csv; charset=utf-8", "ton-kho.csv");
     }
 
-    public async Task<IActionResult> OnPostShipTransferAsync(CancellationToken cancellationToken)
+    /// <summary>Bước 1: lập phiếu đề nghị chuyển kho (chờ duyệt, chưa trừ tồn).</summary>
+    public async Task<IActionResult> OnPostRequestTransferAsync(CancellationToken cancellationToken)
     {
         var lines = (Transfer.Lines ?? [])
             .Where(line => line.CatalogItemId != Guid.Empty && line.Quantity > 0)
             .Select(line => new TransferLineInput(line.CatalogItemId, line.Quantity))
             .ToArray();
-        var created = await createAndShipHandler.HandleAsync(
+        var created = await requestHandler.HandleAsync(
             new CreateTransferSlipCommand
             {
                 SourceLocationId = Transfer.SourceLocationId,
@@ -195,16 +202,133 @@ public class IndexModel(
             return await FailAsync(created.StockError, openTransfer: true, "transfers", cancellationToken);
         }
 
-        // CreateAndShipTransferCommandHandler đã tạo phiếu và xuất kho trong một transaction (phiếu đã ở trạng thái đang chuyển).
         View = "transfers";
         return Redirect(PageUrl(includeItem: false));
     }
 
+    /// <summary>Sửa phiếu đề nghị khi chưa được duyệt.</summary>
+    public async Task<IActionResult> OnPostUpdateTransferAsync(CancellationToken cancellationToken)
+    {
+        var lines = (Transfer.Lines ?? [])
+            .Where(line => line.CatalogItemId != Guid.Empty && line.Quantity > 0)
+            .Select(line => new TransferLineInput(line.CatalogItemId, line.Quantity))
+            .ToArray();
+        return await SaveAsync(
+            updateRequestHandler.HandleAsync(
+                new UpdateTransferRequestCommand
+                {
+                    TransferSlipId = DocumentId,
+                    SourceLocationId = Transfer.SourceLocationId,
+                    DestinationLocationId = Transfer.DestinationLocationId,
+                    Note = Transfer.Note,
+                    Lines = lines,
+                    Actor = Actor
+                },
+                cancellationToken),
+            "transfers",
+            cancellationToken);
+    }
+
+    public Task<IActionResult> OnPostDecideTransferAsync(bool approve, string? reason, CancellationToken cancellationToken) =>
+        SaveAsync(decideHandler.HandleAsync(new DecideTransferCommand(DocumentId, Actor, approve, reason), cancellationToken), "transfers", cancellationToken);
+
+    public Task<IActionResult> OnPostShipTransferAsync(string? sealNumber, string? carrier, CancellationToken cancellationToken) =>
+        SaveAsync(shipHandler.HandleAsync(new ShipTransferCommand(DocumentId, Actor, sealNumber, carrier), cancellationToken), "transfers", cancellationToken);
+
     public Task<IActionResult> OnPostCancelTransferAsync(CancellationToken cancellationToken) =>
         SaveAsync(cancelTransferHandler.HandleAsync(new ConfirmTransferCommand(DocumentId, Actor), cancellationToken), "transfers", cancellationToken);
 
-    public Task<IActionResult> OnPostConfirmReceiptAsync(CancellationToken cancellationToken) =>
-        SaveAsync(receiptHandler.HandleAsync(new ConfirmTransferCommand(DocumentId, Actor), cancellationToken), "transfers", cancellationToken);
+    /// <summary>Kiểm nhận: số thực nhận từng dòng (bỏ trống = nhận đủ). Khác số xuất thì cần lý do và file đính kèm.</summary>
+    public async Task<IActionResult> OnPostReceiveTransferAsync(
+        List<ReceiveLineForm>? receiveLines,
+        string? receiveNote,
+        List<IFormFile>? files,
+        CancellationToken cancellationToken)
+    {
+        var actuals = (receiveLines ?? [])
+            .Where(line => line.Quantity is not null)
+            .Select(line => new ReceivedLineInput(line.LineId, line.Quantity!.Value))
+            .ToArray();
+
+        // Kiểm tra phiếu nhận trước; chỉ lưu file khi phiếu hợp lệ để không để lại file mồ côi sau lần nhận bị từ chối.
+        var checkedReceipt = await receiptHandler.CheckAsync(
+            new ConfirmTransferCommand(DocumentId, Actor, actuals, receiveNote),
+            (files ?? []).Count(file => file.Length > 0),
+            cancellationToken);
+        if (checkedReceipt.IsFailure)
+        {
+            return await FailAsync(checkedReceipt.StockError, openTransfer: false, "transfers", cancellationToken);
+        }
+
+        if (await UploadTransferFilesAsync(files, cancellationToken) is { } uploadFailure)
+        {
+            return uploadFailure;
+        }
+
+        return await SaveAsync(receiptHandler.HandleAsync(new ConfirmTransferCommand(DocumentId, Actor, actuals, receiveNote), cancellationToken), "transfers", cancellationToken);
+    }
+
+    public Task<IActionResult> OnPostResolveTransferAsync(string? resolution, CancellationToken cancellationToken) =>
+        SaveAsync(resolveHandler.HandleAsync(new ResolveTransferCommand(DocumentId, Actor, resolution), cancellationToken), "transfers", cancellationToken);
+
+    public async Task<IActionResult> OnPostAttachTransferFileAsync(List<IFormFile>? files, CancellationToken cancellationToken)
+    {
+        if (await UploadTransferFilesAsync(files, cancellationToken) is { } uploadFailure)
+        {
+            return uploadFailure;
+        }
+
+        View = "transfers";
+        return Redirect(PageUrl(includeItem: false));
+    }
+
+    /// <summary>Lưu các file đính kèm cho phiếu hiện tại; trả về kết quả lỗi nếu một file bị từ chối, null nếu xong.</summary>
+    private async Task<IActionResult?> UploadTransferFilesAsync(List<IFormFile>? files, CancellationToken cancellationToken)
+    {
+        var chosen = (files ?? []).Where(file => file.Length > 0).ToArray();
+        var pending = new List<PendingTransferFile>();
+        foreach (var file in chosen)
+        {
+            var header = new byte[8];
+            await using var probe = file.OpenReadStream();
+            var read = await probe.ReadAtLeastAsync(header, header.Length, throwOnEndOfStream: false, cancellationToken);
+            pending.Add(new PendingTransferFile(file.FileName, file.Length, header[..read]));
+        }
+
+        // Kiểm tra cả loạt trước, rồi mới lưu: một file sai không để lại các file đứng trước nó.
+        var verdict = await uploadTransferAttachment.CheckAsync(DocumentId, pending, Actor, cancellationToken);
+        if (verdict.IsFailure)
+        {
+            return await FailAsync(verdict.StockError, openTransfer: false, "transfers", cancellationToken);
+        }
+
+        foreach (var file in chosen)
+        {
+            await using var content = file.OpenReadStream();
+            var uploaded = await uploadTransferAttachment.HandleAsync(
+                new UploadTransferAttachmentCommand { TransferSlipId = DocumentId, FileName = file.FileName, Content = content, Actor = Actor },
+                cancellationToken);
+            if (uploaded.IsFailure)
+            {
+                return await FailAsync(uploaded.StockError, openTransfer: false, "transfers", cancellationToken);
+            }
+        }
+
+        return null;
+    }
+
+    public async Task<IActionResult> OnGetTransferFileAsync(Guid id)
+    {
+        var result = await openTransferAttachment.HandleAsync(id, Actor, HttpContext.RequestAborted);
+        if (result.IsFailure)
+        {
+            return NotFound();
+        }
+
+        var download = result.Value!;
+        Response.Headers.CacheControl = "private, no-store";
+        return File(download.Content, download.ContentType, download.FileName);
+    }
 
     public Task<IActionResult> OnPostCreateStocktakeAsync(CancellationToken cancellationToken) =>
         SaveStocktakeAsync(
@@ -650,4 +774,11 @@ public sealed class DisposalInput
     public string? DocumentRef { get; set; }
 
     public string? ImageRef { get; set; }
+}
+
+public sealed class ReceiveLineForm
+{
+    public Guid LineId { get; set; }
+
+    public int? Quantity { get; set; }
 }

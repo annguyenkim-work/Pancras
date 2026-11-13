@@ -64,6 +64,14 @@ public sealed class TransferSlipConfiguration : IEntityTypeConfiguration<Transfe
         builder.Property(slip => slip.DestinationLocationId).IsRequired();
         builder.Property(slip => slip.Note).HasMaxLength(TransferSlip.NoteMaxLength).IsRequired();
         builder.Property(slip => slip.Status).HasConversion<int>().IsRequired();
+        builder.Property(slip => slip.SealNumber).HasMaxLength(TransferSlip.SealMaxLength).IsRequired();
+        builder.Property(slip => slip.Carrier).HasMaxLength(TransferSlip.CarrierMaxLength).IsRequired();
+        builder.Property(slip => slip.ReceiveNote).HasMaxLength(TransferSlip.ReasonMaxLength).IsRequired();
+        builder.Property(slip => slip.ResolutionNote).HasMaxLength(TransferSlip.ReasonMaxLength).IsRequired();
+        builder.Property(slip => slip.ApprovedBy).HasMaxLength(64).IsRequired();
+        builder.Property(slip => slip.ShippedBy).HasMaxLength(64).IsRequired();
+        builder.Property(slip => slip.ReceivedBy).HasMaxLength(64).IsRequired();
+        builder.Property(slip => slip.ResolvedBy).HasMaxLength(64).IsRequired();
         builder.HasMany(slip => slip.Lines).WithOne().HasForeignKey(line => line.TransferSlipId).OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(slip => slip.Lines).UsePropertyAccessMode(PropertyAccessMode.Field);
         builder.HasOne<StockLocation>().WithMany().HasForeignKey(slip => slip.SourceLocationId).OnDelete(DeleteBehavior.Restrict);
@@ -79,7 +87,9 @@ public sealed class TransferLineConfiguration : IEntityTypeConfiguration<Transfe
         builder.HasKey(line => line.Id);
         builder.Property(line => line.TransferSlipId).IsRequired();
         builder.Property(line => line.CatalogItemId).IsRequired();
+        builder.Property(line => line.Id).ValueGeneratedNever();
         builder.Property(line => line.Quantity).IsRequired();
+        builder.Property(line => line.ReceivedQuantity);
         builder.HasOne<CatalogItem>().WithMany().HasForeignKey(line => line.CatalogItemId).OnDelete(DeleteBehavior.Restrict);
     }
 }

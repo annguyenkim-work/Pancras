@@ -45,6 +45,8 @@ public sealed class PancrasDbContext(DbContextOptions<PancrasDbContext> options)
 
     public DbSet<PurchaseAttachment> PurchaseAttachments => Set<PurchaseAttachment>();
 
+    public DbSet<TransferAttachment> TransferAttachments => Set<TransferAttachment>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(PancrasDbContext).Assembly);

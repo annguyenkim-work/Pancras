@@ -2,10 +2,17 @@ namespace Pancras.Domain.Inventory;
 
 public enum TransferStatus
 {
+    /// <summary>Không còn dùng (giữ để đọc dữ liệu cũ).</summary>
     Draft = 1,
     InTransit = 2,
     Received = 3,
-    Cancelled = 4
+    Cancelled = 4,
+    /// <summary>Phiếu đề nghị chờ duyệt, chưa ảnh hưởng tồn kho.</summary>
+    Requested = 5,
+    Approved = 6,
+    Rejected = 7,
+    /// <summary>Đã nhập kho theo số thực nhận nhưng khác số xuất; chờ Kế toán/Giám đốc xử lý chênh lệch.</summary>
+    ReceivedWithDiscrepancy = 8
 }
 
 public sealed class TransferLine
@@ -22,6 +29,13 @@ public sealed class TransferLine
 
     public int Quantity { get; private set; }
 
+    /// <summary>Số kho đích thực nhận; null khi chưa nhận.</summary>
+    public int? ReceivedQuantity { get; private set; }
+
+    internal void RecordReceived(int quantity) => ReceivedQuantity = quantity;
+
+    internal void ClearReceived() => ReceivedQuantity = null;
+
     internal static TransferLine Create(Guid transferSlipId, Guid catalogItemId, int quantity) =>
         new()
         {
@@ -35,6 +49,12 @@ public sealed class TransferLine
 public sealed class TransferSlip : Pancras.Domain.Auditing.AuditStamped
 {
     public const int NoteMaxLength = 500;
+
+    public const int SealMaxLength = 100;
+
+    public const int ReasonMaxLength = 500;
+
+    public const int CarrierMaxLength = 200;
 
     private readonly List<TransferLine> _lines = [];
 
@@ -50,6 +70,60 @@ public sealed class TransferSlip : Pancras.Domain.Auditing.AuditStamped
     public Guid DestinationLocationId { get; private set; }
 
     public string Note { get; private set; }
+
+    public string SealNumber { get; private set; } = string.Empty;
+
+    /// <summary>Lý do chênh lệch do bên nhận ghi khi số thực nhận khác số xuất.</summary>
+    public string ReceiveNote { get; private set; } = string.Empty;
+
+    /// <summary>Cách xử lý chênh lệch do Kế toán/Giám đốc ghi, hoặc lý do từ chối phiếu đề nghị.</summary>
+    public string ResolutionNote { get; private set; } = string.Empty;
+
+    /// <summary>Ghi chú tự do về người vận chuyển do người xuất kho nhập; hệ thống không quản lý tài xế.</summary>
+    public string Carrier { get; private set; } = string.Empty;
+
+    public string ApprovedBy { get; private set; } = string.Empty;
+
+    public DateTimeOffset? ApprovedAt { get; private set; }
+
+    public string ShippedBy { get; private set; } = string.Empty;
+
+    public DateTimeOffset? ShippedAt { get; private set; }
+
+    public string ReceivedBy { get; private set; } = string.Empty;
+
+    public DateTimeOffset? ReceivedAt { get; private set; }
+
+    public string ResolvedBy { get; private set; } = string.Empty;
+
+    public DateTimeOffset? ResolvedAt { get; private set; }
+
+    /// <summary>Ghi ai (mã nhân viên) làm bước nào lúc nào. Người lập phiếu là CreatedBy.</summary>
+    public void RecordStep(TransferStep step, DateTimeOffset at, string? by)
+    {
+        var actor = FitActor(by);
+        switch (step)
+        {
+            case TransferStep.Approved:
+                ApprovedBy = actor;
+                ApprovedAt = at;
+                break;
+            case TransferStep.Shipped:
+                ShippedBy = actor;
+                ShippedAt = at;
+                break;
+            case TransferStep.Received:
+                ReceivedBy = actor;
+                ReceivedAt = at;
+                break;
+            case TransferStep.Resolved:
+                ResolvedBy = actor;
+                ResolvedAt = at;
+                break;
+        }
+    }
+
+    public bool HasDiscrepancy => Lines.Any(line => line.ReceivedQuantity is int received && received != line.Quantity);
 
     public TransferStatus Status { get; private set; }
 
@@ -84,7 +158,7 @@ public sealed class TransferSlip : Pancras.Domain.Auditing.AuditStamped
             SourceLocationId = sourceLocationId,
             DestinationLocationId = destinationLocationId,
             Note = storedNote,
-            Status = TransferStatus.Draft
+            Status = TransferStatus.Requested
         };
         foreach (var line in lines)
         {
@@ -94,14 +168,95 @@ public sealed class TransferSlip : Pancras.Domain.Auditing.AuditStamped
         return slip;
     }
 
-    public bool TryConfirmShipment(
-        IReadOnlyDictionary<Guid, StockBalance> sources,
-        IReadOnlyDictionary<Guid, StockBalance> destinations)
+    /// <summary>Sửa phiếu đề nghị khi chưa được duyệt: kho, ghi chú và danh sách hàng. Kiểm tra giống lúc tạo.</summary>
+    public bool TryUpdateRequest(
+        Guid sourceLocationId,
+        Guid destinationLocationId,
+        string? note,
+        IReadOnlyList<(Guid CatalogItemId, int Quantity)> lines)
     {
-        if (Status != TransferStatus.Draft || !TotalsAreShippable(sources, destinations))
+        if (Status != TransferStatus.Requested)
         {
             return false;
         }
+
+        var replacement = Create(sourceLocationId, destinationLocationId, note, lines);
+        if (replacement is null)
+        {
+            return false;
+        }
+
+        SourceLocationId = replacement.SourceLocationId;
+        DestinationLocationId = replacement.DestinationLocationId;
+        Note = replacement.Note;
+        _lines.Clear();
+        foreach (var line in replacement._lines)
+        {
+            _lines.Add(TransferLine.Create(Id, line.CatalogItemId, line.Quantity));
+        }
+
+        return true;
+    }
+
+    public bool TryApprove(IReadOnlyDictionary<Guid, StockBalance> sources)
+    {
+        if (Status != TransferStatus.Requested)
+        {
+            return false;
+        }
+
+        foreach (var (itemId, quantity) in Totals())
+        {
+            if (!sources.TryGetValue(itemId, out var source) || !source.CanShip(quantity))
+            {
+                return false;
+            }
+        }
+
+        Status = TransferStatus.Approved;
+        return true;
+    }
+
+    public bool TryReject(string? reason)
+    {
+        if (Status != TransferStatus.Requested || !InventoryText.TryOptional(reason, ReasonMaxLength, out var stored))
+        {
+            return false;
+        }
+
+        ResolutionNote = stored;
+        Status = TransferStatus.Rejected;
+        return true;
+    }
+
+    /// <summary>Hủy phiếu chưa xuất kho: không đụng tới tồn.</summary>
+    public bool TryCancelBeforeShipment()
+    {
+        if (Status is not (TransferStatus.Requested or TransferStatus.Approved))
+        {
+            return false;
+        }
+
+        Status = TransferStatus.Cancelled;
+        return true;
+    }
+
+    public bool TryConfirmShipment(
+        IReadOnlyDictionary<Guid, StockBalance> sources,
+        IReadOnlyDictionary<Guid, StockBalance> destinations,
+        string? sealNumber = null,
+        string? carrier = null)
+    {
+        if (Status != TransferStatus.Approved
+            || !InventoryText.TryOptional(sealNumber, SealMaxLength, out var seal)
+            || !InventoryText.TryOptional(carrier, CarrierMaxLength, out var carrierNote)
+            || !TotalsAreShippable(sources, destinations))
+        {
+            return false;
+        }
+
+        SealNumber = seal;
+        Carrier = carrierNote;
 
         foreach (var (itemId, quantity) in Totals())
         {
@@ -115,16 +270,40 @@ public sealed class TransferSlip : Pancras.Domain.Auditing.AuditStamped
         return true;
     }
 
-    public bool TryConfirmReceipt(IReadOnlyDictionary<Guid, StockBalance> destinations)
+    /// <summary>
+    /// Nhận hàng theo số thực nhận từng dòng (null = nhận đủ). Khác số xuất thì phiếu chuyển sang chờ xử lý chênh lệch và cần lý do.
+    /// Phần đang chuyển ở kho đích luôn giảm đúng số đã xuất; tồn thực tế tăng đúng số thực nhận.
+    /// </summary>
+    public bool TryConfirmReceipt(
+        IReadOnlyDictionary<Guid, StockBalance> destinations,
+        IReadOnlyDictionary<Guid, int>? actualByLine = null,
+        string? discrepancyReason = null)
     {
         if (Status != TransferStatus.InTransit)
         {
             return false;
         }
 
+        var actuals = _lines.ToDictionary(line => line.Id, line => actualByLine is not null && actualByLine.TryGetValue(line.Id, out var value) ? value : line.Quantity);
+        if (actuals.Values.Any(value => value < 0)
+            || (actualByLine is not null && actualByLine.Keys.Any(id => !actuals.ContainsKey(id))))
+        {
+            return false;
+        }
+
+        var differs = _lines.Any(line => actuals[line.Id] != line.Quantity);
+        if (!InventoryText.TryOptional(discrepancyReason, ReasonMaxLength, out var reason) || (differs && reason.Length == 0))
+        {
+            return false;
+        }
+
         foreach (var (itemId, quantity) in Totals())
         {
-            if (!destinations.TryGetValue(itemId, out var destination) || destination.InTransit < quantity)
+            var actual = _lines.Where(line => line.CatalogItemId == itemId).Sum(line => (long)actuals[line.Id]);
+            if (!destinations.TryGetValue(itemId, out var destination)
+                || destination.InTransit < quantity
+                || actual > int.MaxValue
+                || (long)destination.OnHand + actual > int.MaxValue)
             {
                 return false;
             }
@@ -132,47 +311,66 @@ public sealed class TransferSlip : Pancras.Domain.Auditing.AuditStamped
 
         foreach (var (itemId, quantity) in Totals())
         {
-            if (!destinations[itemId].TryReceiveTransfer(quantity))
+            var actual = (int)_lines.Where(line => line.CatalogItemId == itemId).Sum(line => (long)actuals[line.Id]);
+            if (!destinations[itemId].TryReceiveActual(quantity, actual))
             {
                 throw new InvalidOperationException("Receipt precheck did not hold.");
             }
         }
 
-        Status = TransferStatus.Received;
+        foreach (var line in _lines)
+        {
+            line.RecordReceived(actuals[line.Id]);
+        }
+
+        ReceiveNote = reason;
+        Status = differs ? TransferStatus.ReceivedWithDiscrepancy : TransferStatus.Received;
         return true;
     }
 
-    /// <summary>Hủy phiếu đang chuyển: hoàn hàng về kho nguồn, bỏ phần đang chuyển ở kho đích.</summary>
-    public bool TryCancel(
-        IReadOnlyDictionary<Guid, StockBalance> sources,
-        IReadOnlyDictionary<Guid, StockBalance> destinations)
+    /// <summary>Kế toán/Giám đốc xác nhận cách xử lý chênh lệch; phiếu đóng.</summary>
+    public bool TryResolveDiscrepancy(string? resolution)
     {
-        if (Status != TransferStatus.InTransit)
+        if (Status != TransferStatus.ReceivedWithDiscrepancy
+            || !InventoryText.TryOptional(resolution, ReasonMaxLength, out var stored)
+            || stored.Length == 0)
         {
             return false;
         }
 
-        foreach (var (itemId, quantity) in Totals())
-        {
-            if (!sources.ContainsKey(itemId) || !destinations.TryGetValue(itemId, out var destination) || destination.InTransit < quantity)
-            {
-                return false;
-            }
-        }
-
-        foreach (var (itemId, quantity) in Totals())
-        {
-            if (!destinations[itemId].TryRemoveInTransit(quantity) || !sources[itemId].TryAddOnHand(quantity))
-            {
-                throw new InvalidOperationException("Cancel precheck did not hold.");
-            }
-        }
-
-        Status = TransferStatus.Cancelled;
+        ResolutionNote = stored;
+        Status = TransferStatus.Received;
         return true;
     }
 
-    public void RestoreUncommitted(TransferStatus status) => Status = status;
+    public void RestoreUncommitted(TransferStatus status)
+    {
+        Status = status;
+        foreach (var line in _lines)
+        {
+            line.ClearReceived();
+        }
+
+        ReceiveNote = string.Empty;
+        ResolutionNote = string.Empty;
+        ResolvedBy = string.Empty;
+        ResolvedAt = null;
+        ReceivedBy = string.Empty;
+        ReceivedAt = null;
+        if (status is TransferStatus.Requested or TransferStatus.Approved)
+        {
+            SealNumber = string.Empty;
+            Carrier = string.Empty;
+            ShippedBy = string.Empty;
+            ShippedAt = null;
+        }
+
+        if (status == TransferStatus.Requested)
+        {
+            ApprovedBy = string.Empty;
+            ApprovedAt = null;
+        }
+    }
 
     private bool TotalsAreShippable(
         IReadOnlyDictionary<Guid, StockBalance> sources,
@@ -204,4 +402,12 @@ public sealed class TransferSlip : Pancras.Domain.Auditing.AuditStamped
 
         return totals;
     }
+}
+
+public enum TransferStep
+{
+    Approved = 1,
+    Shipped = 2,
+    Received = 3,
+    Resolved = 4
 }

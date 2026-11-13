@@ -90,24 +90,29 @@ public class InventoryScopeTests
     }
 
     [Fact]
-    public async Task KeeperCannotShipFromAnotherLocation_AndSalesCannotShipAtAll()
+    public async Task KeeperCanRequestForOwnLocation_ButShipOnlyFromIt_AndSalesCannotRequest()
     {
-        var handler = new CreateAndShipTransferCommandHandler(_store, NullLogger<CreateAndShipTransferCommandHandler>.Instance);
+        var own = await TransferFlow.RequestAsync(_store, Transfer(TestActors.Keeper(_a.Id), _a.Id, _b.Id));
+        var asked = await TransferFlow.RequestAsync(_store, Transfer(TestActors.Keeper(_a.Id), _b.Id, _a.Id));
+        var sales = await TransferFlow.RequestAsync(_store, Transfer(TestActors.Sales(_a.Id), _a.Id, _b.Id));
+        var unrelated = await TransferFlow.RequestAsync(_store, Transfer(TestActors.Keeper(Guid.NewGuid()), _a.Id, _b.Id));
+        await new DecideTransferCommandHandler(_store, NullLogger<DecideTransferCommandHandler>.Instance)
+            .HandleAsync(new DecideTransferCommand(asked.Value, TestActors.Admin, true), CancellationToken.None);
+        var ship = new ShipTransferCommandHandler(_store, NullLogger<ShipTransferCommandHandler>.Instance);
 
-        var ok = await handler.HandleAsync(Transfer(TestActors.Keeper(_a.Id), _a.Id, _b.Id), CancellationToken.None);
-        var otherSource = await handler.HandleAsync(Transfer(TestActors.Keeper(_a.Id), _b.Id, _a.Id), CancellationToken.None);
-        var sales = await handler.HandleAsync(Transfer(TestActors.Sales(_a.Id), _a.Id, _b.Id), CancellationToken.None);
+        var notSource = await ship.HandleAsync(new ShipTransferCommand(asked.Value, TestActors.Keeper(_a.Id)), CancellationToken.None);
 
-        Assert.True(ok.IsSuccess);
-        Assert.Equal(StockError.Forbidden, otherSource.StockError);
+        Assert.True(own.IsSuccess);
+        Assert.True(asked.IsSuccess);
         Assert.Equal(StockError.Forbidden, sales.StockError);
+        Assert.Equal(StockError.Forbidden, unrelated.StockError);
+        Assert.Equal(StockError.Forbidden, notSource.StockError);
     }
 
     [Fact]
     public async Task OnlyTheDestinationConfirmsReceipt()
     {
-        var create = new CreateAndShipTransferCommandHandler(_store, NullLogger<CreateAndShipTransferCommandHandler>.Instance);
-        var shipped = await create.HandleAsync(Transfer(TestActors.Keeper(_a.Id), _a.Id, _b.Id, 2), CancellationToken.None);
+        var shipped = await TransferFlow.ShipAsync(_store, Transfer(TestActors.Keeper(_a.Id), _a.Id, _b.Id, 2));
         var receipt = new ConfirmTransferReceiptCommandHandler(_store, NullLogger<ConfirmTransferReceiptCommandHandler>.Instance);
 
         var bySource = await receipt.HandleAsync(new ConfirmTransferCommand(shipped.Value, TestActors.Keeper(_a.Id)), CancellationToken.None);
@@ -121,8 +126,7 @@ public class InventoryScopeTests
     [Fact]
     public async Task DocumentListsAreScopedAndClosedToSales()
     {
-        var create = new CreateAndShipTransferCommandHandler(_store, NullLogger<CreateAndShipTransferCommandHandler>.Instance);
-        await create.HandleAsync(Transfer(TestActors.Admin, _a.Id, _b.Id), CancellationToken.None);
+        await TransferFlow.RequestAsync(_store, Transfer(TestActors.Admin, _a.Id, _b.Id));
         var documents = new ListInventoryDocumentsHandler(_store, NullLogger<ListInventoryDocumentsHandler>.Instance);
         var third = StockLocation.Create("Kho C", StockLocationKind.Warehouse);
         _store.Locations.Add(third);

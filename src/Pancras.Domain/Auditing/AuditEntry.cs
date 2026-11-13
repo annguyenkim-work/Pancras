@@ -90,6 +90,13 @@ public static class AuditActions
     public const string LocationCreated = "location.created";
     public const string LocationUpdated = "location.updated";
     public const string LocationDeleted = "location.deleted";
+    public const string TransferRequested = "stock.transfer_requested";
+    public const string TransferUpdated = "stock.transfer_updated";
+    public const string TransferApproved = "stock.transfer_approved";
+    public const string TransferRejected = "stock.transfer_rejected";
+    public const string TransferDiscrepancyResolved = "stock.transfer_discrepancy_resolved";
+    public const string TransferAttachmentAdded = "stock.transfer_attachment_added";
+    public const string TransferAttachmentDownloaded = "stock.transfer_attachment_downloaded";
     public const string TransferShipped = "stock.transfer_shipped";
     public const string TransferReceived = "stock.transfer_received";
     public const string TransferCancelled = "stock.transfer_cancelled";

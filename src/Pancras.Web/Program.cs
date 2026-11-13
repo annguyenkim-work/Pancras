@@ -98,6 +98,7 @@ builder.Services.AddScoped<ILocationRepository, LocationRepository>();
 builder.Services.AddScoped<ILocationManagementRepository, LocationRepository>();
 builder.Services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
 builder.Services.AddScoped<IPurchaseAttachmentRepository, PurchaseAttachmentRepository>();
+builder.Services.AddScoped<ITransferAttachmentRepository, TransferAttachmentRepository>();
 // Chứng từ lưu ngoài wwwroot nên không thể tải trực tiếp bằng đường dẫn; chỉ tải qua trang có kiểm tra quyền.
 var attachmentsPath = builder.Configuration["Storage:AttachmentsPath"];
 builder.Services.AddSingleton<IAttachmentStorage>(_ => new FileSystemAttachmentStorage(
@@ -140,7 +141,13 @@ builder.Services.AddScoped<GetStockItemDetailHandler>();
 builder.Services.AddScoped<ListStockHistoryHandler>();
 builder.Services.AddScoped<ListInventoryDocumentsHandler>();
 builder.Services.AddScoped<ListStockNoticesHandler>();
-builder.Services.AddScoped<CreateAndShipTransferCommandHandler>();
+builder.Services.AddScoped<CreateTransferRequestCommandHandler>();
+builder.Services.AddScoped<DecideTransferCommandHandler>();
+builder.Services.AddScoped<UpdateTransferRequestCommandHandler>();
+builder.Services.AddScoped<ShipTransferCommandHandler>();
+builder.Services.AddScoped<ResolveTransferDiscrepancyCommandHandler>();
+builder.Services.AddScoped<UploadTransferAttachmentCommandHandler>();
+builder.Services.AddScoped<OpenTransferAttachmentHandler>();
 builder.Services.AddScoped<ConfirmTransferReceiptCommandHandler>();
 builder.Services.AddScoped<CancelTransferCommandHandler>();
 builder.Services.AddScoped<CreateStocktakeCommandHandler>();

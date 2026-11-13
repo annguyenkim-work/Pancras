@@ -95,7 +95,7 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
     }
 
     [Fact]
-    public async Task ShipTransfer_ShipsOnce_AndRedirectsWithoutAnError()
+    public async Task RequestTransfer_CreatesAPendingSlip_WithoutMovingStock()
     {
         using var client = _factory.CreateClient(NoRedirect);
         var inventory = Reset();
@@ -113,7 +113,7 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
         var token = Regex.Match(await page.Content.ReadAsStringAsync(), "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
 
         var response = await client.PostAsync(
-            "/inventory?handler=ShipTransfer",
+            "/inventory?handler=RequestTransfer",
             new FormUrlEncodedContent(new Dictionary<string, string>
             {
                 ["__RequestVerificationToken"] = token,
@@ -125,10 +125,10 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         var slip = Assert.Single(inventory.Transfers);
-        Assert.Equal(TransferStatus.InTransit, slip.Status);
-        Assert.Equal(7, here.OnHand);
-        Assert.Equal(3, inventory.Balances.Single(balance => balance.StockLocationId == destination).InTransit);
-        Assert.Single(inventory.Movements);
+        Assert.Equal(TransferStatus.Requested, slip.Status);
+        Assert.Equal(10, here.OnHand);
+        Assert.DoesNotContain(inventory.Balances, balance => balance.StockLocationId == destination);
+        Assert.Empty(inventory.Movements);
     }
 
     private static StockBalanceRow Row(string code, string name, ProductCategory category, Guid locationId) =>

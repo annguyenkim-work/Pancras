@@ -127,7 +127,8 @@ public static class StockLabels
     {
         Span<byte> bytes = stackalloc byte[16];
         id.TryWriteBytes(bytes);
-        return prefix + "-" + Convert.ToHexString(bytes[..4]);
+        // Dùng 4 byte cuối (phần ngẫu nhiên của UUID v7). 4 byte đầu là mốc thời gian, nên hai phiếu lập gần nhau sẽ trùng mã.
+        return prefix + "-" + Convert.ToHexString(bytes[12..16]);
     }
 }
 

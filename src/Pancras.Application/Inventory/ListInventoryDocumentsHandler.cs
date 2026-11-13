@@ -7,7 +7,8 @@ namespace Pancras.Application.Inventory;
 
 public sealed class ListInventoryDocumentsHandler(
     IInventoryRepository repository,
-    ILogger<ListInventoryDocumentsHandler> logger)
+    ILogger<ListInventoryDocumentsHandler> logger,
+    ITransferAttachmentRepository? transferAttachments = null)
 {
     public async Task<IReadOnlyList<StockLocationChoice>> ListLocationsAsync(EmployeeActor actor, CancellationToken cancellationToken)
     {
@@ -43,9 +44,12 @@ public sealed class ListInventoryDocumentsHandler(
                 .ToArray()
             : [];
         var names = await NamesAsync(cancellationToken);
+        var files = transferAttachments is null || slips.Length == 0
+            ? new Dictionary<Guid, IReadOnlyList<TransferAttachment>>()
+            : (await transferAttachments.ListForSlipsAsync(slips.Select(slip => slip.Id).ToArray(), cancellationToken)).ToDictionary(pair => pair.Key, pair => pair.Value);
         logger.LogInformation("Listed {TransferSlipCount} transfer slips.", slips.Length);
         return slips
-            .OrderBy(slip => slip.Status == TransferStatus.InTransit ? 0 : slip.Status == TransferStatus.Draft ? 1 : 2)
+            .OrderBy(slip => slip.Status is TransferStatus.Requested or TransferStatus.Approved or TransferStatus.InTransit or TransferStatus.ReceivedWithDiscrepancy ? 0 : 1)
             .ThenByDescending(slip => slip.Id)
             .Select(slip => new TransferSlipRow(
             slip.Id,
@@ -58,9 +62,43 @@ public sealed class ListInventoryDocumentsHandler(
                 names.Code(line.CatalogItemId),
                 names.Item(line.CatalogItemId),
                 line.Quantity,
-                names.Unit(line.CatalogItemId))).ToArray(),
-            AuditStampView.From(slip)))
+                names.Unit(line.CatalogItemId),
+                line.Id,
+                line.ReceivedQuantity)).ToArray(),
+            AuditStampView.From(slip),
+            FlowOf(slip, actor, files.TryGetValue(slip.Id, out var attached) ? attached : []),
+            slip.SourceLocationId,
+            slip.DestinationLocationId))
             .ToArray();
+    }
+
+    private static TransferFlowRow FlowOf(TransferSlip slip, EmployeeActor actor, IReadOnlyList<TransferAttachment> files)
+    {
+        var touch = TransferAccess.CanTouch(actor, slip);
+        var atSource = InventoryAccess.CanOperate(actor.Role) && InventoryAccess.CanAccessLocation(actor, slip.SourceLocationId);
+        var atDestination = InventoryAccess.CanOperate(actor.Role) && InventoryAccess.CanAccessLocation(actor, slip.DestinationLocationId);
+        return new TransferFlowRow(
+            slip.SealNumber,
+            slip.Carrier,
+            slip.ReceiveNote,
+            slip.ResolutionNote,
+            slip.ApprovedBy,
+            slip.ApprovedAt,
+            slip.ShippedBy,
+            slip.ShippedAt,
+            slip.ReceivedBy,
+            slip.ReceivedAt,
+            slip.ResolvedBy,
+            slip.ResolvedAt,
+            slip.HasDiscrepancy,
+            slip.Status == TransferStatus.Requested && DecideTransferCommandHandler.CanDecide(actor, slip.SourceLocationId),
+            slip.Status == TransferStatus.Requested && touch,
+            slip.Status == TransferStatus.Approved && atSource,
+            slip.Status == TransferStatus.InTransit && atDestination,
+            slip.Status is TransferStatus.Requested or TransferStatus.Approved && touch,
+            slip.Status == TransferStatus.ReceivedWithDiscrepancy && InventoryRoles.IsFinance(actor.Role),
+            touch && slip.Status is not (TransferStatus.Cancelled or TransferStatus.Rejected),
+            files.OrderBy(file => file.UploadedAt).Select(file => new TransferAttachmentView(file.Id, file.FileName, file.SizeBytes, file.UploadedAt, file.UploadedBy)).ToArray());
     }
 
     public async Task<IReadOnlyList<StocktakeRow>> ListStocktakesAsync(EmployeeActor actor, CancellationToken cancellationToken)

@@ -186,7 +186,11 @@ public sealed class CreateTransferSlipCommand
     public IReadOnlyList<TransferLineInput> Lines { get; set; } = [];
 }
 
-public sealed record ConfirmTransferCommand(Guid TransferSlipId, EmployeeActor Actor);
+public sealed record ConfirmTransferCommand(
+    Guid TransferSlipId,
+    EmployeeActor Actor,
+    IReadOnlyList<ReceivedLineInput>? Actuals = null,
+    string? Note = null);
 
 public sealed class CreateStocktakeCommand
 {
@@ -258,7 +262,7 @@ public sealed record StockLocationChoice(Guid Id, string Name, StockLocationKind
 
 public sealed record StockItemChoice(Guid Id, string Code, string Name, string Unit = "");
 
-public sealed record TransferLineRow(Guid CatalogItemId, string Code, string Name, int Quantity, string Unit = "");
+public sealed record TransferLineRow(Guid CatalogItemId, string Code, string Name, int Quantity, string Unit = "", Guid LineId = default, int? ReceivedQuantity = null);
 
 public sealed record TransferSlipRow(
     Guid Id,
@@ -267,7 +271,34 @@ public sealed record TransferSlipRow(
     string Note,
     TransferStatus Status,
     IReadOnlyList<TransferLineRow> Lines,
-    AuditStampView? Stamp = null);
+    AuditStampView? Stamp = null,
+    TransferFlowRow? Flow = null,
+    Guid SourceId = default,
+    Guid DestinationId = default);
+
+/// <summary>Thông tin quy trình của phiếu chuyển: ai làm bước nào, số seal, lý do chênh lệch, file đính kèm và nút nào được phép bấm.</summary>
+public sealed record TransferFlowRow(
+    string SealNumber,
+    string Carrier,
+    string ReceiveNote,
+    string ResolutionNote,
+    string ApprovedBy,
+    DateTimeOffset? ApprovedAt,
+    string ShippedBy,
+    DateTimeOffset? ShippedAt,
+    string ReceivedBy,
+    DateTimeOffset? ReceivedAt,
+    string ResolvedBy,
+    DateTimeOffset? ResolvedAt,
+    bool HasDiscrepancy,
+    bool CanDecide,
+    bool CanEdit,
+    bool CanShip,
+    bool CanReceive,
+    bool CanCancel,
+    bool CanResolve,
+    bool CanAttach,
+    IReadOnlyList<TransferAttachmentView> Attachments);
 
 public sealed record StocktakeRow(
     Guid Id,
