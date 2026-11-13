@@ -21,4 +21,6 @@ public static class CatalogLabels
     public static string Measure(decimal? value) => value is null ? Missing : VndMoney.FormatMeasure(value.Value);
 
     public static string Months(int? value) => value is null ? Missing : value.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    public static string Millimeters(int? value) => value is null ? Missing : value.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
 }

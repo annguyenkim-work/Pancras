@@ -18,6 +18,25 @@ public sealed class CreateEmployeeCommandValidator : AbstractValidator<CreateEmp
         RuleFor(command => command.Role)
             .Must(EmployeeRole.IsAllowed)
             .WithErrorCode(nameof(EmployeeError.InvalidRole));
+        RuleFor(command => command.Email)
+            .Must(IsEmail)
+            .WithErrorCode(nameof(EmployeeError.ProfileIncomplete));
+        RuleFor(command => command.Phone)
+            .Must(value => !string.IsNullOrWhiteSpace(value) && value.Trim().Length <= 30)
+            .WithErrorCode(nameof(EmployeeError.ProfileIncomplete));
+        RuleFor(command => command.Branch)
+            .Must(value => !string.IsNullOrWhiteSpace(value) && value.Trim().Length <= 200)
+            .WithErrorCode(nameof(EmployeeError.ProfileIncomplete));
+        RuleFor(command => command.JobTitle)
+            .Must(value => !string.IsNullOrWhiteSpace(value) && value.Trim().Length <= 100)
+            .WithErrorCode(nameof(EmployeeError.ProfileIncomplete));
+    }
+
+    private static bool IsEmail(string? value)
+    {
+        var text = value?.Trim() ?? string.Empty;
+        var at = text.IndexOf('@');
+        return at > 0 && text.LastIndexOf('.') > at + 1 && text[^1] != '.' && !text.Contains(' ');
     }
 }
 
@@ -63,7 +82,12 @@ public sealed class CreateEmployeeCommandHandler(
                 attempt.Code,
                 attempt.NormalizedCode,
                 passwordHash,
-                command.Role!);
+                command.Role!,
+                command.Email,
+                command.Phone,
+                command.Branch,
+                command.JobTitle,
+                command.Department);
             if (!await repository.TryAddAsync(employee, cancellationToken))
             {
                 continue;

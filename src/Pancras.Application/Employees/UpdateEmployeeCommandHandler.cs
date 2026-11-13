@@ -15,6 +15,25 @@ public sealed class UpdateEmployeeCommandValidator : AbstractValidator<UpdateEmp
         RuleFor(command => command.Role)
             .Must(EmployeeRole.IsAllowed)
             .WithErrorCode(nameof(EmployeeError.InvalidRole));
+        RuleFor(command => command.Email)
+            .Must(IsEmail)
+            .WithErrorCode(nameof(EmployeeError.ProfileIncomplete));
+        RuleFor(command => command.Phone)
+            .Must(value => !string.IsNullOrWhiteSpace(value) && value.Trim().Length <= 30)
+            .WithErrorCode(nameof(EmployeeError.ProfileIncomplete));
+        RuleFor(command => command.Branch)
+            .Must(value => !string.IsNullOrWhiteSpace(value) && value.Trim().Length <= 200)
+            .WithErrorCode(nameof(EmployeeError.ProfileIncomplete));
+        RuleFor(command => command.JobTitle)
+            .Must(value => !string.IsNullOrWhiteSpace(value) && value.Trim().Length <= 100)
+            .WithErrorCode(nameof(EmployeeError.ProfileIncomplete));
+    }
+
+    private static bool IsEmail(string? value)
+    {
+        var text = value?.Trim() ?? string.Empty;
+        var at = text.IndexOf('@');
+        return at > 0 && text.LastIndexOf('.') > at + 1 && text[^1] != '.' && !text.Contains(' ');
     }
 }
 
@@ -47,7 +66,9 @@ public sealed class UpdateEmployeeCommandHandler(
         }
 
         var previousCode = employee.Code;
-        if (!employee.Rename(command.FullName!) || !employee.ChangeRole(command.Role!))
+        if (!employee.Rename(command.FullName!)
+            || !employee.ChangeRole(command.Role!)
+            || !employee.ReplaceProfile(command.Email, command.Phone, command.Branch, command.JobTitle, command.Department))
         {
             return Result<EmployeeProfile>.Fail(EmployeeError.ProfileIncomplete);
         }
@@ -67,7 +88,7 @@ public sealed class UpdateEmployeeCommandHandler(
         await repository.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Updated employee {EmployeeId}.", employee.Id);
         return Result<EmployeeProfile>.Ok(
-            new EmployeeProfile(employee.Id, employee.FullName, employee.Code, employee.Role));
+            new EmployeeProfile(employee.Id, employee.FullName, employee.Code, employee.Role, employee.Email, employee.Phone, employee.Branch, employee.JobTitle, employee.Department));
     }
 }
 
@@ -87,6 +108,6 @@ public sealed class GetEmployeeHandler(
         logger.LogInformation("Loaded employee {EmployeeId}.", employee.Id);
 
         return Result<EmployeeProfile>.Ok(
-            new EmployeeProfile(employee.Id, employee.FullName, employee.Code, employee.Role));
+            new EmployeeProfile(employee.Id, employee.FullName, employee.Code, employee.Role, employee.Email, employee.Phone, employee.Branch, employee.JobTitle, employee.Department));
     }
 }

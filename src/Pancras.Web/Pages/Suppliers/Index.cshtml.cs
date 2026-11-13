@@ -259,6 +259,6 @@ public class IndexModel(
             parts.Add("page=" + page.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
 
-        return parts.Count == 0 ? "/nha-cung-cap" : "/nha-cung-cap?" + string.Join('&', parts);
+        return parts.Count == 0 ? "/suppliers" : "/suppliers?" + string.Join('&', parts);
     }
 }

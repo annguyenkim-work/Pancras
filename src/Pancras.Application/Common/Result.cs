@@ -73,6 +73,10 @@ public enum CatalogField
     Volume,
     WarrantyMonths,
     MinimumStock,
+    Height,
+    Length,
+    Width,
+    Image,
     CostPrice,
     RetailPrice,
     DealerPrice,
@@ -89,6 +93,29 @@ public enum CatalogIssueKind
     InvalidNumber
 }
 
+public enum StockError
+{
+    None = 0,
+    InvalidTransfer,
+    ShipmentRejected,
+    ReceiptRejected,
+    MissingEvidence,
+    NegativeStock,
+    ApprovalForbidden,
+    DisposalRejected
+}
+
+public enum PurchaseError
+{
+    None = 0,
+    InvalidOrder,
+    DuplicateCode,
+    MissingMeasure,
+    SplitGroup,
+    AlreadyReceived,
+    NegativeMoney
+}
+
 public sealed record CatalogIssue(CatalogField Field, CatalogIssueKind Kind, int? Limit = null);
 
 public sealed record SupplierIssue(SupplierField Field, SupplierIssueKind Kind, int? Limit = null);
@@ -103,7 +130,9 @@ public sealed class Result<T>
         SupplierError supplierError,
         IReadOnlyList<SupplierIssue>? supplierIssues,
         CatalogError catalogError,
-        IReadOnlyList<CatalogIssue>? catalogIssues)
+        IReadOnlyList<CatalogIssue>? catalogIssues,
+        StockError stockError,
+        PurchaseError purchaseError)
     {
         IsSuccess = isSuccess;
         Value = value;
@@ -113,6 +142,8 @@ public sealed class Result<T>
         SupplierIssues = supplierIssues ?? [];
         CatalogError = catalogError;
         CatalogIssues = catalogIssues ?? [];
+        StockError = stockError;
+        PurchaseError = purchaseError;
     }
 
     public bool IsSuccess { get; }
@@ -133,24 +164,34 @@ public sealed class Result<T>
 
     public IReadOnlyList<CatalogIssue> CatalogIssues { get; }
 
+    public StockError StockError { get; }
+
+    public PurchaseError PurchaseError { get; }
+
     public static Result<T> Ok(T value) =>
-        new(true, value, LoginError.None, EmployeeError.None, SupplierError.None, null, CatalogError.None, null);
+        new(true, value, LoginError.None, EmployeeError.None, SupplierError.None, null, CatalogError.None, null, StockError.None, PurchaseError.None);
 
     public static Result<T> Fail(LoginError error) =>
-        new(false, default, error, EmployeeError.None, SupplierError.None, null, CatalogError.None, null);
+        new(false, default, error, EmployeeError.None, SupplierError.None, null, CatalogError.None, null, StockError.None, PurchaseError.None);
 
     public static Result<T> Fail(EmployeeError error) =>
-        new(false, default, LoginError.None, error, SupplierError.None, null, CatalogError.None, null);
+        new(false, default, LoginError.None, error, SupplierError.None, null, CatalogError.None, null, StockError.None, PurchaseError.None);
 
     public static Result<T> Fail(SupplierError error) =>
-        new(false, default, LoginError.None, EmployeeError.None, error, null, CatalogError.None, null);
+        new(false, default, LoginError.None, EmployeeError.None, error, null, CatalogError.None, null, StockError.None, PurchaseError.None);
 
     public static Result<T> Fail(SupplierError error, IReadOnlyList<SupplierIssue> issues) =>
-        new(false, default, LoginError.None, EmployeeError.None, error, issues, CatalogError.None, null);
+        new(false, default, LoginError.None, EmployeeError.None, error, issues, CatalogError.None, null, StockError.None, PurchaseError.None);
 
     public static Result<T> Fail(CatalogError error) =>
-        new(false, default, LoginError.None, EmployeeError.None, SupplierError.None, null, error, null);
+        new(false, default, LoginError.None, EmployeeError.None, SupplierError.None, null, error, null, StockError.None, PurchaseError.None);
 
     public static Result<T> Fail(CatalogError error, IReadOnlyList<CatalogIssue> issues) =>
-        new(false, default, LoginError.None, EmployeeError.None, SupplierError.None, null, error, issues);
+        new(false, default, LoginError.None, EmployeeError.None, SupplierError.None, null, error, issues, StockError.None, PurchaseError.None);
+
+    public static Result<T> Fail(StockError error) =>
+        new(false, default, LoginError.None, EmployeeError.None, SupplierError.None, null, CatalogError.None, null, error, PurchaseError.None);
+
+    public static Result<T> Fail(PurchaseError error) =>
+        new(false, default, LoginError.None, EmployeeError.None, SupplierError.None, null, CatalogError.None, null, StockError.None, error);
 }

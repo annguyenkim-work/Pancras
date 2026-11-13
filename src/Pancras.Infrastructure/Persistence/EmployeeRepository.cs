@@ -22,6 +22,11 @@ public sealed class EmployeeRepository(PancrasDbContext context) : IEmployeeRepo
         context.Employees.AsNoTracking()
             .FirstOrDefaultAsync(employee => employee.Id == id, cancellationToken);
 
+    public async Task<IReadOnlyList<Employee>> ListReadOnlyAsync(CancellationToken cancellationToken) =>
+        await context.Employees.AsNoTracking()
+            .OrderBy(employee => employee.FullName)
+            .ToListAsync(cancellationToken);
+
     public async Task AddAsync(Employee employee, CancellationToken cancellationToken) =>
         await context.Employees.AddAsync(employee, cancellationToken);
 

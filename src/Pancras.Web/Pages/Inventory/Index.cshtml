@@ -1,0 +1,789 @@
+@page "/inventory"
+@model Pancras.Web.Pages.Inventory.IndexModel
+@using Pancras.Application.Catalog
+@using Pancras.Domain.Catalog
+@using Pancras.Domain.Inventory
+@using Pancras.Web.Formatting
+@{
+    ViewData["Title"] = "Kho và điều chuyển";
+    string TabClass(string view) => Model.ActiveView == view
+        ? "inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-xl bg-white text-slate-900 shadow-sm border border-slate-200"
+        : "inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-xl text-slate-600 hover:bg-white/70";
+}
+
+<div class="space-y-4">
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6">
+        <h1 class="font-display text-xl sm:text-2xl font-bold text-slate-900">Quản Lý Đa Kho &amp; Điều Chuyển Hàng Hóa</h1>
+        <p class="mt-1 text-sm text-slate-500">@Model.Subtitle</p>
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <p class="mt-3 text-sm font-medium text-rose-700" role="alert">@Model.ErrorMessage</p>
+        }
+        <div class="mt-4 flex flex-wrap items-center gap-2">
+            <a id="tab-balances" href="@Model.ViewUrl("balances")" class="@TabClass("balances")">Tra cứu tồn kho</a>
+            <a id="tab-transfers" href="@Model.ViewUrl("transfers")" class="@TabClass("transfers")">
+                Chuyển kho
+                @if (Model.MovingCount > 0)
+                {
+                    <span class="inline-flex min-w-5 justify-center rounded-full bg-sky-100 px-1.5 text-xs font-bold text-sky-700">@Model.MovingCount</span>
+                }
+            </a>
+            <a id="tab-stocktakes" href="@Model.ViewUrl("stocktakes")" class="@TabClass("stocktakes")">Kiểm kê &amp; điều chỉnh</a>
+            <button id="open-transfer" type="button" class="sm:ml-auto inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white hover:bg-sky-700" onclick="document.getElementById('transfer-dialog').showModal()">+ Tạo Phiếu Chuyển Kho</button>
+        </div>
+    </section>
+    @if (Model.Notices.Count > 0)
+    {
+        <section class="rounded-2xl border border-sky-200 bg-sky-50 p-4">
+            <h2 class="text-sm font-bold text-slate-900">Thông báo kho</h2>
+            <ul class="mt-2 space-y-2 text-sm">
+                @foreach (var notice in Model.Notices)
+                {
+                    <li class="flex flex-wrap items-center justify-between gap-2">
+                        <span>@notice.Step @(notice.Seen ? "(đã xem)" : "")</span>
+                        <form method="post" action="/inventory?handler=OpenNotice">
+                            <input type="hidden" name="noticeId" value="@notice.Id" />
+                            <button type="submit" class="font-bold text-sky-700">Mở phiếu</button>
+                        </form>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+
+    @if (Model.ActiveView == "balances")
+    {
+        <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5">
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <form method="get" action="/inventory" class="flex min-w-0 flex-1 flex-col gap-3 lg:flex-row lg:items-center">
+                <input type="search" name="q" value="@Model.Search" placeholder="Tìm theo mã SKU, tên thiết bị, thương hiệu..." class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm lg:max-w-md" />
+                <select name="location" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                    <option value="">@Model.LocationOptionLabel</option>
+                    @foreach (var location in Model.Locations)
+                    {
+                        if (string.Equals(Model.Location, location.Id.ToString(), StringComparison.OrdinalIgnoreCase))
+                        {
+                            <option value="@location.Id" selected>@location.Name</option>
+                        }
+                        else
+                        {
+                            <option value="@location.Id">@location.Name</option>
+                        }
+                    }
+                </select>
+                <select name="category" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                    <option value="">Tất cả ngành hàng</option>
+                    @foreach (var category in Enum.GetValues<ProductCategory>())
+                    {
+                        var token = ProductCategoryToken.From(category);
+                        if (string.Equals(Model.Category, token, StringComparison.Ordinal))
+                        {
+                            <option value="@token" selected>@CatalogLabels.Category(category)</option>
+                        }
+                        else
+                        {
+                            <option value="@token">@CatalogLabels.Category(category)</option>
+                        }
+                    }
+                </select>
+                <button type="submit" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white">Lọc</button>
+                @if (!string.IsNullOrEmpty(Model.Search) || !string.IsNullOrEmpty(Model.Location) || !string.IsNullOrEmpty(Model.Category))
+                {
+                    <a href="/inventory" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600">Bỏ lọc</a>
+                }
+                <span class="text-sm text-slate-500 lg:ml-auto">@Model.Groups.Count mặt hàng</span>
+            </form>
+            <form method="post" action="/inventory?handler=Export" class="shrink-0">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="q" value="@Model.Search" />
+                <input type="hidden" name="location" value="@Model.Location" />
+                <input type="hidden" name="category" value="@Model.Category" />
+                <button type="submit" class="rounded-lg bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700">Xuất Excel</button>
+            </form>
+            </div>
+            <div class="mt-4 overflow-x-auto">
+                <table class="min-w-[960px] w-full text-left text-sm">
+                    <thead class="text-xs uppercase tracking-wide text-slate-500">
+                        <tr>
+                            <th class="py-2 pr-3 font-semibold">Mã SKU</th>
+                            <th class="py-2 pr-3 font-semibold">Tên hàng hóa &amp; Quy cách</th>
+                            <th class="py-2 pr-3 font-semibold">ĐVT</th>
+                            <th class="py-2 pr-3 font-semibold">Giá vốn niên yết</th>
+                            <th class="py-2 pr-3 font-semibold">Tồn thực tế</th>
+                            <th class="py-2 pr-3 font-semibold">Đang giữ chỗ</th>
+                            <th class="py-2 pr-3 font-semibold">Khả dụng</th>
+                            <th class="py-2 pr-3 font-semibold">Đang chuyển</th>
+                            <th class="py-2 pr-3 font-semibold">Tồn tại các điểm</th>
+                            <th class="py-2 font-semibold">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Groups.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="10" class="py-8 text-center text-slate-500">Không có kết quả.</td>
+                            </tr>
+                        }
+                        @foreach (var group in Model.Groups)
+                        {
+                            <tr class="border-t border-slate-100 align-top">
+                                <td class="py-3 pr-3 font-mono text-xs font-semibold text-slate-800">@group.Code</td>
+                                <td class="py-3 pr-3">
+                                    <div class="font-medium text-slate-900">@group.Name</div>
+                                    @if (!string.IsNullOrWhiteSpace(group.Brand) || !string.IsNullOrWhiteSpace(group.Origin))
+                                    {
+                                        <div class="text-xs text-slate-500">@group.Brand@(!string.IsNullOrWhiteSpace(group.Brand) && !string.IsNullOrWhiteSpace(group.Origin) ? " · " : "")@group.Origin</div>
+                                    }
+                                </td>
+                                <td class="py-3 pr-3 text-slate-600">@(string.IsNullOrWhiteSpace(group.Unit) ? "—" : group.Unit)</td>
+                                <td class="py-3 pr-3 text-slate-700">@VndMoney.FormatDong(group.CostPrice)</td>
+                                <td class="py-3 pr-3 font-semibold text-slate-900">@IndexModel.Count(group.OnHand)</td>
+                                <td class="py-3 pr-3 font-semibold text-amber-600">@IndexModel.Count(group.Reserved)</td>
+                                <td class="py-3 pr-3 font-semibold text-emerald-600">@IndexModel.Count(group.Available)</td>
+                                <td class="py-3 pr-3 font-semibold text-sky-700">@IndexModel.Count(group.InTransit)</td>
+                                <td class="py-3 pr-3">
+                                    <div class="flex flex-wrap gap-1">
+                                        @foreach (var place in group.Places)
+                                        {
+                                            var code = Model.PlaceCode(place.LocationId);
+                                            <span class="rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-600" title="@place.Name">@code @IndexModel.Count(place.OnHand)</span>
+                                        }
+                                    </div>
+                                </td>
+                                <td class="py-3">
+                                    <a class="text-sm font-semibold text-sky-700" href="@Model.ItemUrl(group.CatalogItemId)">Chi tiết</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+    else if (Model.ActiveView == "transfers")
+    {
+        <section class="space-y-4">
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div>
+                    <h2 class="font-display text-lg font-bold text-slate-900">Lịch Sử Điều Chuyển Hàng Giữa Các Kho &amp; Showroom</h2>
+                    <p class="mt-1 text-sm text-slate-500">Hàng hóa chuyển từ kho này sang kho hoặc showroom khác được theo dõi theo trạng thái đang vận chuyển.</p>
+                </div>
+                <button type="button" class="sm:ml-auto inline-flex items-center rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white" onclick="document.getElementById('transfer-dialog').showModal()">+ Tạo Phiếu Chuyển Kho</button>
+            </div>
+            @if (Model.Transfers.Count == 0)
+            {
+                <partial name="_EmptyState" model='new EmptyStateModel("Chưa có phiếu chuyển.", "Phiếu chuyển kho giữa các kho và showroom sẽ hiện ở đây.")' />
+            }
+            @foreach (var slip in Model.Transfers)
+            {
+                var when = IndexModel.When(slip.Id);
+                <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div class="flex items-center gap-2">
+                            <span class="font-mono text-sm font-bold text-slate-900">@StockLabels.DocumentCode("CK", slip.Id)</span>
+                            <span class="rounded-full px-2 py-0.5 text-xs font-bold @(slip.Status == TransferStatus.InTransit ? "bg-amber-100 text-amber-800" : slip.Status == TransferStatus.Received ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600")">@StockLabels.TransferPill(slip.Status)</span>
+                        </div>
+                        @if (!string.IsNullOrEmpty(when))
+                        {
+                            <p class="text-xs text-slate-500">Khởi tạo: @when</p>
+                        }
+                    </div>
+                    <div class="mt-4 grid grid-cols-1 items-center gap-3 md:grid-cols-[1fr_auto_1fr]">
+                        <div>
+                            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Kho xuất hàng</p>
+                            <p class="font-semibold text-slate-900">@slip.SourceName</p>
+                        </div>
+                        <div class="text-center text-xs font-semibold text-amber-600">@StockLabels.TransferLeg(slip.Status)</div>
+                        <div class="md:text-right">
+                            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Điểm tiếp nhận</p>
+                            <p class="font-semibold text-slate-900">@slip.DestinationName</p>
+                        </div>
+                    </div>
+                    <div class="mt-4 overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="text-xs uppercase tracking-wide text-slate-500">
+                                <tr>
+                                    <th class="py-2 pr-3 font-semibold">Mã SKU</th>
+                                    <th class="py-2 pr-3 font-semibold">Tên sản phẩm</th>
+                                    <th class="py-2 pr-3 font-semibold">Số lượng chuyển</th>
+                                    <th class="py-2 font-semibold">ĐVT</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var line in slip.Lines)
+                                {
+                                    <tr class="border-t border-slate-100">
+                                        <td class="py-2 pr-3 font-mono text-xs">@line.Code</td>
+                                        <td class="py-2 pr-3">@line.Name</td>
+                                        <td class="py-2 pr-3 font-semibold">@IndexModel.Count(line.Quantity)</td>
+                                        <td class="py-2">@(string.IsNullOrWhiteSpace(line.Unit) ? "—" : line.Unit)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(slip.Note))
+                    {
+                        <p class="mt-3 text-sm text-slate-600">Ghi chú: @slip.Note</p>
+                    }
+                    @if (slip.Status == TransferStatus.Draft)
+                    {
+                        <form method="post" action="/inventory?handler=ConfirmShipment" class="mt-4 flex justify-end">
+                            <input type="hidden" name="DocumentId" value="@slip.Id" />
+                            <input type="hidden" name="view" value="transfers" />
+                            <button type="submit" class="rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white">Xác nhận xuất</button>
+                        </form>
+                    }
+                    @if (slip.Status == TransferStatus.InTransit)
+                    {
+                        <form method="post" action="/inventory?handler=ConfirmReceipt" class="mt-4 flex justify-end">
+                            <input type="hidden" name="DocumentId" value="@slip.Id" />
+                            <input type="hidden" name="view" value="transfers" />
+                            <button type="submit" class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white">Xác Nhận Đã Nhận Hàng &amp; Nhập Kho</button>
+                        </form>
+                    }
+                </article>
+            }
+        </section>
+    }
+    else
+    {
+        <section class="space-y-4">
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div>
+                    <h2 class="font-display text-lg font-bold text-slate-900">Kiểm Kê Kho Định Kỳ &amp; Cân Đối Tồn Kho</h2>
+                    <p class="mt-1 text-sm text-slate-500">Ghi nhận chênh lệch giữa số đếm thực tế và số sách. Phiếu chờ Trưởng Showroom/Kho duyệt.</p>
+                </div>
+                <div class="sm:ml-auto flex flex-wrap gap-2">
+                    @if (Model.CanCountStock)
+                    {
+                        <button id="open-stocktake" type="button" class="inline-flex items-center rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white" onclick="document.getElementById('stocktake-dialog').showModal()">+ Lập Biên Bản Kiểm Kê</button>
+                    }
+                    @if (Model.CanDraftAdjustment || Model.CanPostAdjustment)
+                    {
+                        <button type="button" class="inline-flex items-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white" onclick="document.getElementById('adjustment-dialog').showModal()">+ Phiếu điều chỉnh</button>
+                    }
+                    <button type="button" class="inline-flex items-center rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white" onclick="document.getElementById('disposal-dialog').showModal()">+ Phiếu hủy</button>
+                </div>
+            </div>
+            @if (Model.Stocktakes.Count == 0)
+            {
+                <partial name="_EmptyState" model='new EmptyStateModel("Chưa có biên bản kiểm kê.", "Biên bản kiểm kê và phiếu điều chỉnh sẽ hiện ở đây.")' />
+            }
+            @foreach (var sheet in Model.Stocktakes)
+            {
+                var when = IndexModel.When(sheet.Id);
+                <article id="document-@sheet.Id" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="font-mono text-sm font-bold">@StockLabels.DocumentCode("KK", sheet.Id)</span>
+                        <span class="text-sm text-slate-600">@sheet.LocationName</span>
+                        <span class="rounded-full px-2 py-0.5 text-xs font-bold @(sheet.Status == ApprovalStatus.Approved ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800")">@StockLabels.StocktakePill(sheet.Status)</span>
+                        @if (!string.IsNullOrEmpty(when))
+                        {
+                            <span class="ml-auto text-xs text-slate-500">@when</span>
+                        }
+                    </div>
+                    <div class="mt-4 overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="text-xs uppercase tracking-wide text-slate-500">
+                                <tr>
+                                    <th class="py-2 pr-3 font-semibold">Mã SKU</th>
+                                    <th class="py-2 pr-3 font-semibold">Tên sản phẩm</th>
+                                    <th class="py-2 pr-3 font-semibold">ĐVT</th>
+                                    <th class="py-2 pr-3 font-semibold">Tồn sổ sách</th>
+                                    <th class="py-2 pr-3 font-semibold">Tồn thực đếm</th>
+                                    <th class="py-2 pr-3 font-semibold">Chênh lệch</th>
+                                    <th class="py-2 font-semibold">Lý do chênh lệch</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-t border-slate-100">
+                                    <td class="py-2 pr-3 font-mono text-xs">@sheet.Code</td>
+                                    <td class="py-2 pr-3">@sheet.Name</td>
+                                    <td class="py-2 pr-3">@(string.IsNullOrWhiteSpace(sheet.Unit) ? "—" : sheet.Unit)</td>
+                                    <td class="py-2 pr-3">@IndexModel.Count(sheet.BookQuantity)</td>
+                                    <td class="py-2 pr-3 font-semibold">@IndexModel.Count(sheet.CountedQuantity)</td>
+                                    <td class="py-2 pr-3 font-semibold @(sheet.Variance < 0 ? "text-rose-600" : "text-slate-800")">@IndexModel.Count(sheet.Variance)</td>
+                                    <td class="py-2">@sheet.Reason</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(sheet.DocumentRef))
+                    {
+                        <p class="mt-3 text-sm text-slate-600">Chứng từ: @sheet.DocumentRef</p>
+                    }
+                    @if (sheet.Status == ApprovalStatus.Pending && Model.CanApproveStocktake)
+                    {
+                        <form method="post" action="/inventory?handler=ApproveStocktake" class="mt-4 flex justify-end">
+                            <input type="hidden" name="DocumentId" value="@sheet.Id" />
+                            <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white">Duyệt biên bản</button>
+                        </form>
+                    }
+                </article>
+            }
+
+            @if (Model.Adjustments.Count > 0)
+            {
+                <h3 class="font-display text-base font-bold text-slate-900">Điều chỉnh số lượng</h3>
+                @foreach (var sheet in Model.Adjustments)
+                {
+                    <article id="document-@sheet.Id" class="bg-white rounded-2xl border border-slate-200 p-4 text-sm">
+                        <p class="font-semibold">@sheet.Code — @sheet.Name <span class="font-normal text-slate-500">@sheet.LocationName</span></p>
+                        <p class="mt-1 text-slate-600">Chênh lệch @sheet.Delta. @sheet.Reason. @StockLabels.Approval(sheet.Status)</p>
+                        @if (sheet.Status == ApprovalStatus.Pending && Model.CanPostAdjustment)
+                        {
+                            <form method="post" action="/inventory?handler=ApproveAdjustment" class="mt-3">
+                                <input type="hidden" name="DocumentId" value="@sheet.Id" />
+                                <button type="submit" class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white">Duyệt điều chỉnh</button>
+                            </form>
+                        }
+                    </article>
+                }
+            }
+            @if (Model.Disposals.Count > 0)
+            {
+                <h3 class="font-display text-base font-bold text-slate-900">Phiếu hủy</h3>
+                @foreach (var slip in Model.Disposals)
+                {
+                    <article id="document-@slip.Id" class="bg-white rounded-2xl border border-slate-200 p-4 text-sm">
+                        <p class="font-semibold">@slip.Code — @slip.Name <span class="font-normal text-slate-500">@slip.LocationName</span></p>
+                        <p class="mt-1 text-slate-600">@slip.Reason. @StockLabels.Approval(slip.Status)</p>
+                        @if (slip.Status == ApprovalStatus.Pending && Model.CanApproveDisposal)
+                        {
+                            <form method="post" action="/inventory?handler=ApproveDisposal" class="mt-3">
+                                <input type="hidden" name="DocumentId" value="@slip.Id" />
+                                <button type="submit" class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white">Duyệt hủy</button>
+                            </form>
+                        }
+                    </article>
+                }
+            }
+        </section>
+    }
+</div>
+
+<dialog id="transfer-dialog" class="w-[min(42rem,calc(100%-2rem))] rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/50">
+    <form method="post" action="/inventory?handler=ShipTransfer" class="p-6">
+        <div class="flex items-start justify-between gap-3">
+            <h2 class="font-display text-lg font-bold">Lập Phiếu Điều Chuyển Kho Hàng</h2>
+            <button type="button" class="text-slate-400" onclick="this.closest('dialog').close()" aria-label="Đóng">×</button>
+        </div>
+        <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+            <label class="text-sm font-medium text-slate-700">Kho xuất (Nguồn)
+                <select id="transfer-source" name="Transfer.SourceLocationId" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2">
+                    <option value="">Chọn kho xuất</option>
+                    @foreach (var location in Model.Locations)
+                    {
+                        <option value="@location.Id">@location.Name</option>
+                    }
+                </select>
+            </label>
+            <label class="text-sm font-medium text-slate-700">Kho / Showroom nhận (Đích)
+                <select name="Transfer.DestinationLocationId" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2">
+                    <option value="">Chọn nơi nhận</option>
+                    @foreach (var location in Model.Locations)
+                    {
+                        <option value="@location.Id">@location.Name</option>
+                    }
+                </select>
+            </label>
+        </div>
+        <div class="mt-4 flex items-center justify-between">
+            <p class="text-sm font-semibold text-slate-800">Danh sách thiết bị chuyển</p>
+            <button id="add-transfer-line" type="button" class="text-sm font-semibold text-sky-700">+ Thêm mặt hàng</button>
+        </div>
+        <div id="transfer-lines" class="mt-2 space-y-2">
+            @for (var index = 0; index < Model.Transfer.Lines.Count; index++)
+            {
+                <div class="transfer-line grid grid-cols-1 gap-2 md:grid-cols-[1fr_8rem]">
+                    <select name="Transfer.Lines[@index].CatalogItemId" class="transfer-item rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                        <option value="">Chọn mặt hàng</option>
+                        @foreach (var item in Model.Items)
+                        {
+                            if (item.Id == Model.Transfer.Lines[index].CatalogItemId)
+                            {
+                                <option value="@item.Id" selected>@item.Code — @item.Name</option>
+                            }
+                            else
+                            {
+                                <option value="@item.Id">@item.Code — @item.Name</option>
+                            }
+                        }
+                    </select>
+                    <input name="Transfer.Lines[@index].Quantity" type="number" min="1" value="@(Model.Transfer.Lines[index].Quantity == 0 ? "" : Model.Transfer.Lines[index].Quantity)" placeholder="Số lượng" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+                </div>
+            }
+        </div>
+        <label class="mt-4 block text-sm font-medium text-slate-700">Ghi chú vận chuyển
+            <textarea name="Transfer.Note" rows="3" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Ví dụ: chuyển mẫu trưng bày hoặc bù tồn kho.">@Model.Transfer.Note</textarea>
+        </label>
+        <div class="mt-5 flex justify-end gap-2">
+            <button type="button" class="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" onclick="this.closest('dialog').close()">Hủy bỏ</button>
+            <button type="submit" class="rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white">Xác Nhận Xuất Xe Chuyển Kho</button>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="stocktake-dialog" class="w-[min(36rem,calc(100%-2rem))] rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/50">
+    <form method="post" action="/inventory?handler=CreateStocktake" class="p-6">
+        <div class="flex items-start justify-between gap-3">
+            <div>
+                <h2 class="font-display text-lg font-bold">Lập Biên Bản Kiểm Kê Kho</h2>
+                <p class="mt-1 text-sm text-slate-500">Kiểm đếm mặt hàng để ghi nhận chênh lệch với tồn sổ sách.</p>
+            </div>
+            <button type="button" class="text-slate-400" onclick="this.closest('dialog').close()" aria-label="Đóng">×</button>
+        </div>
+        <label class="mt-4 block text-sm font-medium text-slate-700">Chọn địa điểm kiểm kê
+            <select id="stocktake-location" name="Stocktake.StockLocationId" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2">
+                <option value="">Chọn địa điểm</option>
+                @foreach (var location in Model.Locations)
+                {
+                    <option value="@location.Id">@location.Name</option>
+                }
+            </select>
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Mặt hàng kiểm đếm
+            <select id="stocktake-item" name="Stocktake.CatalogItemId" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                <option value="">Chọn mặt hàng</option>
+                @foreach (var item in Model.Items)
+                {
+                    <option value="@item.Id">@item.Code — @item.Name</option>
+                }
+            </select>
+        </label>
+        <p id="stocktake-book" class="mt-2 text-sm text-slate-500">Tồn sổ sách: —</p>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Số lượng thực tế kiểm đếm được
+            <input name="Stocktake.CountedQuantity" type="number" min="0" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Lý do giải trình chênh lệch
+            <input name="Stocktake.Reason" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Chứng từ
+            <input name="Stocktake.DocumentRef" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Ảnh hàng
+            <input name="Stocktake.ImageRef" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" placeholder="Đường dẫn hoặc mã ảnh" />
+        </label>
+        <div class="mt-5 flex justify-end gap-2">
+            <button type="button" class="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" onclick="this.closest('dialog').close()">Hủy</button>
+            <button type="submit" class="rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white">Lưu Biên Bản Kiểm Kê</button>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="adjustment-dialog" class="w-[min(36rem,calc(100%-2rem))] rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/50">
+    <form method="post" action="/inventory?handler=CreateAdjustment" class="p-6">
+        <div class="flex items-start justify-between gap-3">
+            <h2 class="font-display text-lg font-bold">Phiếu điều chỉnh số lượng</h2>
+            <button type="button" class="text-slate-400" onclick="this.closest('dialog').close()" aria-label="Đóng">×</button>
+        </div>
+        <p class="mt-1 text-sm text-slate-500">Thủ kho và trưởng kho lập phiếu chờ duyệt. Admin, Giám đốc và Kế toán ghi thẳng vào tồn.</p>
+        <label class="mt-4 block text-sm font-medium text-slate-700">Địa điểm
+            <select name="Adjustment.StockLocationId" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2">
+                <option value="">Chọn địa điểm</option>
+                @foreach (var location in Model.Locations)
+                {
+                    <option value="@location.Id">@location.Name</option>
+                }
+            </select>
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Mặt hàng
+            <select name="Adjustment.CatalogItemId" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2">
+                <option value="">Chọn mặt hàng</option>
+                @foreach (var item in Model.Items)
+                {
+                    <option value="@item.Id">@item.Code — @item.Name</option>
+                }
+            </select>
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Chênh lệch
+            <input name="Adjustment.Delta" type="number" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Lý do
+            <input name="Adjustment.Reason" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Chứng từ
+            <input name="Adjustment.DocumentRef" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Ảnh hàng
+            <input name="Adjustment.ImageRef" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" placeholder="Đường dẫn hoặc mã ảnh" />
+        </label>
+        <div class="mt-5 flex justify-end gap-2">
+            <button type="button" class="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" onclick="this.closest('dialog').close()">Hủy</button>
+            <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white">Lưu điều chỉnh</button>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="disposal-dialog" class="w-[min(36rem,calc(100%-2rem))] rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/50">
+    <form method="post" action="/inventory?handler=CreateDisposal" class="p-6">
+        <div class="flex items-start justify-between gap-3">
+            <h2 class="font-display text-lg font-bold">Phiếu hủy một sản phẩm</h2>
+            <button type="button" class="text-slate-400" onclick="this.closest('dialog').close()" aria-label="Đóng">×</button>
+        </div>
+        <label class="mt-4 block text-sm font-medium text-slate-700">Địa điểm
+            <select name="Disposal.StockLocationId" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2">
+                <option value="">Chọn địa điểm</option>
+                @foreach (var location in Model.Locations)
+                {
+                    <option value="@location.Id">@location.Name</option>
+                }
+            </select>
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Mặt hàng
+            <select name="Disposal.CatalogItemId" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2">
+                <option value="">Chọn mặt hàng</option>
+                @foreach (var item in Model.Items)
+                {
+                    <option value="@item.Id">@item.Code — @item.Name</option>
+                }
+            </select>
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Lý do
+            <input name="Disposal.Reason" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Chứng từ
+            <input name="Disposal.DocumentRef" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Ảnh hàng hỏng
+            <input name="Disposal.ImageRef" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" placeholder="Đường dẫn hoặc mã ảnh" />
+        </label>
+        <div class="mt-5 flex justify-end gap-2">
+            <button type="button" class="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" onclick="this.closest('dialog').close()">Hủy</button>
+            <button type="submit" class="rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white">Lưu phiếu hủy</button>
+        </div>
+    </form>
+</dialog>
+
+@if (Model.Detail is not null)
+{
+    var profile = Model.Detail.Profile;
+    <aside id="item-detail" class="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col overflow-y-auto bg-white shadow-2xl">
+        <div class="flex items-start justify-between gap-3 border-b border-slate-100 p-5">
+            <div>
+                <p class="font-mono text-xs font-semibold text-slate-500">@profile.Code</p>
+                <h2 class="font-display text-xl font-bold text-slate-900">@profile.Name</h2>
+            </div>
+            <a id="close-detail" href="@Model.CloseUrl()" class="rounded-lg px-2 py-1 text-slate-400" aria-label="Đóng">×</a>
+        </div>
+        <div class="space-y-6 p-5">
+            <section>
+                <h3 class="text-sm font-bold text-slate-900">Thông tin hàng hóa</h3>
+                <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    <div class="rounded-xl bg-slate-50 p-3"><p class="text-[11px] font-bold uppercase text-slate-500">Danh mục</p><p class="text-sm font-semibold">@CatalogLabels.Category(profile.Category)</p></div>
+                    @if (!string.IsNullOrWhiteSpace(profile.Brand))
+                    {
+                        <div class="rounded-xl bg-slate-50 p-3"><p class="text-[11px] font-bold uppercase text-slate-500">Thương hiệu</p><p class="text-sm font-semibold">@profile.Brand</p></div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(profile.Origin))
+                    {
+                        <div class="rounded-xl bg-slate-50 p-3"><p class="text-[11px] font-bold uppercase text-slate-500">Xuất xứ</p><p class="text-sm font-semibold">@profile.Origin</p></div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(profile.Unit))
+                    {
+                        <div class="rounded-xl bg-slate-50 p-3"><p class="text-[11px] font-bold uppercase text-slate-500">Đơn vị tính</p><p class="text-sm font-semibold">@profile.Unit</p></div>
+                    }
+                    @if (profile.WeightKg is decimal weight)
+                    {
+                        <div class="rounded-xl bg-slate-50 p-3"><p class="text-[11px] font-bold uppercase text-slate-500">Khối lượng</p><p class="text-sm font-semibold">@VndMoney.FormatMeasure(weight) kg</p></div>
+                    }
+                    @if (profile.WarrantyMonths is int warranty)
+                    {
+                        <div class="rounded-xl bg-slate-50 p-3"><p class="text-[11px] font-bold uppercase text-slate-500">Bảo hành</p><p class="text-sm font-semibold">@warranty tháng</p></div>
+                    }
+                    @if (profile.MinimumStock is decimal minimum)
+                    {
+                        <div class="rounded-xl bg-slate-50 p-3"><p class="text-[11px] font-bold uppercase text-slate-500">Tồn tối thiểu</p><p class="text-sm font-semibold">@VndMoney.FormatMeasure(minimum) @profile.Unit</p></div>
+                    }
+                    <div class="rounded-xl bg-slate-50 p-3"><p class="text-[11px] font-bold uppercase text-slate-500">Giá vốn</p><p class="text-sm font-semibold">@VndMoney.FormatDong(profile.CostPrice)</p></div>
+                    <div class="rounded-xl bg-slate-50 p-3"><p class="text-[11px] font-bold uppercase text-slate-500">Giá lẻ</p><p class="text-sm font-semibold">@VndMoney.FormatDong(profile.RetailPrice)</p></div>
+                    <div class="rounded-xl bg-slate-50 p-3"><p class="text-[11px] font-bold uppercase text-slate-500">Giá đại lý</p><p class="text-sm font-semibold">@VndMoney.FormatDong(profile.DealerPrice)</p></div>
+                    <div class="rounded-xl bg-slate-50 p-3"><p class="text-[11px] font-bold uppercase text-slate-500">Giá dự án</p><p class="text-sm font-semibold">@VndMoney.FormatDong(profile.ProjectPrice)</p></div>
+                </div>
+            </section>
+            <section>
+                <h3 class="text-sm font-bold text-slate-900">Tồn theo điểm</h3>
+                @if (Model.Detail.Balances.Count == 0)
+                {
+                    <p class="mt-2 text-sm text-slate-500">Chưa có tồn tại địa điểm nào.</p>
+                }
+                else
+                {
+                    <table class="mt-2 w-full text-left text-sm">
+                        <thead class="text-xs uppercase tracking-wide text-slate-500">
+                            <tr>
+                                <th class="py-2 pr-2 font-semibold">Điểm</th>
+                                <th class="py-2 pr-2 font-semibold">Tồn</th>
+                                <th class="py-2 pr-2 font-semibold">Giữ chỗ</th>
+                                <th class="py-2 pr-2 font-semibold">Khả dụng</th>
+                                <th class="py-2 font-semibold">Đang chuyển tới</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in Model.Detail.Balances)
+                            {
+                                <tr class="border-t border-slate-100">
+                                    <td class="py-2 pr-2">@row.LocationName</td>
+                                    <td class="py-2 pr-2 font-semibold">@IndexModel.Count(row.OnHand)</td>
+                                    <td class="py-2 pr-2 text-amber-600">@IndexModel.Count(row.Reserved)</td>
+                                    <td class="py-2 pr-2 text-emerald-600">@IndexModel.Count(row.Available)</td>
+                                    <td class="py-2">@IndexModel.Count(row.InTransit)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </section>
+            <section>
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <h3 class="text-sm font-bold text-slate-900">Lịch sử thay đổi</h3>
+                    <form method="get" action="/inventory" class="flex items-center gap-2">
+                        <input type="hidden" name="view" value="balances" />
+                        <input type="hidden" name="item" value="@profile.Id" />
+                        <input type="hidden" name="q" value="@Model.Search" />
+                        <input type="hidden" name="location" value="@Model.Location" />
+                        <input type="hidden" name="category" value="@Model.Category" />
+                        <input type="hidden" name="kind" value="@Model.HistoryKind" />
+                        <select name="size" class="rounded-lg border border-slate-200 px-2 py-1 text-xs" onchange="this.form.submit()">
+                            @foreach (var size in new[] { 10, 20, 50 })
+                            {
+                                if (Model.HistorySize == size)
+                                {
+                                    <option value="@size" selected>@size</option>
+                                }
+                                else
+                                {
+                                    <option value="@size">@size</option>
+                                }
+                            }
+                        </select>
+                        <select name="place" class="rounded-lg border border-slate-200 px-2 py-1 text-xs" onchange="this.form.submit()">
+                            <option value="">Tất cả địa điểm</option>
+                            @foreach (var location in Model.Locations)
+                            {
+                                if (string.Equals(Model.HistoryPlace, location.Id.ToString(), StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <option value="@location.Id" selected>@location.Name</option>
+                                }
+                                else
+                                {
+                                    <option value="@location.Id">@location.Name</option>
+                                }
+                            }
+                        </select>
+                    </form>
+                </div>
+                <div class="mt-3 flex flex-wrap gap-1">
+                    @{
+                        var kinds = new (string Token, string Label)[]
+                        {
+                            ("", "Tất cả"),
+                            ("receipt", "Nhập"),
+                            ("issue", "Xuất bán"),
+                            ("transfer", "Chuyển kho"),
+                            ("adjustment", "Điều chỉnh")
+                        };
+                    }
+                    @foreach (var kind in kinds)
+                    {
+                        var active = string.Equals(Model.HistoryKind ?? "", kind.Token, StringComparison.Ordinal);
+                        <a href="@Model.HistoryKindUrl(kind.Token)" class="rounded-full px-3 py-1 text-xs font-semibold @(active ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600")">@kind.Label</a>
+                    }
+                </div>
+                <p class="mt-2 text-xs text-slate-500">Hiển thị @Model.VisibleHistory.Count / @Model.HistoryTotal dòng</p>
+                @if (Model.VisibleHistory.Count == 0)
+                {
+                    <p class="mt-3 text-sm text-slate-500">Chưa có lịch sử thay đổi.</p>
+                }
+                <div class="mt-3 space-y-2">
+                    @foreach (var entry in Model.VisibleHistory)
+                    {
+                        var badge = StockLabels.MovementBadge(entry.Kind, entry.Quantity);
+                        <article class="rounded-xl border border-slate-100 p-3">
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <span class="rounded-md px-2 py-0.5 text-[11px] font-bold @badge.ClassName">@badge.Label</span>
+                                    <p class="mt-1 text-sm font-medium text-slate-900">@Model.Describe(entry)</p>
+                                    <p class="text-xs text-slate-500">@entry.OccurredAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm") · @entry.LocationName</p>
+                                </div>
+                                <p class="text-sm font-bold @(entry.Quantity < 0 ? "text-rose-600" : "text-emerald-700")">@(entry.Quantity > 0 ? "+" : "")@IndexModel.Count(entry.Quantity)</p>
+                            </div>
+                        </article>
+                    }
+                </div>
+                @if (Model.HistoryTotal > Model.HistorySize)
+                {
+                    <div class="mt-3 flex gap-2 text-sm">
+                        @if (Model.HistoryPage > 1)
+                        {
+                            <a class="font-semibold text-sky-700" href="@Model.HistoryPageUrl(Model.HistoryPage - 1)">Trước</a>
+                        }
+                        @if (Model.HistoryTo < Model.HistoryTotal)
+                        {
+                            <a class="font-semibold text-sky-700" href="@Model.HistoryPageUrl(Model.HistoryPage + 1)">Sau</a>
+                        }
+                    </div>
+                }
+            </section>
+        </div>
+    </aside>
+}
+
+<script type="application/json" id="stock-map">@Html.Raw(Model.BalanceJson)</script>
+<script>
+    const stockMap = JSON.parse(document.getElementById('stock-map').textContent || '[]');
+    function onHandAt(itemId, locationId) {
+        const row = stockMap.find(point => point.item === itemId && point.location === locationId);
+        return row ? row.onHand : 0;
+    }
+    function refreshTransferLabels() {
+        const source = document.getElementById('transfer-source').value;
+        document.querySelectorAll('.transfer-item').forEach(select => {
+            Array.from(select.options).forEach(option => {
+                if (!option.value || !option.dataset.base) {
+                    option.dataset.base = option.textContent;
+                }
+                if (!option.value) {
+                    return;
+                }
+                const left = source ? onHandAt(option.value, source) : null;
+                option.textContent = left === null ? option.dataset.base : option.dataset.base + ' (Kho xuất còn: ' + left + ')';
+            });
+        });
+    }
+    function reindexTransferLines() {
+        document.querySelectorAll('#transfer-lines .transfer-line').forEach((line, index) => {
+            const select = line.querySelector('select');
+            const input = line.querySelector('input');
+            select.name = 'Transfer.Lines[' + index + '].CatalogItemId';
+            input.name = 'Transfer.Lines[' + index + '].Quantity';
+        });
+    }
+    document.getElementById('transfer-source').addEventListener('change', refreshTransferLabels);
+    document.getElementById('add-transfer-line').addEventListener('click', () => {
+        const lines = document.getElementById('transfer-lines');
+        const copy = lines.querySelector('.transfer-line').cloneNode(true);
+        copy.querySelector('select').value = '';
+        copy.querySelector('input').value = '';
+        lines.appendChild(copy);
+        reindexTransferLines();
+        refreshTransferLabels();
+    });
+    function refreshBook() {
+        const item = document.getElementById('stocktake-item').value;
+        const location = document.getElementById('stocktake-location').value;
+        const book = document.getElementById('stocktake-book');
+        book.textContent = item && location ? 'Tồn sổ sách: ' + onHandAt(item, location) : 'Tồn sổ sách: —';
+    }
+    document.getElementById('stocktake-item').addEventListener('change', refreshBook);
+    document.getElementById('stocktake-location').addEventListener('change', refreshBook);
+    @if (Model.ShowTransferDialog)
+    {
+        <text>document.getElementById('transfer-dialog').showModal();</text>
+    }
+    @if (Model.ShowStocktakeDialog)
+    {
+        <text>document.getElementById('stocktake-dialog').showModal();</text>
+    }
+</script>

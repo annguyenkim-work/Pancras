@@ -24,6 +24,8 @@ public interface IEmployeeRepository
 
     Task<Employee?> GetByIdReadOnlyAsync(Guid id, CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<Employee>> ListReadOnlyAsync(CancellationToken cancellationToken);
+
     Task AddAsync(Employee employee, CancellationToken cancellationToken);
 
     Task<bool> TryAddAsync(Employee employee, CancellationToken cancellationToken);
@@ -35,7 +37,16 @@ public sealed record EmployeeSession(Guid Id, string FullName, string Code, stri
 
 public sealed record CreatedEmployee(Guid Id, string Code, string FullName, string Role);
 
-public sealed record EmployeeProfile(Guid Id, string FullName, string Code, string Role);
+public sealed record EmployeeProfile(
+    Guid Id,
+    string FullName,
+    string Code,
+    string Role,
+    string Email,
+    string Phone,
+    string Branch,
+    string JobTitle,
+    string Department);
 
 public sealed class LoginEmployeeCommand
 {
@@ -51,6 +62,16 @@ public sealed class CreateEmployeeCommand
     public string? Password { get; set; }
 
     public string? Role { get; set; }
+
+    public string? Email { get; set; }
+
+    public string? Phone { get; set; }
+
+    public string? Branch { get; set; }
+
+    public string? JobTitle { get; set; }
+
+    public string? Department { get; set; }
 }
 
 public sealed class UpdateEmployeeCommand
@@ -62,4 +83,14 @@ public sealed class UpdateEmployeeCommand
     public string? Password { get; set; }
 
     public string? Role { get; set; }
+
+    public string? Email { get; set; }
+
+    public string? Phone { get; set; }
+
+    public string? Branch { get; set; }
+
+    public string? JobTitle { get; set; }
+
+    public string? Department { get; set; }
 }

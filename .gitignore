@@ -16,3 +16,4 @@ Thumbs.db
 /specs
 *.cursorrules
 /ARCHITECTURE.md
+src/Pancras.Web/wwwroot/uploads/

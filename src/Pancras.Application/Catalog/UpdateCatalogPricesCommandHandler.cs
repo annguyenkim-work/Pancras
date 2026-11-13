@@ -43,6 +43,18 @@ public sealed class UpdateCatalogPricesCommandValidator : AbstractValidator<Upda
                 .WithState(_ => new CatalogIssue(CatalogField.WarrantyMonths, CatalogIssueKind.Negative));
             RuleFor(command => command.MinimumStock).Must(CatalogValidation.NotNegative)
                 .WithState(_ => new CatalogIssue(CatalogField.MinimumStock, CatalogIssueKind.Negative));
+            RuleFor(command => command.HeightMm).Must(CatalogValidation.NotNegative)
+                .WithState(_ => new CatalogIssue(CatalogField.Height, CatalogIssueKind.Negative));
+            RuleFor(command => command.LengthMm).Must(CatalogValidation.NotNegative)
+                .WithState(_ => new CatalogIssue(CatalogField.Length, CatalogIssueKind.Negative));
+            RuleFor(command => command.WidthMm).Must(CatalogValidation.NotNegative)
+                .WithState(_ => new CatalogIssue(CatalogField.Width, CatalogIssueKind.Negative));
+        });
+
+        When(command => command.ReplaceImage, () =>
+        {
+            RuleFor(command => command.ImagePath).Must(value => CatalogValidation.Fits(value, CatalogItem.ImagePathMaxLength))
+                .WithState(_ => new CatalogIssue(CatalogField.Image, CatalogIssueKind.TooLong, CatalogItem.ImagePathMaxLength));
         });
     }
 
@@ -109,7 +121,15 @@ public sealed class UpdateCatalogPricesCommandHandler(
                 command.WeightKg,
                 command.VolumeM3,
                 command.WarrantyMonths,
-                command.MinimumStock);
+                command.MinimumStock,
+                command.HeightMm,
+                command.LengthMm,
+                command.WidthMm);
+        }
+
+        if (command.ReplaceImage)
+        {
+            item.SetImage(command.ImagePath);
         }
 
         item.UpdatePrices(

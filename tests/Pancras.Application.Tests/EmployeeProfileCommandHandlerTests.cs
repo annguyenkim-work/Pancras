@@ -49,7 +49,12 @@ public class EmployeeProfileCommandHandlerTests
                 Id = employee.Id,
                 FullName = "Nguyễn Kim Bình",
                 Password = "",
-                Role = EmployeeRole.Sales
+                Role = EmployeeRole.Sales,
+                Email = "binh@example.com",
+                Phone = "0901000001",
+                Branch = "Showroom 1",
+                JobTitle = "Bán hàng",
+                Department = "Kinh doanh"
             },
             CancellationToken.None);
 
@@ -57,6 +62,7 @@ public class EmployeeProfileCommandHandlerTests
         Assert.Equal("AnNK", employee.Code);
         Assert.True(_hasher.Verify("Secret1", employee.PasswordHash));
         Assert.Equal("Nguyễn Kim Bình", employee.FullName);
+        Assert.Equal("Showroom 1", employee.Branch);
         Assert.Equal(stamp, employee.SecurityStamp);
     }
 
@@ -82,7 +88,11 @@ public class EmployeeProfileCommandHandlerTests
                 Id = employee.Id,
                 FullName = "Nguyễn Kim An",
                 Password = "Secret2",
-                Role = EmployeeRole.Sales
+                Role = EmployeeRole.Sales,
+                Email = "an@example.com",
+                Phone = "0901000000",
+                Branch = "Kho A",
+                JobTitle = "Thủ kho"
             },
             CancellationToken.None);
 
@@ -103,6 +113,11 @@ public class EmployeeProfileCommandHandlerTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal("AnNK", result.Value!.Code);
+        var stored = Assert.Single(_repository.Added);
+        Assert.Equal("an@example.com", stored.Email);
+        Assert.Equal("0901000000", stored.Phone);
+        Assert.Equal("Kho A", stored.Branch);
+        Assert.Equal("Thủ kho", stored.JobTitle);
     }
 
     [Fact]
@@ -159,6 +174,11 @@ public class EmployeeProfileCommandHandlerTests
         {
             FullName = fullName,
             Password = "Secret1",
-            Role = EmployeeRole.Sales
+            Role = EmployeeRole.Sales,
+            Email = "an@example.com",
+            Phone = "0901000000",
+            Branch = "Kho A",
+            JobTitle = "Thủ kho",
+            Department = "Kho"
         };
 }

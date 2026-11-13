@@ -69,6 +69,40 @@ public class UpdateCatalogPricesCommandHandlerTests
     }
 
     [Fact]
+    public async Task Update_KeepsTheImage_UntilANewFileReplacesIt()
+    {
+        var repository = new FakeCatalogRepository();
+        var item = ListCatalogItemsHandlerTests.Item("SP01", "Vòi", ProductCategory.SanitaryEquipment);
+        item.SetImage("/uploads/catalog/old.png");
+        repository.Items.Add(item);
+        var handler = new UpdateCatalogPricesCommandHandler(repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
+        var command = Command(item.Id, EmployeeRole.Admin, 9000000m);
+        command.IncludeDetails = true;
+        command.Code = "SP01";
+        command.Name = "Vòi";
+        command.Category = ProductCategory.SanitaryEquipment;
+        command.HeightMm = 10;
+        command.LengthMm = 20;
+        command.WidthMm = 30;
+
+        var kept = await handler.HandleAsync(command, CancellationToken.None);
+
+        Assert.True(kept.IsSuccess);
+        Assert.Equal(10, item.HeightMm);
+        Assert.Equal(20, item.LengthMm);
+        Assert.Equal(30, item.WidthMm);
+        Assert.Equal("/uploads/catalog/old.png", item.ImagePath);
+
+        command.ReplaceImage = true;
+        command.ImagePath = "/uploads/catalog/new.png";
+        var replaced = await handler.HandleAsync(command, CancellationToken.None);
+
+        Assert.True(replaced.IsSuccess);
+        Assert.Equal("/uploads/catalog/new.png", item.ImagePath);
+        Assert.Equal(10, item.HeightMm);
+    }
+
+    [Fact]
     public async Task Sales_WithDetails_DoesNotChangeTheProduct()
     {
         var repository = new FakeCatalogRepository();

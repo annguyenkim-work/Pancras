@@ -1,4 +1,4 @@
-@page "/nha-cung-cap"
+@page "/suppliers"
 @model Pancras.Web.Pages.Suppliers.IndexModel
 @{
     ViewData["Title"] = "Nhà cung cấp nhập khẩu";
@@ -6,19 +6,19 @@
 
 <section class="bg-white rounded-xl border border-slate-200 p-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
-        <h1 class="text-lg sm:text-xl font-bold text-slate-900">Nhà cung cấp nhập khẩu</h1>
+        <h1 class="font-display text-xl sm:text-2xl font-bold text-slate-900">Nhà cung cấp nhập khẩu</h1>
         <a href="@Model.AddUrl" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg" onclick="document.getElementById('supplier-edit-dialog').classList.add('hidden'); document.getElementById('supplier-dialog').classList.remove('hidden'); return false;">Thêm nhà cung cấp</a>
     </div>
-    <form method="get" action="/nha-cung-cap" class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
+    <form method="get" action="/suppliers" class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
         <div class="flex-1">
             <label class="block text-sm font-medium text-slate-600" for="supplier-search">Tìm kiếm</label>
             <input id="supplier-search" name="q" value="@Model.Search" placeholder="Mã hoặc tên nhà cung cấp" class="mt-1.5 w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white outline-none focus:border-slate-900" />
         </div>
         <div class="flex gap-2">
-            <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Tìm kiếm</button>
+            <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Lọc</button>
             @if (Model.HasSearch)
             {
-                <a href="/nha-cung-cap" class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 text-slate-600">Bỏ lọc</a>
+                <a href="/suppliers" class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 text-slate-600">Bỏ lọc</a>
             }
         </div>
     </form>
@@ -36,7 +36,7 @@
 
 @if (Model.Cards.Count == 0)
 {
-    <p class="mt-4 text-sm text-slate-600">@(Model.HasSearch ? "Không tìm thấy nhà cung cấp." : "Chưa có nhà cung cấp.")</p>
+    <partial name="_EmptyState" model='Model.HasSearch ? new EmptyStateModel("Không tìm thấy nhà cung cấp.", "Thử mã hoặc tên khác.", "Bỏ lọc", "/suppliers") : new EmptyStateModel("Chưa có nhà cung cấp.", "Thêm nhà cung cấp để lập đơn mua nhập khẩu.")' />
 }
 else
 {
@@ -55,10 +55,21 @@ else
                             <h2 class="text-sm font-bold leading-snug text-slate-900">@card.Name</h2>
                             <span class="shrink-0 rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-600">@card.Country</span>
                         </div>
-                        <p class="mt-1 font-mono text-xs font-medium tracking-wide text-slate-400">@card.Code</p>
+                        <p class="mt-1 font-mono text-xs font-medium tracking-wide text-slate-500">@card.Code</p>
                     </div>
                 </div>
-                <dl class="mt-5 space-y-2.5 text-sm">
+                <div class="mt-4 flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2.5 text-sm">
+                    <p class="text-slate-700"><span class="font-mono font-bold tabular-nums text-slate-900">@card.PurchaseOrderCount</span> đơn mua</p>
+                    @if (card.LotsNotReceived == 0)
+                    {
+                        <p class="font-medium text-emerald-700">Không có lô đang về</p>
+                    }
+                    else
+                    {
+                        <p class="font-medium text-orange-600"><span class="font-mono tabular-nums">@card.LotsNotReceived</span> lô chưa nhập kho</p>
+                    }
+                </div>
+                <dl class="mt-4 space-y-2 text-sm">
                     <div class="grid grid-cols-[5.25rem_1fr] gap-3">
                         <dt class="text-slate-500">Liên hệ</dt>
                         <dd class="text-right text-slate-800">@card.ContactName</dd>
@@ -76,20 +87,9 @@ else
                         <dd class="break-words text-right text-slate-800">@card.Account</dd>
                     </div>
                 </dl>
-                <div class="mt-auto flex items-center justify-between gap-3 pt-5 text-sm">
-                    <p class="text-slate-500"><span class="font-mono tabular-nums">@card.PurchaseOrderCount</span> đơn mua</p>
-                    @if (card.LotsNotReceived == 0)
-                    {
-                        <p class="font-medium text-emerald-600">Không có lô đang về</p>
-                    }
-                    else
-                    {
-                        <p class="font-medium text-orange-500"><span class="font-mono tabular-nums">@card.LotsNotReceived</span> lô chưa nhập kho</p>
-                    }
-                </div>
-                <div class="mt-4 flex justify-end gap-2">
-                    <a href="@Model.EditUrl(card.Id)" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Sửa</a>
-                    <a href="@Model.DeleteUrl(card.Id)" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-rose-50 text-rose-700" data-supplier-id="@card.Id" data-supplier-name="@card.Name" onclick="openDeleteSupplier(this); return false;">Xóa</a>
+                <div class="mt-auto flex items-center justify-between gap-2 border-t border-slate-100 pt-4">
+                    <a href="@Model.DeleteUrl(card.Id)" class="px-3 py-2 text-sm font-medium rounded-lg text-rose-700 hover:bg-rose-50" data-supplier-id="@card.Id" data-supplier-name="@card.Name" onclick="openDeleteSupplier(this); return false;">Xóa</a>
+                    <a href="@Model.EditUrl(card.Id)" class="px-4 py-2 text-sm font-bold rounded-lg bg-slate-100 text-slate-700">Sửa</a>
                 </div>
             </article>
         }

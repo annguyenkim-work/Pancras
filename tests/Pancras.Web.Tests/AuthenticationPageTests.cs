@@ -7,6 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Pancras.Application.Catalog;
 using Pancras.Application.Employees;
+using Pancras.Application.Purchasing;
+using Pancras.Application.Inventory;
 using Pancras.Application.Suppliers;
 using Pancras.Domain.Employees;
 using Pancras.Domain.Suppliers;
@@ -32,7 +34,7 @@ public class AuthenticationPageTests : IClassFixture<PancrasWebFactory>
         var response = await client.GetAsync("/");
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-        Assert.Contains("/dang-nhap", response.Headers.Location?.OriginalString, StringComparison.Ordinal);
+        Assert.Contains("/login", response.Headers.Location?.OriginalString, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -47,7 +49,7 @@ public class AuthenticationPageTests : IClassFixture<PancrasWebFactory>
         Assert.Contains("Pancras.Auth", setCookie, StringComparison.Ordinal);
         Assert.Contains("expires=", setCookie, StringComparison.OrdinalIgnoreCase);
 
-        var create = await client.GetAsync("/nhan-vien/them");
+        var create = await client.GetAsync("/employees/new");
         var html = await create.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, create.StatusCode);
@@ -63,10 +65,10 @@ public class AuthenticationPageTests : IClassFixture<PancrasWebFactory>
         ResetEmployees(sales);
         await SignInAsync(client, "SalesLT", "Secret1");
 
-        var response = await client.GetAsync("/nhan-vien/them");
+        var response = await client.GetAsync("/employees/new");
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-        Assert.Contains("/tu-choi", response.Headers.Location?.OriginalString, StringComparison.Ordinal);
+        Assert.Contains("/access-denied", response.Headers.Location?.OriginalString, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -78,10 +80,10 @@ public class AuthenticationPageTests : IClassFixture<PancrasWebFactory>
         await SignInAsync(client, "admin", "Admin@12345");
         Assert.True(admin.ReplacePassword(_hasher.Hash("other-password")));
 
-        var response = await client.GetAsync("/nhan-vien/them");
+        var response = await client.GetAsync("/employees/new");
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-        Assert.Contains("/dang-nhap", response.Headers.Location?.OriginalString, StringComparison.Ordinal);
+        Assert.Contains("/login", response.Headers.Location?.OriginalString, StringComparison.Ordinal);
     }
 
     private Employee Admin() =>
@@ -96,7 +98,7 @@ public class AuthenticationPageTests : IClassFixture<PancrasWebFactory>
 
     private static async Task<HttpResponseMessage> SignInAsync(HttpClient client, string code, string password)
     {
-        var login = await client.GetAsync("/dang-nhap");
+        var login = await client.GetAsync("/login");
         var html = await login.Content.ReadAsStringAsync();
         var token = Regex.Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
         Assert.False(string.IsNullOrEmpty(token));
@@ -106,7 +108,7 @@ public class AuthenticationPageTests : IClassFixture<PancrasWebFactory>
             ["Command.Password"] = password,
             ["__RequestVerificationToken"] = token
         });
-        return await client.PostAsync("/dang-nhap", form);
+        return await client.PostAsync("/login", form);
     }
 
     private static WebApplicationFactoryClientOptions NoRedirect { get; } = new()
@@ -138,6 +140,12 @@ public sealed class PancrasWebFactory : WebApplicationFactory<Program>
             services.RemoveAll<ICatalogItemRepository>();
             services.AddSingleton<CatalogDirectoryDouble>();
             services.AddSingleton<ICatalogItemRepository>(provider => provider.GetRequiredService<CatalogDirectoryDouble>());
+            services.RemoveAll<IInventoryRepository>();
+            services.AddSingleton<InventoryDirectoryDouble>();
+            services.AddSingleton<IInventoryRepository>(provider => provider.GetRequiredService<InventoryDirectoryDouble>());
+            services.RemoveAll<IPurchaseOrderRepository>();
+            services.AddSingleton<PurchaseDirectoryDouble>();
+            services.AddSingleton<IPurchaseOrderRepository>(provider => provider.GetRequiredService<PurchaseDirectoryDouble>());
         });
     }
 }
@@ -164,6 +172,9 @@ internal sealed class FakeEmployeeRepository : IEmployeeRepository
 
     public Task<Employee?> GetByIdReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
         GetByIdAsync(id, cancellationToken);
+
+    public Task<IReadOnlyList<Employee>> ListReadOnlyAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<Employee>>(Employees.ToArray());
 
     public Task AddAsync(Employee employee, CancellationToken cancellationToken) =>
         Task.CompletedTask;

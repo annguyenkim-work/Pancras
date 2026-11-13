@@ -1,0 +1,457 @@
+@page "/purchasing"
+@model Pancras.Web.Pages.Purchasing.IndexModel
+@using System.Globalization
+@using Pancras.Domain.Purchasing
+@using Pancras.Web.Formatting
+@{
+    ViewData["Title"] = "Mua hàng & Container Nhập";
+    const string costNote = "Giá vốn dòng = FOB quy đổi + thuế nhập khẩu của dòng + phí logistics được chia. FOB quy đổi = số lượng × đơn giá FOB (USD) × tỷ giá, làm tròn tới đồng. Thuế nhập khẩu = FOB quy đổi × suất thuế của dòng. Phí logistics chia theo trị giá FOB, phần dư đồng về dòng cuối. VAT = (FOB quy đổi + thuế nhập khẩu) × suất VAT chung và không cộng vào giá vốn.";
+}
+
+<section class="bg-white rounded-xl border border-slate-200 p-6">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+            <h1 class="font-display text-xl sm:text-2xl font-bold text-slate-900">Mua Hàng, Container Nhập Khẩu &amp; Phân Bổ Giá Vốn (Landed Cost)</h1>
+            <p class="mt-1 text-sm text-slate-500">Hỗ trợ lập phiếu mua nhiều mặt hàng trong cùng 1 container, tự động phân bổ chi phí logistics và thuế nhập khẩu vào giá vốn từng sản phẩm.</p>
+        </div>
+        <a href="/purchasing?form=1" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">+ Tạo Đơn Mua Hàng &amp; Container</a>
+    </div>
+    @if (!string.IsNullOrEmpty(Model.Notice))
+    {
+        <p class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800" role="status">@Model.Notice</p>
+    }
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <p class="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800" role="alert">@Model.ErrorMessage</p>
+    }
+</section>
+
+@if (Model.Orders.Count == 0)
+{
+    <partial name="_EmptyState" model='new EmptyStateModel("Chưa có đơn mua.", "Tạo đơn mua đầu tiên để theo dõi container và phân bổ giá vốn.", "+ Tạo Đơn Mua Hàng & Container", "/purchasing?form=1")' />
+}
+else
+{
+    <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[22rem_minmax(0,1fr)]">
+        <section class="space-y-3">
+            <h2 class="text-xs font-bold tracking-wide text-slate-500">DANH SÁCH ĐƠN MUA CONTAINER (@Model.Orders.Count)</h2>
+            @foreach (var card in Model.Orders)
+            {
+                var selected = Model.Selected?.Id == card.Id;
+                <a href="/purchasing?order=@card.Id" class="block rounded-xl border bg-white p-4 @(selected ? "border-sky-500 shadow-sm" : "border-slate-200")">
+                    <div class="flex items-start justify-between gap-2">
+                        <p class="font-mono text-sm font-bold text-slate-900">@card.Code <span class="font-sans font-medium text-slate-500">@card.LineCount mặt hàng</span></p>
+                        <span class="shrink-0 rounded-md px-2 py-1 text-xs font-bold @(card.Status == PurchaseStatus.Received ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")">@(card.Status == PurchaseStatus.Received ? "Đã nhập kho" : "Đang mở")</span>
+                    </div>
+                    <p class="mt-2 text-sm font-medium text-slate-800">@card.SupplierName</p>
+                    <p class="mt-1 text-xs text-slate-500">Cont: @card.ContainerNumber · B/L: @card.BillOfLading</p>
+                    <p class="text-xs text-slate-500">Cảng @card.Port @(card.ExpectedOn is null ? "" : $"· ETA {card.ExpectedOn:dd/MM/yyyy}")</p>
+                    <div class="mt-3 flex items-end justify-between gap-2 text-xs text-slate-500">
+                        <span>Kho nhận: @card.ReceiveLocationName</span>
+                        <span class="font-bold tabular-nums text-slate-900">@VndMoney.FormatDong(card.LandedTotal)</span>
+                    </div>
+                </a>
+            }
+        </section>
+
+        @if (Model.Selected is { } order)
+        {
+            var quantity = order.Lines.Sum(line => line.Quantity);
+            <section class="rounded-xl border border-slate-200 bg-white p-5">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900">@order.Code · @order.SupplierName</h2>
+                        <p class="mt-1 text-sm text-slate-500">Cont: @order.ContainerNumber · B/L: @order.BillOfLading · Cảng: @order.Port · Kho nhận: @order.ReceiveLocationName</p>
+                        <p class="mt-1 text-sm text-slate-500">Tỷ giá @VndMoney.FormatDong(order.ExchangeRate) / USD · VAT @((order.VatRate * 100m).ToString("0.####"))%</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <form method="post" asp-page-handler="Export">
+                            <input type="hidden" name="orderId" value="@order.Id" />
+                            <button type="submit" class="px-3 py-2 text-sm font-bold rounded-lg bg-slate-100 text-slate-700">Xuất Excel</button>
+                        </form>
+                        @if (order.Status == PurchaseStatus.Open)
+                        {
+                            <form method="post" asp-page-handler="Receive">
+                                <input type="hidden" name="orderId" value="@order.Id" />
+                                <button type="submit" class="px-3 py-2 text-sm font-bold text-white bg-emerald-600 rounded-lg">Nhập Kho &amp; Cập Nhật Giá Vốn (@order.Lines.Count món)</button>
+                            </form>
+                        }
+                    </div>
+                </div>
+
+                <div class="mt-5 flex items-end justify-between gap-3">
+                    <h3 class="text-xs font-bold tracking-wide text-slate-500">DANH SÁCH MẶT HÀNG TRONG CONTAINER</h3>
+                    <p class="text-xs text-slate-500">Tổng SL: @quantity</p>
+                </div>
+                <p class="mt-2 text-xs leading-5 text-slate-500">@costNote</p>
+                <div class="mt-3 overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead class="text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+                            <tr>
+                                <th class="py-2 pr-3">Mã SKU</th>
+                                <th class="py-2 pr-3">Tên sản phẩm</th>
+                                <th class="py-2 pr-3">SL</th>
+                                <th class="py-2 pr-3">Giá FOB (USD)</th>
+                                <th class="py-2 pr-3">Thuế NK</th>
+                                <th class="py-2 pr-3">Trị giá hải quan</th>
+                                <th class="py-2 pr-3">Giá tính VAT</th>
+                                <th class="py-2 pr-3">VAT</th>
+                                <th class="py-2 pr-3">Chi phí phân bổ</th>
+                                <th class="py-2 pr-3">Giá vốn dòng</th>
+                                <th class="py-2 pr-3">Giá vốn / đơn vị</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var line in order.Lines)
+                            {
+                                <tr class="border-t border-slate-100 align-top">
+                                    <td class="py-2 pr-3 font-mono">@line.ItemCode</td>
+                                    <td class="py-2 pr-3">@line.ItemName</td>
+                                    <td class="py-2 pr-3 tabular-nums">@line.Quantity</td>
+                                    <td class="py-2 pr-3 tabular-nums">@((line.Quantity == 0 ? line.FobUsd : line.FobUsd / line.Quantity).ToString("0.##")) USD</td>
+                                    <td class="py-2 pr-3 tabular-nums">@((line.DutyRate * 100m).ToString("0.####"))%</td>
+                                    <td class="py-2 pr-3 tabular-nums">@VndMoney.FormatDong(line.Cost.CustomsInUse)</td>
+                                    <td class="py-2 pr-3 tabular-nums">@VndMoney.FormatDong(line.Cost.VatBase)</td>
+                                    <td class="py-2 pr-3 tabular-nums">@VndMoney.FormatDong(line.Cost.VatInUse)</td>
+                                    <td class="py-2 pr-3 tabular-nums text-emerald-700">@VndMoney.FormatDong(line.Cost.LogisticsAllocated)</td>
+                                    <td class="py-2 pr-3 tabular-nums">@VndMoney.FormatDong(line.Cost.LandedCost)</td>
+                                    <td class="py-2 pr-3 tabular-nums font-bold">
+                                        <a class="text-sky-700" href="/purchasing?order=@order.Id&amp;formula=@line.Id">@VndMoney.FormatDong(line.Cost.UnitCost)</a>
+                                        @if (line.Cost.CustomsValueWarn || line.Cost.DutyWarn || line.Cost.VatWarn)
+                                        {
+                                            <span class="block text-xs font-bold text-amber-700">Khác tờ khai.</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                @if (Model.FormulaLine is { } formula)
+                {
+                    <section class="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-slate-700">
+                        <h3 class="font-bold text-slate-900">Công thức giá vốn · @formula.ItemCode</h3>
+                        <p class="mt-2">@costNote</p>
+                        <p class="mt-2">Dòng này: FOB quy đổi @VndMoney.FormatDong(formula.Cost.FobConverted), thuế nhập khẩu @VndMoney.FormatDong(formula.Cost.DutyInUse), phí logistics @VndMoney.FormatDong(formula.Cost.LogisticsAllocated), giá vốn dòng @VndMoney.FormatDong(formula.Cost.LandedCost), đơn giá @VndMoney.FormatDong(formula.Cost.UnitCost).</p>
+                        @if (formula.Cost.CustomsValueWarn || formula.Cost.DutyWarn || formula.Cost.VatWarn)
+                        {
+                            <p class="mt-2 font-bold text-amber-700">Số dự kiến khác số tờ khai.</p>
+                        }
+                    </section>
+                }
+                @if (order.Status == PurchaseStatus.Open)
+                {
+                    <section class="mt-4 rounded-xl border border-slate-200 p-4">
+                        <h3 class="text-sm font-bold text-slate-900">Tờ khai hải quan</h3>
+                        <p class="mt-1 text-xs text-slate-500">Nhập số tờ khai của một dòng. Để trống ô nào thì dòng đó giữ số dự kiến.</p>
+                        @foreach (var line in order.Lines)
+                        {
+                            <form method="post" asp-page-handler="Declaration" class="mt-3 grid grid-cols-1 gap-2 border-t border-slate-100 pt-3 md:grid-cols-4">
+                                <input type="hidden" name="DeclarationCommand.PurchaseOrderId" value="@order.Id" />
+                                <input type="hidden" name="DeclarationCommand.LineId" value="@line.Id" />
+                                <p class="text-sm font-medium md:col-span-4">@line.ItemCode — @line.ItemName</p>
+                                <label class="text-xs">Trị giá hải quan<input name="DeclaredCustomsText" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2" value="@line.DeclaredCustomsValue" /></label>
+                                <label class="text-xs">Thuế NK<input name="DeclaredDutyText" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2" value="@line.DeclaredDuty" /></label>
+                                <label class="text-xs">VAT<input name="DeclaredVatText" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2" value="@line.DeclaredVat" /></label>
+                                <button type="submit" class="self-end rounded-lg bg-slate-900 px-3 py-2 text-sm font-bold text-white">Lưu tờ khai</button>
+                            </form>
+                        }
+                    </section>
+                }
+                <h3 class="mt-6 text-xs font-bold tracking-wide text-slate-500">BẢNG CHI PHÍ NHẬP KHẨU &amp; PHÂN BỔ (LANDED COST BREAKDOWN)</h3>
+                <p class="mt-1 text-xs leading-5 text-slate-600">Cước tàu biển, phí nâng hạ tại cảng (THC), phí D/O, vệ sinh container, phí kiểm định và cước kéo xe về kho được gộp sẵn thành một khoản logistics. THC là phí cảng thu để nâng container từ tàu xuống bãi, xếp trong bãi rồi đưa lên xe. Khoản này chia theo trị giá FOB, cộng vào giá vốn từng mặt hàng, và không cộng vào giá tính VAT.</p>
+                <ul class="mt-3 divide-y divide-slate-100 text-sm">
+                    <li class="flex justify-between gap-3 py-2"><span>Thuế nhập khẩu theo suất từng mặt hàng</span><span class="tabular-nums font-medium">@VndMoney.FormatDong(order.Lines.Sum(line => line.Cost.DutyInUse))</span></li>
+                    <li class="flex justify-between gap-3 py-2"><span>VAT @((order.VatRate * 100m).ToString("0.####"))% chung các dòng. Không cộng vào giá vốn.</span><span class="tabular-nums font-medium">@VndMoney.FormatDong(order.Lines.Sum(line => line.Cost.VatInUse))</span></li>
+                    @foreach (var charge in order.Charges)
+                    {
+                        <li class="flex justify-between gap-3 py-2">
+                            <span>@VndMoney.FormatDong(charge.Amount) · @(charge.Group switch
+                            {
+                                ChargeGroup.Logistics => "Logistics",
+                                ChargeGroup.CustomsValueAdjustment => "Điều chỉnh trị giá hải quan",
+                                ChargeGroup.DeductibleTax => "Thuế được khấu trừ",
+                                ChargeGroup.NonDeductibleTax => "Thuế không được khấu trừ",
+                                _ => "Chưa nhóm"
+                            })</span>
+                            <span class="tabular-nums">@VndMoney.FormatDong(charge.Amount)</span>
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+    </div>
+}
+
+@if (Model.ShowForm)
+{
+    <div class="fixed inset-0 z-40 bg-slate-900/50"></div>
+    <dialog open class="fixed inset-0 z-50 m-auto flex w-[min(72rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl">
+        <div class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
+            <h2 class="text-lg font-bold text-slate-900">Lập Phiếu Mua Hàng &amp; Container Nhập Khẩu (Nhiều Mặt Hàng)</h2>
+            <a href="/purchasing" class="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-2xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Đóng">×</a>
+        </div>
+        <form method="post" asp-page-handler="Create" id="purchase-draft" class="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+            @if (Model.Suppliers.Count == 0 || Model.Locations.Count == 0 || Model.Items.Count == 0)
+            {
+                <p class="mt-3 text-sm text-amber-800">Cần có nhà cung cấp, địa điểm kho và mặt hàng trong danh mục trước khi tạo đơn.</p>
+            }
+            <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+                <label class="text-sm">Mã đơn<input asp-for="Form.Code" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
+                <label class="text-sm">Nhà cung cấp quốc tế
+                    <select asp-for="Form.SupplierId" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                        <option value="">Chọn nhà cung cấp</option>
+                        @foreach (var supplier in Model.Suppliers)
+                        {
+                            <option value="@supplier.Id">@supplier.Code — @supplier.Name</option>
+                        }
+                    </select>
+                </label>
+                <label class="text-sm">Kho tiếp nhận đích
+                    <select asp-for="Form.ReceiveLocationId" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                        <option value="">Chọn kho nhận</option>
+                        @foreach (var location in Model.Locations)
+                        {
+                            <option value="@location.Id">@location.Name</option>
+                        }
+                    </select>
+                </label>
+                <label class="text-sm">Tỷ giá (đ / USD)
+                    <span class="mt-1 flex items-center gap-2">
+                        <input asp-for="Form.ExchangeRate" id="rate" inputmode="numeric" class="vnd draft w-full rounded-lg border border-slate-300 px-3 py-2" />
+                        <span class="shrink-0 text-sm text-slate-500">đ</span>
+                    </span>
+                </label>
+                <label class="text-sm">Số hiệu Container<input asp-for="Form.ContainerNumber" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
+                <label class="text-sm">Số Vận đơn (Bill of Lading)<input asp-for="Form.BillOfLading" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
+                <label class="text-sm">Cảng Đến Tiếp Nhận<input asp-for="Form.Port" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
+                <label class="text-sm">Ngày Dự Kiến Cập Cảng (ETA)<input asp-for="Form.ExpectedOn" type="date" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
+            </div>
+
+            <div class="mt-6 flex flex-wrap items-end justify-between gap-3">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900">DANH SÁCH CÁC MẶT HÀNG ĐẶT MUA TRONG CONTAINER (<span id="line-count">0</span> MẶT HÀNG)</h3>
+                    <p class="mt-1 max-w-3xl text-xs leading-5 text-slate-500">@costNote</p>
+                </div>
+                <button type="button" id="add-line" class="text-sm font-bold text-sky-700">+ Thêm Mặt Hàng Nhập</button>
+            </div>
+            <div class="mt-3 overflow-x-auto">
+                <table class="min-w-[68rem] w-full text-sm">
+                    <thead class="text-left text-xs font-bold text-slate-500">
+                        <tr>
+                            <th class="py-2 pr-2">Sản phẩm / Thiết bị</th>
+                            <th class="py-2 pr-2">Số lượng</th>
+                            <th class="py-2 pr-2">Đơn giá FOB (USD)</th>
+                            <th class="py-2 pr-2">FOB (đ)</th>
+                            <th class="py-2 pr-2">Thuế NK %</th>
+                            <th class="py-2 pr-2">Tiền thuế NK</th>
+                            <th class="py-2 pr-2">Phí logistics</th>
+                            <th class="py-2 pr-2">Giá vốn / đơn vị</th>
+                            <th class="py-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="line-body">
+                        @for (var index = 0; index < Model.Form.Lines.Count; index++)
+                        {
+                            var line = Model.Form.Lines[index];
+                            var unitPrice = index < Model.Form.UnitPrices.Count ? Model.Form.UnitPrices[index] : 0m;
+                            var dutyPercent = index < Model.Form.DutyPercents.Count ? Model.Form.DutyPercents[index] : 0m;
+                            <tr class="line-row border-t border-slate-100">
+                                <td class="py-2 pr-2">
+                                    <select name="Form.Lines[@index].CatalogItemId" class="w-64 rounded-lg border border-slate-300 px-2 py-2">
+                                        <option value="">Chọn mặt hàng</option>
+                                        @foreach (var item in Model.Items)
+                                        {
+                                            if (item.Id == line.CatalogItemId)
+                                            {
+                                                <option value="@item.Id" selected>@item.Code — @item.Name</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@item.Id">@item.Code — @item.Name</option>
+                                            }
+                                        }
+                                    </select>
+                                </td>
+                                <td class="py-2 pr-2"><input name="Form.Lines[@index].Quantity" value="@line.Quantity.ToString(CultureInfo.InvariantCulture)" class="line-qty draft w-20 rounded-lg border border-slate-300 px-2 py-2" /></td>
+                                <td class="py-2 pr-2"><input name="Form.UnitPrices[@index]" value="@unitPrice.ToString("0.####", CultureInfo.InvariantCulture)" class="line-unit draft w-24 rounded-lg border border-slate-300 px-2 py-2" /></td>
+                                <td class="out-fob py-2 pr-2 tabular-nums text-slate-700">0 đ</td>
+                                <td class="py-2 pr-2"><input name="Form.DutyPercents[@index]" value="@dutyPercent.ToString("0.####", CultureInfo.InvariantCulture)" class="line-duty draft w-16 rounded-lg border border-amber-200 bg-amber-50 px-2 py-2" /></td>
+                                <td class="out-duty py-2 pr-2 tabular-nums">0 đ</td>
+                                <td class="out-logistics py-2 pr-2 tabular-nums text-emerald-700">0 đ</td>
+                                <td class="out-unit py-2 pr-2 font-bold tabular-nums">0 đ</td>
+                                <td class="py-2 text-right">
+                                    <button type="button" class="remove-line rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600" aria-label="Xóa mặt hàng" title="Xóa mặt hàng">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-9 0 1 12h8l1-12" />
+                                        </svg>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p class="mt-2 text-xs text-slate-500">FOB <span id="sum-fob">0 đ</span> · Thuế NK <span id="sum-duty">0 đ</span> · VAT <span id="sum-vat">0 đ</span></p>
+
+            <section class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <div class="flex items-center justify-between gap-3">
+                    <h3 class="text-sm font-bold text-slate-900">VAT CHUNG VÀ PHÍ LOGISTICS CỦA CONTAINER</h3>
+                    <p class="text-sm font-bold">Tổng chi phí: <span id="sum-extra">0 đ</span></p>
+                </div>
+                <p class="mt-1 text-xs leading-5 text-slate-600">Một suất VAT cho mọi dòng. Thuế nhập khẩu nằm trên từng mặt hàng.</p>
+                <p class="mt-2 text-xs leading-5 text-slate-700" role="note">Cước tàu biển, phí nâng hạ tại cảng (THC), phí D/O, vệ sinh container, phí kiểm định và cước kéo xe từ cảng về kho được gộp sẵn thành một khoản logistics. THC là phí cảng thu để nâng container từ tàu xuống bãi, xếp trong bãi rồi đưa lên xe. Khoản này chia theo trị giá FOB, cộng vào giá vốn từng mặt hàng, và không cộng vào giá tính VAT.</p>
+                <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+                    <label class="text-sm">Thuế VAT (%)<input asp-for="Form.VatPercent" id="vat-percent" class="draft mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
+                    <label class="text-sm">2. Cước tàu biển quốc tế (Ocean Freight)
+                        <span class="mt-1 flex items-center gap-2">
+                            <input asp-for="Form.OceanFreight" id="ocean" inputmode="numeric" class="vnd draft w-full rounded-lg border border-slate-300 px-3 py-2" />
+                            <span class="shrink-0 text-sm text-slate-500">đ</span>
+                        </span>
+                    </label>
+                    <label class="text-sm">3. Phí nâng hạ bãi cảng (THC, D/O, vệ sinh cont)
+                        <span class="mt-1 flex items-center gap-2">
+                            <input asp-for="Form.PortHandling" id="port-fee" inputmode="numeric" class="vnd draft w-full rounded-lg border border-slate-300 px-3 py-2" />
+                            <span class="shrink-0 text-sm text-slate-500">đ</span>
+                        </span>
+                    </label>
+                    <label class="text-sm">4. Phí kiểm định chất lượng sản phẩm
+                        <span class="mt-1 flex items-center gap-2">
+                            <input asp-for="Form.InspectionFee" id="inspection" inputmode="numeric" class="vnd draft w-full rounded-lg border border-slate-300 px-3 py-2" />
+                            <span class="shrink-0 text-sm text-slate-500">đ</span>
+                        </span>
+                    </label>
+                    <label class="text-sm">5. Vận chuyển kéo xe container từ cảng về kho
+                        <span class="mt-1 flex items-center gap-2">
+                            <input asp-for="Form.InlandTrucking" id="trucking" inputmode="numeric" class="vnd draft w-full rounded-lg border border-slate-300 px-3 py-2" />
+                            <span class="shrink-0 text-sm text-slate-500">đ</span>
+                        </span>
+                    </label>
+                </div>
+            </section>
+
+            <div class="mt-4 rounded-xl bg-slate-900 px-4 py-3 text-white sm:flex sm:items-center sm:justify-between">
+                <p>Tổng giá trị đơn mua container hoàn chỉnh: <span id="sum-order" class="text-lg font-bold">0 đ</span></p>
+                <p class="text-xs text-slate-300">Tiền hàng <span id="foot-fob">0 đ</span> · Thuế NK <span id="foot-duty">0 đ</span> · VAT <span id="foot-vat">0 đ</span> · Phí logistics <span id="foot-logistics">0 đ</span></p>
+            </div>
+            <div class="mt-4 flex justify-end gap-2">
+                <a href="/purchasing" class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 text-slate-600">Hủy</a>
+                <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Lưu Đơn Mua Hàng &amp; Container</button>
+            </div>
+        </form>
+    </dialog>
+    <script>
+        (function () {
+            const body = document.getElementById("line-body");
+            const money = new Intl.NumberFormat("vi-VN");
+            const dong = (value) => money.format(Math.round(value)) + " đ";
+            const roundDong = (value) => Math.sign(value) * Math.round(Math.abs(value));
+            const plainNumber = (input) => {
+                if (input.classList.contains("vnd")) {
+                    const digits = String(input.value).replace(/\D/g, "");
+                    return digits === "" ? 0 : Number(digits);
+                }
+
+                const value = Number(String(input.value).trim().replace(",", "."));
+                return Number.isFinite(value) ? value : 0;
+            };
+            const template = body.querySelector(".line-row")?.cloneNode(true) ?? null;
+            function formatVndInputs() {
+                document.querySelectorAll(".vnd").forEach((input) => {
+                    const formatted = money.format(plainNumber(input));
+                    if (input.value !== formatted) {
+                        input.value = formatted;
+                    }
+                });
+            }
+            function reindex() {
+                [...body.querySelectorAll(".line-row")].forEach((row, index) => {
+                    row.querySelector("select").name = `Form.Lines[${index}].CatalogItemId`;
+                    row.querySelector(".line-qty").name = `Form.Lines[${index}].Quantity`;
+                    row.querySelector(".line-unit").name = `Form.UnitPrices[${index}]`;
+                    row.querySelector(".line-duty").name = `Form.DutyPercents[${index}]`;
+                });
+            }
+            function paint() {
+                formatVndInputs();
+                const rate = roundDong(plainNumber(document.getElementById("rate")));
+                const vatRate = Math.round(plainNumber(document.getElementById("vat-percent")) * 100) / 10000;
+                const logistics = ["ocean", "port-fee", "inspection", "trucking"].reduce((sum, id) => sum + roundDong(plainNumber(document.getElementById(id))), 0);
+                const rows = [...body.querySelectorAll(".line-row")];
+                const drafts = rows.map((row) => {
+                    const qty = plainNumber(row.querySelector(".line-qty"));
+                    const unit = Math.round(plainNumber(row.querySelector(".line-unit")) * 100) / 100;
+                    const dutyRate = Math.round(plainNumber(row.querySelector(".line-duty")) * 100) / 10000;
+                    const fob = roundDong(unit * qty * rate);
+                    return { row, qty, fob, duty: fob * dutyRate };
+                }).filter((line) => line.qty > 0 && line.fob > 0);
+                const totalFob = drafts.reduce((sum, line) => sum + line.fob, 0);
+                const shares = [];
+                let used = 0;
+                drafts.forEach((line, index) => {
+                    const share = index === drafts.length - 1 ? logistics - used : Math.trunc(logistics * line.fob / totalFob);
+                    used += share;
+                    shares.push(share);
+                });
+                rows.forEach((row) => {
+                    row.querySelector(".out-fob").textContent = "0 đ";
+                    row.querySelector(".out-duty").textContent = "0 đ";
+                    row.querySelector(".out-logistics").textContent = "0 đ";
+                    row.querySelector(".out-unit").textContent = "0 đ";
+                });
+                let dutySum = 0;
+                let vatSum = 0;
+                drafts.forEach((line, index) => {
+                    const landed = line.fob + line.duty + shares[index];
+                    dutySum += line.duty;
+                    vatSum += (line.fob + line.duty) * vatRate;
+                    line.row.querySelector(".out-fob").textContent = dong(line.fob);
+                    line.row.querySelector(".out-duty").textContent = dong(line.duty);
+                    line.row.querySelector(".out-logistics").textContent = dong(shares[index]);
+                    line.row.querySelector(".out-unit").textContent = dong(line.qty === 0 ? 0 : landed / line.qty);
+                });
+                document.getElementById("line-count").textContent = String(rows.length);
+                document.getElementById("sum-fob").textContent = dong(totalFob);
+                document.getElementById("sum-duty").textContent = dong(dutySum);
+                document.getElementById("sum-vat").textContent = dong(vatSum);
+                document.getElementById("sum-extra").textContent = dong(logistics + vatSum);
+                document.getElementById("sum-order").textContent = dong(totalFob + dutySum + vatSum + logistics);
+                document.getElementById("foot-fob").textContent = dong(totalFob);
+                document.getElementById("foot-duty").textContent = dong(dutySum);
+                document.getElementById("foot-vat").textContent = dong(vatSum);
+                document.getElementById("foot-logistics").textContent = dong(logistics);
+            }
+            document.getElementById("add-line").addEventListener("click", () => {
+                if (!template) {
+                    return;
+                }
+
+                const row = template.cloneNode(true);
+                row.querySelectorAll("input").forEach((input) => { input.value = "0"; });
+                row.querySelector("select").selectedIndex = 0;
+                body.appendChild(row);
+                reindex();
+                paint();
+            });
+            body.addEventListener("click", (event) => {
+                const button = event.target.closest(".remove-line");
+                if (!button) {
+                    return;
+                }
+
+                button.closest(".line-row")?.remove();
+                reindex();
+                paint();
+            });
+            document.getElementById("purchase-draft").addEventListener("input", paint);
+            document.getElementById("purchase-draft").addEventListener("submit", () => {
+                document.querySelectorAll(".vnd").forEach((input) => {
+                    input.value = String(plainNumber(input));
+                });
+            });
+            reindex();
+            paint();
+        })();
+    </script>
+}

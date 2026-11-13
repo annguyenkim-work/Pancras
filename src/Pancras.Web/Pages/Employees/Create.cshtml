@@ -1,20 +1,41 @@
-@page "/nhan-vien/them"
+@page "/employees/new"
 @model Pancras.Web.Pages.Employees.CreateModel
 @{
     ViewData["Title"] = "Thêm nhân viên";
 }
 
 <section class="bg-white rounded-xl border border-slate-200 p-6 max-w-xl">
-    <h1 class="text-lg sm:text-xl font-bold text-slate-900">Thêm nhân viên</h1>
+    <h1 class="font-display text-xl sm:text-2xl font-bold text-slate-900">Thêm nhân viên</h1>
+    <a class="inline-block mt-2 text-sm font-bold text-sky-700" href="/employees">Về danh sách</a>
     @if (Model.CreatedCode is not null)
     {
         <p class="mt-4 text-sm text-slate-700">Mã nhân viên: <span class="font-mono tabular-nums font-bold">@Model.CreatedCode</span></p>
-        <a class="inline-block mt-2 text-sm font-bold text-sky-700" href="/nhan-vien/sua/@Model.CreatedId">Sửa hồ sơ</a>
+        <a class="inline-block mt-2 text-sm font-bold text-sky-700" href="/employees?edit=@Model.CreatedId">Sửa hồ sơ</a>
     }
     <form method="post" class="mt-6 space-y-4">
         <div>
             <label class="block text-sm font-medium text-slate-700" asp-for="Command.FullName">Họ tên</label>
             <input asp-for="Command.FullName" class="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300" />
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700" asp-for="Command.Email">Email</label>
+            <input asp-for="Command.Email" type="email" class="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300" />
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700" asp-for="Command.Phone">Điện thoại</label>
+            <input asp-for="Command.Phone" class="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300" />
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700" asp-for="Command.Branch">Chi nhánh</label>
+            <input asp-for="Command.Branch" class="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300" />
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700" asp-for="Command.JobTitle">Chức vụ</label>
+            <input asp-for="Command.JobTitle" class="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300" />
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700" asp-for="Command.Department">Phòng ban</label>
+            <input asp-for="Command.Department" class="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300" />
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700" asp-for="Command.Password">Mật khẩu</label>
@@ -32,7 +53,7 @@
         </div>
         @if (Model.Error == EmployeeError.ProfileIncomplete)
         {
-            <p class="text-xs font-medium text-rose-700">Cần nhập đủ họ tên và mật khẩu.</p>
+            <p class="text-xs font-medium text-rose-700">Cần đủ họ tên, email, điện thoại, chi nhánh, chức vụ và mật khẩu.</p>
         }
         else if (Model.Error == EmployeeError.InvalidRole)
         {

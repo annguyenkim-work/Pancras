@@ -1,11 +1,11 @@
-@page "/nhan-vien/sua/{id:guid}"
+@page "/employees/{id:guid}/edit"
 @model Pancras.Web.Pages.Employees.EditModel
 @{
     ViewData["Title"] = "Sửa nhân viên";
 }
 
 <section class="bg-white rounded-xl border border-slate-200 p-6 max-w-xl">
-    <h1 class="text-lg sm:text-xl font-bold text-slate-900">Sửa nhân viên</h1>
+    <h1 class="font-display text-xl sm:text-2xl font-bold text-slate-900">Sửa nhân viên</h1>
     @if (Model.Error == EmployeeError.NotFound)
     {
         <p class="mt-4 text-xs font-medium text-rose-700">Không tìm thấy hồ sơ nhân viên.</p>
@@ -22,6 +22,26 @@
             <div>
                 <label class="block text-sm font-medium text-slate-700" asp-for="Command.Password">Mật khẩu</label>
                 <input asp-for="Command.Password" type="password" class="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300" />
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700" asp-for="Command.Email">Email</label>
+                <input asp-for="Command.Email" type="email" class="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300" />
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700" asp-for="Command.Phone">Điện thoại</label>
+                <input asp-for="Command.Phone" class="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300" />
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700" asp-for="Command.Branch">Chi nhánh</label>
+                <input asp-for="Command.Branch" class="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300" />
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700" asp-for="Command.JobTitle">Chức vụ</label>
+                <input asp-for="Command.JobTitle" class="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300" />
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700" asp-for="Command.Department">Phòng ban</label>
+                <input asp-for="Command.Department" class="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300" />
             </div>
             <div>
                 <label class="block text-sm font-medium text-slate-700" asp-for="Command.Role">Vai trò</label>

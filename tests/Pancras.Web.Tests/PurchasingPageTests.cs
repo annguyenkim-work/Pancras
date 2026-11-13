@@ -1,0 +1,166 @@
+using System.Net;
+using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using Pancras.Application.Purchasing;
+using Pancras.Domain.Employees;
+using Pancras.Domain.Purchasing;
+
+namespace Pancras.Web.Tests;
+
+public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
+{
+    private readonly PancrasWebFactory _factory;
+
+    public PurchasingPageTests(PancrasWebFactory factory)
+    {
+        _factory = factory;
+    }
+
+    [Fact]
+    public async Task AnonymousPurchasing_RedirectsToLogin()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+
+        var response = await client.GetAsync("/purchasing");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Contains("/login", response.Headers.Location?.OriginalString, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task EmptyPurchasing_ShowsTheEmptySentence()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        Reset();
+        await SignInAsync(client);
+
+        var page = await client.GetAsync("/purchasing");
+        var text = System.Net.WebUtility.HtmlDecode(await page.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        Assert.Contains("Chưa có đơn mua.", text, StringComparison.Ordinal);
+        Assert.Contains("Mua hàng & Container Nhập", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ReceivedOrder_HidesTheReceiveButton()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var order = PurchaseOrder.TryCreate(
+            "PO-DA-NHAP",
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            "CONT",
+            "BL",
+            "Hải Phòng",
+            new DateOnly(2026, 11, 12),
+            25000m,
+            0.10m,
+            [(Guid.CreateVersion7(), 1, 10m, 0.05m, 0m, 0m, 0m)])!;
+        Assert.True(order.TryReceive());
+        orders.Orders.Add(order);
+        await SignInAsync(client);
+
+        var page = await client.GetAsync("/purchasing?order=" + order.Id);
+        var text = System.Net.WebUtility.HtmlDecode(await page.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        Assert.Contains("PO-DA-NHAP", text, StringComparison.Ordinal);
+        Assert.Contains("Đã nhập kho", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Nhập kho", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Chưa có đơn mua.", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task InvalidCreate_KeepsTheEnteredLines()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        Reset();
+        await SignInAsync(client);
+        var formPage = await client.GetAsync("/purchasing?form=1");
+        var html = await formPage.Content.ReadAsStringAsync();
+        var token = Regex.Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+        var itemId = Guid.CreateVersion7();
+
+        var response = await client.PostAsync("/purchasing?handler=Create", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = token,
+            ["Form.Code"] = "PO-GIU",
+            ["Form.ExchangeRate"] = "25000",
+            ["Form.VatPercent"] = "10",
+            ["Form.OceanFreight"] = "12000000",
+            ["Form.Lines[0].CatalogItemId"] = itemId.ToString(),
+            ["Form.Lines[0].Quantity"] = "60",
+            ["Form.UnitPrices[0]"] = "520",
+            ["Form.DutyPercents[0]"] = "15"
+        }));
+        var text = System.Net.WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("Đơn không được tạo.", text, StringComparison.Ordinal);
+        Assert.Contains("PO-GIU", text, StringComparison.Ordinal);
+        Assert.Contains("value=\"60\"", text, StringComparison.Ordinal);
+        Assert.Contains("value=\"520\"", text, StringComparison.Ordinal);
+        Assert.Contains("value=\"15\"", text, StringComparison.Ordinal);
+        Assert.Contains("name=\"Form.Lines[0].CatalogItemId\"", text, StringComparison.Ordinal);
+    }
+
+    private PurchaseDirectoryDouble Reset()
+    {
+        var orders = _factory.Services.GetRequiredService<PurchaseDirectoryDouble>();
+        orders.Orders.Clear();
+        var employees = _factory.Services.GetRequiredService<FakeEmployeeRepository>();
+        employees.Employees.Clear();
+        return orders;
+    }
+
+    private async Task SignInAsync(HttpClient client)
+    {
+        var employees = _factory.Services.GetRequiredService<FakeEmployeeRepository>();
+        var hasher = _factory.Services.GetRequiredService<FakePasswordHasher>();
+        employees.Employees.Add(Employee.Create("mua", "mua", "MUA", hasher.Hash("Admin@12345"), EmployeeRole.Admin));
+        var login = await client.GetAsync("/login");
+        var html = await login.Content.ReadAsStringAsync();
+        var token = Regex.Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+        var form = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Command.EmployeeCode"] = "mua",
+            ["Command.Password"] = "Admin@12345",
+            ["__RequestVerificationToken"] = token
+        });
+        await client.PostAsync("/login", form);
+    }
+
+    private static WebApplicationFactoryClientOptions NoRedirect { get; } = new()
+    {
+        AllowAutoRedirect = false,
+        HandleCookies = true
+    };
+}
+
+internal sealed class PurchaseDirectoryDouble : IPurchaseOrderRepository
+{
+    public List<PurchaseOrder> Orders { get; } = [];
+
+    public Task<IReadOnlyList<PurchaseOrder>> ListAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<PurchaseOrder>>(Orders.ToArray());
+
+    public Task<PurchaseOrder?> FindReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
+        Task.FromResult(Orders.FirstOrDefault(order => order.Id == id));
+
+    public Task<PurchaseOrder?> FindForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
+        FindReadOnlyAsync(id, cancellationToken);
+
+    public Task<bool> NormalizedCodeExistsAsync(string normalizedCode, CancellationToken cancellationToken) =>
+        Task.FromResult(Orders.Any(order => order.NormalizedCode == normalizedCode));
+
+    public Task<bool> TryAddAsync(PurchaseOrder order, CancellationToken cancellationToken)
+    {
+        Orders.Add(order);
+        return Task.FromResult(true);
+    }
+
+    public Task<bool> CommitAsync(CancellationToken cancellationToken) => Task.FromResult(true);
+}

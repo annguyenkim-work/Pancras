@@ -37,6 +37,14 @@ public sealed class CreateCatalogItemCommandValidator : AbstractValidator<Create
             .WithState(_ => new CatalogIssue(CatalogField.WarrantyMonths, CatalogIssueKind.Negative));
         RuleFor(command => command.MinimumStock).Must(CatalogValidation.NotNegative)
             .WithState(_ => new CatalogIssue(CatalogField.MinimumStock, CatalogIssueKind.Negative));
+        RuleFor(command => command.HeightMm).Must(CatalogValidation.NotNegative)
+            .WithState(_ => new CatalogIssue(CatalogField.Height, CatalogIssueKind.Negative));
+        RuleFor(command => command.LengthMm).Must(CatalogValidation.NotNegative)
+            .WithState(_ => new CatalogIssue(CatalogField.Length, CatalogIssueKind.Negative));
+        RuleFor(command => command.WidthMm).Must(CatalogValidation.NotNegative)
+            .WithState(_ => new CatalogIssue(CatalogField.Width, CatalogIssueKind.Negative));
+        RuleFor(command => command.ImagePath).Must(value => CatalogValidation.Fits(value, CatalogItem.ImagePathMaxLength))
+            .WithState(_ => new CatalogIssue(CatalogField.Image, CatalogIssueKind.TooLong, CatalogItem.ImagePathMaxLength));
 
         Price(command => command.CostPrice, CatalogField.CostPrice);
         Price(command => command.RetailPrice, CatalogField.RetailPrice);
@@ -98,7 +106,11 @@ public sealed class CreateCatalogItemCommandHandler(
             command.RetailPrice!.Value,
             command.DealerPrice!.Value,
             command.DistributorPrice!.Value,
-            command.ProjectPrice!.Value);
+            command.ProjectPrice!.Value,
+            command.HeightMm,
+            command.LengthMm,
+            command.WidthMm,
+            command.ImagePath);
         if (!await repository.TryAddAsync(item, cancellationToken))
         {
             logger.LogWarning("Rejected a duplicate catalog item.");

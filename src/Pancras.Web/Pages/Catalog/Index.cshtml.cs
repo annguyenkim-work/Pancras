@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Pancras.Application.Catalog;
 using Pancras.Application.Common;
 using Pancras.Domain.Catalog;
+using Pancras.Web.Catalog;
 using Pancras.Web.Formatting;
 
 namespace Pancras.Web.Pages.Catalog;
@@ -16,7 +17,8 @@ public class IndexModel(
     ListMatchingCatalogItemsHandler exportHandler,
     GetCatalogItemHandler itemHandler,
     CreateCatalogItemCommandHandler createHandler,
-    UpdateCatalogPricesCommandHandler priceHandler) : PageModel
+    UpdateCatalogPricesCommandHandler priceHandler,
+    CatalogImageStore images) : PageModel
 {
     public CatalogItemPage ItemPage { get; private set; } = new([], 1, CatalogPageRequest.DefaultSize, 0);
 
@@ -44,10 +46,15 @@ public class IndexModel(
     [BindProperty]
     public CatalogPriceForm Prices { get; set; } = new();
 
+    [BindProperty]
+    public IFormFile? Image { get; set; }
+
+    public string? CurrentImagePath { get; private set; }
+
     [BindProperty(SupportsGet = true, Name = "q")]
     public string? Search { get; set; }
 
-    [BindProperty(SupportsGet = true, Name = "nganh")]
+    [BindProperty(SupportsGet = true, Name = "category")]
     public string? CategoryToken { get; set; }
 
     public int? PageNumber { get; private set; }
@@ -77,7 +84,7 @@ public class IndexModel(
         {
             var parts = FilterParts();
             var query = parts.Count == 0 ? string.Empty : "&" + string.Join('&', parts);
-            return "/danh-muc-gia?handler=Export" + query;
+            return "/catalog?handler=Export" + query;
         }
     }
 
@@ -95,30 +102,30 @@ public class IndexModel(
         }
     }
 
-    public async Task<IActionResult> OnGetAsync(Guid? xem, Guid? gia, bool them, CancellationToken cancellationToken)
+    public async Task<IActionResult> OnGetAsync(Guid? detail, Guid? prices, bool add, CancellationToken cancellationToken)
     {
         ReadPage();
         var requested = CatalogPageRequest.From(PageNumber);
         ItemPage = await listHandler.HandleAsync(CurrentFilter(), requested, cancellationToken);
         if (requested.Number != ItemPage.PageNumber)
         {
-            return Redirect(BuildUrl(ItemPage.PageNumber, xem, gia, them));
+            return Redirect(BuildUrl(ItemPage.PageNumber, detail, prices, add));
         }
 
         Notice = TempData["CatalogNotice"] as string;
-        if (them)
+        if (add)
         {
             ShowForm = true;
             ApplyAddDefaults();
             return Page();
         }
 
-        if (gia is Guid priceId)
+        if (prices is Guid priceId)
         {
             return await OpenPricesAsync(priceId, cancellationToken);
         }
 
-        if (xem is Guid detailId)
+        if (detail is Guid detailId)
         {
             return await OpenDetailAsync(detailId, cancellationToken);
         }
@@ -129,23 +136,31 @@ public class IndexModel(
     public async Task<IActionResult> OnGetExportAsync(CancellationToken cancellationToken)
     {
         var rows = await exportHandler.HandleAsync(CurrentFilter(), cancellationToken);
-        return File(CatalogCsv.Write(rows), "text/csv; charset=utf-8", "danh-muc-gia.csv");
+        return File(CatalogCsv.Write(rows), "text/csv; charset=utf-8", "catalog.csv");
     }
 
     public async Task<IActionResult> OnPostCreateAsync(CancellationToken cancellationToken)
     {
         ReadPage();
-        if (!CatalogFormReader.TryReadCreate(Form, out var command, out var parseIssues))
+        var image = await images.ReadAsync(Image, cancellationToken);
+        var parsed = CatalogFormReader.TryReadCreate(Form, out var command, out var parseIssues);
+        if (!image.Accepted || !parsed)
         {
-            RememberFailure("Không thêm được mặt hàng", CatalogError.Incomplete, parseIssues, Form.Code);
+            RememberCombined("Không thêm được mặt hàng", image, parsed, parseIssues, Form.Code);
             ShowForm = true;
             ItemPage = await listHandler.HandleAsync(CurrentFilter(), CatalogPageRequest.From(PageNumber), cancellationToken);
             return Page();
         }
 
+        if (image.HasContent)
+        {
+            command.ImagePath = await images.SaveAsync(image, cancellationToken);
+        }
+
         var result = await createHandler.HandleAsync(command, cancellationToken);
         if (result.IsFailure)
         {
+            images.Delete(command.ImagePath);
             RememberFailure("Không thêm được mặt hàng", result.CatalogError, result.CatalogIssues, Form.Code);
             ShowForm = true;
             ItemPage = await listHandler.HandleAsync(CurrentFilter(), CatalogPageRequest.From(PageNumber), cancellationToken);
@@ -163,21 +178,38 @@ public class IndexModel(
     {
         ReadPage();
         var role = User.FindFirstValue(ClaimTypes.Role);
-        if (!CatalogFormReader.TryReadPrices(Prices, role, out var command, out var parseIssues))
+        var image = await images.ReadAsync(Image, cancellationToken);
+        var parsed = CatalogFormReader.TryReadPrices(Prices, role, out var command, out var parseIssues);
+        if (!image.Accepted || !parsed)
         {
-            RememberFailure("Không lưu được sản phẩm", CatalogError.Incomplete, parseIssues, Prices.Code);
+            CurrentImagePath = await ExistingImagePathAsync(Prices.Id, cancellationToken);
+            RememberCombined("Không lưu được sản phẩm", image, parsed, parseIssues, Prices.Code);
             ShowPriceForm = true;
             ItemPage = await listHandler.HandleAsync(CurrentFilter(), CatalogPageRequest.From(PageNumber), cancellationToken);
             return Page();
         }
 
+        var previousImage = await ExistingImagePathAsync(Prices.Id, cancellationToken);
+        if (image.HasContent)
+        {
+            command.ImagePath = await images.SaveAsync(image, cancellationToken);
+            command.ReplaceImage = true;
+        }
+
         var result = await priceHandler.HandleAsync(command, cancellationToken);
         if (result.IsFailure)
         {
+            images.Delete(command.ImagePath);
+            CurrentImagePath = previousImage;
             RememberFailure("Không lưu được sản phẩm", result.CatalogError, result.CatalogIssues, Prices.Code);
             ShowPriceForm = true;
             ItemPage = await listHandler.HandleAsync(CurrentFilter(), CatalogPageRequest.From(PageNumber), cancellationToken);
             return Page();
+        }
+
+        if (command.ReplaceImage)
+        {
+            images.Delete(previousImage);
         }
 
         TempData["CatalogNotice"] = "Đã lưu sản phẩm.";
@@ -222,12 +254,16 @@ public class IndexModel(
             VolumeM3 = MeasureText(row.VolumeM3),
             WarrantyMonths = row.WarrantyMonths?.ToString(CultureInfo.InvariantCulture),
             MinimumStock = MeasureText(row.MinimumStock),
+            HeightMm = MillimeterText(row.HeightMm),
+            LengthMm = MillimeterText(row.LengthMm),
+            WidthMm = MillimeterText(row.WidthMm),
             CostPrice = VndMoney.FormatDong(row.CostPrice),
             RetailPrice = VndMoney.FormatDong(row.RetailPrice),
             DealerPrice = VndMoney.FormatDong(row.DealerPrice),
             DistributorPrice = VndMoney.FormatDong(row.DistributorPrice),
             ProjectPrice = VndMoney.FormatDong(row.ProjectPrice)
         };
+        CurrentImagePath = row.ImagePath;
         ShowPriceForm = true;
         return Page();
     }
@@ -249,6 +285,38 @@ public class IndexModel(
 
     private static string MeasureText(decimal? amount) =>
         amount is null ? string.Empty : VndMoney.FormatMeasure(amount.Value);
+
+    private static string MillimeterText(int? value) =>
+        value?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+
+    private async Task<string?> ExistingImagePathAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await itemHandler.HandleAsync(id, cancellationToken);
+        return result.IsSuccess ? result.Value?.ImagePath : null;
+    }
+
+    private void RememberCombined(
+        string title,
+        CatalogImageDraft image,
+        bool parsed,
+        IReadOnlyList<CatalogIssue> issues,
+        string? code)
+    {
+        var messages = new List<string>();
+        if (!image.Accepted && image.Error is not null)
+        {
+            messages.Add(image.Error);
+        }
+
+        if (!parsed)
+        {
+            messages.AddRange(CatalogErrorMessages.Describe(CatalogError.Incomplete, issues, code));
+        }
+
+        ErrorTitle = title;
+        Error = parsed ? CatalogError.None : CatalogError.Incomplete;
+        ErrorMessages = messages;
+    }
 
     private CatalogListFilter CurrentFilter() => CatalogListFilter.From(CategoryToken, Search);
 
@@ -286,17 +354,17 @@ public class IndexModel(
         var parts = new List<string>();
         if (detailId is Guid detail)
         {
-            parts.Add("xem=" + detail.ToString("D"));
+            parts.Add("detail=" + detail.ToString("D"));
         }
 
         if (priceId is Guid price)
         {
-            parts.Add("gia=" + price.ToString("D"));
+            parts.Add("prices=" + price.ToString("D"));
         }
 
         if (add)
         {
-            parts.Add("them=true");
+            parts.Add("add=true");
         }
 
         parts.AddRange(FilterParts());
@@ -305,7 +373,7 @@ public class IndexModel(
             parts.Add("page=" + page.ToString(CultureInfo.InvariantCulture));
         }
 
-        return parts.Count == 0 ? "/danh-muc-gia" : "/danh-muc-gia?" + string.Join('&', parts);
+        return parts.Count == 0 ? "/catalog" : "/catalog?" + string.Join('&', parts);
     }
 
     private List<string> FilterParts()
@@ -314,11 +382,11 @@ public class IndexModel(
         var parts = new List<string>();
         if (filter.Category is ProductCategory category)
         {
-            parts.Add("nganh=" + ProductCategoryToken.From(category));
+            parts.Add("category=" + ProductCategoryToken.From(category));
         }
         else if (filter.CategoryRejected && !string.IsNullOrWhiteSpace(CategoryToken))
         {
-            parts.Add("nganh=" + Uri.EscapeDataString(CategoryToken.Trim()));
+            parts.Add("category=" + Uri.EscapeDataString(CategoryToken.Trim()));
         }
 
         if (filter.Term is not null)

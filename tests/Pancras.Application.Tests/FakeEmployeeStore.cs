@@ -36,6 +36,9 @@ internal sealed class FakeEmployeeRepository : IEmployeeRepository
     public Task<Employee?> GetByIdReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
         GetByIdAsync(id, cancellationToken);
 
+    public Task<IReadOnlyList<Employee>> ListReadOnlyAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<Employee>>(Employees.ToArray());
+
     public Task AddAsync(Employee employee, CancellationToken cancellationToken)
     {
         Added.Add(employee);

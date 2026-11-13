@@ -19,24 +19,7 @@ public class EditModel(GetEmployeeHandler getEmployee, UpdateEmployeeCommandHand
 
     public EmployeeError Error { get; private set; }
 
-    public async Task<IActionResult> OnGetAsync()
-    {
-        var result = await getEmployee.HandleAsync(Id, HttpContext.RequestAborted);
-        if (result.IsFailure)
-        {
-            Error = result.EmployeeError;
-            return Page();
-        }
-
-        Code = result.Value!.Code;
-        Command = new UpdateEmployeeCommand
-        {
-            Id = result.Value.Id,
-            FullName = result.Value.FullName,
-            Role = result.Value.Role
-        };
-        return Page();
-    }
+    public IActionResult OnGet() => Redirect("/employees?edit=" + Id.ToString("D"));
 
     public async Task<IActionResult> OnPostAsync()
     {
@@ -56,7 +39,6 @@ public class EditModel(GetEmployeeHandler getEmployee, UpdateEmployeeCommandHand
             return Page();
         }
 
-        Code = result.Value!.Code;
-        return Page();
+        return Redirect("/employees");
     }
 }

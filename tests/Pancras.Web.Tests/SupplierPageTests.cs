@@ -22,10 +22,10 @@ public class SupplierPageTests : IClassFixture<PancrasWebFactory>
     {
         using var client = _factory.CreateClient(NoRedirect);
 
-        var response = await client.GetAsync("/nha-cung-cap");
+        var response = await client.GetAsync("/suppliers");
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-        Assert.Contains("/dang-nhap", response.Headers.Location?.OriginalString, StringComparison.Ordinal);
+        Assert.Contains("/login", response.Headers.Location?.OriginalString, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -42,7 +42,7 @@ public class SupplierPageTests : IClassFixture<PancrasWebFactory>
         employees.Employees.Add(Employee.Create("Quản trị hệ thống", "admin", "ADMIN", hasher.Hash("Admin@12345"), EmployeeRole.Admin));
         await SignInAsync(client);
 
-        var page = await client.GetAsync("/nha-cung-cap");
+        var page = await client.GetAsync("/suppliers");
         var html = await page.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, page.StatusCode);
@@ -54,18 +54,18 @@ public class SupplierPageTests : IClassFixture<PancrasWebFactory>
         Assert.Contains("delete=" + supplier.Id.ToString("D"), html, StringComparison.Ordinal);
         Assert.Contains("Không có lô đang về", html, StringComparison.Ordinal);
 
-        var add = await client.GetAsync("/nha-cung-cap?add=true");
+        var add = await client.GetAsync("/suppliers?add=true");
         var addHtml = await add.Content.ReadAsStringAsync();
         Assert.Contains("id=\"supplier-dialog\" class=\" fixed", addHtml, StringComparison.Ordinal);
         Assert.Contains("8–15 chữ số", addHtml, StringComparison.Ordinal);
         Assert.Contains("maxlength=\"30\"", addHtml, StringComparison.Ordinal);
 
-        var confirm = await client.GetAsync("/nha-cung-cap?delete=" + supplier.Id.ToString("D"));
+        var confirm = await client.GetAsync("/suppliers?delete=" + supplier.Id.ToString("D"));
         var confirmHtml = await confirm.Content.ReadAsStringAsync();
         Assert.Contains("id=\"delete-dialog\" class=\" fixed", confirmHtml, StringComparison.Ordinal);
         Assert.Contains("Kim An", confirmHtml, StringComparison.Ordinal);
 
-        var far = await client.GetAsync("/nha-cung-cap?edit=" + supplier.Id.ToString("D") + "&page=999");
+        var far = await client.GetAsync("/suppliers?edit=" + supplier.Id.ToString("D") + "&page=999");
         Assert.Equal(HttpStatusCode.Redirect, far.StatusCode);
         var location = far.Headers.Location?.OriginalString ?? "";
         Assert.Contains("edit=", location, StringComparison.Ordinal);
@@ -74,7 +74,7 @@ public class SupplierPageTests : IClassFixture<PancrasWebFactory>
 
     private static async Task SignInAsync(HttpClient client)
     {
-        var login = await client.GetAsync("/dang-nhap");
+        var login = await client.GetAsync("/login");
         var html = await login.Content.ReadAsStringAsync();
         var token = Regex.Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
         var form = new FormUrlEncodedContent(new Dictionary<string, string>
@@ -83,7 +83,7 @@ public class SupplierPageTests : IClassFixture<PancrasWebFactory>
             ["Command.Password"] = "Admin@12345",
             ["__RequestVerificationToken"] = token
         });
-        await client.PostAsync("/dang-nhap", form);
+        await client.PostAsync("/login", form);
     }
 
     private static WebApplicationFactoryClientOptions NoRedirect { get; } = new()

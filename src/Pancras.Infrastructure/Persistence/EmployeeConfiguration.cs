@@ -16,6 +16,11 @@ public sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.Property(employee => employee.PasswordHash).HasMaxLength(500).IsRequired();
         builder.Property(employee => employee.Role).HasMaxLength(50).IsRequired();
         builder.Property(employee => employee.SecurityStamp).HasMaxLength(64).IsRequired();
+        builder.Property(employee => employee.Email).HasMaxLength(200).IsRequired();
+        builder.Property(employee => employee.Phone).HasMaxLength(30).IsRequired();
+        builder.Property(employee => employee.Branch).HasMaxLength(200).IsRequired();
+        builder.Property(employee => employee.JobTitle).HasMaxLength(100).IsRequired();
+        builder.Property(employee => employee.Department).HasMaxLength(100).IsRequired();
         builder.HasIndex(employee => employee.NormalizedCode).IsUnique();
     }
 }

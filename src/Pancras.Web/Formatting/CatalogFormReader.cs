@@ -38,6 +38,9 @@ public static class CatalogFormReader
         command.WeightKg = Optional(form.WeightKg, CatalogField.Weight, false, found);
         command.VolumeM3 = Optional(form.VolumeM3, CatalogField.Volume, false, found);
         command.MinimumStock = Optional(form.MinimumStock, CatalogField.MinimumStock, false, found);
+        command.HeightMm = OptionalMillimeter(form.HeightMm, CatalogField.Height, found);
+        command.LengthMm = OptionalMillimeter(form.LengthMm, CatalogField.Length, found);
+        command.WidthMm = OptionalMillimeter(form.WidthMm, CatalogField.Width, found);
         command.WarrantyMonths = OptionalInt(form.WarrantyMonths, found);
         command.CostPrice = Optional(form.CostPrice, CatalogField.CostPrice, true, found);
         command.RetailPrice = Optional(form.RetailPrice, CatalogField.RetailPrice, true, found);
@@ -89,6 +92,9 @@ public static class CatalogFormReader
             command.WeightKg = Optional(form.WeightKg, CatalogField.Weight, false, found);
             command.VolumeM3 = Optional(form.VolumeM3, CatalogField.Volume, false, found);
             command.MinimumStock = Optional(form.MinimumStock, CatalogField.MinimumStock, false, found);
+            command.HeightMm = OptionalMillimeter(form.HeightMm, CatalogField.Height, found);
+            command.LengthMm = OptionalMillimeter(form.LengthMm, CatalogField.Length, found);
+            command.WidthMm = OptionalMillimeter(form.WidthMm, CatalogField.Width, found);
             command.WarrantyMonths = OptionalInt(form.WarrantyMonths, found);
         }
 
@@ -101,6 +107,34 @@ public static class CatalogFormReader
         if (TryParse(text, money, out var amount))
         {
             return amount;
+        }
+
+        issues.Add(new CatalogIssue(field, CatalogIssueKind.InvalidNumber));
+        return null;
+    }
+
+    private static int? OptionalMillimeter(string? text, CatalogField field, List<CatalogIssue> issues)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        var cleaned = text.Trim().Replace(" ", "", StringComparison.Ordinal).Replace("mm", "", StringComparison.OrdinalIgnoreCase);
+        if (cleaned.Contains('.') && !cleaned.Contains(','))
+        {
+            var parts = cleaned.Split('.');
+            if (parts[0].Length > 0
+                && parts[0].All(char.IsDigit)
+                && parts.Skip(1).All(part => part.Length == 3 && part.All(char.IsDigit)))
+            {
+                cleaned = string.Concat(parts);
+            }
+        }
+
+        if (int.TryParse(cleaned, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+        {
+            return value;
         }
 
         issues.Add(new CatalogIssue(field, CatalogIssueKind.InvalidNumber));
@@ -212,6 +246,12 @@ public sealed class CatalogItemForm
 
     public string? MinimumStock { get; set; }
 
+    public string? HeightMm { get; set; }
+
+    public string? LengthMm { get; set; }
+
+    public string? WidthMm { get; set; }
+
     public string? CostPrice { get; set; }
 
     public string? RetailPrice { get; set; }
@@ -248,6 +288,12 @@ public sealed class CatalogPriceForm
     public string? WarrantyMonths { get; set; }
 
     public string? MinimumStock { get; set; }
+
+    public string? HeightMm { get; set; }
+
+    public string? LengthMm { get; set; }
+
+    public string? WidthMm { get; set; }
 
     public string? CostPrice { get; set; }
 

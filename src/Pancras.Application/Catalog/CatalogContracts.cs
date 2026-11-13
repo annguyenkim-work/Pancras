@@ -49,7 +49,11 @@ public sealed record CatalogItemRow(
     decimal RetailPrice,
     decimal DealerPrice,
     decimal DistributorPrice,
-    decimal ProjectPrice)
+    decimal ProjectPrice,
+    int? HeightMm,
+    int? LengthMm,
+    int? WidthMm,
+    string ImagePath)
 {
     public static CatalogItemRow From(CatalogItem item) =>
         new(
@@ -68,7 +72,11 @@ public sealed record CatalogItemRow(
             item.RetailPrice,
             item.DealerPrice,
             item.DistributorPrice,
-            item.ProjectPrice);
+            item.ProjectPrice,
+            item.HeightMm,
+            item.LengthMm,
+            item.WidthMm,
+            item.ImagePath);
 }
 
 public static class ProductCategoryToken
@@ -204,6 +212,14 @@ public sealed class CreateCatalogItemCommand
 
     public decimal? MinimumStock { get; set; }
 
+    public int? HeightMm { get; set; }
+
+    public int? LengthMm { get; set; }
+
+    public int? WidthMm { get; set; }
+
+    public string? ImagePath { get; set; }
+
     public decimal? CostPrice { get; set; }
 
     public decimal? RetailPrice { get; set; }
@@ -254,6 +270,16 @@ public sealed class UpdateCatalogPricesCommand
     public int? WarrantyMonths { get; set; }
 
     public decimal? MinimumStock { get; set; }
+
+    public int? HeightMm { get; set; }
+
+    public int? LengthMm { get; set; }
+
+    public int? WidthMm { get; set; }
+
+    public string? ImagePath { get; set; }
+
+    public bool ReplaceImage { get; set; }
 }
 
 public sealed record ResolveSalePriceCommand(

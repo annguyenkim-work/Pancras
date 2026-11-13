@@ -1,6 +1,7 @@
-@page "/danh-muc-gia"
+@page "/catalog"
 @model Pancras.Web.Pages.Catalog.IndexModel
 @using Pancras.Application.Catalog
+@using Pancras.Web.Catalog
 @using Pancras.Web.Formatting
 @{
     ViewData["Title"] = "Danh mục sản phẩm và giá";
@@ -12,7 +13,7 @@
 <section class="bg-white rounded-xl border border-slate-200 p-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
-            <h1 class="text-lg sm:text-xl font-bold text-slate-900">Danh mục sản phẩm và giá</h1>
+            <h1 class="font-display text-xl sm:text-2xl font-bold text-slate-900">Danh mục sản phẩm và giá</h1>
             <p class="mt-1 text-sm text-slate-500"><span class="font-mono tabular-nums">@Model.ItemPage.TotalCount</span> mặt hàng</p>
         </div>
         <div class="flex flex-wrap gap-2">
@@ -20,10 +21,10 @@
             <a href="@Model.AddUrl" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Thêm sản phẩm</a>
         </div>
     </div>
-    <form method="get" action="/danh-muc-gia" class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-[14rem_1fr_auto] sm:items-end">
+    <form method="get" action="/catalog" class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-[14rem_1fr_auto] sm:items-end">
         <div>
             <label class="block text-sm font-medium text-slate-600" for="catalog-category">Ngành</label>
-            <select id="catalog-category" name="nganh" class="@inputClass" onchange="this.form.requestSubmit()">
+            <select id="catalog-category" name="category" class="@inputClass" onchange="this.form.requestSubmit()">
                 @if (string.IsNullOrEmpty(Model.CategoryToken))
                 {
                     <option value="" selected>Tất cả</option>
@@ -66,7 +67,7 @@
             <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Lọc</button>
             @if (Model.HasFilter)
             {
-                <a href="/danh-muc-gia" class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 text-slate-600">Bỏ lọc</a>
+                <a href="/catalog" class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 text-slate-600">Bỏ lọc</a>
             }
         </div>
     </form>
@@ -90,7 +91,7 @@
 
 @if (Model.Rows.Count == 0)
 {
-    <p class="mt-4 text-sm text-slate-600">@(Model.HasFilter ? "Không có mặt hàng khớp bộ lọc." : "Chưa có mặt hàng.")</p>
+    <partial name="_EmptyState" model='Model.HasFilter ? new EmptyStateModel("Không có mặt hàng khớp bộ lọc.", "Thử đổi ngành hoặc từ khóa tìm kiếm.", "Bỏ lọc", "/catalog") : new EmptyStateModel("Chưa có mặt hàng.", "Thêm sản phẩm đầu tiên để bắt đầu quản lý giá và tồn kho.", "Thêm sản phẩm", Model.AddUrl)' />
 }
 else
 {
@@ -98,6 +99,7 @@ else
         <table class="min-w-full text-xs">
             <thead class="bg-slate-50 text-left text-slate-500">
                 <tr>
+                    <th class="px-3 py-3 font-medium">Ảnh</th>
                     <th class="px-3 py-3 font-medium">Mã</th>
                     <th class="px-3 py-3 font-medium">Tên</th>
                     <th class="px-3 py-3 font-medium">Ngành</th>
@@ -115,6 +117,19 @@ else
                 @foreach (var row in Model.Rows)
                 {
                     <tr class="border-t border-slate-100 hover:bg-slate-50">
+                        <td class="px-3 py-3">
+                            @{
+                                var imageUrl = CatalogImageStore.PublicUrl(row.ImagePath);
+                            }
+                            @if (imageUrl is null)
+                            {
+                                <span class="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-slate-400">—</span>
+                            }
+                            else
+                            {
+                                <img src="@imageUrl" alt="@row.Name" class="h-12 w-12 rounded-lg object-cover" />
+                            }
+                        </td>
                         <td class="px-3 py-3 font-mono text-slate-700">@row.Code</td>
                         <td class="px-3 py-3 font-medium text-slate-900">@row.Name</td>
                         <td class="px-3 py-3 text-slate-700">@CatalogLabels.Category(row.Category)</td>
@@ -168,9 +183,10 @@ else
     }
 }
 
-<div id="catalog-dialog" class="@(Model.ShowForm ? "" : "hidden ")fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 p-4">
-    <div class="mx-auto my-6 w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8">
-        <div class="flex items-center justify-between gap-3">
+@if (Model.ShowForm)
+{
+<dialog id="catalog-dialog" class="m-auto !flex w-[min(56rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
+    <div class="flex shrink-0 items-center justify-between gap-3 px-6 pt-6 sm:px-8">
             <div class="flex items-center gap-3">
                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
                     <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -185,10 +201,10 @@ else
                     <path stroke-linecap="round" d="M6 6l12 12M18 6L6 18" />
                 </svg>
             </a>
-        </div>
-        <form method="post" asp-page-handler="Create" class="mt-6">
+    </div>
+        <form method="post" enctype="multipart/form-data" asp-page-handler="Create" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-4 sm:px-8">
             <input type="hidden" name="q" value="@Model.Search" />
-            <input type="hidden" name="nganh" value="@Model.CategoryToken" />
+            <input type="hidden" name="category" value="@Model.CategoryToken" />
             <input type="hidden" name="page" value="@Model.ItemPage.PageNumber" />
             @if (Model.ShowForm && Model.ErrorMessages.Count > 0)
             {
@@ -296,17 +312,38 @@ else
                     <input asp-for="Form.MinimumStock" id="Form_MinimumStock" inputmode="decimal" class="@fieldClass" />
                 </div>
             </div>
+            <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                    <label class="@labelClass" for="Form_HeightMm">Chiều cao (mm)</label>
+                    <input asp-for="Form.HeightMm" id="Form_HeightMm" inputmode="numeric" class="@fieldClass" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Form_LengthMm">Chiều dài (mm)</label>
+                    <input asp-for="Form.LengthMm" id="Form_LengthMm" inputmode="numeric" class="@fieldClass" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Form_WidthMm">Chiều rộng (mm)</label>
+                    <input asp-for="Form.WidthMm" id="Form_WidthMm" inputmode="numeric" class="@fieldClass" />
+                </div>
+            </div>
+            <div class="mt-4">
+                <label class="@labelClass" for="Form_Image">Ảnh sản phẩm</label>
+                <input id="Form_Image" name="Image" type="file" accept="image/jpeg,image/png,image/webp,image/gif" class="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-sky-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-sky-700" />
+                <p class="mt-1 text-xs text-slate-500">JPG, PNG, WEBP hoặc GIF, tối đa 5 MB.</p>
+            </div>
             <div class="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
                 <a href="@Model.FilteredListUrl" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600">Hủy</a>
                 <button type="submit" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white">Lưu sản phẩm</button>
             </div>
         </form>
-    </div>
-</div>
+</dialog>
+<script>document.getElementById("catalog-dialog").showModal();</script>
+}
 
-<div id="catalog-price-dialog" class="@(Model.ShowPriceForm ? "" : "hidden ")fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 p-4">
-    <div class="mx-auto my-6 w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8">
-        <div class="flex items-center justify-between gap-3">
+@if (Model.ShowPriceForm)
+{
+<dialog id="catalog-price-dialog" class="m-auto !flex w-[min(56rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
+    <div class="flex shrink-0 items-center justify-between gap-3 px-6 pt-6 sm:px-8">
             <div class="flex items-center gap-3">
                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
                     <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -321,12 +358,12 @@ else
                     <path stroke-linecap="round" d="M6 6l12 12M18 6L6 18" />
                 </svg>
             </a>
-        </div>
-        <form method="post" asp-page-handler="UpdatePrices" class="mt-6">
+    </div>
+        <form method="post" enctype="multipart/form-data" asp-page-handler="UpdatePrices" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-4 sm:px-8">
             <input type="hidden" asp-for="Prices.Id" />
             <input type="hidden" asp-for="Prices.IncludeDetails" />
             <input type="hidden" name="q" value="@Model.Search" />
-            <input type="hidden" name="nganh" value="@Model.CategoryToken" />
+            <input type="hidden" name="category" value="@Model.CategoryToken" />
             <input type="hidden" name="page" value="@Model.ItemPage.PageNumber" />
             @if (Model.ShowPriceForm && Model.ErrorMessages.Count > 0)
             {
@@ -434,31 +471,66 @@ else
                     <input asp-for="Prices.MinimumStock" id="Prices_MinimumStock" inputmode="decimal" class="@fieldClass" />
                 </div>
             </div>
+            <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                    <label class="@labelClass" for="Prices_HeightMm">Chiều cao (mm)</label>
+                    <input asp-for="Prices.HeightMm" id="Prices_HeightMm" inputmode="numeric" class="@fieldClass" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Prices_LengthMm">Chiều dài (mm)</label>
+                    <input asp-for="Prices.LengthMm" id="Prices_LengthMm" inputmode="numeric" class="@fieldClass" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Prices_WidthMm">Chiều rộng (mm)</label>
+                    <input asp-for="Prices.WidthMm" id="Prices_WidthMm" inputmode="numeric" class="@fieldClass" />
+                </div>
+            </div>
+            <div class="mt-4">
+                <label class="@labelClass" for="Prices_Image">Ảnh sản phẩm</label>
+                @{
+                    var priceImage = CatalogImageStore.PublicUrl(Model.CurrentImagePath);
+                }
+                @if (priceImage is not null)
+                {
+                    <img src="@priceImage" alt="" class="mb-3 h-24 w-24 rounded-lg object-cover" />
+                }
+                <input id="Prices_Image" name="Image" type="file" accept="image/jpeg,image/png,image/webp,image/gif" class="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-sky-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-sky-700" />
+                <p class="mt-1 text-xs text-slate-500">JPG, PNG, WEBP hoặc GIF, tối đa 5 MB. Để trống nếu giữ ảnh hiện tại.</p>
+            </div>
             <div class="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
                 <a href="@Model.FilteredListUrl" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600">Hủy</a>
                 <button type="submit" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white">Lưu sản phẩm</button>
             </div>
         </form>
-    </div>
-</div>
+</dialog>
+<script>document.getElementById("catalog-price-dialog").showModal();</script>
+}
 
 @if (Model.Detail is not null)
 {
     var detail = Model.Detail;
-    <div id="catalog-detail-dialog" class="@(Model.ShowDetail ? "" : "hidden ")fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 p-4">
-        <div class="mx-auto my-8 w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-slate-200 p-6">
-            <div class="flex items-center justify-between gap-3">
-                <div>
-                    <h2 class="text-base font-bold text-slate-900">@detail.Name</h2>
-                    <p class="mt-1 font-mono text-xs text-slate-400">@detail.Code</p>
-                </div>
-                <a href="@Model.FilteredListUrl" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Đóng</a>
+    var detailImage = CatalogImageStore.PublicUrl(detail.ImagePath);
+    <dialog id="catalog-detail-dialog" class="m-auto !flex w-[min(42rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
+        <div class="flex shrink-0 items-center justify-between gap-3 px-6 pt-6">
+            <div>
+                <h2 class="text-base font-bold text-slate-900">@detail.Name</h2>
+                <p class="mt-1 font-mono text-xs text-slate-500">@detail.Code</p>
             </div>
+            <a href="@Model.FilteredListUrl" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Đóng</a>
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
+            @if (detailImage is not null)
+            {
+                <img src="@detailImage" alt="@detail.Name" class="mt-4 h-40 w-40 rounded-xl object-cover" />
+            }
             <dl class="mt-6 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
                 <div><dt class="text-slate-500">Ngành</dt><dd class="font-medium text-slate-900">@CatalogLabels.Category(detail.Category)</dd></div>
                 <div><dt class="text-slate-500">Thương hiệu</dt><dd class="font-medium text-slate-900">@CatalogLabels.Text(detail.Brand)</dd></div>
                 <div><dt class="text-slate-500">Xuất xứ</dt><dd class="font-medium text-slate-900">@CatalogLabels.Text(detail.Origin)</dd></div>
                 <div><dt class="text-slate-500">Đơn vị</dt><dd class="font-medium text-slate-900">@CatalogLabels.Text(detail.Unit)</dd></div>
+                <div><dt class="text-slate-500">Chiều cao (mm)</dt><dd class="font-mono tabular-nums text-slate-900">@CatalogLabels.Millimeters(detail.HeightMm)</dd></div>
+                <div><dt class="text-slate-500">Chiều dài (mm)</dt><dd class="font-mono tabular-nums text-slate-900">@CatalogLabels.Millimeters(detail.LengthMm)</dd></div>
+                <div><dt class="text-slate-500">Chiều rộng (mm)</dt><dd class="font-mono tabular-nums text-slate-900">@CatalogLabels.Millimeters(detail.WidthMm)</dd></div>
                 <div><dt class="text-slate-500">Trọng lượng</dt><dd class="font-mono tabular-nums text-slate-900">@CatalogLabels.Measure(detail.WeightKg)</dd></div>
                 <div><dt class="text-slate-500">Thể tích</dt><dd class="font-mono tabular-nums text-slate-900">@CatalogLabels.Measure(detail.VolumeM3)</dd></div>
                 <div><dt class="text-slate-500">Số tháng bảo hành</dt><dd class="font-mono tabular-nums text-slate-900">@CatalogLabels.Months(detail.WarrantyMonths)</dd></div>
@@ -471,7 +543,8 @@ else
             </dl>
             <p class="mt-6 text-sm font-medium text-slate-700">@CatalogLabels.PricesIncludeVat</p>
         </div>
-    </div>
+    </dialog>
+    <script>document.getElementById("catalog-detail-dialog").showModal();</script>
 }
 
 <script>

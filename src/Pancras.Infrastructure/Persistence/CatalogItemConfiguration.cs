@@ -19,6 +19,7 @@ public sealed class CatalogItemConfiguration : IEntityTypeConfiguration<CatalogI
         builder.Property(item => item.Unit).HasMaxLength(CatalogItem.UnitMaxLength).IsRequired();
         builder.Property(item => item.WeightKg).HasPrecision(12, 3);
         builder.Property(item => item.VolumeM3).HasPrecision(12, 3);
+        builder.Property(item => item.ImagePath).HasMaxLength(CatalogItem.ImagePathMaxLength).IsRequired();
         builder.Property(item => item.MinimumStock).HasPrecision(12, 3);
         builder.Property(item => item.CostPrice).HasPrecision(18, 0);
         builder.Property(item => item.RetailPrice).HasPrecision(18, 0);
