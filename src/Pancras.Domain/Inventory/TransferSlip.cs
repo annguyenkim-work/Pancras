@@ -12,7 +12,9 @@ public enum TransferStatus
     Approved = 6,
     Rejected = 7,
     /// <summary>Đã nhập kho theo số thực nhận nhưng khác số xuất; chờ Kế toán/Giám đốc xử lý chênh lệch.</summary>
-    ReceivedWithDiscrepancy = 8
+    ReceivedWithDiscrepancy = 8,
+    /// <summary>Hàng đang vận chuyển nhưng được trả về kho xuất (giao nhầm, kho nhận từ chối...). Tồn đã hoàn lại.</summary>
+    Returned = 9
 }
 
 public sealed class TransferLine
@@ -68,6 +70,12 @@ public sealed class TransferSlip : Pancras.Domain.Auditing.AuditStamped
     public Guid SourceLocationId { get; private set; }
 
     public Guid DestinationLocationId { get; private set; }
+
+    /// <summary>Nhân viên lập phiếu; chỉ người này được sửa hoặc hủy phiếu. Rỗng với phiếu cũ.</summary>
+    public Guid RequestedById { get; private set; }
+
+    /// <summary>Phiếu đã duyệt đang giữ hàng ở kho xuất (tăng số giữ chỗ). Phiếu duyệt trước khi có tính năng giữ hàng thì false.</summary>
+    public bool StockReserved { get; private set; }
 
     public string Note { get; private set; }
 
@@ -133,7 +141,8 @@ public sealed class TransferSlip : Pancras.Domain.Auditing.AuditStamped
         Guid sourceLocationId,
         Guid destinationLocationId,
         string? note,
-        IReadOnlyList<(Guid CatalogItemId, int Quantity)> lines)
+        IReadOnlyList<(Guid CatalogItemId, int Quantity)> lines,
+        Guid requestedById = default)
     {
         if (sourceLocationId == Guid.Empty
             || destinationLocationId == Guid.Empty
@@ -158,6 +167,7 @@ public sealed class TransferSlip : Pancras.Domain.Auditing.AuditStamped
             SourceLocationId = sourceLocationId,
             DestinationLocationId = destinationLocationId,
             Note = storedNote,
+            RequestedById = requestedById,
             Status = TransferStatus.Requested
         };
         foreach (var line in lines)
@@ -213,6 +223,15 @@ public sealed class TransferSlip : Pancras.Domain.Auditing.AuditStamped
             }
         }
 
+        foreach (var (itemId, quantity) in Totals())
+        {
+            if (!sources[itemId].TryReserve(quantity))
+            {
+                throw new InvalidOperationException("Reservation precheck did not hold.");
+            }
+        }
+
+        StockReserved = true;
         Status = TransferStatus.Approved;
         return true;
     }
@@ -229,15 +248,73 @@ public sealed class TransferSlip : Pancras.Domain.Auditing.AuditStamped
         return true;
     }
 
-    /// <summary>Hủy phiếu chưa xuất kho: không đụng tới tồn.</summary>
-    public bool TryCancelBeforeShipment()
+    /// <summary>Hủy phiếu chưa xuất kho. Phiếu đã duyệt đang giữ hàng thì nhả phần giữ ở kho xuất; tồn thực không đổi.</summary>
+    public bool TryCancelBeforeShipment(IReadOnlyDictionary<Guid, StockBalance>? sources = null)
     {
         if (Status is not (TransferStatus.Requested or TransferStatus.Approved))
         {
             return false;
         }
 
+        if (StockReserved)
+        {
+            var totals = Totals();
+            if (sources is null || totals.Any(pair => !sources.TryGetValue(pair.Key, out var source) || source.Reserved < pair.Value))
+            {
+                return false;
+            }
+
+            foreach (var (itemId, quantity) in totals)
+            {
+                if (!sources[itemId].TryRelease(quantity))
+                {
+                    throw new InvalidOperationException("Release precheck did not hold.");
+                }
+            }
+
+            StockReserved = false;
+        }
+
         Status = TransferStatus.Cancelled;
+        return true;
+    }
+
+    /// <summary>
+    /// Trả hàng đang vận chuyển về kho xuất: bỏ phần đang chuyển ở kho đích và cộng lại tồn kho xuất.
+    /// Chỉ làm khi phiếu còn InTransit; cần lý do.
+    /// </summary>
+    public bool TryReturnToSource(
+        IReadOnlyDictionary<Guid, StockBalance> sources,
+        IReadOnlyDictionary<Guid, StockBalance> destinations,
+        string? reason)
+    {
+        if (Status != TransferStatus.InTransit
+            || !InventoryText.TryRequired(reason, ReasonMaxLength, out var stored))
+        {
+            return false;
+        }
+
+        foreach (var (itemId, quantity) in Totals())
+        {
+            if (!sources.TryGetValue(itemId, out var source)
+                || !destinations.TryGetValue(itemId, out var destination)
+                || destination.InTransit < quantity
+                || (long)source.OnHand + quantity > int.MaxValue)
+            {
+                return false;
+            }
+        }
+
+        foreach (var (itemId, quantity) in Totals())
+        {
+            if (!destinations[itemId].TryRemoveInTransit(quantity) || !sources[itemId].TryAddOnHand(quantity))
+            {
+                throw new InvalidOperationException("Return precheck did not hold.");
+            }
+        }
+
+        ResolutionNote = stored;
+        Status = TransferStatus.Returned;
         return true;
     }
 
@@ -260,12 +337,14 @@ public sealed class TransferSlip : Pancras.Domain.Auditing.AuditStamped
 
         foreach (var (itemId, quantity) in Totals())
         {
-            if (!sources[itemId].TryShip(quantity) || !destinations[itemId].TryAddInTransit(quantity))
+            var shipped = StockReserved ? sources[itemId].TryShipReserved(quantity) : sources[itemId].TryShip(quantity);
+            if (!shipped || !destinations[itemId].TryAddInTransit(quantity))
             {
                 throw new InvalidOperationException("Shipment precheck did not hold.");
             }
         }
 
+        StockReserved = false;
         Status = TransferStatus.InTransit;
         return true;
     }
@@ -343,6 +422,9 @@ public sealed class TransferSlip : Pancras.Domain.Auditing.AuditStamped
         return true;
     }
 
+    /// <summary>Khôi phục cờ giữ hàng khi lưu thất bại (số giữ chỗ ở kho xuất được khôi phục riêng bằng BalanceSnapshot).</summary>
+    public void RestoreReserved(bool reserved) => StockReserved = reserved;
+
     public void RestoreUncommitted(TransferStatus status)
     {
         Status = status;
@@ -367,6 +449,7 @@ public sealed class TransferSlip : Pancras.Domain.Auditing.AuditStamped
 
         if (status == TransferStatus.Requested)
         {
+            StockReserved = false;
             ApprovedBy = string.Empty;
             ApprovedAt = null;
         }
@@ -378,7 +461,8 @@ public sealed class TransferSlip : Pancras.Domain.Auditing.AuditStamped
     {
         foreach (var (itemId, quantity) in Totals())
         {
-            if (!sources.TryGetValue(itemId, out var source) || !source.CanShip(quantity))
+            if (!sources.TryGetValue(itemId, out var source)
+                || !(StockReserved ? source.Reserved >= quantity && source.OnHand >= quantity : source.CanShip(quantity)))
             {
                 return false;
             }

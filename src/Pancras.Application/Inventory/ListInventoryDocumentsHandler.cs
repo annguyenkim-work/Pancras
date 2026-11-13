@@ -47,6 +47,11 @@ public sealed class ListInventoryDocumentsHandler(
         var files = transferAttachments is null || slips.Length == 0
             ? new Dictionary<Guid, IReadOnlyList<TransferAttachment>>()
             : (await transferAttachments.ListForSlipsAsync(slips.Select(slip => slip.Id).ToArray(), cancellationToken)).ToDictionary(pair => pair.Key, pair => pair.Value);
+        var events = slips.Length == 0
+            ? new Dictionary<Guid, List<TransferEvent>>()
+            : (await repository.ListTransferEventsAsync(slips.Select(slip => slip.Id).ToArray(), cancellationToken))
+                .GroupBy(item => item.TransferSlipId)
+                .ToDictionary(group => group.Key, group => group.ToList());
         logger.LogInformation("Listed {TransferSlipCount} transfer slips.", slips.Length);
         return slips
             .OrderBy(slip => slip.Status is TransferStatus.Requested or TransferStatus.Approved or TransferStatus.InTransit or TransferStatus.ReceivedWithDiscrepancy ? 0 : 1)
@@ -66,15 +71,16 @@ public sealed class ListInventoryDocumentsHandler(
                 line.Id,
                 line.ReceivedQuantity)).ToArray(),
             AuditStampView.From(slip),
-            FlowOf(slip, actor, files.TryGetValue(slip.Id, out var attached) ? attached : []),
+            FlowOf(slip, actor, files.TryGetValue(slip.Id, out var attached) ? attached : [], events.TryGetValue(slip.Id, out var trail) ? trail : []),
             slip.SourceLocationId,
             slip.DestinationLocationId))
             .ToArray();
     }
 
-    private static TransferFlowRow FlowOf(TransferSlip slip, EmployeeActor actor, IReadOnlyList<TransferAttachment> files)
+    private static TransferFlowRow FlowOf(TransferSlip slip, EmployeeActor actor, IReadOnlyList<TransferAttachment> files, IReadOnlyList<TransferEvent> trail)
     {
         var touch = TransferAccess.CanTouch(actor, slip);
+        var mine = touch && TransferAccess.IsCreator(actor, slip);
         var atSource = InventoryAccess.CanOperate(actor.Role) && InventoryAccess.CanAccessLocation(actor, slip.SourceLocationId);
         var atDestination = InventoryAccess.CanOperate(actor.Role) && InventoryAccess.CanAccessLocation(actor, slip.DestinationLocationId);
         return new TransferFlowRow(
@@ -92,13 +98,49 @@ public sealed class ListInventoryDocumentsHandler(
             slip.ResolvedAt,
             slip.HasDiscrepancy,
             slip.Status == TransferStatus.Requested && DecideTransferCommandHandler.CanDecide(actor, slip.SourceLocationId),
-            slip.Status == TransferStatus.Requested && touch,
+            slip.Status == TransferStatus.Requested && mine,
             slip.Status == TransferStatus.Approved && atSource,
             slip.Status == TransferStatus.InTransit && atDestination,
-            slip.Status is TransferStatus.Requested or TransferStatus.Approved && touch,
+            slip.Status is TransferStatus.Requested or TransferStatus.Approved && mine,
             slip.Status == TransferStatus.ReceivedWithDiscrepancy && InventoryRoles.IsFinance(actor.Role),
             touch && slip.Status is not (TransferStatus.Cancelled or TransferStatus.Rejected),
-            files.OrderBy(file => file.UploadedAt).Select(file => new TransferAttachmentView(file.Id, file.FileName, file.SizeBytes, file.UploadedAt, file.UploadedBy)).ToArray());
+            files.OrderBy(file => file.UploadedAt).Select(file => new TransferAttachmentView(file.Id, file.FileName, file.SizeBytes, file.UploadedAt, file.UploadedBy)).ToArray(),
+            slip.Status == TransferStatus.InTransit && InventoryRoles.IsFinance(actor.Role),
+            HistoryOf(slip, trail));
+    }
+
+    /// <summary>
+    /// Lịch sử phiếu từ bảng sự kiện. Phiếu lập trước khi có bảng này thì dựng lại từ các cột người/thời điểm từng bước.
+    /// </summary>
+    private static IReadOnlyList<TransferEventView> HistoryOf(TransferSlip slip, IReadOnlyList<TransferEvent> trail)
+    {
+        if (trail.Count > 0)
+        {
+            return trail.OrderBy(item => item.OccurredAt).Select(item => new TransferEventView(item.Kind, item.ActorCode, item.OccurredAt, item.Note)).ToArray();
+        }
+
+        var legacy = new List<TransferEventView> { new(TransferEventKind.Requested, slip.CreatedBy, slip.CreatedAt, slip.Note) };
+        if (slip.ApprovedAt is DateTimeOffset approved)
+        {
+            legacy.Add(new(TransferEventKind.Approved, slip.ApprovedBy, approved, string.Empty));
+        }
+
+        if (slip.ShippedAt is DateTimeOffset shipped)
+        {
+            legacy.Add(new(TransferEventKind.Shipped, slip.ShippedBy, shipped, string.Empty));
+        }
+
+        if (slip.ReceivedAt is DateTimeOffset received)
+        {
+            legacy.Add(new(slip.HasDiscrepancy ? TransferEventKind.ReceivedWithDiscrepancy : TransferEventKind.Received, slip.ReceivedBy, received, slip.ReceiveNote));
+        }
+
+        if (slip.ResolvedAt is DateTimeOffset resolved)
+        {
+            legacy.Add(new(TransferEventKind.Resolved, slip.ResolvedBy, resolved, slip.ResolutionNote));
+        }
+
+        return legacy;
     }
 
     public async Task<IReadOnlyList<StocktakeRow>> ListStocktakesAsync(EmployeeActor actor, CancellationToken cancellationToken)
@@ -139,7 +181,8 @@ public sealed class ListInventoryDocumentsHandler(
             adjustment.DocumentRef,
             adjustment.Status,
             adjustment.Status == ApprovalStatus.Pending && InventoryAccess.CanApproveAdjustment(actor.Role),
-            AuditStampView.From(adjustment))).ToArray();
+            AuditStampView.From(adjustment),
+            adjustment.TransferSlipId)).ToArray();
     }
 
     public async Task<IReadOnlyList<DisposalRow>> ListDisposalsAsync(EmployeeActor actor, CancellationToken cancellationToken)

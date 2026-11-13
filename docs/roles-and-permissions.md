@@ -36,21 +36,42 @@ Quy tắc cứng:
 
 ## 3. Kho (`/inventory`)
 
-Phạm vi: Admin, Giám đốc, Kế toán thấy mọi kho. Trưởng kho, Thủ kho, Sales chỉ thấy kho của mình.
+Phạm vi:
+- **Tra cứu tồn**: mọi vai trò xem kho (Admin, Giám đốc, Kế toán, Trưởng kho, Thủ kho, Sales) thấy số lượng ở **mọi** kho và showroom. Giá vốn chỉ Admin, Giám đốc, Kế toán thấy.
+- **Phiếu chuyển, kiểm kê, điều chỉnh, hủy hàng**: Admin, Giám đốc, Kế toán thấy mọi kho. Trưởng kho, Thủ kho chỉ thấy và thao tác phiếu thuộc kho mình. Sales không vào các tab này.
 
 | Hành động | Admin | Giám đốc | Kế toán | Trưởng kho | Thủ kho | Sales |
 | --- | --- | --- | --- | --- | --- | --- |
-| Tra cứu tồn | Có | Có | Có | Có | Có | Có (chỉ tra cứu) |
+| Tra cứu tồn (mọi kho) | Có | Có | Có | Có | Có | Có (chỉ số lượng) |
 | Thấy giá vốn **[Cần xác nhận]** | Có | Có | Có | Không | Không | Không |
 | Xuất Excel tồn kho | Có | Có | Có | Kho mình | Không | Không |
-| Lập phiếu chuyển kho, xuất kho | Có | Có | Có | Từ kho mình | Từ kho mình | Không |
-| Xác nhận nhận hàng chuyển đến | Có | Có | Có | Kho đích là kho mình | Kho đích là kho mình | Không |
-| Kiểm kê | Ghi thẳng | Ghi thẳng | Ghi thẳng | Lập, chờ duyệt | Lập, chờ duyệt | Không |
-| Lập phiếu điều chỉnh | Ghi thẳng | Ghi thẳng | Ghi thẳng | Lập, chờ duyệt | Lập, chờ duyệt | Không |
-| Lập phiếu hủy | Ghi thẳng | Ghi thẳng | Ghi thẳng | Lập, chờ duyệt | Lập, chờ duyệt | Không |
+| Lập phiếu đề nghị chuyển kho | Có | Có | Có | Kho xuất hoặc kho nhận là kho mình | Kho xuất hoặc kho nhận là kho mình | Không |
+| Kiểm kê | Ghi thẳng | Ghi thẳng | Ghi thẳng | Lập, chờ duyệt (kho mình) | Lập, chờ duyệt (kho mình) | Không |
+| Lập phiếu điều chỉnh | Ghi thẳng | Ghi thẳng | Ghi thẳng | Lập, chờ duyệt (kho mình) | Lập, chờ duyệt (kho mình) | Không |
+| Lập phiếu hủy | Ghi thẳng | Ghi thẳng | Ghi thẳng | Lập, chờ duyệt (kho mình) | Lập, chờ duyệt (kho mình) | Không |
 
-Ai duyệt phiếu chờ duyệt (**[Cần xác nhận]**):
-- Người lập không tự duyệt phiếu của mình.
+### Phiếu chuyển kho
+
+Phiếu đề nghị: chọn kho xuất và nơi nhận là kho nào cũng được, miễn **kho xuất hoặc nơi nhận là kho/showroom của mình** (xin hàng về hoặc chuyển hàng đi). Luồng: lập phiếu, duyệt, xuất kho, nhận hàng, xử lý chênh lệch (nếu có).
+
+| Bước | Ai làm được |
+| --- | --- |
+| Sửa phiếu (khi chưa duyệt) | Chỉ người lập phiếu |
+| Hủy phiếu (chưa xuất kho, bắt buộc lý do) | Chỉ người lập phiếu |
+| Duyệt hoặc từ chối (từ chối bắt buộc lý do) | Admin, Giám đốc, Kế toán, Trưởng kho của kho xuất |
+| Xuất kho | Admin, Giám đốc, Kế toán, Trưởng kho và Thủ kho của kho xuất |
+| Nhận hàng (phải nhập số thực nhận từng dòng) | Admin, Giám đốc, Kế toán, Trưởng kho và Thủ kho của nơi nhận |
+| Xử lý chênh lệch khi nhận | Admin, Giám đốc, Kế toán |
+| Trả hàng đang vận chuyển về kho xuất (bắt buộc lý do) | Admin, Giám đốc, Kế toán |
+
+Quy tắc:
+- Duyệt phiếu **giữ hàng** ở kho xuất (tăng số giữ chỗ, chưa trừ tồn) cho tới khi xuất kho hoặc hủy phiếu. Nếu không đủ tồn khả dụng thì không duyệt được.
+- Không áp dụng tách nhiệm vụ: một người có thể lập, duyệt, xuất và nhận cùng một phiếu nếu có quyền ở mỗi bước (Product Owner đã chấp nhận). Bù lại mọi bước đều ghi lịch sử.
+- Nhận hàng khác số xuất (thừa hay thiếu): bắt buộc lý do và file đính kèm. Tồn kho nơi nhận tăng theo số thực nhận. Hệ thống tự lập phiếu điều chỉnh trạng thái "Đã ghi nhận" cho phần chênh (lý do lấy từ lúc nhận), không cộng trừ tồn lần nữa. Phiếu chuyển chờ Admin, Giám đốc, Kế toán xử lý chênh lệch.
+- Lịch sử phiếu ghi ai lập, sửa, duyệt, từ chối, xuất, nhận, xử lý chênh lệch, hủy, trả hàng, và lúc nào, kèm lý do. Lịch sử không ghi nội dung đã sửa (nội dung chi tiết nằm ở nhật ký audit của Admin).
+- Thông báo: lập hoặc sửa phiếu gửi Admin, Giám đốc, Kế toán và Trưởng kho của kho xuất; mỗi bước sau gửi người lập (trừ chính người thao tác); duyệt gửi thêm nhân viên kho xuất; xuất kho gửi thêm nhân viên nơi nhận; nhận lệch gửi thêm Admin, Giám đốc, Kế toán.
+
+Ai duyệt phiếu chờ duyệt của kiểm kê và phiếu hủy (**[Cần xác nhận]**):
 - Phiếu của Thủ kho: Trưởng kho của kho đó duyệt. Giám đốc, Kế toán, Admin cũng duyệt được.
 - Phiếu của Trưởng kho: Giám đốc hoặc Kế toán duyệt.
 - Phiếu điều chỉnh: Giám đốc, Kế toán, Admin duyệt (như code hiện tại).

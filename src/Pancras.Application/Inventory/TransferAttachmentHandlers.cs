@@ -28,6 +28,13 @@ public static class TransferAccess
     public static bool CanTouch(EmployeeActor actor, TransferSlip slip) =>
         InventoryAccess.CanOperate(actor.Role)
         && (InventoryAccess.CanAccessLocation(actor, slip.SourceLocationId) || InventoryAccess.CanAccessLocation(actor, slip.DestinationLocationId));
+
+    /// <summary>
+    /// Người lập phiếu: chỉ người này được sửa hoặc hủy phiếu (người duyệt chỉ duyệt hoặc từ chối).
+    /// Phiếu cũ chưa ghi người lập thì giữ quy tắc trước đây (nhân viên kho nguồn hoặc kho đích).
+    /// </summary>
+    public static bool IsCreator(EmployeeActor actor, TransferSlip slip) =>
+        slip.RequestedById == Guid.Empty || slip.RequestedById == actor.Id;
 }
 
 /// <summary>File người dùng vừa chọn, chưa lưu: tên, dung lượng và vài byte đầu để đối chiếu đuôi file.</summary>

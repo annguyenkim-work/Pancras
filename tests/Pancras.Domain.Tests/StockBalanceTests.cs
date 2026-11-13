@@ -32,3 +32,54 @@ public class StockBalanceTests
         Assert.True(balance.Available >= 0);
     }
 }
+
+public class StockReservationTests
+{
+    [Fact]
+    public void Reserve_UsesAvailableStock_AndShippingConsumesTheReservation()
+    {
+        var balance = StockBalance.Create(Guid.NewGuid(), Guid.NewGuid(), 10, 2, 0);
+
+        Assert.False(balance.TryReserve(9));
+        Assert.True(balance.TryReserve(8));
+        Assert.Equal(10, balance.Reserved);
+        Assert.Equal(0, balance.Available);
+        Assert.True(balance.TryShipReserved(8));
+
+        Assert.Equal(2, balance.OnHand);
+        Assert.Equal(2, balance.Reserved);
+    }
+
+    [Fact]
+    public void Release_GivesTheReservedStockBack_ButNeverMoreThanReserved()
+    {
+        var balance = StockBalance.Create(Guid.NewGuid(), Guid.NewGuid(), 10, 4, 0);
+
+        Assert.False(balance.TryRelease(5));
+        Assert.True(balance.TryRelease(4));
+        Assert.Equal(10, balance.Available);
+        Assert.False(balance.TryShipReserved(1));
+    }
+
+    [Fact]
+    public void ReturnToSource_RestoresStock_OnlyWhileInTransit()
+    {
+        var item = Guid.NewGuid();
+        var source = StockBalance.Create(item, Guid.NewGuid(), 6, 0, 0);
+        var destination = StockBalance.Create(item, Guid.NewGuid(), 0, 0, 4);
+        var slip = TransferSlip.Create(source.StockLocationId, destination.StockLocationId, null, [(item, 4)])!;
+        var sources = new Dictionary<Guid, StockBalance> { [item] = source };
+        var destinations = new Dictionary<Guid, StockBalance> { [item] = destination };
+
+        Assert.False(slip.TryReturnToSource(sources, destinations, "Giao nhầm"));
+        Assert.True(slip.TryApprove(sources));
+        Assert.True(slip.TryConfirmShipment(sources, new Dictionary<Guid, StockBalance> { [item] = destination }));
+        Assert.False(slip.TryReturnToSource(sources, destinations, " "));
+        Assert.True(slip.TryReturnToSource(sources, destinations, "Giao nhầm"));
+
+        Assert.Equal(TransferStatus.Returned, slip.Status);
+        Assert.Equal(6, source.OnHand);
+        Assert.Equal(0, source.Reserved);
+        Assert.Equal(4, destination.InTransit);
+    }
+}

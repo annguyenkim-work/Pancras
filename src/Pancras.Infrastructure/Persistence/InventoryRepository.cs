@@ -147,6 +147,17 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
             .OrderByDescending(slip => slip.Id)
             .ToListAsync(cancellationToken);
 
+    public Task AddTransferEventAsync(TransferEvent transferEvent, CancellationToken cancellationToken) =>
+        context.TransferEvents.AddAsync(transferEvent, cancellationToken).AsTask();
+
+    public async Task<IReadOnlyList<TransferEvent>> ListTransferEventsAsync(IReadOnlyCollection<Guid> transferSlipIds, CancellationToken cancellationToken) =>
+        transferSlipIds.Count == 0
+            ? []
+            : await context.TransferEvents.AsNoTracking()
+                .Where(item => transferSlipIds.Contains(item.TransferSlipId))
+                .OrderBy(item => item.OccurredAt)
+                .ToListAsync(cancellationToken);
+
     public async Task<StockItemProfile?> FindItemProfileAsync(Guid catalogItemId, CancellationToken cancellationToken) =>
         await context.CatalogItems.AsNoTracking()
             .Where(item => item.Id == catalogItemId)

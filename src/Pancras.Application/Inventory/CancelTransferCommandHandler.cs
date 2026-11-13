@@ -1,41 +1,101 @@
 using Pancras.Application.Auditing;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Common;
+using Pancras.Application.Employees;
 using Pancras.Domain.Inventory;
 
 namespace Pancras.Application.Inventory;
 
 /// <summary>
-/// Hủy phiếu chuyển trước khi xuất kho (đang chờ duyệt hoặc đã duyệt): không đụng tới tồn.
-/// Đã xuất hàng bàn giao vận chuyển thì không hủy được nữa.
+/// Hủy phiếu chuyển trước khi xuất kho (đang chờ duyệt hoặc đã duyệt). Chỉ người lập phiếu được hủy và phải ghi lý do
+/// (<see cref="ConfirmTransferCommand.Note"/>). Phiếu đã duyệt đang giữ hàng thì nhả phần giữ; tồn thực không đổi.
+/// Đã xuất hàng bàn giao vận chuyển thì không hủy được nữa (xem <see cref="ReturnTransferCommandHandler"/>).
 /// </summary>
 public sealed class CancelTransferCommandHandler(
     IInventoryRepository repository,
     ILogger<CancelTransferCommandHandler> logger,
     TimeProvider? clock = null,
     IAuditLog? audit = null,
-    IRequestInfo? request = null)
+    IRequestInfo? request = null,
+    IEmployeeRepository? employees = null)
 {
     public async Task<Result<Guid>> HandleAsync(ConfirmTransferCommand command, CancellationToken cancellationToken)
     {
         var slip = await repository.FindTransferForUpdateAsync(command.TransferSlipId, cancellationToken);
-        if (slip is not null && !TransferAccess.CanTouch(command.Actor, slip))
+        if (slip is null)
+        {
+            return Result<Guid>.Fail(StockError.TransferNotFound);
+        }
+
+        if (!TransferAccess.CanTouch(command.Actor, slip))
         {
             logger.LogWarning("Transfer cancel forbidden for employee {EmployeeId}.", command.Actor.Id);
             return Result<Guid>.Fail(StockError.Forbidden);
         }
 
-        var status = slip?.Status ?? TransferStatus.Requested;
-        if (slip is null || !slip.TryCancelBeforeShipment())
+        if (!TransferAccess.IsCreator(command.Actor, slip))
         {
+            logger.LogWarning("Transfer cancel by non-creator employee {EmployeeId}.", command.Actor.Id);
+            return Result<Guid>.Fail(StockError.NotCreator);
+        }
+
+        if (slip.Status is not (TransferStatus.Requested or TransferStatus.Approved))
+        {
+            return Result<Guid>.Fail(StockError.TransferStateChanged);
+        }
+
+        if (string.IsNullOrWhiteSpace(command.Note))
+        {
+            return Result<Guid>.Fail(StockError.ReasonRequired);
+        }
+
+        var status = slip.Status;
+        var wasReserved = slip.StockReserved;
+        var sources = new Dictionary<Guid, StockBalance>();
+        if (wasReserved)
+        {
+            foreach (var itemId in slip.Lines.Select(line => line.CatalogItemId).Distinct())
+            {
+                var source = await repository.FindBalanceForUpdateAsync(itemId, slip.SourceLocationId, cancellationToken);
+                if (source is not null)
+                {
+                    sources[itemId] = source;
+                }
+            }
+        }
+
+        var snapshots = sources.Values.Select(BalanceSnapshot.Take).ToArray();
+        if (!slip.TryCancelBeforeShipment(sources))
+        {
+            foreach (var snapshot in snapshots)
+            {
+                snapshot.Restore();
+            }
+
             logger.LogWarning("Transfer cancel rejected for {TransferSlipId}.", command.TransferSlipId);
             return Result<Guid>.Fail(StockError.CancelRejected);
         }
 
+        await TransferTrail.RecordAsync(repository, slip, TransferEventKind.Cancelled, request, clock, command.Note, cancellationToken);
+        await TransferTrail.NotifyAsync(
+            repository,
+            employees,
+            slip,
+            command.Actor.Id,
+            StockNotice.TransferCancelledStep,
+            status == TransferStatus.Approved ? TransferAudience.SourceStaff : TransferAudience.SourceLead,
+            clock,
+            cancellationToken);
         if (!await repository.CommitAsync(cancellationToken))
         {
+            foreach (var snapshot in snapshots)
+            {
+                snapshot.Restore();
+            }
+
             slip.RestoreUncommitted(status);
-            return Result<Guid>.Fail(StockError.CancelRejected);
+            slip.RestoreReserved(wasReserved);
+            return Result<Guid>.Fail(StockError.TransferStateChanged);
         }
 
         logger.LogInformation("Cancelled transfer {TransferSlipId}.", slip.Id);

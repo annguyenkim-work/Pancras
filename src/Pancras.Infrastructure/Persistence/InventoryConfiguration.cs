@@ -72,10 +72,29 @@ public sealed class TransferSlipConfiguration : IEntityTypeConfiguration<Transfe
         builder.Property(slip => slip.ShippedBy).HasMaxLength(64).IsRequired();
         builder.Property(slip => slip.ReceivedBy).HasMaxLength(64).IsRequired();
         builder.Property(slip => slip.ResolvedBy).HasMaxLength(64).IsRequired();
+        builder.Property(slip => slip.RequestedById).IsRequired();
+        builder.Property(slip => slip.StockReserved).IsRequired();
         builder.HasMany(slip => slip.Lines).WithOne().HasForeignKey(line => line.TransferSlipId).OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(slip => slip.Lines).UsePropertyAccessMode(PropertyAccessMode.Field);
         builder.HasOne<StockLocation>().WithMany().HasForeignKey(slip => slip.SourceLocationId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<StockLocation>().WithMany().HasForeignKey(slip => slip.DestinationLocationId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public sealed class TransferEventConfiguration : IEntityTypeConfiguration<TransferEvent>
+{
+    public void Configure(EntityTypeBuilder<TransferEvent> builder)
+    {
+        builder.ToTable("transfer_event");
+        builder.HasKey(item => item.Id);
+        builder.Property(item => item.Id).ValueGeneratedNever();
+        builder.Property(item => item.TransferSlipId).IsRequired();
+        builder.Property(item => item.Kind).HasConversion<int>().IsRequired();
+        builder.Property(item => item.ActorCode).HasMaxLength(TransferEvent.ActorMaxLength).IsRequired();
+        builder.Property(item => item.OccurredAt).IsRequired();
+        builder.Property(item => item.Note).HasMaxLength(TransferEvent.NoteMaxLength).IsRequired();
+        builder.HasIndex(item => item.TransferSlipId);
+        builder.HasOne<TransferSlip>().WithMany().HasForeignKey(item => item.TransferSlipId).OnDelete(DeleteBehavior.Cascade);
     }
 }
 
@@ -128,6 +147,7 @@ public sealed class QuantityAdjustmentConfiguration : IEntityTypeConfiguration<Q
         builder.Property(adjustment => adjustment.DocumentRef).HasMaxLength(StocktakeSheet.DocumentRefMaxLength).IsRequired();
         builder.Property(adjustment => adjustment.ImageRef).HasMaxLength(StocktakeSheet.ImageRefMaxLength).IsRequired();
         builder.Property(adjustment => adjustment.Status).HasConversion<int>().IsRequired();
+        builder.Property(adjustment => adjustment.TransferSlipId);
         builder.HasOne<StockLocation>().WithMany().HasForeignKey(adjustment => adjustment.StockLocationId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<CatalogItem>().WithMany().HasForeignKey(adjustment => adjustment.CatalogItemId).OnDelete(DeleteBehavior.Restrict);
     }

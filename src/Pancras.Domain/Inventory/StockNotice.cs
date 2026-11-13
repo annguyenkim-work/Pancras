@@ -3,7 +3,10 @@ namespace Pancras.Domain.Inventory;
 public enum StockNoticeKind
 {
     DisposalApproved = 1,
-    AdjustmentPending = 2
+    AdjustmentPending = 2,
+
+    /// <summary>Thông báo bước của phiếu chuyển kho; nội dung cụ thể nằm ở <see cref="StockNotice.Step"/>.</summary>
+    Transfer = 3
 }
 
 public sealed class StockNotice
@@ -11,6 +14,26 @@ public sealed class StockNotice
     public const string DisposalStep = "Đã duyệt hủy";
 
     public const string AdjustmentStep = "Chờ duyệt điều chỉnh";
+
+    public const string TransferRequestedStep = "Phiếu đề nghị chuyển kho chờ duyệt";
+
+    public const string TransferEditedStep = "Phiếu đề nghị chuyển kho vừa được sửa";
+
+    public const string TransferApprovedStep = "Phiếu chuyển kho đã được duyệt";
+
+    public const string TransferRejectedStep = "Phiếu chuyển kho bị từ chối";
+
+    public const string TransferShippedStep = "Hàng chuyển kho đã xuất, đang trên đường";
+
+    public const string TransferReceivedStep = "Hàng chuyển kho đã được nhận";
+
+    public const string TransferDiscrepancyStep = "Nhận hàng chuyển kho có chênh lệch, chờ xử lý";
+
+    public const string TransferResolvedStep = "Đã xử lý chênh lệch phiếu chuyển kho";
+
+    public const string TransferCancelledStep = "Phiếu chuyển kho đã bị hủy";
+
+    public const string TransferReturnedStep = "Hàng chuyển kho được trả về kho xuất";
 
     private StockNotice()
     {

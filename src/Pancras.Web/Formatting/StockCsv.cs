@@ -28,22 +28,79 @@ public static class StockLabels
     {
         ApprovalStatus.Pending => "Chờ duyệt",
         ApprovalStatus.Approved => "Đã duyệt",
+        ApprovalStatus.Recorded => "Đã ghi nhận",
         _ => string.Empty
     };
 
     public static string TransferPill(TransferStatus status) => status switch
     {
         TransferStatus.Draft => "Nháp",
+        TransferStatus.Requested => "Chờ duyệt",
+        TransferStatus.Approved => "Đã duyệt, chờ xuất kho",
+        TransferStatus.Rejected => "Bị từ chối",
         TransferStatus.InTransit => "Đang vận chuyển",
-        TransferStatus.Received => "Đã tiếp nhận nhập kho",
+        TransferStatus.Received => "Đã nhận hàng",
+        TransferStatus.ReceivedWithDiscrepancy => "Nhận có chênh lệch",
+        TransferStatus.Cancelled => "Đã hủy",
+        TransferStatus.Returned => "Đã trả về kho xuất",
         _ => string.Empty
+    };
+
+    /// <summary>Màu nhãn trạng thái: vàng chờ duyệt, xanh dương đã duyệt, đỏ từ chối, cam chênh lệch, xanh lá hoàn tất.</summary>
+    public static string TransferPillClass(TransferStatus status) => status switch
+    {
+        TransferStatus.Requested => "bg-yellow-100 text-yellow-800",
+        TransferStatus.Approved => "bg-sky-100 text-sky-800",
+        TransferStatus.Rejected => "bg-rose-100 text-rose-800",
+        TransferStatus.InTransit => "bg-amber-100 text-amber-800",
+        TransferStatus.Received => "bg-emerald-100 text-emerald-800",
+        TransferStatus.ReceivedWithDiscrepancy => "bg-orange-100 text-orange-800",
+        TransferStatus.Cancelled => "bg-slate-200 text-slate-600",
+        TransferStatus.Returned => "bg-violet-100 text-violet-800",
+        _ => "bg-slate-100 text-slate-600"
     };
 
     public static string TransferLeg(TransferStatus status) => status switch
     {
+        TransferStatus.Requested => "chờ duyệt",
+        TransferStatus.Approved => "chờ xuất kho",
         TransferStatus.InTransit => "đang trên xe",
         TransferStatus.Received => "đã hoàn tất",
+        TransferStatus.ReceivedWithDiscrepancy => "đã nhận, có chênh lệch",
+        TransferStatus.Returned => "đã trả về",
+        TransferStatus.Cancelled => "đã hủy",
+        TransferStatus.Rejected => "bị từ chối",
         _ => "chưa xuất xe"
+    };
+
+    public static string TransferEvent(TransferEventKind kind) => kind switch
+    {
+        TransferEventKind.Requested => "Lập phiếu đề nghị",
+        TransferEventKind.Edited => "Sửa phiếu",
+        TransferEventKind.Approved => "Duyệt",
+        TransferEventKind.Rejected => "Từ chối",
+        TransferEventKind.Shipped => "Xuất kho",
+        TransferEventKind.Received => "Nhận hàng",
+        TransferEventKind.ReceivedWithDiscrepancy => "Nhận hàng, có chênh lệch",
+        TransferEventKind.Resolved => "Xử lý chênh lệch",
+        TransferEventKind.Cancelled => "Hủy phiếu",
+        TransferEventKind.Returned => "Trả hàng về kho xuất",
+        _ => string.Empty
+    };
+
+    /// <summary>Các bước chính của một phiếu, theo thứ tự, để vẽ thanh tiến trình.</summary>
+    public static IReadOnlyList<string> TransferSteps { get; } = ["Lập phiếu", "Duyệt", "Xuất kho", "Nhận hàng", "Xử lý chênh lệch"];
+
+    /// <summary>Số bước đã xong (0 đến 5) và số bước hiện tại trên thanh tiến trình, theo trạng thái phiếu.</summary>
+    public static int TransferProgress(TransferStatus status) => status switch
+    {
+        TransferStatus.Requested => 1,
+        TransferStatus.Approved => 2,
+        TransferStatus.InTransit => 3,
+        TransferStatus.Received => 5,
+        TransferStatus.ReceivedWithDiscrepancy => 4,
+        TransferStatus.Returned => 3,
+        _ => 0
     };
 
     public static string StocktakePill(ApprovalStatus status) => status switch
@@ -123,13 +180,7 @@ public static class StockLabels
         }
     }
 
-    public static string DocumentCode(string prefix, Guid id)
-    {
-        Span<byte> bytes = stackalloc byte[16];
-        id.TryWriteBytes(bytes);
-        // Dùng 4 byte cuối (phần ngẫu nhiên của UUID v7). 4 byte đầu là mốc thời gian, nên hai phiếu lập gần nhau sẽ trùng mã.
-        return prefix + "-" + Convert.ToHexString(bytes[12..16]);
-    }
+    public static string DocumentCode(string prefix, Guid id) => StockDocumentCode.Of(prefix, id);
 }
 
 public static class StockCsv

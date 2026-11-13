@@ -209,6 +209,8 @@ public sealed class PancrasWebFactory : WebApplicationFactory<Program>
             services.RemoveAll<IInventoryRepository>();
             services.AddSingleton<InventoryDirectoryDouble>();
             services.AddSingleton<IInventoryRepository>(provider => provider.GetRequiredService<InventoryDirectoryDouble>());
+            services.RemoveAll<Pancras.Application.Inventory.ITransferAttachmentRepository>();
+            services.AddSingleton<Pancras.Application.Inventory.ITransferAttachmentRepository, TransferAttachmentDouble>();
             services.RemoveAll<IPurchaseOrderRepository>();
             services.AddSingleton<PurchaseDirectoryDouble>();
             services.AddSingleton<IPurchaseOrderRepository>(provider => provider.GetRequiredService<PurchaseDirectoryDouble>());

@@ -21,6 +21,7 @@ public class IndexModel(
     DecideTransferCommandHandler decideHandler,
     ShipTransferCommandHandler shipHandler,
     ResolveTransferDiscrepancyCommandHandler resolveHandler,
+    ReturnTransferCommandHandler returnHandler,
     UpdateTransferRequestCommandHandler updateRequestHandler,
     UploadTransferAttachmentCommandHandler uploadTransferAttachment,
     OpenTransferAttachmentHandler openTransferAttachment,
@@ -96,7 +97,107 @@ public class IndexModel(
 
     public bool ShowStocktakeDialog { get; private set; }
 
-    public int MovingCount => Transfers.Count(slip => slip.Status == TransferStatus.InTransit);
+    public const int TransferPageSize = 10;
+
+    /// <summary>Số phiếu đang chờ chính người dùng xử lý (duyệt, xuất, nhận hoặc xử lý chênh lệch), hiện trên tab Chuyển kho.</summary>
+    public int PendingForMeCount => Transfers.Count(slip => Waiting(slip, "all-mine"));
+
+    public int CountFor(string quick) => Transfers.Count(slip => Waiting(slip, quick));
+
+    public IReadOnlyList<TransferSlipRow> FilteredTransfers => Transfers.Where(MatchesTransferFilter).ToArray();
+
+    public int TransferTotal => FilteredTransfers.Count;
+
+    public int TransferPageCount => Math.Max(1, (int)Math.Ceiling(TransferTotal / (double)TransferPageSize));
+
+    public int CurrentTransferPage => Math.Clamp(TransferPage, 1, TransferPageCount);
+
+    /// <summary>Phiếu của trang hiện tại, kèm phiếu đang được mở (sau thao tác lỗi hoặc mở từ thông báo) dù nó nằm ở trang khác.</summary>
+    public IReadOnlyList<TransferSlipRow> PagedTransfers
+    {
+        get
+        {
+            var page = FilteredTransfers.Skip((CurrentTransferPage - 1) * TransferPageSize).Take(TransferPageSize).ToList();
+            if (OpenTransferId is Guid open && page.All(slip => slip.Id != open) && Transfers.FirstOrDefault(slip => slip.Id == open) is { } extra)
+            {
+                page.Add(extra);
+            }
+
+            return page;
+        }
+    }
+
+    public bool HasTransferFilter => !string.IsNullOrWhiteSpace(TransferQuick)
+        || !string.IsNullOrWhiteSpace(TransferStatusFilter)
+        || !string.IsNullOrWhiteSpace(TransferLocation)
+        || !string.IsNullOrWhiteSpace(TransferSearch)
+        || !string.IsNullOrWhiteSpace(TransferFrom)
+        || !string.IsNullOrWhiteSpace(TransferTo);
+
+    /// <summary>Phiếu đang chờ người dùng theo từng nhóm: decide (duyệt), ship (xuất), receive (nhận), resolve (xử lý chênh lệch), all-mine (bất kỳ nhóm nào).</summary>
+    private static bool Waiting(TransferSlipRow slip, string quick) => slip.Flow is { } flow && quick switch
+    {
+        "decide" => flow.CanDecide,
+        "ship" => flow.CanShip,
+        "receive" => flow.CanReceive,
+        "resolve" => flow.CanResolve,
+        "all-mine" => flow.CanDecide || flow.CanShip || flow.CanReceive || flow.CanResolve,
+        _ => false
+    };
+
+    private bool MatchesTransferFilter(TransferSlipRow slip)
+    {
+        if (!string.IsNullOrWhiteSpace(TransferQuick) && TransferQuick != "all" && !Waiting(slip, TransferQuick))
+        {
+            return false;
+        }
+
+        if (TransferStatusFilter is { Length: > 0 } token
+            && Enum.TryParse<TransferStatus>(token, ignoreCase: true, out var status)
+            && slip.Status != status)
+        {
+            return false;
+        }
+
+        if (Guid.TryParse(TransferLocation, out var place) && slip.SourceId != place && slip.DestinationId != place)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(TransferSearch))
+        {
+            var term = TransferSearch.Trim();
+            var code = StockLabels.DocumentCode("CK", slip.Id);
+            if (!code.Contains(term, StringComparison.OrdinalIgnoreCase)
+                && !slip.Lines.Any(line => line.Code.Contains(term, StringComparison.OrdinalIgnoreCase) || line.Name.Contains(term, StringComparison.OrdinalIgnoreCase)))
+            {
+                return false;
+            }
+        }
+
+        var created = StockLabels.Version7Time(slip.Id)?.ToLocalTime().Date;
+        if (created is DateTime day)
+        {
+            if (DateTime.TryParse(TransferFrom, CultureInfo.InvariantCulture, DateTimeStyles.None, out var from) && day < from.Date)
+            {
+                return false;
+            }
+
+            if (DateTime.TryParse(TransferTo, CultureInfo.InvariantCulture, DateTimeStyles.None, out var to) && day > to.Date)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>Số thực nhận đã nhập, giữ lại khi nhận hàng bị từ chối để người dùng không phải nhập lại.</summary>
+    public IReadOnlyDictionary<Guid, int> EchoReceived { get; private set; } = new Dictionary<Guid, int>();
+
+    public string? EchoReceiveNote { get; private set; }
+
+    public Guid? OpenTransferId { get; private set; }
 
     public string ActiveView => !CanOperate ? "balances" : View switch
     {
@@ -109,8 +210,8 @@ public class IndexModel(
     {
         get
         {
-            var warehouses = Locations.Where(location => location.Kind == StockLocationKind.Warehouse).Select(location => location.Name).ToArray();
-            var showrooms = Locations.Where(location => location.Kind == StockLocationKind.Showroom).Select(location => location.Name).ToArray();
+            var warehouses = AllLocations.Where(location => location.Kind == StockLocationKind.Warehouse).Select(location => location.Name).ToArray();
+            var showrooms = AllLocations.Where(location => location.Kind == StockLocationKind.Showroom).Select(location => location.Name).ToArray();
             if (warehouses.Length == 0 && showrooms.Length == 0)
             {
                 return "Chưa có địa điểm kho hoặc showroom.";
@@ -126,9 +227,9 @@ public class IndexModel(
         }
     }
 
-    public string LocationOptionLabel => Locations.Count == 0
+    public string LocationOptionLabel => AllLocations.Count == 0
         ? "Toàn hệ thống"
-        : $"Toàn hệ thống ({Locations.Count} địa điểm)";
+        : $"Toàn hệ thống ({AllLocations.Count} địa điểm)";
 
     [BindProperty(SupportsGet = true, Name = "q")]
     public string? Search { get; set; }
@@ -156,6 +257,30 @@ public class IndexModel(
 
     [BindProperty(SupportsGet = true, Name = "size")]
     public int HistorySize { get; set; } = 10;
+
+    [BindProperty(SupportsGet = true, Name = "tf")]
+    public string? TransferQuick { get; set; }
+
+    [BindProperty(SupportsGet = true, Name = "ts")]
+    public string? TransferStatusFilter { get; set; }
+
+    [BindProperty(SupportsGet = true, Name = "tl")]
+    public string? TransferLocation { get; set; }
+
+    [BindProperty(SupportsGet = true, Name = "tq")]
+    public string? TransferSearch { get; set; }
+
+    [BindProperty(SupportsGet = true, Name = "tfrom")]
+    public string? TransferFrom { get; set; }
+
+    [BindProperty(SupportsGet = true, Name = "tto")]
+    public string? TransferTo { get; set; }
+
+    [BindProperty(SupportsGet = true, Name = "tp")]
+    public int TransferPage { get; set; } = 1;
+
+    [BindProperty(SupportsGet = true, Name = "open")]
+    public Guid? OpenTransfer { get; set; }
 
     [BindProperty]
     public TransferInput Transfer { get; set; } = new();
@@ -199,7 +324,7 @@ public class IndexModel(
             cancellationToken);
         if (created.IsFailure || created.Value == Guid.Empty)
         {
-            return await FailAsync(created.StockError, openTransfer: true, "transfers", cancellationToken);
+            return await FailAsync(created.StockError, created.Detail, openTransfer: true, "transfers", cancellationToken);
         }
 
         View = "transfers";
@@ -235,8 +360,13 @@ public class IndexModel(
     public Task<IActionResult> OnPostShipTransferAsync(string? sealNumber, string? carrier, CancellationToken cancellationToken) =>
         SaveAsync(shipHandler.HandleAsync(new ShipTransferCommand(DocumentId, Actor, sealNumber, carrier), cancellationToken), "transfers", cancellationToken);
 
-    public Task<IActionResult> OnPostCancelTransferAsync(CancellationToken cancellationToken) =>
-        SaveAsync(cancelTransferHandler.HandleAsync(new ConfirmTransferCommand(DocumentId, Actor), cancellationToken), "transfers", cancellationToken);
+    /// <summary>Hủy phiếu chưa xuất kho; chỉ người lập, bắt buộc lý do.</summary>
+    public Task<IActionResult> OnPostCancelTransferAsync(string? reason, CancellationToken cancellationToken) =>
+        SaveAsync(cancelTransferHandler.HandleAsync(new ConfirmTransferCommand(DocumentId, Actor, null, reason), cancellationToken), "transfers", cancellationToken);
+
+    /// <summary>Trả hàng đang vận chuyển về kho xuất; chỉ Admin, Giám đốc, Kế toán, bắt buộc lý do.</summary>
+    public Task<IActionResult> OnPostReturnTransferAsync(string? reason, CancellationToken cancellationToken) =>
+        SaveAsync(returnHandler.HandleAsync(new ReturnTransferCommand(DocumentId, Actor, reason), cancellationToken), "transfers", cancellationToken);
 
     /// <summary>Kiểm nhận: số thực nhận từng dòng (bỏ trống = nhận đủ). Khác số xuất thì cần lý do và file đính kèm.</summary>
     public async Task<IActionResult> OnPostReceiveTransferAsync(
@@ -250,6 +380,9 @@ public class IndexModel(
             .Select(line => new ReceivedLineInput(line.LineId, line.Quantity!.Value))
             .ToArray();
 
+        EchoReceived = (receiveLines ?? []).Where(line => line.Quantity is not null).ToDictionary(line => line.LineId, line => line.Quantity!.Value);
+        EchoReceiveNote = receiveNote;
+
         // Kiểm tra phiếu nhận trước; chỉ lưu file khi phiếu hợp lệ để không để lại file mồ côi sau lần nhận bị từ chối.
         var checkedReceipt = await receiptHandler.CheckAsync(
             new ConfirmTransferCommand(DocumentId, Actor, actuals, receiveNote),
@@ -257,7 +390,7 @@ public class IndexModel(
             cancellationToken);
         if (checkedReceipt.IsFailure)
         {
-            return await FailAsync(checkedReceipt.StockError, openTransfer: false, "transfers", cancellationToken);
+            return await FailAsync(checkedReceipt.StockError, checkedReceipt.Detail, openTransfer: false, "transfers", cancellationToken);
         }
 
         if (await UploadTransferFilesAsync(files, cancellationToken) is { } uploadFailure)
@@ -299,7 +432,7 @@ public class IndexModel(
         var verdict = await uploadTransferAttachment.CheckAsync(DocumentId, pending, Actor, cancellationToken);
         if (verdict.IsFailure)
         {
-            return await FailAsync(verdict.StockError, openTransfer: false, "transfers", cancellationToken);
+            return await FailAsync(verdict.StockError, verdict.Detail, openTransfer: false, "transfers", cancellationToken);
         }
 
         foreach (var file in chosen)
@@ -310,7 +443,7 @@ public class IndexModel(
                 cancellationToken);
             if (uploaded.IsFailure)
             {
-                return await FailAsync(uploaded.StockError, openTransfer: false, "transfers", cancellationToken);
+                return await FailAsync(uploaded.StockError, uploaded.Detail, openTransfer: false, "transfers", cancellationToken);
             }
         }
 
@@ -393,16 +526,47 @@ public class IndexModel(
             notice = await noticesHandler.OpenAsync(noticeId, employeeId, cancellationToken);
         }
 
-        var target = notice is null
-            ? "/inventory?view=stocktakes"
-            : $"/inventory?view=stocktakes#document-{notice.DocumentId:D}";
+        var target = notice switch
+        {
+            null => "/inventory?view=transfers",
+            { Kind: StockNoticeKind.Transfer } => $"/inventory?view=transfers&open={notice.DocumentId:D}",
+            _ => $"/inventory?view=stocktakes#document-{notice.DocumentId:D}"
+        };
+
         return Redirect(target);
     }
 
     public Task<IActionResult> OnPostApproveDisposalAsync(CancellationToken cancellationToken) =>
         SaveAsync(approveDisposalHandler.HandleAsync(new ApproveDocumentCommand(DocumentId, Actor), cancellationToken), "stocktakes", cancellationToken);
 
-    public string ViewUrl(string view) => BuildUrl(view, item: null, kind: null, place: null, page: null, size: null);
+    /// <summary>Địa chỉ trang Chuyển kho với bộ lọc hiện tại, đổi một vài tham số (null thì bỏ tham số đó).</summary>
+    public string TransferUrl(string? quick = null, int? page = null, bool keepFilters = true)
+    {
+        var parts = new List<string> { "view=transfers" };
+        if (keepFilters)
+        {
+            Add(parts, "ts", TransferStatusFilter);
+            Add(parts, "tl", TransferLocation);
+            Add(parts, "tq", TransferSearch);
+            Add(parts, "tfrom", TransferFrom);
+            Add(parts, "tto", TransferTo);
+        }
+
+        if (!string.IsNullOrEmpty(quick) && quick != "all")
+        {
+            parts.Add("tf=" + Uri.EscapeDataString(quick));
+        }
+
+        if (page is > 1)
+        {
+            parts.Add("tp=" + page.Value.ToString(CultureInfo.InvariantCulture));
+        }
+
+        return "/inventory?" + string.Join('&', parts);
+    }
+
+    public string ViewUrl(string view) =>
+ BuildUrl(view, item: null, kind: null, place: null, page: null, size: null);
 
     public string ItemUrl(Guid itemId) => BuildUrl("balances", itemId.ToString(), HistoryKind, HistoryPlace, 1, NormalizedSize());
 
@@ -466,10 +630,16 @@ public class IndexModel(
         var result = await operation;
         if (result.IsFailure)
         {
-            return await FailAsync(result.StockError, openTransfer: false, view, cancellationToken);
+            return await FailAsync(result.StockError, result.Detail, openTransfer: false, view, cancellationToken);
         }
 
         View = view;
+        if (view == "transfers" && DocumentId != Guid.Empty)
+        {
+            // Mở lại phiếu vừa thao tác để người dùng thấy trạng thái mới và lịch sử.
+            return Redirect(TransferUrl(keepFilters: false) + "&open=" + DocumentId.ToString("D"));
+        }
+
         return Redirect(PageUrl(includeItem: false));
     }
 
@@ -489,9 +659,10 @@ public class IndexModel(
         return Redirect(PageUrl(includeItem: false));
     }
 
-    private async Task<IActionResult> FailAsync(StockError error, bool openTransfer, string view, CancellationToken cancellationToken)
+    private async Task<IActionResult> FailAsync(StockError error, string? detail, bool openTransfer, string view, CancellationToken cancellationToken)
     {
-        ErrorMessage = StockErrorMessages.Describe(error);
+        ErrorMessage = StockErrorMessages.Describe(error, detail);
+        OpenTransfer = DocumentId == Guid.Empty ? null : DocumentId;
         ShowTransferDialog = openTransfer;
         View = view;
         await LoadAsync(cancellationToken);
@@ -518,13 +689,15 @@ public class IndexModel(
         Stocktakes = await documentsHandler.ListStocktakesAsync(Actor, cancellationToken);
         Adjustments = await documentsHandler.ListAdjustmentsAsync(Actor, cancellationToken);
         Disposals = await documentsHandler.ListDisposalsAsync(Actor, cancellationToken);
+        OpenTransferId = OpenTransfer;
+        // Chưa xem lên trước, mới nhất trước; chỉ hiện một số thông báo để banner không dài vô hạn.
         Notices = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var employeeId)
-            ? await noticesHandler.HandleAsync(employeeId, cancellationToken)
+            ? (await noticesHandler.HandleAsync(employeeId, cancellationToken)).OrderBy(notice => notice.Seen).ThenByDescending(notice => notice.CreatedAt).Take(8).ToArray()
             : [];
-        PlaceCodes = BuildPlaceCodes(Locations);
+        PlaceCodes = BuildPlaceCodes(AllLocations);
         Groups = BuildGroups(filtered, badges);
         BalanceJson = JsonSerializer.Serialize(
-            badges.Select(row => new BalancePoint(row.CatalogItemId, row.StockLocationId, row.OnHand)),
+            badges.Select(row => new BalancePoint(row.CatalogItemId, row.StockLocationId, row.OnHand, row.Available)),
             JsonOptions);
         Detail = null;
         VisibleHistory = [];
@@ -664,7 +837,7 @@ public class IndexModel(
         }
     }
 
-    private sealed record BalancePoint(Guid Item, Guid Location, int OnHand);
+    private sealed record BalancePoint(Guid Item, Guid Location, int OnHand, int Available);
 }
 
 public sealed class StockItemGroup(

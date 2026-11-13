@@ -100,6 +100,17 @@ internal sealed class FakeInventoryStore : IInventoryRepository
     public Task<IReadOnlyList<TransferSlip>> ListTransfersAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<TransferSlip>>(Transfers.ToArray());
 
+    public List<TransferEvent> TransferEvents { get; } = [];
+
+    public Task AddTransferEventAsync(TransferEvent transferEvent, CancellationToken cancellationToken)
+    {
+        TransferEvents.Add(transferEvent);
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<TransferEvent>> ListTransferEventsAsync(IReadOnlyCollection<Guid> transferSlipIds, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<TransferEvent>>(TransferEvents.Where(item => transferSlipIds.Contains(item.TransferSlipId)).OrderBy(item => item.OccurredAt).ToArray());
+
     public Task<StockItemProfile?> FindItemProfileAsync(Guid catalogItemId, CancellationToken cancellationToken) =>
         Task.FromResult<StockItemProfile?>(null);
 

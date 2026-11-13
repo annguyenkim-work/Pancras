@@ -27,6 +27,10 @@ public interface IInventoryRepository
 
     Task<IReadOnlyList<TransferSlip>> ListTransfersAsync(CancellationToken cancellationToken);
 
+    Task AddTransferEventAsync(TransferEvent transferEvent, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<TransferEvent>> ListTransferEventsAsync(IReadOnlyCollection<Guid> transferSlipIds, CancellationToken cancellationToken);
+
     Task AddMovementAsync(StockMovement movement, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<StockMovement>> ListHistoryAsync(Guid catalogItemId, Guid stockLocationId, CancellationToken cancellationToken);
@@ -298,7 +302,12 @@ public sealed record TransferFlowRow(
     bool CanCancel,
     bool CanResolve,
     bool CanAttach,
-    IReadOnlyList<TransferAttachmentView> Attachments);
+    IReadOnlyList<TransferAttachmentView> Attachments,
+    bool CanReturn = false,
+    IReadOnlyList<TransferEventView>? History = null);
+
+/// <summary>Một dòng lịch sử phiếu chuyển: ai làm gì, lúc nào, lý do nếu có.</summary>
+public sealed record TransferEventView(TransferEventKind Kind, string ActorCode, DateTimeOffset At, string Note);
 
 public sealed record StocktakeRow(
     Guid Id,
@@ -325,7 +334,8 @@ public sealed record AdjustmentRow(
     string DocumentRef,
     ApprovalStatus Status,
     bool CanApprove = false,
-    AuditStampView? Stamp = null);
+    AuditStampView? Stamp = null,
+    Guid? TransferSlipId = null);
 
 public sealed record DisposalRow(
     Guid Id,

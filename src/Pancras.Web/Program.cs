@@ -146,6 +146,7 @@ builder.Services.AddScoped<DecideTransferCommandHandler>();
 builder.Services.AddScoped<UpdateTransferRequestCommandHandler>();
 builder.Services.AddScoped<ShipTransferCommandHandler>();
 builder.Services.AddScoped<ResolveTransferDiscrepancyCommandHandler>();
+builder.Services.AddScoped<ReturnTransferCommandHandler>();
 builder.Services.AddScoped<UploadTransferAttachmentCommandHandler>();
 builder.Services.AddScoped<OpenTransferAttachmentHandler>();
 builder.Services.AddScoped<ConfirmTransferReceiptCommandHandler>();

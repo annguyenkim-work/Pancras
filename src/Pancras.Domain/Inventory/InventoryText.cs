@@ -61,6 +61,12 @@ public static class InventoryAccess
     public static bool CanAccessLocation(Employees.EmployeeActor actor, Guid locationId) =>
         IsGlobal(actor.Role) || (actor.LocationId is Guid own && own != Guid.Empty && own == locationId);
 
+    /// <summary>
+    /// Tra cứu tồn: mọi vai trò xem kho đều thấy số lượng ở tất cả kho và showroom (giá vốn vẫn ẩn, xem <see cref="CanSeeCost"/>).
+    /// Khác với <see cref="Scope"/>, vốn giới hạn phiếu chuyển, kiểm kê, điều chỉnh, hủy theo kho của nhân viên.
+    /// </summary>
+    public static bool CanSeeAllStock(string? role) => CanView(role);
+
     public static bool CanSeeCost(string? role) => InventoryRoles.IsFinance(role);
 
     public static bool CanExport(string? role) => InventoryRoles.IsFinance(role) || InventoryRoles.IsShowroomLead(role);

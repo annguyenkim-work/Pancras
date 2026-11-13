@@ -2,14 +2,16 @@ using Pancras.Domain.Auditing;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Auditing;
 using Pancras.Application.Common;
+using Pancras.Application.Employees;
 using Pancras.Domain.Inventory;
 
 namespace Pancras.Application.Inventory;
 
 /// <summary>
-/// Kiểm nhận ở kho đích: người nhận nhập số thực nhận từng dòng (bỏ trống = nhận đủ).
+/// Kiểm nhận ở kho đích: người nhận phải nhập số thực nhận cho từng dòng, kể cả khi nhận đủ.
 /// Chỉ cần khác số xuất (thừa hay thiếu đều vậy) là bắt buộc có lý do và ít nhất một file đính kèm;
-/// khi đó tồn kho vẫn tăng theo số thực nhận và phiếu chờ Kế toán/Giám đốc xử lý chênh lệch.
+/// khi đó tồn kho vẫn tăng theo số thực nhận, hệ thống tự lập phiếu điều chỉnh "đã ghi nhận" cho phần chênh
+/// (lý do lấy từ lúc nhận) và phiếu chờ Kế toán/Giám đốc xử lý chênh lệch.
 /// </summary>
 public sealed class ConfirmTransferReceiptCommandHandler(
     IInventoryRepository repository,
@@ -17,7 +19,8 @@ public sealed class ConfirmTransferReceiptCommandHandler(
     TimeProvider? clock = null,
     IAuditLog? audit = null,
     IRequestInfo? request = null,
-    ITransferAttachmentRepository? attachments = null)
+    ITransferAttachmentRepository? attachments = null,
+    IEmployeeRepository? employees = null)
 {
     /// <summary>
     /// Kiểm tra trước (không ghi gì) để trang chỉ lưu file đính kèm khi phiếu nhận chắc chắn hợp lệ.
@@ -79,6 +82,24 @@ public sealed class ConfirmTransferReceiptCommandHandler(
                 cancellationToken);
         }
 
+        await RecordVarianceAsync(slip, command.Note, cancellationToken);
+        await TransferTrail.RecordAsync(
+            repository,
+            slip,
+            slip.HasDiscrepancy ? TransferEventKind.ReceivedWithDiscrepancy : TransferEventKind.Received,
+            request,
+            clock,
+            slip.ReceiveNote,
+            cancellationToken);
+        await TransferTrail.NotifyAsync(
+            repository,
+            employees,
+            slip,
+            command.Actor.Id,
+            slip.HasDiscrepancy ? StockNotice.TransferDiscrepancyStep : StockNotice.TransferReceivedStep,
+            slip.HasDiscrepancy ? TransferAudience.Creator | TransferAudience.Finance : TransferAudience.Creator,
+            clock,
+            cancellationToken);
         if (!await repository.CommitAsync(cancellationToken))
         {
             foreach (var snapshot in snapshots)
@@ -96,6 +117,29 @@ public sealed class ConfirmTransferReceiptCommandHandler(
         return Result<Guid>.Ok(slip.Id);
     }
 
+    /// <summary>
+    /// Phần thừa/thiếu của từng mặt hàng được ghi thành phiếu điều chỉnh trạng thái "đã ghi nhận" tại kho đích.
+    /// Tồn kho đích đã bằng số thực nhận nên phiếu này không cộng trừ tồn lần nữa.
+    /// </summary>
+    private async Task RecordVarianceAsync(TransferSlip slip, string? reason, CancellationToken cancellationToken)
+    {
+        var code = StockDocumentCode.Of(StockDocumentCode.Transfer, slip.Id);
+        foreach (var group in slip.Lines.GroupBy(line => line.CatalogItemId))
+        {
+            var delta = group.Sum(line => (line.ReceivedQuantity ?? line.Quantity) - line.Quantity);
+            if (delta == 0)
+            {
+                continue;
+            }
+
+            var record = QuantityAdjustment.TryRecordTransferVariance(slip.Id, slip.DestinationLocationId, group.Key, delta, reason, code);
+            if (record is not null)
+            {
+                await repository.AddAdjustmentAsync(record, cancellationToken);
+            }
+        }
+    }
+
     private async Task<(TransferSlip? Slip, Result<Guid>? Failure, Dictionary<Guid, int>? Actuals)> ValidateAsync(
         ConfirmTransferCommand command,
         int newFileCount,
@@ -109,10 +153,20 @@ public sealed class ConfirmTransferReceiptCommandHandler(
             return (null, Result<Guid>.Fail(StockError.Forbidden), null);
         }
 
-        if (slip is null || slip.Status != TransferStatus.InTransit)
+        if (slip is null)
+        {
+            return (null, Result<Guid>.Fail(StockError.TransferNotFound), null);
+        }
+
+        if (slip.Status != TransferStatus.InTransit)
         {
             logger.LogWarning("Receipt rejected for {TransferSlipId}.", command.TransferSlipId);
-            return (null, Result<Guid>.Fail(StockError.ReceiptRejected), null);
+            return (null, Result<Guid>.Fail(StockError.TransferStateChanged), null);
+        }
+
+        if (slip.Lines.Any(line => command.Actuals is null || command.Actuals.All(item => item.LineId != line.Id)))
+        {
+            return (null, Result<Guid>.Fail(StockError.QuantityRequired), null);
         }
 
         var actuals = command.Actuals?.GroupBy(item => item.LineId).ToDictionary(group => group.Key, group => group.Last().Quantity);

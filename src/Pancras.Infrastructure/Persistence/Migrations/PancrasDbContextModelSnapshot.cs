@@ -502,6 +502,10 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("stock_location_id");
 
+                    b.Property<Guid?>("TransferSlipId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("transfer_slip_id");
+
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -845,10 +849,48 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                     b.ToTable("transfer_attachment", (string)null);
                 });
 
+            modelBuilder.Entity("Pancras.Domain.Inventory.TransferEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ActorCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("actor_code");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Note")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<Guid>("TransferSlipId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("transfer_slip_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_transfer_event");
+
+                    b.HasIndex("TransferSlipId")
+                        .HasDatabaseName("ix_transfer_event_transfer_slip_id");
+
+                    b.ToTable("transfer_event", (string)null);
+                });
+
             modelBuilder.Entity("Pancras.Domain.Inventory.TransferLine", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
@@ -939,6 +981,10 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("received_by");
 
+                    b.Property<Guid>("RequestedById")
+                        .HasColumnType("uuid")
+                        .HasColumnName("requested_by_id");
+
                     b.Property<string>("ResolutionNote")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -978,6 +1024,10 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer")
                         .HasColumnName("status");
+
+                    b.Property<bool>("StockReserved")
+                        .HasColumnType("boolean")
+                        .HasColumnName("stock_reserved");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -1486,6 +1536,16 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_transfer_attachment_transfer_slips_transfer_slip_id");
+                });
+
+            modelBuilder.Entity("Pancras.Domain.Inventory.TransferEvent", b =>
+                {
+                    b.HasOne("Pancras.Domain.Inventory.TransferSlip", null)
+                        .WithMany()
+                        .HasForeignKey("TransferSlipId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_transfer_event_transfer_slips_transfer_slip_id");
                 });
 
             modelBuilder.Entity("Pancras.Domain.Inventory.TransferLine", b =>

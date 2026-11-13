@@ -27,6 +27,8 @@ public sealed class PancrasDbContext(DbContextOptions<PancrasDbContext> options)
 
     public DbSet<TransferLine> TransferLines => Set<TransferLine>();
 
+    public DbSet<TransferEvent> TransferEvents => Set<TransferEvent>();
+
     public DbSet<StocktakeSheet> StocktakeSheets => Set<StocktakeSheet>();
 
     public DbSet<QuantityAdjustment> QuantityAdjustments => Set<QuantityAdjustment>();

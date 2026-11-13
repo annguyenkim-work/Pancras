@@ -113,6 +113,13 @@ public enum StockError
     ReceiptRejected,
     CancelRejected,
     ReasonRequired,
+    QuantityRequired,
+    InvalidText,
+    NotYourLocation,
+    NotCreator,
+    TransferStateChanged,
+    InsufficientStock,
+    ReturnRejected,
     AttachmentRequired,
     ApprovalRejected,
     TransferNotFound,
@@ -165,7 +172,8 @@ public sealed class Result<T>
         CatalogError catalogError,
         IReadOnlyList<CatalogIssue>? catalogIssues,
         StockError stockError,
-        PurchaseError purchaseError)
+        PurchaseError purchaseError,
+        string? detail = null)
     {
         IsSuccess = isSuccess;
         Value = value;
@@ -177,6 +185,7 @@ public sealed class Result<T>
         CatalogIssues = catalogIssues ?? [];
         StockError = stockError;
         PurchaseError = purchaseError;
+        Detail = detail;
     }
 
     public bool IsSuccess { get; }
@@ -201,6 +210,9 @@ public sealed class Result<T>
 
     public PurchaseError PurchaseError { get; }
 
+    /// <summary>Chi tiết ngắn đi kèm lỗi (ví dụ mã SKU thiếu hàng). Là dữ liệu thô, trang tự ghép thành câu.</summary>
+    public string? Detail { get; }
+
     public static Result<T> Ok(T value) =>
         new(true, value, LoginError.None, EmployeeError.None, SupplierError.None, null, CatalogError.None, null, StockError.None, PurchaseError.None);
 
@@ -224,6 +236,9 @@ public sealed class Result<T>
 
     public static Result<T> Fail(StockError error) =>
         new(false, default, LoginError.None, EmployeeError.None, SupplierError.None, null, CatalogError.None, null, error, PurchaseError.None);
+
+    public static Result<T> Fail(StockError error, string detail) =>
+        new(false, default, LoginError.None, EmployeeError.None, SupplierError.None, null, CatalogError.None, null, error, PurchaseError.None, detail);
 
     public static Result<T> Fail(PurchaseError error) =>
         new(false, default, LoginError.None, EmployeeError.None, SupplierError.None, null, CatalogError.None, null, StockError.None, error);

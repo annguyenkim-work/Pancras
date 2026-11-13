@@ -32,27 +32,33 @@ public class InventoryScopeTests
     private static StockListFilter All() => StockListFilter.From(null, null, null);
 
     [Fact]
-    public async Task KeeperSeesOnlyOwnLocation()
+    public async Task KeeperSeesStockOfEveryLocation()
     {
         var rows = await List().HandleAsync(All(), TestActors.Keeper(_a.Id), CancellationToken.None);
 
-        Assert.Equal(_a.Id, Assert.Single(rows).StockLocationId);
+        Assert.Equal(2, rows.Count);
+        Assert.Contains(rows, row => row.StockLocationId == _a.Id);
+        Assert.Contains(rows, row => row.StockLocationId == _b.Id);
     }
 
     [Fact]
-    public async Task KeeperAskingForAnotherLocation_GetsNothing()
+    public async Task KeeperAskingForAnotherLocation_SeesItsStock_WithoutCost()
     {
         var rows = await List().HandleAsync(StockListFilter.From(_b.Id.ToString("D"), null, null), TestActors.Keeper(_a.Id), CancellationToken.None);
 
-        Assert.Empty(rows);
+        var row = Assert.Single(rows);
+        Assert.Equal(_b.Id, row.StockLocationId);
+        Assert.Equal(0, row.CostPrice);
     }
 
     [Fact]
-    public async Task EmployeeWithoutLocation_SeesNothing()
+    public async Task EmployeeWithoutLocation_StillSeesStock_ButExportStaysEmpty()
     {
         var rows = await List().HandleAsync(All(), TestActors.Keeper(Guid.Empty), CancellationToken.None);
+        var exported = await List().ExportAsync(All(), TestActors.Lead(Guid.Empty), CancellationToken.None);
 
-        Assert.Empty(rows);
+        Assert.Equal(2, rows.Count);
+        Assert.Empty(exported);
     }
 
     [Fact]
@@ -105,7 +111,7 @@ public class InventoryScopeTests
         Assert.True(own.IsSuccess);
         Assert.True(asked.IsSuccess);
         Assert.Equal(StockError.Forbidden, sales.StockError);
-        Assert.Equal(StockError.Forbidden, unrelated.StockError);
+        Assert.Equal(StockError.NotYourLocation, unrelated.StockError);
         Assert.Equal(StockError.Forbidden, notSource.StockError);
     }
 
@@ -116,7 +122,7 @@ public class InventoryScopeTests
         var receipt = new ConfirmTransferReceiptCommandHandler(_store, NullLogger<ConfirmTransferReceiptCommandHandler>.Instance);
 
         var bySource = await receipt.HandleAsync(new ConfirmTransferCommand(shipped.Value, TestActors.Keeper(_a.Id)), CancellationToken.None);
-        var byDestination = await receipt.HandleAsync(new ConfirmTransferCommand(shipped.Value, TestActors.Keeper(_b.Id)), CancellationToken.None);
+        var byDestination = await receipt.HandleAsync(TransferFlow.FullReceipt(_store, shipped.Value, TestActors.Keeper(_b.Id)), CancellationToken.None);
 
         Assert.True(shipped.IsSuccess);
         Assert.Equal(StockError.Forbidden, bySource.StockError);

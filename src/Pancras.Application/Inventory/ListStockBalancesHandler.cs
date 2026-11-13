@@ -13,7 +13,7 @@ public sealed class ListStockBalancesHandler(
         EmployeeActor actor,
         CancellationToken cancellationToken)
     {
-        var rows = await LoadAsync(filter, actor, cancellationToken);
+        var rows = await LoadAsync(filter, actor, limitToOwnLocation: false, cancellationToken);
         logger.LogInformation("Listed {StockBalanceCount} stock balances.", rows.Count);
         return rows;
     }
@@ -29,7 +29,7 @@ public sealed class ListStockBalancesHandler(
             return [];
         }
 
-        var rows = await LoadAsync(filter, actor, cancellationToken);
+        var rows = await LoadAsync(filter, actor, limitToOwnLocation: true, cancellationToken);
         logger.LogInformation("Exported {StockBalanceCount} stock balances.", rows.Count);
         return rows;
     }
@@ -37,15 +37,16 @@ public sealed class ListStockBalancesHandler(
     private async Task<IReadOnlyList<StockBalanceRow>> LoadAsync(
         StockListFilter filter,
         EmployeeActor actor,
+        bool limitToOwnLocation,
         CancellationToken cancellationToken)
     {
         if (!InventoryAccess.CanView(actor.Role))
         {
             return [];
         }
-
+        // Tra cứu tồn: mọi vai trò xem kho thấy mọi kho (giá vốn vẫn ẩn). Chỉ file xuất Excel giữ theo kho của mình.
         var scoped = filter;
-        if (InventoryAccess.Scope(actor) is Guid scope)
+        if (limitToOwnLocation && InventoryAccess.Scope(actor) is Guid scope)
         {
             if (scope == Guid.Empty || (filter.LocationId is Guid requested && requested != scope))
             {

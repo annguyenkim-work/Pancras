@@ -131,6 +131,105 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
         Assert.Empty(inventory.Movements);
     }
 
+    [Fact]
+    public async Task EveryPostFormOnTheInventoryPage_CarriesAnAntiforgeryToken()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        Reset();
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+
+        var html = await (await client.GetAsync("/inventory?view=transfers")).Content.ReadAsStringAsync();
+        var forms = Regex.Matches(html, "<form[^>]*method=\"post\"[^>]*>(.*?)</form>", RegexOptions.Singleline);
+
+        Assert.NotEmpty(forms);
+        Assert.All(forms, form => Assert.Contains("__RequestVerificationToken", form.Value, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task EveryPostFormInsideATransferDetail_CarriesAnAntiforgeryToken()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        var slip = SeedRequestedSlip(inventory);
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+
+        var html = await (await client.GetAsync("/inventory?view=transfers&open=" + slip.Id)).Content.ReadAsStringAsync();
+        var dialog = Regex.Match(html, "<dialog id=\"transfer-" + slip.Id + "\".*?</dialog>", RegexOptions.Singleline).Value;
+        var forms = Regex.Matches(dialog, "<form[^>]*method=\"post\"[^>]*>(.*?)</form>", RegexOptions.Singleline);
+
+        Assert.NotEmpty(dialog);
+        Assert.True(forms.Count >= 1, "Phiếu chờ duyệt phải có form duyệt/từ chối.");
+        Assert.All(forms, form => Assert.Contains("__RequestVerificationToken", form.Value, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task TransferList_IsATable_WithStatusColour_History_AndConfirmedActions()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        var slip = SeedRequestedSlip(inventory);
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+
+        var html = await (await client.GetAsync("/inventory?view=transfers")).Content.ReadAsStringAsync();
+        var text = Decode(html);
+        var dialog = Decode(Regex.Match(html, "<dialog id=\"transfer-" + slip.Id + "\".*?</dialog>", RegexOptions.Singleline).Value);
+
+        Assert.Contains("id=\"transfer-table\"", html, StringComparison.Ordinal);
+        Assert.Contains("bg-yellow-100 text-yellow-800", html, StringComparison.Ordinal);
+        Assert.Contains("Chờ bạn duyệt", text, StringComparison.Ordinal);
+        Assert.Contains("Chờ tôi duyệt", text, StringComparison.Ordinal);
+        Assert.Contains("Lịch sử phiếu", dialog, StringComparison.Ordinal);
+        Assert.Contains("Lập phiếu đề nghị", dialog, StringComparison.Ordinal);
+        Assert.Contains("AnNK", dialog, StringComparison.Ordinal);
+        Assert.Contains("data-confirm", dialog, StringComparison.Ordinal);
+        Assert.Contains("data-reason=\"required\"", dialog, StringComparison.Ordinal);
+        Assert.DoesNotContain("Hủy phiếu", dialog, StringComparison.Ordinal);
+        Assert.DoesNotContain("Trả về kho xuất", dialog, StringComparison.Ordinal);
+        Assert.Single(Regex.Matches(html, "id=\"open-transfer\""));
+    }
+
+    [Fact]
+    public async Task TransferList_FiltersByStatus()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        SeedRequestedSlip(inventory);
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+
+        var none = Decode(await (await client.GetAsync("/inventory?view=transfers&ts=Approved")).Content.ReadAsStringAsync());
+        var some = Decode(await (await client.GetAsync("/inventory?view=transfers&ts=Requested")).Content.ReadAsStringAsync());
+
+        Assert.Contains("Không có phiếu phù hợp.", none, StringComparison.Ordinal);
+        Assert.DoesNotContain("id=\"transfer-table\"", none, StringComparison.Ordinal);
+        Assert.Contains("id=\"transfer-table\"", some, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SalesSeeStockOfEveryLocation_ButNeverTheCost()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        inventory.Rows.Add(Row("SP01", "Vòi", ProductCategory.SanitaryEquipment, Guid.CreateVersion7()));
+        await SignInAsync(client, EmployeeRole.Sales, "sales");
+
+        var html = Decode(await (await client.GetAsync("/inventory")).Content.ReadAsStringAsync());
+
+        Assert.Contains("SP01", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Giá vốn", html, StringComparison.Ordinal);
+    }
+
+    private static TransferSlip SeedRequestedSlip(InventoryDirectoryDouble inventory)
+    {
+        var from = StockLocation.Create("Kho A", StockLocationKind.Warehouse);
+        var to = StockLocation.Create("Showroom B", StockLocationKind.Showroom);
+        inventory.Locations.Add(from);
+        inventory.Locations.Add(to);
+        var slip = TransferSlip.Create(from.Id, to.Id, "Bù tồn", [(Guid.CreateVersion7(), 2)], Guid.CreateVersion7())!;
+        inventory.Transfers.Add(slip);
+        inventory.TransferEvents.Add(TransferEvent.Create(slip.Id, TransferEventKind.Requested, "AnNK", DateTimeOffset.UtcNow, "Bù tồn"));
+        return slip;
+    }
+
     private static StockBalanceRow Row(string code, string name, ProductCategory category, Guid locationId) =>
         new(Guid.CreateVersion7(), code, name, "Toto", category, locationId, "Kho A", 3, 1, 2, 4);
 
@@ -139,6 +238,8 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
         var inventory = _factory.Services.GetRequiredService<InventoryDirectoryDouble>();
         inventory.Rows.Clear();
         inventory.Locations.Clear();
+        inventory.Transfers.Clear();
+        inventory.TransferEvents.Clear();
         var employees = _factory.Services.GetRequiredService<FakeEmployeeRepository>();
         employees.Employees.Clear();
         return inventory;
@@ -215,8 +316,19 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
     public Task<IReadOnlyList<TransferSlip>> ListOpenTransfersAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<TransferSlip>>([]);
 
+    public List<TransferEvent> TransferEvents { get; } = [];
+
+    public Task AddTransferEventAsync(TransferEvent transferEvent, CancellationToken cancellationToken)
+    {
+        TransferEvents.Add(transferEvent);
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<TransferEvent>> ListTransferEventsAsync(IReadOnlyCollection<Guid> transferSlipIds, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<TransferEvent>>(TransferEvents.Where(item => transferSlipIds.Contains(item.TransferSlipId)).ToArray());
+
     public Task<IReadOnlyList<TransferSlip>> ListTransfersAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<TransferSlip>>([]);
+        Task.FromResult<IReadOnlyList<TransferSlip>>(Transfers.ToArray());
 
     public Task<StockItemProfile?> FindItemProfileAsync(Guid catalogItemId, CancellationToken cancellationToken) =>
         Task.FromResult<StockItemProfile?>(null);
@@ -271,4 +383,18 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
     public Task RemoveNoticesAsync(Guid documentId, CancellationToken cancellationToken) => Task.CompletedTask;
 
     public Task<bool> CommitAsync(CancellationToken cancellationToken) => Task.FromResult(true);
+}
+
+internal sealed class TransferAttachmentDouble : ITransferAttachmentRepository
+{
+    public Task<IReadOnlyList<TransferAttachment>> ListAsync(Guid transferSlipId, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<TransferAttachment>>([]);
+
+    public Task<TransferAttachment?> FindAsync(Guid id, CancellationToken cancellationToken) =>
+        Task.FromResult<TransferAttachment?>(null);
+
+    public Task<IReadOnlyDictionary<Guid, IReadOnlyList<TransferAttachment>>> ListForSlipsAsync(IReadOnlyCollection<Guid> transferSlipIds, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyDictionary<Guid, IReadOnlyList<TransferAttachment>>>(new Dictionary<Guid, IReadOnlyList<TransferAttachment>>());
+
+    public Task AddAsync(TransferAttachment attachment, CancellationToken cancellationToken) => Task.CompletedTask;
 }

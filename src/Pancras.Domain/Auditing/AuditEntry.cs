@@ -100,6 +100,7 @@ public static class AuditActions
     public const string TransferShipped = "stock.transfer_shipped";
     public const string TransferReceived = "stock.transfer_received";
     public const string TransferCancelled = "stock.transfer_cancelled";
+    public const string TransferReturned = "stock.transfer_returned";
     public const string StocktakeApproved = "stock.stocktake_approved";
     public const string AdjustmentApproved = "stock.adjustment_approved";
     public const string DisposalApproved = "stock.disposal_approved";

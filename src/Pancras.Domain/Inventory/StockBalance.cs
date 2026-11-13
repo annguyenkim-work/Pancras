@@ -69,6 +69,46 @@ public sealed class StockBalance
         return true;
     }
 
+    /// <summary>Giữ hàng cho phiếu chuyển đã duyệt: tăng số giữ chỗ, chưa trừ tồn.</summary>
+    public bool TryReserve(int quantity)
+    {
+        if (!CanShip(quantity))
+        {
+            return false;
+        }
+
+        Reserved += quantity;
+        Version++;
+        return true;
+    }
+
+    /// <summary>Nhả phần đã giữ (hủy phiếu đã duyệt).</summary>
+    public bool TryRelease(int quantity)
+    {
+        if (quantity <= 0 || Reserved < quantity)
+        {
+            return false;
+        }
+
+        Reserved -= quantity;
+        Version++;
+        return true;
+    }
+
+    /// <summary>Xuất phần đã được giữ: trừ cả tồn lẫn số giữ chỗ.</summary>
+    public bool TryShipReserved(int quantity)
+    {
+        if (quantity <= 0 || Reserved < quantity || OnHand < quantity)
+        {
+            return false;
+        }
+
+        OnHand -= quantity;
+        Reserved -= quantity;
+        Version++;
+        return true;
+    }
+
     public bool TryAddInTransit(int quantity)
     {
         if (quantity <= 0 || (long)InTransit + quantity > int.MaxValue)

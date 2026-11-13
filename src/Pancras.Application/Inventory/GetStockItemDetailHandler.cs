@@ -21,14 +21,9 @@ public sealed class GetStockItemDetailHandler(
             logger.LogInformation("Stock detail missed {CatalogItemId}.", catalogItemId);
             return null;
         }
-
-        var scope = InventoryAccess.Scope(actor);
-        var balances = (await repository.ListItemBalancesAsync(catalogItemId, cancellationToken))
-            .Where(balance => scope is null || balance.StockLocationId == scope)
-            .ToArray();
-        var movements = (await repository.ListItemMovementsAsync(catalogItemId, cancellationToken))
-            .Where(movement => scope is null || movement.StockLocationId == scope)
-            .ToArray();
+        // Mọi vai trò xem kho đều thấy tồn và lịch sử ở mọi kho (giá vốn vẫn ẩn).
+        var balances = (await repository.ListItemBalancesAsync(catalogItemId, cancellationToken)).ToArray();
+        var movements = (await repository.ListItemMovementsAsync(catalogItemId, cancellationToken)).ToArray();
         var locations = await repository.ListLocationsAsync(cancellationToken);
         var names = locations.ToDictionary(location => location.Id, location => location.Name);
         var history = movements
