@@ -125,6 +125,129 @@ public class EditPurchaseOrderTests
         Assert.Equal([15m, 25m], _order.Charges[0].Shares.Select(share => share.Amount).ToArray());
     }
 
+    private UpdatePurchaseOrderCommand WithCharges(params UpdatePurchaseChargeInput[] charges)
+    {
+        var command = Command(Keep(0, 2, 10m), Keep(1, 3, 30m));
+        command.Charges = charges;
+        return command;
+    }
+
+    [Fact]
+    public async Task EditingAnOrder_StampsTheLastModifiedTimeAndPerson()
+    {
+        var at = new DateTimeOffset(2026, 11, 14, 8, 30, 0, TimeSpan.Zero);
+        var handler = new UpdatePurchaseOrderCommandHandler(
+            _orders,
+            _suppliers,
+            _inventory,
+            _catalog,
+            new GetCatalogMeasuresHandler(_catalog, NullLogger<GetCatalogMeasuresHandler>.Instance),
+            NullLogger<UpdatePurchaseOrderCommandHandler>.Instance,
+            new TestClock(at),
+            null,
+            new FakeRequestInfo("KeToan1"));
+        var createdAt = _order.CreatedAt;
+
+        var result = await handler.HandleAsync(Command(Keep(0, 3, 10m), Keep(1, 3, 30m)), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(at, _order.UpdatedAt);
+        Assert.Equal("KeToan1", _order.UpdatedBy);
+        Assert.Equal(createdAt, _order.CreatedAt);
+    }
+
+    [Fact]
+    public async Task EditingAChargeRow_ChangesItsAmountLabelGroupAndSplit()
+    {
+        var id = AddFobCharge();
+
+        var result = await Update().HandleAsync(
+            WithCharges(new UpdatePurchaseChargeInput { ChargeId = id, Amount = 100m, Label = "Cước mới", Group = ChargeGroup.CustomsValueAdjustment, Method = ChargeSplitMethod.Quantity }),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var charge = Assert.Single(_order.Charges);
+        Assert.Equal(100m, charge.Amount);
+        Assert.Equal("Cước mới", charge.Label);
+        Assert.Equal(ChargeGroup.CustomsValueAdjustment, charge.Group);
+        Assert.Equal(ChargeSplitMethod.Quantity, charge.Method);
+        Assert.Equal([40m, 60m], charge.Shares.Select(share => share.Amount).ToArray());
+    }
+
+    [Fact]
+    public async Task ANewChargeRow_IsAddedSplitAndGrouped_AndAMissingRowIsDeleted()
+    {
+        var old = AddFobCharge();
+
+        var result = await Update().HandleAsync(
+            WithCharges(new UpdatePurchaseChargeInput { Amount = 500m, Label = "Kéo xe", Group = ChargeGroup.Logistics, Method = ChargeSplitMethod.FobValue }),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var charge = Assert.Single(_order.Charges);
+        Assert.NotEqual(old, charge.Id);
+        Assert.Equal("Kéo xe", charge.Label);
+        Assert.Equal(ChargeGroup.Logistics, charge.Group);
+        Assert.Equal(500m, charge.Shares.Sum(share => share.Amount));
+    }
+
+    [Fact]
+    public async Task AChargeRowWithZeroAmount_IsDropped_AndNullChargesLeaveEverythingAlone()
+    {
+        var id = AddFobCharge();
+
+        var untouched = await Update().HandleAsync(Command(Keep(0, 2, 10m), Keep(1, 3, 30m)), CancellationToken.None);
+        Assert.True(untouched.IsSuccess);
+        Assert.Single(_order.Charges);
+
+        var dropped = await Update().HandleAsync(
+            WithCharges(new UpdatePurchaseChargeInput { ChargeId = id, Amount = 0m, Label = "THC", Group = ChargeGroup.Logistics, Method = ChargeSplitMethod.FobValue }),
+            CancellationToken.None);
+
+        Assert.True(dropped.IsSuccess);
+        Assert.Empty(_order.Charges);
+    }
+
+    [Fact]
+    public async Task AVolumeSplitWithoutMeasures_IsRefused_NotSilentlyChanged()
+    {
+        var id = AddFobCharge();
+        _order.TryUpdateCharge(id, 40m, ChargeSplitMethod.FobValue, "THC");
+
+        var result = await Update().HandleAsync(
+            WithCharges(new UpdatePurchaseChargeInput { ChargeId = id, Amount = 40m, Label = "THC", Group = ChargeGroup.Logistics, Method = ChargeSplitMethod.Volume }),
+            CancellationToken.None);
+
+        Assert.Equal(PurchaseError.MissingMeasure, result.PurchaseError);
+    }
+
+    [Fact]
+    public async Task AManualChargeIsKeptAsIs_OrDeletedWhichUnlocksChangingTheLines()
+    {
+        Assert.True(_order.TryAddCharge(40m, ChargeSplitMethod.Manual, out var manual, "Tay"));
+        Assert.True(_order.TryAllocate(manual, new Dictionary<Guid, decimal> { [_order.Lines[0].Id] = 15m, [_order.Lines[1].Id] = 25m }, true));
+        Assert.True(_order.TryAssignGroup(manual, ChargeGroup.Logistics, false));
+        var keepManual = new UpdatePurchaseChargeInput { ChargeId = manual, Amount = 999m, Label = "x", Group = ChargeGroup.Logistics, Method = ChargeSplitMethod.Manual };
+        var withNewLine = new CreatePurchaseLineInput { CatalogItemId = _first.Id, Quantity = 1, FobUsd = 5m, DutyRate = 0m };
+
+        var kept = await Update().HandleAsync(WithCharges(keepManual), CancellationToken.None);
+        Assert.True(kept.IsSuccess);
+        Assert.Equal(40m, _order.Charges.Single().Amount);
+        Assert.Equal([15m, 25m], _order.Charges.Single().Shares.Select(share => share.Amount).ToArray());
+
+        var locked = Command(Keep(0, 2, 10m), Keep(1, 3, 30m), withNewLine);
+        locked.Charges = [keepManual];
+        var refused = await Update().HandleAsync(locked, CancellationToken.None);
+        Assert.Equal(PurchaseError.ManualChargeLocked, refused.PurchaseError);
+
+        var unlocked = Command(Keep(0, 2, 10m), Keep(1, 3, 30m), withNewLine);
+        unlocked.Charges = [];
+        var allowed = await Update().HandleAsync(unlocked, CancellationToken.None);
+        Assert.True(allowed.IsSuccess);
+        Assert.Empty(_order.Charges);
+        Assert.Equal(3, _order.Lines.Count);
+    }
+
     [Fact]
     public async Task ASelectedLineWithQuantityZero_IsRefused_InsteadOfSilentlyDeletingIt()
     {
@@ -157,12 +280,11 @@ public class EditPurchaseOrderTests
     [Fact]
     public async Task AReceivedOrder_CannotBeEdited_NorLoseCharges()
     {
-        var chargeId = AddFobCharge();
+        AddFobCharge();
         Assert.True(_order.TryReceive());
 
         var edit = await Update().HandleAsync(Command(Keep(0, 9, 10m), Keep(1, 3, 30m)), CancellationToken.None);
-        var delete = await new DeletePurchaseChargeCommandHandler(_orders, NullLogger<DeletePurchaseChargeCommandHandler>.Instance)
-            .HandleAsync(new DeletePurchaseChargeCommand(_order.Id, chargeId), CancellationToken.None);
+        var delete = await Update().HandleAsync(WithCharges(), CancellationToken.None);
 
         Assert.Equal(PurchaseError.AlreadyReceived, edit.PurchaseError);
         Assert.Equal(PurchaseError.AlreadyReceived, delete.PurchaseError);
@@ -187,13 +309,12 @@ public class EditPurchaseOrderTests
     }
 
     [Fact]
-    public async Task DeletingAChargeRemovesItFromTheCost()
+    public async Task RemovingTheChargeRowDeletesItAndItsCost()
     {
-        var chargeId = AddFobCharge();
+        AddFobCharge();
         var costBefore = PurchaseCosting.For(_order, _order.Lines[0]).LogisticsAllocated;
 
-        var result = await new DeletePurchaseChargeCommandHandler(_orders, NullLogger<DeletePurchaseChargeCommandHandler>.Instance)
-            .HandleAsync(new DeletePurchaseChargeCommand(_order.Id, chargeId), CancellationToken.None);
+        var result = await Update().HandleAsync(WithCharges(), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Empty(_order.Charges);

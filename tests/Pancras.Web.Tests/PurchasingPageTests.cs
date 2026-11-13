@@ -108,6 +108,22 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
     }
 
     [Fact]
+    public async Task TheForm_PutsItemsBeforeTheOrderWideCosts_AndLocksTheCostsUntilThereAreItems()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        Reset();
+        await SignInAsync(client);
+
+        var html = await (await client.GetAsync("/purchasing?form=1")).Content.ReadAsStringAsync();
+
+        var items = html.IndexOf("id=\"line-body\"", StringComparison.Ordinal);
+        var costs = html.IndexOf("id=\"charge-body\"", StringComparison.Ordinal);
+        Assert.True(items > 0 && costs > items, "Mặt hàng phải nằm trước chi phí chung.");
+        Assert.Contains("id=\"charge-area\"", html, StringComparison.Ordinal);
+        Assert.Contains("Nhập mặt hàng, số lượng và đơn giá FOB", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task RejectedSave_ShowsTheReasonInsideTheOpenDialog_NotBehindIt()
     {
         using var client = _factory.CreateClient(NoRedirect);

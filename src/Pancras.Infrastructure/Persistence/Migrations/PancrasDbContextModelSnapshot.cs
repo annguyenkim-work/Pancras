@@ -929,6 +929,16 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("container_number");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("created_by");
+
                     b.Property<decimal>("ExchangeRate")
                         .HasColumnType("numeric(18,0)")
                         .HasColumnName("exchange_rate");
@@ -953,6 +963,16 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("receive_location_id");
 
+                    b.Property<DateTimeOffset?>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_at");
+
+                    b.Property<string>("ReceivedBy")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("received_by");
+
                     b.Property<int>("Status")
                         .HasColumnType("integer")
                         .HasColumnName("status");
@@ -960,6 +980,16 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("SupplierId")
                         .HasColumnType("uuid")
                         .HasColumnName("supplier_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("updated_by");
 
                     b.Property<bool>("VatDeductible")
                         .HasColumnType("boolean")

@@ -58,7 +58,7 @@ public class ReceivePurchaseOrderCommandHandlerTests
     }
 
     [Fact]
-    public async Task Receive_IsBlocked_WhileAChargeHasNoGroup_AndChargesLockAfterwards()
+    public async Task Receive_IsBlocked_WhileAChargeHasNoGroup()
     {
         var item = CatalogItem.Create("SP03", "Bồn", ProductCategory.SanitaryEquipment, "Toto", "Việt Nam", "Cái", null, null, null, null, 9m, 1m, 1m, 1m, 1m);
         var warehouse = StockLocation.Create("Kho C", StockLocationKind.Warehouse);
@@ -71,17 +71,14 @@ public class ReceivePurchaseOrderCommandHandlerTests
         Assert.True(order.TryAllocate(chargeId, new Dictionary<Guid, decimal> { [order.Lines[0].Id] = 100m }, false));
         orders.Orders.Add(order);
         var receive = new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance);
-        var assign = new AssignChargeGroupCommandHandler(orders, NullLogger<AssignChargeGroupCommandHandler>.Instance);
 
         var blocked = await receive.HandleAsync(new ReceivePurchaseOrderCommand(order.Id), CancellationToken.None);
-        await assign.HandleAsync(new AssignChargeGroupCommand { PurchaseOrderId = order.Id, ChargeId = chargeId, Group = ChargeGroup.Logistics }, CancellationToken.None);
+        Assert.True(order.TryAssignGroup(chargeId, ChargeGroup.Logistics, false));
         var received = await receive.HandleAsync(new ReceivePurchaseOrderCommand(order.Id), CancellationToken.None);
-        var late = await assign.HandleAsync(new AssignChargeGroupCommand { PurchaseOrderId = order.Id, ChargeId = chargeId, Group = ChargeGroup.NonDeductibleTax }, CancellationToken.None);
 
         Assert.Equal(PurchaseError.UngroupedCharge, blocked.PurchaseError);
         Assert.True(received.IsSuccess);
         Assert.Equal(35m, item.CostPrice);
-        Assert.Equal(PurchaseError.AlreadyReceived, late.PurchaseError);
         Assert.Equal(ChargeGroup.Logistics, order.Charges[0].Group);
     }
 

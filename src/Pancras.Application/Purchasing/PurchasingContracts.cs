@@ -69,7 +69,13 @@ public sealed record PurchaseOrderDetail(
     IReadOnlyList<PurchaseLineView> Lines,
     IReadOnlyList<PurchaseChargeView> Charges,
     bool VatDeductible = true,
-    Guid SupplierId = default);
+    Guid SupplierId = default,
+    DateTimeOffset CreatedAt = default,
+    string CreatedBy = "",
+    DateTimeOffset? UpdatedAt = null,
+    string UpdatedBy = "",
+    DateTimeOffset? ReceivedAt = null,
+    string ReceivedBy = "");
 
 public sealed class CreatePurchaseLineInput
 {
@@ -128,8 +134,22 @@ public sealed class CreatePurchaseChargeInput
 
     public ChargeGroup Group { get; set; }
 
-    /// <summary>Chia theo thể tích nếu mọi mặt hàng có số đo; nếu không thì chia theo trị giá FOB.</summary>
-    public bool PreferVolume { get; set; }
+    /// <summary>Cách chia do người dùng chọn: trị giá FOB, số lượng, cân nặng hoặc thể tích. Không tự đổi nếu thiếu số đo.</summary>
+    public ChargeSplitMethod Method { get; set; } = ChargeSplitMethod.FobValue;
+}
+
+/// <summary>Một dòng chi phí chung trong form sửa đơn. Có <see cref="ChargeId"/> là khoản đã có, không có là khoản mới.</summary>
+public sealed class UpdatePurchaseChargeInput
+{
+    public Guid? ChargeId { get; set; }
+
+    public decimal Amount { get; set; }
+
+    public string? Label { get; set; }
+
+    public ChargeGroup Group { get; set; }
+
+    public ChargeSplitMethod Method { get; set; } = ChargeSplitMethod.FobValue;
 }
 
 public sealed class UpdatePurchaseOrderCommand
@@ -157,35 +177,14 @@ public sealed class UpdatePurchaseOrderCommand
     public bool VatDeductible { get; set; }
 
     public IReadOnlyList<CreatePurchaseLineInput> Lines { get; set; } = [];
+
+    /// <summary>
+    /// Danh sách chi phí chung sau khi sửa. null = không đụng tới chi phí; có danh sách = danh sách đó là đúng:
+    /// khoản đã có mà không còn trong danh sách thì bị xóa, dòng không có ChargeId là khoản mới.
+    /// Khoản chia tay (Manual) chỉ được giữ hoặc xóa, không sửa số tiền/cách chia ở đây.
+    /// </summary>
+    public IReadOnlyList<UpdatePurchaseChargeInput>? Charges { get; set; }
 }
 
-public sealed record DeletePurchaseChargeCommand(Guid PurchaseOrderId, Guid ChargeId);
-
-public sealed class AllocateChargeCommand
-{
-    public Guid PurchaseOrderId { get; set; }
-
-    public decimal Amount { get; set; }
-
-    public ChargeSplitMethod Method { get; set; }
-
-    public string? Label { get; set; }
-
-    /// <summary>Nếu có, khoản được gán nhóm ngay trong cùng một lần lưu.</summary>
-    public ChargeGroup? Group { get; set; }
-
-    public IReadOnlyDictionary<Guid, decimal> ManualShares { get; set; } = new Dictionary<Guid, decimal>();
-}
-
-public sealed class AssignChargeGroupCommand
-{
-    public Guid PurchaseOrderId { get; set; }
-
-    public Guid ChargeId { get; set; }
-
-    public ChargeGroup Group { get; set; }
-
-    public bool RetainCurrent { get; set; }
-}
 
 public sealed record ReceivePurchaseOrderCommand(Guid PurchaseOrderId);

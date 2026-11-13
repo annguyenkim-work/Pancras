@@ -17,17 +17,21 @@ public class IndexModel(
     GetPurchaseOrderHandler getOrder,
     CreatePurchaseOrderCommandHandler createOrder,
     UpdatePurchaseOrderCommandHandler updateOrder,
-    DeletePurchaseChargeCommandHandler deleteCharge,
     ListPurchaseAttachmentsHandler listAttachments,
     UploadPurchaseAttachmentCommandHandler uploadAttachment,
     OpenPurchaseAttachmentHandler openAttachment,
     DeletePurchaseAttachmentCommandHandler deleteAttachment,
-    AllocateChargeCommandHandler allocateCharge,
-    AssignChargeGroupCommandHandler assignGroup,
     ReceivePurchaseOrderCommandHandler receiveOrder,
     ListSuppliersForPurchaseHandler listSuppliers,
-    ListInventoryDocumentsHandler inventory) : PageModel
+    ListInventoryDocumentsHandler inventory,
+    Pancras.Application.Catalog.GetCatalogMeasuresHandler catalogMeasures) : PageModel
 {
+    /// <summary>Cân nặng và thể tích theo mặt hàng, để bản xem thử trong form chia chi phí theo khối lượng/thể tích đúng như máy chủ.</summary>
+    public IReadOnlyDictionary<Guid, Pancras.Application.Catalog.CatalogItemMeasure> ItemMeasures { get; private set; } =
+        new Dictionary<Guid, Pancras.Application.Catalog.CatalogItemMeasure>();
+
+    private bool NeedMeasures { get; set; }
+
     public IReadOnlyList<PurchaseOrderSummary> Orders { get; private set; } = [];
 
     public bool HasAnyOrders { get; private set; }
@@ -59,21 +63,10 @@ public class IndexModel(
     [BindProperty]
     public PurchaseForm Form { get; set; } = PurchaseForm.Create();
 
-    [BindProperty]
-    public AllocateChargeCommand ChargeCommand { get; set; } = new();
-
-    [BindProperty]
-    public List<Guid> ManualLineIds { get; set; } = [];
-
-    [BindProperty]
-    public List<decimal> ManualAmounts { get; set; } = [];
-
-    [BindProperty]
-    public AssignChargeGroupCommand GroupCommand { get; set; } = new();
-
     public async Task OnGetAsync(Guid? id, Guid? order, Guid? formula, string? form, string? notice, string? error, Guid? edit)
     {
         ShowForm = string.Equals(form, "1", StringComparison.Ordinal);
+        NeedMeasures = ShowForm || edit is not null;
         Notice = notice switch
         {
             "created" => "Đã tạo đơn nhập.",
@@ -120,9 +113,19 @@ public class IndexModel(
             ExchangeRate = decimal.Truncate(detail.ExchangeRate),
             VatPercent = Tidy(detail.VatRate * 100m),
             VatDeductible = detail.VatDeductible,
-            // Các khoản chi phí hiện có chỉ để bản xem thử trong form tính đúng; chúng không được ghi lại khi lưu (sửa ở chi tiết đơn).
-            OceanFreight = detail.Charges.Where(charge => charge.Group == ChargeGroup.CustomsValueAdjustment).Sum(charge => charge.Amount),
-            PortHandling = detail.Charges.Where(charge => charge.Group is ChargeGroup.Logistics or ChargeGroup.NonDeductibleTax).Sum(charge => charge.Amount),
+            Charges = detail.Charges
+                .Select(charge => new ChargeRowInput
+                {
+                    ChargeId = charge.Id,
+                    Label = charge.Label,
+                    Amount = charge.Amount,
+                    Group = charge.Group ?? ChargeGroup.Logistics,
+                    Method = charge.Method,
+                    ManualShares = charge.Method == ChargeSplitMethod.Manual
+                        ? charge.Shares.ToDictionary(share => share.LineId, share => share.Amount)
+                        : null
+                })
+                .ToList(),
             Lines = detail.Lines
                 .Select(line => new CreatePurchaseLineInput
                 {
@@ -174,12 +177,17 @@ public class IndexModel(
                 ExchangeRate = Form.ExchangeRate,
                 VatRate = Form.VatPercent / 100m,
                 VatDeductible = Form.VatDeductible,
-                Lines = Form.Lines ?? []
+                Lines = Form.Lines ?? [],
+                // Danh sách trong form là danh sách đúng: dòng bị xóa trong bảng thì khoản đó bị xóa khỏi đơn.
+                Charges = (Form.Charges ?? [])
+                    .Select(row => new UpdatePurchaseChargeInput { ChargeId = row.ChargeId, Amount = row.Amount, Label = row.Label, Group = row.Group, Method = row.Method })
+                    .ToList()
             },
             HttpContext.RequestAborted);
         if (result.IsFailure)
         {
             ShowForm = true;
+            NeedMeasures = true;
             EditingId = orderId;
             ErrorMessage = PurchaseErrorMessages.For(result.PurchaseError, PurchaseErrorMessages.UpdateFailed);
             KeepDraftLines();
@@ -228,14 +236,6 @@ public class IndexModel(
             : Redirect($"/purchasing?order={orderId}&notice=attachment-deleted");
     }
 
-    public async Task<IActionResult> OnPostDeleteChargeAsync(Guid orderId, Guid chargeId)
-    {
-        var result = await deleteCharge.HandleAsync(new DeletePurchaseChargeCommand(orderId, chargeId), HttpContext.RequestAborted);
-        return result.IsFailure
-            ? Redirect($"/purchasing?order={orderId}&error={result.PurchaseError}#charges")
-            : Redirect($"/purchasing?order={orderId}&notice=charge-deleted#charges");
-    }
-
     public async Task<IActionResult> OnPostCreateAsync()
     {
         ApplyLineInputs();
@@ -252,19 +252,15 @@ public class IndexModel(
             VatRate = Form.VatPercent / 100m,
             VatDeductible = Form.VatDeductible,
             Lines = Form.Lines ?? [],
-            // Cước biển nằm trong trị giá tính thuế (mua FOB); các khoản sau thông quan là logistics.
-            Charges =
-            [
-                new CreatePurchaseChargeInput { Amount = Form.OceanFreight, Label = "Cước vận chuyển đường biển quốc tế (Ocean Freight)", Group = ChargeGroup.CustomsValueAdjustment, PreferVolume = true },
-                new CreatePurchaseChargeInput { Amount = Form.PortHandling, Label = "Phí nâng hạ bãi cảng (THC, D/O, vệ sinh container)", Group = ChargeGroup.Logistics, PreferVolume = true },
-                new CreatePurchaseChargeInput { Amount = Form.InspectionFee, Label = "Phí kiểm định chất lượng sản phẩm", Group = ChargeGroup.Logistics, PreferVolume = false },
-                new CreatePurchaseChargeInput { Amount = Form.InlandTrucking, Label = "Vận chuyển kéo xe container từ cảng về kho", Group = ChargeGroup.Logistics, PreferVolume = true }
-            ]
+            Charges = (Form.Charges ?? [])
+                .Select(row => new CreatePurchaseChargeInput { Amount = row.Amount, Label = row.Label, Group = row.Group, Method = row.Method })
+                .ToList()
         };
         var result = await createOrder.HandleAsync(command, HttpContext.RequestAborted);
         if (result.IsFailure)
         {
             ShowForm = true;
+            NeedMeasures = true;
             ErrorMessage = PurchaseErrorMessages.For(result.PurchaseError, PurchaseErrorMessages.CreateFailed);
             KeepDraftLines();
             await LoadAsync(null, null);
@@ -283,44 +279,6 @@ public class IndexModel(
         }
 
         return Redirect($"/purchasing?order={orderId}&notice=received");
-    }
-
-    public async Task<IActionResult> OnPostSaveChargeAsync()
-    {
-        if (ChargeCommand.Method == ChargeSplitMethod.Manual)
-        {
-            if (ManualLineIds.Count != ManualAmounts.Count)
-            {
-                return Redirect($"/purchasing?order={ChargeCommand.PurchaseOrderId}&error={PurchaseError.InvalidOrder}#charges");
-            }
-
-            var shares = new Dictionary<Guid, decimal>();
-            for (var index = 0; index < ManualLineIds.Count; index++)
-            {
-                shares[ManualLineIds[index]] = ManualAmounts[index];
-            }
-
-            ChargeCommand.ManualShares = shares;
-        }
-
-        var result = await allocateCharge.HandleAsync(ChargeCommand, HttpContext.RequestAborted);
-        if (result.IsFailure)
-        {
-            return Redirect($"/purchasing?order={ChargeCommand.PurchaseOrderId}&error={result.PurchaseError}#charges");
-        }
-
-        return Redirect($"/purchasing?order={ChargeCommand.PurchaseOrderId}&notice=charge-added#charges");
-    }
-
-    public async Task<IActionResult> OnPostAssignGroupAsync()
-    {
-        var result = await assignGroup.HandleAsync(GroupCommand, HttpContext.RequestAborted);
-        if (result.IsFailure)
-        {
-            return Redirect($"/purchasing?order={GroupCommand.PurchaseOrderId}&error={result.PurchaseError}#charges");
-        }
-
-        return Redirect($"/purchasing?order={GroupCommand.PurchaseOrderId}&notice=group-saved#charges");
     }
 
     public async Task<IActionResult> OnPostExportAsync(Guid orderId)
@@ -371,6 +329,11 @@ public class IndexModel(
         Suppliers = await listSuppliers.HandleAsync(cancellationToken);
         Locations = await inventory.ListAllLocationsAsync(cancellationToken);
         Items = await inventory.ListItemsAsync(cancellationToken);
+        if (NeedMeasures)
+        {
+            ItemMeasures = await catalogMeasures.HandleAsync(Items.Select(item => item.Id).ToArray(), cancellationToken);
+        }
+
         if ((id is null || id == Guid.Empty) && Orders.Count > 0)
         {
             id = Orders[0].Id;
@@ -414,25 +377,55 @@ public sealed class PurchaseForm
 
     public bool VatDeductible { get; set; }
 
-    public decimal OceanFreight { get; set; }
-
-    public decimal PortHandling { get; set; }
-
-    public decimal InspectionFee { get; set; }
-
-    public decimal InlandTrucking { get; set; }
-
     public List<decimal> UnitPrices { get; set; } = [];
 
     public List<decimal> DutyPercents { get; set; } = [];
 
     public List<CreatePurchaseLineInput> Lines { get; set; } = [];
 
+    /// <summary>Các dòng chi phí chung của cả đơn (bảng trong form).</summary>
+    public List<ChargeRowInput> Charges { get; set; } = [];
+
     public static PurchaseForm Create() => new()
     {
         VatPercent = 10m,
         Lines = [new CreatePurchaseLineInput(), new CreatePurchaseLineInput(), new CreatePurchaseLineInput()],
         UnitPrices = [0m, 0m, 0m],
-        DutyPercents = [0m, 0m, 0m]
+        DutyPercents = [0m, 0m, 0m],
+        // Bốn dòng mẫu: nhóm quyết định khoản có làm tăng trị giá tính thuế (cước biển) hay cộng thẳng vào giá vốn (còn lại).
+        // Cước, THC, kéo xe nên chia theo thể tích: để chế độ tự động (AutoVolume), trang tự chọn thể tích khi mọi mặt hàng
+        // đã có số đo và trị giá FOB khi chưa, thay vì mặc định thể tích rồi báo lỗi ngay.
+        Charges =
+        [
+            new ChargeRowInput { Label = "Cước vận chuyển đường biển quốc tế (Ocean Freight)", Group = ChargeGroup.CustomsValueAdjustment, Method = ChargeSplitMethod.FobValue, AutoVolume = true },
+            new ChargeRowInput { Label = "Phí nâng hạ bãi cảng (THC, D/O, vệ sinh container)", Group = ChargeGroup.Logistics, Method = ChargeSplitMethod.FobValue, AutoVolume = true },
+            new ChargeRowInput { Label = "Phí kiểm định chất lượng sản phẩm", Group = ChargeGroup.Logistics, Method = ChargeSplitMethod.FobValue },
+            new ChargeRowInput { Label = "Vận chuyển kéo xe container từ cảng về kho", Group = ChargeGroup.Logistics, Method = ChargeSplitMethod.FobValue, AutoVolume = true }
+        ]
     };
+}
+
+/// <summary>Dữ liệu cho một dòng trong bảng chi phí (partial <c>_ChargeRow</c>); <paramref name="Index"/> là chỉ số hoặc chỗ giữ chỗ cho mẫu JS.</summary>
+public sealed record ChargeRowView(ChargeRowInput Row, string Index);
+
+public sealed class ChargeRowInput
+{
+    /// <summary>Có giá trị khi là khoản đã lưu của đơn đang sửa.</summary>
+    public Guid? ChargeId { get; set; }
+
+    public string? Label { get; set; }
+
+    public decimal Amount { get; set; }
+
+    public ChargeGroup Group { get; set; } = ChargeGroup.Logistics;
+
+    public ChargeSplitMethod Method { get; set; } = ChargeSplitMethod.FobValue;
+
+    /// <summary>Dòng mẫu chia tự động theo thể tích/FOB (chỉ để dựng form, không nhận từ form: gửi lên là cách chia đã chọn).</summary>
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+    public bool AutoVolume { get; set; }
+
+    /// <summary>Chỉ để hiển thị bản xem thử của khoản chia tay (không nhận từ form).</summary>
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+    public IReadOnlyDictionary<Guid, decimal>? ManualShares { get; set; }
 }

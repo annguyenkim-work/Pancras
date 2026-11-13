@@ -173,6 +173,20 @@ public sealed class PurchaseCharge
 
     internal void SetGroup(ChargeGroup group) => Group = group;
 
+    internal bool TryUpdate(decimal amount, ChargeSplitMethod method, string? label)
+    {
+        var trimmed = label?.Trim() ?? string.Empty;
+        if (amount < 0 || !Enum.IsDefined(method) || trimmed.Length > LabelMaxLength)
+        {
+            return false;
+        }
+
+        Amount = PurchaseMoney.RoundDong(amount);
+        Method = method;
+        Label = trimmed;
+        return true;
+    }
+
     internal void RemoveSharesOf(IReadOnlySet<Guid> lineIds) => _shares.RemoveAll(share => lineIds.Contains(share.LineId));
 }
 
@@ -224,6 +238,23 @@ public sealed class PurchaseOrder
     /// <summary>VAT đầu vào được khấu trừ thì không vào giá vốn; không được khấu trừ thì cộng vào giá vốn.</summary>
     public bool VatDeductible { get; private set; } = true;
 
+    public const int ActorMaxLength = 64;
+
+    /// <summary>Thời điểm tạo đơn (UTC).</summary>
+    public DateTimeOffset CreatedAt { get; private set; }
+
+    /// <summary>Mã nhân viên tạo đơn (rỗng với đơn cũ chưa ghi nhận).</summary>
+    public string CreatedBy { get; private set; } = string.Empty;
+
+    /// <summary>Lần sửa cuối (sửa thông tin, mặt hàng, chi phí, hoặc nhập kho). null nếu chưa từng sửa.</summary>
+    public DateTimeOffset? UpdatedAt { get; private set; }
+
+    public string UpdatedBy { get; private set; } = string.Empty;
+
+    public DateTimeOffset? ReceivedAt { get; private set; }
+
+    public string ReceivedBy { get; private set; } = string.Empty;
+
     public IReadOnlyList<PurchaseLine> Lines => _lines;
 
     public IReadOnlyList<PurchaseCharge> Charges => _charges;
@@ -241,7 +272,9 @@ public sealed class PurchaseOrder
         decimal exchangeRate,
         decimal vatRate,
         IReadOnlyList<(Guid CatalogItemId, int Quantity, decimal FobUsd, decimal DutyRate, decimal SupplementalDuty, decimal SpecialConsumptionTax, decimal EnvironmentTax)> lines,
-        bool vatDeductible = true)
+        bool vatDeductible = true,
+        DateTimeOffset? createdAt = null,
+        string? createdBy = null)
     {
         var trimmedCode = code?.Trim() ?? string.Empty;
         if (trimmedCode.Length is < 1 or > CodeMaxLength || supplierId == Guid.Empty || receiveLocationId == Guid.Empty)
@@ -281,7 +314,9 @@ public sealed class PurchaseOrder
             ExchangeRate = roundedRate,
             VatRate = PurchaseMoney.RoundRate(vatRate),
             VatDeductible = vatDeductible,
-            Status = PurchaseStatus.Open
+            Status = PurchaseStatus.Open,
+            CreatedAt = createdAt ?? DateTimeOffset.UtcNow,
+            CreatedBy = FitActor(createdBy)
         };
         if (order.NormalizedCode.Length is < 1 or > CodeMaxLength)
         {
@@ -502,6 +537,17 @@ public sealed class PurchaseOrder
         return true;
     }
 
+    /// <summary>Sửa số tiền, cách chia, tên của một khoản (chưa nhập kho). Khoản chia tay không sửa qua đây; sau khi sửa phải chia lại bằng <see cref="TryAllocate"/>.</summary>
+    public bool TryUpdateCharge(Guid chargeId, decimal amount, ChargeSplitMethod method, string? label)
+    {
+        var charge = _charges.FirstOrDefault(item => item.Id == chargeId);
+        return Status == PurchaseStatus.Open
+            && charge is not null
+            && charge.Method != ChargeSplitMethod.Manual
+            && method != ChargeSplitMethod.Manual
+            && charge.TryUpdate(amount, method, label);
+    }
+
     public void DropCharge(Guid chargeId) => _charges.RemoveAll(charge => charge.Id == chargeId);
 
     public bool TryAssignGroup(Guid chargeId, ChargeGroup group, bool retainCurrent)
@@ -521,7 +567,14 @@ public sealed class PurchaseOrder
         return true;
     }
 
-    public bool TryReceive()
+    /// <summary>Ghi nhận một lần sửa đơn (thời điểm và mã nhân viên).</summary>
+    public void StampUpdated(DateTimeOffset at, string? by)
+    {
+        UpdatedAt = at;
+        UpdatedBy = FitActor(by);
+    }
+
+    public bool TryReceive(DateTimeOffset? at = null, string? by = null)
     {
         if (Status != PurchaseStatus.Open)
         {
@@ -529,10 +582,28 @@ public sealed class PurchaseOrder
         }
 
         Status = PurchaseStatus.Received;
+        if (at is DateTimeOffset when)
+        {
+            ReceivedAt = when;
+            ReceivedBy = FitActor(by);
+            StampUpdated(when, by);
+        }
+
         return true;
     }
 
-    public void RestoreOpen() => Status = PurchaseStatus.Open;
+    public void RestoreOpen()
+    {
+        Status = PurchaseStatus.Open;
+        ReceivedAt = null;
+        ReceivedBy = string.Empty;
+    }
+
+    private static string FitActor(string? by)
+    {
+        var trimmed = by?.Trim() ?? string.Empty;
+        return trimmed.Length <= ActorMaxLength ? trimmed : trimmed[..ActorMaxLength];
+    }
 
     private static bool TryOptional(string? value, int max, out string stored)
     {

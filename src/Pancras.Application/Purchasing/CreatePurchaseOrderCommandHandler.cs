@@ -13,7 +13,9 @@ public sealed class CreatePurchaseOrderCommandHandler(
     IInventoryRepository inventory,
     ICatalogItemRepository catalog,
     ILogger<CreatePurchaseOrderCommandHandler> logger,
-    GetCatalogMeasuresHandler? measures = null)
+    GetCatalogMeasuresHandler? measures = null,
+    TimeProvider? clock = null,
+    Pancras.Application.Auditing.IRequestInfo? request = null)
 {
     public async Task<Result<Guid>> HandleAsync(CreatePurchaseOrderCommand command, CancellationToken cancellationToken)
     {
@@ -79,7 +81,9 @@ public sealed class CreatePurchaseOrderCommandHandler(
                 line.SupplementalDuty,
                 line.SpecialConsumptionTax,
                 line.EnvironmentTax)).ToArray(),
-            command.VatDeductible);
+            command.VatDeductible,
+            (clock ?? TimeProvider.System).GetUtcNow(),
+            request?.ActorCode);
         if (order is null)
         {
             logger.LogWarning("Purchase order was rejected.");
@@ -106,29 +110,8 @@ public sealed class CreatePurchaseOrderCommandHandler(
         return Result<Guid>.Ok(order.Id);
     }
 
-    private async Task<bool> TryAddChargeAsync(PurchaseOrder order, CreatePurchaseChargeInput charge, CancellationToken cancellationToken)
-    {
-        var methods = charge.PreferVolume
-            ? new[] { ChargeSplitMethod.Volume, ChargeSplitMethod.FobValue }
-            : new[] { ChargeSplitMethod.FobValue };
-        foreach (var method in methods)
-        {
-            if (!order.TryAddCharge(charge.Amount, method, out var chargeId, charge.Label))
-            {
-                return false;
-            }
-
-            var basis = await ChargeBasis.ComputeAsync(order, method, null, measures, cancellationToken);
-            if (basis is not null && order.TryAllocate(chargeId, basis, manual: false))
-            {
-                return order.TryAssignGroup(chargeId, charge.Group, retainCurrent: false);
-            }
-
-            order.DropCharge(chargeId);
-        }
-
-        return false;
-    }
+    private Task<bool> TryAddChargeAsync(PurchaseOrder order, CreatePurchaseChargeInput charge, CancellationToken cancellationToken) =>
+        ChargeBasis.TryAddSplitAsync(order, charge.Amount, charge.Label, charge.Group, charge.Method, measures, cancellationToken);
 
     private static bool HasNegativeMoney(CreatePurchaseOrderCommand command) =>
         command.ExchangeRate < 0

@@ -99,6 +99,12 @@ public sealed class GetPurchaseOrderHandler(
                 charge.Shares.Select(share => new PurchaseShareView(share.LineId, share.Amount)).ToArray(),
                 charge.Label)).ToArray(),
             order.VatDeductible,
-            order.SupplierId);
+            order.SupplierId,
+            order.CreatedAt,
+            order.CreatedBy,
+            order.UpdatedAt,
+            order.UpdatedBy,
+            order.ReceivedAt,
+            order.ReceivedBy);
     }
 }

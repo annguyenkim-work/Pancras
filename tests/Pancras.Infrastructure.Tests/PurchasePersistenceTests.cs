@@ -60,16 +60,13 @@ public class PurchasePersistenceTests
 
         await using (var context = NewContext())
         {
-            var handler = new AllocateChargeCommandHandler(
-                Orders(context),
-                new GetCatalogMeasuresHandler(new CatalogItemRepository(context), NullLogger<GetCatalogMeasuresHandler>.Instance),
-                NullLogger<AllocateChargeCommandHandler>.Instance);
+            var repository = Orders(context);
+            var loaded = (await repository.FindForUpdateAsync(id, CancellationToken.None))!;
+            Assert.True(loaded.TryAddCharge(1000m, ChargeSplitMethod.FobValue, out var chargeId, "THC"));
+            Assert.True(loaded.TryAllocate(chargeId, loaded.Lines.ToDictionary(line => line.Id, line => line.FobUsd), manual: false));
+            Assert.True(loaded.TryAssignGroup(chargeId, ChargeGroup.Logistics, retainCurrent: false));
 
-            var result = await handler.HandleAsync(
-                new AllocateChargeCommand { PurchaseOrderId = id, Amount = 1000m, Method = ChargeSplitMethod.FobValue, Label = "THC", Group = ChargeGroup.Logistics },
-                CancellationToken.None);
-
-            Assert.True(result.IsSuccess, "Thêm khoản chi phí vào đơn đã lưu phải thành công (lỗi cũ: EF gửi UPDATE cho dòng chưa có).");
+            Assert.True(await repository.CommitAsync(CancellationToken.None), "Thêm khoản chi phí vào đơn đã lưu phải thành công (lỗi cũ: EF gửi UPDATE cho dòng chưa có).");
         }
 
         var saved = await LoadAsync(id);

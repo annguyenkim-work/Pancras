@@ -81,7 +81,7 @@ public sealed class ReceivePurchaseOrderCommandHandler(
         }
 
         var exchangeRate = order.ExchangeRate;
-        if (!order.TryReceive())
+        if (!order.TryReceive((clock ?? TimeProvider.System).GetUtcNow(), request?.ActorCode))
         {
             return Result<Guid>.Fail(PurchaseError.AlreadyReceived);
         }

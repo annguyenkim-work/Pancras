@@ -22,6 +22,12 @@ public sealed class PurchaseOrderConfiguration : IEntityTypeConfiguration<Purcha
         builder.Property(order => order.VatRate).HasColumnType("numeric(9,4)").IsRequired();
         builder.Property(order => order.Status).HasConversion<int>().IsRequired();
         builder.Property(order => order.VatDeductible).IsRequired();
+        builder.Property(order => order.CreatedAt).IsRequired();
+        builder.Property(order => order.CreatedBy).HasMaxLength(PurchaseOrder.ActorMaxLength).IsRequired();
+        builder.Property(order => order.UpdatedAt);
+        builder.Property(order => order.UpdatedBy).HasMaxLength(PurchaseOrder.ActorMaxLength).IsRequired();
+        builder.Property(order => order.ReceivedAt);
+        builder.Property(order => order.ReceivedBy).HasMaxLength(PurchaseOrder.ActorMaxLength).IsRequired();
         builder.HasIndex(order => order.NormalizedCode).IsUnique();
         builder.HasMany(order => order.Lines).WithOne().HasForeignKey(line => line.PurchaseOrderId).OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(order => order.Lines).UsePropertyAccessMode(PropertyAccessMode.Field);

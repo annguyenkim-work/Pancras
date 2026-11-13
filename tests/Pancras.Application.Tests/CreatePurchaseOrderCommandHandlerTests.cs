@@ -66,8 +66,8 @@ public class CreatePurchaseOrderCommandHandlerTests
         var command = Command(fixture, item.Id, item.Id, 0.1m, 0.1m);
         command.Charges =
         [
-            new CreatePurchaseChargeInput { Amount = 1000m, Label = "THC", Group = ChargeGroup.Logistics, PreferVolume = true },
-            new CreatePurchaseChargeInput { Amount = 0m, Label = "Bỏ qua", Group = ChargeGroup.Logistics }
+            new CreatePurchaseChargeInput { Amount = 1000m, Label = "THC", Group = ChargeGroup.Logistics, Method = ChargeSplitMethod.FobValue },
+            new CreatePurchaseChargeInput { Amount = 0m, Label = "Bỏ qua", Group = ChargeGroup.Logistics, Method = ChargeSplitMethod.Quantity }
         ];
 
         var result = await fixture.Create.HandleAsync(command, CancellationToken.None);
@@ -79,6 +79,21 @@ public class CreatePurchaseOrderCommandHandlerTests
         Assert.Equal(ChargeGroup.Logistics, charge.Group);
         Assert.Equal(1000m, charge.Shares.Sum(share => share.Amount));
         Assert.False(order.HasUngroupedCharges);
+    }
+
+    [Fact]
+    public async Task AnInitialChargeSplitByVolume_IsNotSilentlySwitched_WhenTheMeasureIsMissing()
+    {
+        var fixture = new PurchaseFixture();
+        var item = Item("SP01", 2m);
+        fixture.Catalog.Items.Add(item);
+        var command = Command(fixture, item.Id, item.Id, 0.1m, 0.1m);
+        command.Charges = [new CreatePurchaseChargeInput { Amount = 700m, Label = "Cước", Group = ChargeGroup.CustomsValueAdjustment, Method = ChargeSplitMethod.Volume }];
+
+        var result = await fixture.Create.HandleAsync(command, CancellationToken.None);
+
+        Assert.Equal(PurchaseError.ChargeFailed, result.PurchaseError);
+        Assert.Empty(fixture.Orders.Orders);
     }
 
     [Fact]
@@ -119,41 +134,49 @@ public class CreatePurchaseOrderCommandHandlerTests
         var heavy = Item("SP02", 6m);
         fixture.Catalog.Items.Add(light);
         fixture.Catalog.Items.Add(heavy);
-        var created = await fixture.Create.HandleAsync(Command(fixture, light.Id, heavy.Id, 0.1m, 0.1m, 100m, 300m, 1, 1), CancellationToken.None);
-        var order = fixture.Orders.Orders[0];
 
-        var byFob = await fixture.Allocate.HandleAsync(Charge(order.Id, ChargeSplitMethod.FobValue), CancellationToken.None);
-        Assert.True(byFob.IsSuccess);
-        AssertShares(order, 10m, 30m);
+        // Mỗi cách chia một đơn riêng; khoản 40 đồng chia cho hai dòng theo tỷ lệ 1:3.
+        var byFob = await CreateWithChargeAsync(fixture, light, heavy, ChargeSplitMethod.FobValue, firstFob: 100m, secondFob: 300m, firstQuantity: 1, secondQuantity: 1);
+        var byQuantity = await CreateWithChargeAsync(fixture, light, heavy, ChargeSplitMethod.Quantity, firstFob: 100m, secondFob: 300m, firstQuantity: 1, secondQuantity: 3);
+        var byWeight = await CreateWithChargeAsync(fixture, light, heavy, ChargeSplitMethod.Weight, firstFob: 100m, secondFob: 300m, firstQuantity: 1, secondQuantity: 1);
 
-        order.DropCharge(order.Charges[0].Id);
-        var byQuantity = await fixture.CreateQuantityOrder(fixture, light, heavy);
-        var quantityOrder = fixture.Orders.Orders.Single(item => item.Id == byQuantity);
-        var quantityCharge = await fixture.Allocate.HandleAsync(Charge(quantityOrder.Id, ChargeSplitMethod.Quantity), CancellationToken.None);
-        Assert.True(quantityCharge.IsSuccess);
-        AssertShares(quantityOrder, 10m, 30m);
-
-        var weightCharge = await fixture.Allocate.HandleAsync(Charge(order.Id, ChargeSplitMethod.Weight), CancellationToken.None);
-        Assert.True(weightCharge.IsSuccess);
-        AssertShares(order, 10m, 30m);
-        Assert.Equal(created.Value, order.Id);
+        AssertShares(byFob, 10m, 30m);
+        AssertShares(byQuantity, 10m, 30m);
+        AssertShares(byWeight, 10m, 30m);
     }
 
     [Fact]
-    public async Task MissingWeight_DoesNotWriteShares()
+    public async Task MissingWeight_RejectsTheOrder_InsteadOfWritingShares()
     {
         var fixture = new PurchaseFixture();
         var known = Item("SP01", 2m);
         var missing = Item("SP02", null);
         fixture.Catalog.Items.Add(known);
         fixture.Catalog.Items.Add(missing);
-        await fixture.Create.HandleAsync(Command(fixture, known.Id, missing.Id, 0.1m, 0.1m), CancellationToken.None);
-        var order = fixture.Orders.Orders[0];
+        var command = Command(fixture, known.Id, missing.Id, 0.1m, 0.1m);
+        command.Charges = [new CreatePurchaseChargeInput { Amount = 40m, Group = ChargeGroup.Logistics, Method = ChargeSplitMethod.Weight }];
 
-        var result = await fixture.Allocate.HandleAsync(Charge(order.Id, ChargeSplitMethod.Weight), CancellationToken.None);
+        var result = await fixture.Create.HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(PurchaseError.MissingMeasure, result.PurchaseError);
-        Assert.Empty(order.Charges);
+        Assert.Equal(PurchaseError.ChargeFailed, result.PurchaseError);
+        Assert.Empty(fixture.Orders.Orders);
+    }
+
+    private static async Task<PurchaseOrder> CreateWithChargeAsync(
+        PurchaseFixture fixture,
+        CatalogItem first,
+        CatalogItem second,
+        ChargeSplitMethod method,
+        decimal firstFob,
+        decimal secondFob,
+        int firstQuantity,
+        int secondQuantity)
+    {
+        var command = Command(fixture, first.Id, second.Id, 0.1m, 0.1m, firstFob, secondFob, firstQuantity, secondQuantity);
+        command.Charges = [new CreatePurchaseChargeInput { Amount = 40m, Label = "Phí", Group = ChargeGroup.Logistics, Method = method }];
+        var result = await fixture.Create.HandleAsync(command, CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        return fixture.Orders.Orders.Single(order => order.Id == result.Value);
     }
 
     [Fact]
@@ -187,9 +210,6 @@ public class CreatePurchaseOrderCommandHandlerTests
         Assert.Equal(first, shares[0].Amount);
         Assert.Equal(second, shares[1].Amount);
     }
-
-    private static AllocateChargeCommand Charge(Guid orderId, ChargeSplitMethod method) =>
-        new() { PurchaseOrderId = orderId, Amount = 40m, Method = method };
 
     private static CatalogItem Item(string code, decimal? weight) =>
         CatalogItem.Create(code, code, ProductCategory.SanitaryEquipment, "Toto", "Việt Nam", "Cái", weight, null, null, null, 1m, 1m, 1m, 1m, 1m);
@@ -226,11 +246,7 @@ public class CreatePurchaseOrderCommandHandlerTests
             Location = StockLocation.Create("Kho A", StockLocationKind.Warehouse);
             Suppliers.Suppliers.Add(Supplier);
             Inventory.Locations.Add(Location);
-            Create = new CreatePurchaseOrderCommandHandler(Orders, Suppliers, Inventory, Catalog, NullLogger<CreatePurchaseOrderCommandHandler>.Instance);
-            Allocate = new AllocateChargeCommandHandler(
-                Orders,
-                new GetCatalogMeasuresHandler(Catalog, NullLogger<GetCatalogMeasuresHandler>.Instance),
-                NullLogger<AllocateChargeCommandHandler>.Instance);
+            Create = new CreatePurchaseOrderCommandHandler(Orders, Suppliers, Inventory, Catalog, NullLogger<CreatePurchaseOrderCommandHandler>.Instance, new GetCatalogMeasuresHandler(Catalog, NullLogger<GetCatalogMeasuresHandler>.Instance));
         }
 
         public FakePurchaseStore Orders { get; } = new();
@@ -246,14 +262,5 @@ public class CreatePurchaseOrderCommandHandlerTests
         public StockLocation Location { get; }
 
         public CreatePurchaseOrderCommandHandler Create { get; }
-
-        public AllocateChargeCommandHandler Allocate { get; }
-
-        public async Task<Guid> CreateQuantityOrder(PurchaseFixture fixture, CatalogItem light, CatalogItem heavy)
-        {
-            var command = Command(fixture, light.Id, heavy.Id, 0.1m, 0.1m, 100m, 300m, 1, 3);
-            var result = await Create.HandleAsync(command, CancellationToken.None);
-            return result.Value;
-        }
     }
 }

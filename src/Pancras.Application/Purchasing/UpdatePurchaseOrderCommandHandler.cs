@@ -76,11 +76,39 @@ public sealed class UpdatePurchaseOrderCommandHandler(
             return Result<Guid>.Fail(PurchaseError.DuplicateCode);
         }
 
-        // Khoản chia tay không thể tự chia lại khi tập dòng đổi: chặn trước khi sửa bất cứ thứ gì.
+        // Xác định trước khoản nào bị xóa: khoản đã có mà không còn trong danh sách gửi lên, hoặc (khoản không phải chia tay)
+        // gửi lên với số tiền 0. null nghĩa là không đụng tới chi phí.
+        var submittedCharges = command.Charges;
+        var chargeIdsToDrop = new HashSet<Guid>();
+        if (submittedCharges is not null)
+        {
+            if (submittedCharges.Any(charge => charge.Amount < 0))
+            {
+                return Result<Guid>.Fail(PurchaseError.NegativeMoney);
+            }
+
+            if (submittedCharges.Any(charge => !Enum.IsDefined(charge.Group) || !Enum.IsDefined(charge.Method)
+                || (charge.ChargeId is null && charge.Method == ChargeSplitMethod.Manual)))
+            {
+                return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+            }
+
+            var sentIds = submittedCharges.Where(charge => charge.ChargeId is not null).Select(charge => charge.ChargeId!.Value).ToHashSet();
+            foreach (var existing in order.Charges)
+            {
+                var sent = submittedCharges.FirstOrDefault(charge => charge.ChargeId == existing.Id);
+                if (!sentIds.Contains(existing.Id) || (existing.Method != ChargeSplitMethod.Manual && sent!.Amount <= 0))
+                {
+                    chargeIdsToDrop.Add(existing.Id);
+                }
+            }
+        }
+
+        // Khoản chia tay còn lại không thể tự chia lại khi tập dòng đổi: chặn trước khi sửa bất cứ thứ gì.
         var keptIds = lines.Where(line => line.LineId is not null).Select(line => line.LineId!.Value).ToHashSet();
         var setChanges = lines.Any(line => line.LineId is null || order.Lines.All(item => item.Id != line.LineId))
             || order.Lines.Any(item => !keptIds.Contains(item.Id));
-        if (setChanges && order.Charges.Any(charge => charge.Method == ChargeSplitMethod.Manual))
+        if (setChanges && order.Charges.Any(charge => charge.Method == ChargeSplitMethod.Manual && !chargeIdsToDrop.Contains(charge.Id)))
         {
             return Result<Guid>.Fail(PurchaseError.ManualChargeLocked);
         }
@@ -103,7 +131,33 @@ public sealed class UpdatePurchaseOrderCommandHandler(
             return Result<Guid>.Fail(PurchaseError.InvalidOrder);
         }
 
-        // Chia lại các khoản theo số lượng, giá, số đo mới (khoản chia tay giữ nguyên vì tập dòng không đổi).
+        if (submittedCharges is not null)
+        {
+            foreach (var chargeId in chargeIdsToDrop)
+            {
+                order.DropCharge(chargeId);
+            }
+
+            foreach (var charge in submittedCharges.Where(charge => charge.Amount > 0 || charge.Method == ChargeSplitMethod.Manual))
+            {
+                if (charge.ChargeId is Guid existingId)
+                {
+                    var existing = order.Charges.FirstOrDefault(item => item.Id == existingId);
+                    if (existing is null
+                        || (existing.Method != ChargeSplitMethod.Manual && !order.TryUpdateCharge(existingId, charge.Amount, charge.Method, charge.Label))
+                        || !order.TryAssignGroup(existingId, charge.Group, retainCurrent: false))
+                    {
+                        return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+                    }
+                }
+                else if (!await ChargeBasis.TryAddSplitAsync(order, charge.Amount, charge.Label, charge.Group, charge.Method, measures, cancellationToken))
+                {
+                    return Result<Guid>.Fail(PurchaseError.MissingMeasure);
+                }
+            }
+        }
+
+        // Chia lại các khoản theo số lượng, giá, số đo, số tiền, cách chia mới (khoản chia tay giữ nguyên vì tập dòng không đổi).
         foreach (var charge in order.Charges.Where(charge => charge.Method != ChargeSplitMethod.Manual))
         {
             var basis = await ChargeBasis.ComputeAsync(order, charge.Method, null, measures, cancellationToken);
@@ -118,6 +172,7 @@ public sealed class UpdatePurchaseOrderCommandHandler(
             }
         }
 
+        order.StampUpdated((clock ?? TimeProvider.System).GetUtcNow(), request?.ActorCode);
         if (!await orders.CommitAsync(cancellationToken))
         {
             logger.LogWarning("Purchase order update commit failed for {PurchaseOrderId}.", order.Id);
@@ -131,39 +186,4 @@ public sealed class UpdatePurchaseOrderCommandHandler(
 
     private static bool HasNegativeMoney(CreatePurchaseLineInput line) =>
         line.FobUsd < 0 || line.DutyRate < 0 || line.SupplementalDuty < 0 || line.SpecialConsumptionTax < 0 || line.EnvironmentTax < 0;
-}
-
-public sealed class DeletePurchaseChargeCommandHandler(
-    IPurchaseOrderRepository orders,
-    ILogger<DeletePurchaseChargeCommandHandler> logger,
-    TimeProvider? clock = null,
-    IAuditLog? audit = null,
-    IRequestInfo? request = null)
-{
-    public async Task<Result<Guid>> HandleAsync(DeletePurchaseChargeCommand command, CancellationToken cancellationToken)
-    {
-        var order = await orders.FindForUpdateAsync(command.PurchaseOrderId, cancellationToken);
-        if (order is null || order.Charges.All(charge => charge.Id != command.ChargeId))
-        {
-            logger.LogWarning("Charge delete rejected for purchase order {PurchaseOrderId}.", command.PurchaseOrderId);
-            return Result<Guid>.Fail(PurchaseError.InvalidOrder);
-        }
-
-        if (order.Status != PurchaseStatus.Open)
-        {
-            logger.LogWarning("Charge delete rejected because purchase order {PurchaseOrderId} is already received.", order.Id);
-            return Result<Guid>.Fail(PurchaseError.AlreadyReceived);
-        }
-
-        order.DropCharge(command.ChargeId);
-        if (!await orders.CommitAsync(cancellationToken))
-        {
-            logger.LogWarning("Charge delete commit failed for purchase order {PurchaseOrderId}.", order.Id);
-            return Result<Guid>.Fail(PurchaseError.SaveFailed);
-        }
-
-        logger.LogInformation("Deleted charge {PurchaseChargeId} from purchase order {PurchaseOrderId}.", command.ChargeId, order.Id);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, AuditActions.PurchaseChargeDeleted, "purchase_order", order.Id.ToString("D"), null, cancellationToken);
-        return Result<Guid>.Ok(command.ChargeId);
-    }
 }
