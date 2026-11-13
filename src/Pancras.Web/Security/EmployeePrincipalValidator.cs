@@ -19,7 +19,7 @@ public sealed class EmployeePrincipalValidator(IEmployeeRepository repository)
         }
 
         var employee = await repository.GetByIdReadOnlyAsync(id, context.HttpContext.RequestAborted);
-        if (employee is null || !string.Equals(employee.SecurityStamp, stamp, StringComparison.Ordinal))
+        if (employee is null || !employee.IsActive || !string.Equals(employee.SecurityStamp, stamp, StringComparison.Ordinal))
         {
             await RejectAsync(context);
         }

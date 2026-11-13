@@ -7,6 +7,7 @@ public sealed class DisposalSlip
         Reason = string.Empty;
         DocumentRef = string.Empty;
         ImageRef = string.Empty;
+        CreatedByRole = string.Empty;
     }
 
     public Guid Id { get; private set; }
@@ -21,6 +22,8 @@ public sealed class DisposalSlip
 
     public string ImageRef { get; private set; }
 
+    public string CreatedByRole { get; private set; }
+
     public ApprovalStatus Status { get; private set; }
 
     public static StockDecision TryCreate(
@@ -29,6 +32,7 @@ public sealed class DisposalSlip
         string? reason,
         string? documentRef,
         string? imageRef,
+        string? createdByRole,
         out DisposalSlip? slip)
     {
         slip = null;
@@ -50,14 +54,15 @@ public sealed class DisposalSlip
             Reason = storedReason,
             DocumentRef = storedDocument,
             ImageRef = storedImage,
-            Status = ApprovalStatus.Pending
+            Status = ApprovalStatus.Pending,
+            CreatedByRole = createdByRole ?? string.Empty
         };
         return StockDecision.Accepted;
     }
 
     public StockDecision Approve(string? role, StockBalance balance)
     {
-        if (!InventoryRoles.IsShowroomLead(role) && !InventoryRoles.IsDirector(role))
+        if (!InventoryRoles.IsShowroomLead(role) && !InventoryRoles.IsFinance(role))
         {
             return StockDecision.WrongRole;
         }

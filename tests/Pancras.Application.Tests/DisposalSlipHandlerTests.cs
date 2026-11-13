@@ -19,7 +19,7 @@ public class DisposalSlipHandlerTests
         var created = await new CreateQuantityAdjustmentCommandHandler(store, new FakeEmployeeRepository(), NullLogger<CreateQuantityAdjustmentCommandHandler>.Instance)
             .HandleAsync(new CreateQuantityAdjustmentCommand
             {
-                Role = EmployeeRole.WarehouseKeeper,
+                Actor = TestActors.Keeper(location.Id),
                 StockLocationId = location.Id,
                 CatalogItemId = itemId,
                 Delta = -2,
@@ -27,7 +27,7 @@ public class DisposalSlipHandlerTests
                 DocumentRef = "DC-01"
             }, CancellationToken.None);
         var result = await new ApproveQuantityAdjustmentCommandHandler(store, NullLogger<ApproveQuantityAdjustmentCommandHandler>.Instance)
-            .HandleAsync(new ApproveDocumentCommand(created.Value, EmployeeRole.Accountant), CancellationToken.None);
+            .HandleAsync(new ApproveDocumentCommand(created.Value, TestActors.Accountant), CancellationToken.None);
 
         Assert.Equal(StockError.NegativeStock, result.StockError);
         Assert.Equal(5, balance.OnHand);
@@ -107,13 +107,13 @@ public class DisposalSlipHandlerTests
         store.Locations.Add(location);
         store.Balances.Add(balance);
         var people = new FakeEmployeeRepository();
-        var accountant = Employee.Create("Kế Toán", "KeToan", "KETOAN", "hash", EmployeeRole.Accountant, branch: "Văn phòng");
+        var accountant = Employee.Create("Kế Toán", "KeToan", "KETOAN", "hash", EmployeeRole.Accountant);
         people.Employees.Add(accountant);
         var handler = new CreateQuantityAdjustmentCommandHandler(store, people, NullLogger<CreateQuantityAdjustmentCommandHandler>.Instance);
 
         var direct = await handler.HandleAsync(new CreateQuantityAdjustmentCommand
         {
-            Role = EmployeeRole.Accountant,
+            Actor = TestActors.Accountant,
             StockLocationId = location.Id,
             CatalogItemId = itemId,
             Delta = 2,
@@ -128,7 +128,7 @@ public class DisposalSlipHandlerTests
 
         var drafted = await handler.HandleAsync(new CreateQuantityAdjustmentCommand
         {
-            Role = EmployeeRole.WarehouseKeeper,
+            Actor = TestActors.Keeper(location.Id),
             StockLocationId = location.Id,
             CatalogItemId = itemId,
             Delta = -1,
@@ -145,9 +145,13 @@ public class DisposalSlipHandlerTests
     }
 
     private static Task<Result<Guid>> CreateAsync(DisposalFixture store) =>
-        new CreateDisposalSlipCommandHandler(store.Store, NullLogger<CreateDisposalSlipCommandHandler>.Instance)
+        new CreateDisposalSlipCommandHandler(
+                store.Store,
+                new ApproveDisposalSlipCommandHandler(store.Store, store.Employees, NullLogger<ApproveDisposalSlipCommandHandler>.Instance),
+                NullLogger<CreateDisposalSlipCommandHandler>.Instance)
             .HandleAsync(new CreateDisposalSlipCommand
             {
+                Actor = TestActors.Keeper(store.Location.Id),
                 StockLocationId = store.Location.Id,
                 CatalogItemId = store.ItemId,
                 Reason = "Vỡ",
@@ -156,7 +160,7 @@ public class DisposalSlipHandlerTests
 
     private static Task<Result<Guid>> ApproveAsync(DisposalFixture store, Guid id, string role) =>
         new ApproveDisposalSlipCommandHandler(store.Store, store.Employees, NullLogger<ApproveDisposalSlipCommandHandler>.Instance)
-            .HandleAsync(new ApproveDocumentCommand(id, role), CancellationToken.None);
+            .HandleAsync(new ApproveDocumentCommand(id, new EmployeeActor(Guid.NewGuid(), role, role is EmployeeRole.Admin or EmployeeRole.Director or EmployeeRole.Accountant ? null : store.Location.Id)), CancellationToken.None);
 
     private static DisposalFixture Prepared(int onHand, int reserved)
     {
@@ -167,7 +171,7 @@ public class DisposalSlipHandlerTests
         store.Locations.Add(location);
         store.Balances.Add(balance);
         var employees = new FakeEmployeeRepository();
-        var keeper = Employee.Create("Thủ Kho", "KhoA", "KHOA", "hash", EmployeeRole.WarehouseKeeper, branch: location.Name);
+        var keeper = Employee.Create("Thủ Kho", "KhoA", "KHOA", "hash", EmployeeRole.WarehouseKeeper, stockLocationId: location.Id);
         employees.Employees.Add(keeper);
         return new DisposalFixture(store, location, itemId, balance, employees, keeper);
     }

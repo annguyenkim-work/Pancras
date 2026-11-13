@@ -11,6 +11,8 @@ public sealed class PancrasDbContext(DbContextOptions<PancrasDbContext> options)
 {
     public DbSet<Employee> Employees => Set<Employee>();
 
+    public DbSet<Pancras.Domain.Auditing.AuditEntry> AuditEntries => Set<Pancras.Domain.Auditing.AuditEntry>();
+
     public DbSet<Supplier> Suppliers => Set<Supplier>();
 
     public DbSet<CatalogItem> CatalogItems => Set<CatalogItem>();

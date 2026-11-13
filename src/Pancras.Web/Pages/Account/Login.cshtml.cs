@@ -1,6 +1,9 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.RateLimiting;
 using Pancras.Application.Common;
 using Pancras.Application.Employees;
 using Pancras.Web.Security;
@@ -8,6 +11,7 @@ using Pancras.Web.Security;
 namespace Pancras.Web.Pages.Account;
 
 [AllowAnonymous]
+[EnableRateLimiting("login")]
 public class LoginModel(LoginEmployeeCommandHandler login, EmployeeSignIn signIn) : PageModel
 {
     [BindProperty]
@@ -34,7 +38,16 @@ public class LoginModel(LoginEmployeeCommandHandler login, EmployeeSignIn signIn
             return Page();
         }
 
-        await signIn.SignInAsync(result.Value!);
+        if (result.Value!.RequiresTwoFactor)
+        {
+            var identity = new ClaimsIdentity(
+                [new Claim(ClaimTypes.NameIdentifier, result.Value.Id.ToString())],
+                PendingTwoFactor.Scheme);
+            await HttpContext.SignInAsync(PendingTwoFactor.Scheme, new ClaimsPrincipal(identity));
+            return RedirectToPage("/Account/VerifyTwoFactor");
+        }
+
+        await signIn.SignInAsync(result.Value);
         return RedirectToPage("/Index");
     }
 }

@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Pancras.Application.Catalog;
 using Pancras.Application.Employees;
 using Pancras.Application.Inventory;
+using Pancras.Application.Locations;
 using Pancras.Application.Purchasing;
 using Pancras.Application.Suppliers;
 using Pancras.Infrastructure.Identity;
@@ -40,6 +42,34 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
             return validator.ValidateAsync(context);
         };
     });
+builder.Services.AddAuthentication().AddCookie(PendingTwoFactor.Scheme, options =>
+{
+    options.Cookie.Name = PendingTwoFactor.CookieName;
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    options.ExpireTimeSpan = TimeSpan.FromMinutes(5);
+    options.SlidingExpiration = false;
+});
+var dataProtection = builder.Services.AddDataProtection().SetApplicationName("PancrasERP");
+var keysPath = builder.Configuration["DataProtection:KeysPath"];
+if (!string.IsNullOrWhiteSpace(keysPath))
+{
+    dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keysPath));
+}
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("login", context => System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+        {
+            PermitLimit = builder.Configuration.GetValue("RateLimiting:LoginPerMinute", 20),
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+});
 builder.Services.AddAuthorization(options =>
 {
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
@@ -62,6 +92,7 @@ builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
 builder.Services.AddScoped<ISupplierRepository, SupplierRepository>();
 builder.Services.AddScoped<ICatalogItemRepository, CatalogItemRepository>();
 builder.Services.AddScoped<IInventoryRepository, InventoryRepository>();
+builder.Services.AddScoped<ILocationRepository, LocationRepository>();
 builder.Services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
 builder.Services.AddScoped<ISupplierPurchaseStatsReader, EmptySupplierPurchaseStatsReader>();
 builder.Services.AddScoped<LoginEmployeeCommandHandler>();
@@ -69,6 +100,11 @@ builder.Services.AddScoped<CreateEmployeeCommandHandler>();
 builder.Services.AddScoped<UpdateEmployeeCommandHandler>();
 builder.Services.AddScoped<GetEmployeeHandler>();
 builder.Services.AddScoped<ListEmployeesHandler>();
+builder.Services.AddScoped<SetEmployeeActiveCommandHandler>();
+builder.Services.AddScoped<UpdateOwnProfileCommandHandler>();
+builder.Services.AddScoped<ChangeOwnPasswordCommandHandler>();
+builder.Services.AddScoped<ListLocationsHandler>();
+builder.Services.AddScoped<CreateLocationCommandHandler>();
 builder.Services.AddScoped<ListSupplierCardsHandler>();
 builder.Services.AddScoped<CreateSupplierCommandHandler>();
 builder.Services.AddScoped<ListSuppliersForPurchaseHandler>();
@@ -106,6 +142,17 @@ builder.Services.AddScoped<AssignChargeGroupCommandHandler>();
 builder.Services.AddScoped<RecordCustomsDeclarationCommandHandler>();
 builder.Services.AddScoped<ReceivePurchaseOrderCommandHandler>();
 builder.Services.AddScoped<EmployeeSignIn>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<Pancras.Application.Auditing.IRequestInfo, RequestInfo>();
+builder.Services.AddScoped<Pancras.Application.Auditing.IAuditLog, Pancras.Infrastructure.Persistence.AuditLog>();
+builder.Services.AddScoped<ISecretProtector, DataProtectionSecretProtector>();
+builder.Services.AddScoped<Pancras.Application.Auditing.ListAuditHandler>();
+builder.Services.AddScoped<VerifyTwoFactorCommandHandler>();
+builder.Services.AddScoped<BeginTwoFactorSetupHandler>();
+builder.Services.AddScoped<ConfirmTwoFactorSetupCommandHandler>();
+builder.Services.AddScoped<DisableTwoFactorCommandHandler>();
+builder.Services.AddScoped<ResetTwoFactorCommandHandler>();
+builder.Services.AddScoped<UnlockEmployeeCommandHandler>();
 builder.Services.AddScoped<EmployeePrincipalValidator>();
 
 var app = builder.Build();
@@ -124,6 +171,7 @@ app.UseExceptionHandler(errorApp =>
 });
 
 app.UseStaticFiles();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapRazorPages();

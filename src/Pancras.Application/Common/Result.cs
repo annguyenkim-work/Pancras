@@ -4,7 +4,8 @@ public enum LoginError
 {
     None = 0,
     MissingCredentials,
-    InvalidCredentials
+    InvalidCredentials,
+    InvalidCode
 }
 
 public enum EmployeeError
@@ -14,7 +15,17 @@ public enum EmployeeError
     InvalidRole,
     NotFound,
     NameUnusable,
-    CodeExhausted
+    CodeExhausted,
+    Forbidden,
+    LocationRequired,
+    LocationNotFound,
+    LeadExists,
+    LastAdmin,
+    WeakPassword,
+    WrongPassword,
+    InvalidCode,
+    TwoFactorAlreadyEnabled,
+    TwoFactorNotEnabled
 }
 
 public enum SupplierError
@@ -102,7 +113,8 @@ public enum StockError
     MissingEvidence,
     NegativeStock,
     ApprovalForbidden,
-    DisposalRejected
+    DisposalRejected,
+    Forbidden
 }
 
 public enum PurchaseError

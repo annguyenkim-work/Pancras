@@ -1,4 +1,5 @@
 using Pancras.Domain.Catalog;
+using Pancras.Domain.Employees;
 using Pancras.Domain.Inventory;
 
 namespace Pancras.Application.Inventory;
@@ -179,14 +180,16 @@ public sealed class CreateTransferSlipCommand
 
     public string? Note { get; set; }
 
+    public EmployeeActor Actor { get; set; } = new(Guid.Empty, null, null);
+
     public IReadOnlyList<TransferLineInput> Lines { get; set; } = [];
 }
 
-public sealed record ConfirmTransferCommand(Guid TransferSlipId);
+public sealed record ConfirmTransferCommand(Guid TransferSlipId, EmployeeActor Actor);
 
 public sealed class CreateStocktakeCommand
 {
-    public string? Role { get; set; }
+    public EmployeeActor Actor { get; set; } = new(Guid.Empty, null, null);
 
     public Guid StockLocationId { get; set; }
 
@@ -203,7 +206,7 @@ public sealed class CreateStocktakeCommand
 
 public sealed class CreateQuantityAdjustmentCommand
 {
-    public string? Role { get; set; }
+    public EmployeeActor Actor { get; set; } = new(Guid.Empty, null, null);
 
     public Guid StockLocationId { get; set; }
 
@@ -220,6 +223,8 @@ public sealed class CreateQuantityAdjustmentCommand
 
 public sealed class CreateDisposalSlipCommand
 {
+    public EmployeeActor Actor { get; set; } = new(Guid.Empty, null, null);
+
     public Guid StockLocationId { get; set; }
 
     public Guid CatalogItemId { get; set; }
@@ -231,7 +236,7 @@ public sealed class CreateDisposalSlipCommand
     public string? ImageRef { get; set; }
 }
 
-public sealed record ApproveDocumentCommand(Guid Id, string? Role);
+public sealed record ApproveDocumentCommand(Guid Id, EmployeeActor Actor);
 
 public sealed record StockHistoryRow(StockMovementKind Kind, int Quantity, DateTimeOffset OccurredAt, Guid DocumentId);
 
@@ -273,7 +278,8 @@ public sealed record StocktakeRow(
     string Reason,
     string DocumentRef,
     ApprovalStatus Status,
-    string Unit = "");
+    string Unit = "",
+    bool CanApprove = false);
 
 public sealed record AdjustmentRow(
     Guid Id,
@@ -283,7 +289,8 @@ public sealed record AdjustmentRow(
     int Delta,
     string Reason,
     string DocumentRef,
-    ApprovalStatus Status);
+    ApprovalStatus Status,
+    bool CanApprove = false);
 
 public sealed record DisposalRow(
     Guid Id,
@@ -292,4 +299,5 @@ public sealed record DisposalRow(
     string Name,
     string Reason,
     string DocumentRef,
-    ApprovalStatus Status);
+    ApprovalStatus Status,
+    bool CanApprove = false);

@@ -56,7 +56,7 @@ public class StocktakeHandlerTests
         var created = await CreateHandler(store).HandleAsync(Command(store, 9, "Lệch", "BB-01"), CancellationToken.None);
         var handler = new ApproveStocktakeCommandHandler(store.Store, NullLogger<ApproveStocktakeCommandHandler>.Instance);
 
-        var result = await handler.HandleAsync(new ApproveDocumentCommand(created.Value, EmployeeRole.Sales), CancellationToken.None);
+        var result = await handler.HandleAsync(new ApproveDocumentCommand(created.Value, TestActors.Sales(store.Location.Id)), CancellationToken.None);
 
         Assert.Equal(StockError.ApprovalForbidden, result.StockError);
         Assert.Equal(ApprovalStatus.Pending, store.Stocktakes[0].Status);
@@ -69,7 +69,7 @@ public class StocktakeHandlerTests
         var created = await CreateHandler(store).HandleAsync(Command(store, 9, "Lệch", "BB-01"), CancellationToken.None);
         var handler = new ApproveStocktakeCommandHandler(store.Store, NullLogger<ApproveStocktakeCommandHandler>.Instance);
 
-        var result = await handler.HandleAsync(new ApproveDocumentCommand(created.Value, EmployeeRole.ShowroomWarehouseLead), CancellationToken.None);
+        var result = await handler.HandleAsync(new ApproveDocumentCommand(created.Value, TestActors.Lead(store.Location.Id)), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(ApprovalStatus.Approved, store.Stocktakes[0].Status);
@@ -82,7 +82,7 @@ public class StocktakeHandlerTests
     private static CreateStocktakeCommand Command(StocktakeFixture store, int counted, string? reason, string? document) =>
         new()
         {
-            Role = store.Role,
+            Actor = new EmployeeActor(Guid.NewGuid(), store.Role, store.Location.Id),
             StockLocationId = store.Location.Id,
             CatalogItemId = store.ItemId,
             CountedQuantity = counted,

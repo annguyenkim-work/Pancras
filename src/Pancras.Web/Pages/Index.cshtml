@@ -8,16 +8,20 @@
         || User.IsInRole(EmployeeRole.Director)
         || User.IsInRole(EmployeeRole.Accountant);
     var canViewCatalog = CatalogAccess.CanView(Model.Role);
-    var canManageStaff = Model.Role is "Admin" or "Giám đốc";
-    var shortcuts = new List<(string Href, string Title, string Hint)>
+    var canManageStaff = Model.Role is "Admin" or "Giám đốc" or "Kế toán" or "Trưởng Showroom/Kho";
+    var shortcuts = new List<(string Href, string Title, string Hint)>();
+    if (Pancras.Domain.Inventory.InventoryAccess.CanView(Model.Role))
     {
-        ("/inventory", "Kho & Điều chuyển", "Tra cứu tồn, chuyển kho, kiểm kê, điều chỉnh.")
-    };
+        shortcuts.Add(("/inventory", "Kho & Điều chuyển", "Tra cứu tồn, chuyển kho, kiểm kê, điều chỉnh."));
+    }
     if (canPurchase)
     {
         shortcuts.Add(("/purchasing", "Mua hàng & Container", "Lập đơn nhập khẩu, phân bổ chi phí, nhận hàng."));
     }
-    shortcuts.Add(("/suppliers", "Nhà cung cấp", "Danh bạ nhà cung cấp nhập khẩu."));
+    if (SupplierAccess.CanManage(Model.Role))
+    {
+        shortcuts.Add(("/suppliers", "Nhà cung cấp", "Danh bạ nhà cung cấp nhập khẩu."));
+    }
     if (canViewCatalog)
     {
         shortcuts.Add(("/catalog", "Danh mục sản phẩm & giá", "Mặt hàng, quy cách và các bảng giá."));

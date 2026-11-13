@@ -25,6 +25,9 @@ internal sealed class FakeEmployeeRepository : IEmployeeRepository
     public Task<Employee?> GetByNormalizedCodeAsync(string normalizedCode, CancellationToken cancellationToken) =>
         Task.FromResult(Employees.FirstOrDefault(employee => employee.NormalizedCode == normalizedCode));
 
+    public Task<Employee?> GetByNormalizedCodeForUpdateAsync(string normalizedCode, CancellationToken cancellationToken) =>
+        GetByNormalizedCodeAsync(normalizedCode, cancellationToken);
+
     public Task<bool> NormalizedCodeExistsAsync(string normalizedCode, CancellationToken cancellationToken) =>
         Task.FromResult(
             TreatAllCodesAsExisting
@@ -38,6 +41,16 @@ internal sealed class FakeEmployeeRepository : IEmployeeRepository
 
     public Task<IReadOnlyList<Employee>> ListReadOnlyAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<Employee>>(Employees.ToArray());
+
+    public Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(Employees.Count(employee => employee.Role == EmployeeRole.Admin && employee.IsActive));
+
+    public Task<bool> ActiveLeadExistsAsync(Guid stockLocationId, Guid? excludeEmployeeId, CancellationToken cancellationToken) =>
+        Task.FromResult(Employees.Any(employee =>
+            employee.StockLocationId == stockLocationId
+            && employee.Role == EmployeeRole.ShowroomWarehouseLead
+            && employee.IsActive
+            && employee.Id != excludeEmployeeId));
 
     public Task AddAsync(Employee employee, CancellationToken cancellationToken)
     {
@@ -64,5 +77,25 @@ internal sealed class FakeEmployeeRepository : IEmployeeRepository
     {
         SaveCount++;
         return Task.CompletedTask;
+    }
+}
+
+internal sealed class FakeLocationRepository : Pancras.Application.Locations.ILocationRepository
+{
+    public List<Pancras.Domain.Inventory.StockLocation> Locations { get; } = [];
+
+    public Task<IReadOnlyList<Pancras.Domain.Inventory.StockLocation>> ListAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<Pancras.Domain.Inventory.StockLocation>>(Locations.ToArray());
+
+    public Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken) =>
+        Task.FromResult(Locations.Any(location => location.Id == id));
+
+    public Task<bool> NameExistsAsync(string name, CancellationToken cancellationToken) =>
+        Task.FromResult(Locations.Any(location => string.Equals(location.Name, name, StringComparison.OrdinalIgnoreCase)));
+
+    public Task<bool> TryAddAsync(Pancras.Domain.Inventory.StockLocation location, CancellationToken cancellationToken)
+    {
+        Locations.Add(location);
+        return Task.FromResult(true);
     }
 }

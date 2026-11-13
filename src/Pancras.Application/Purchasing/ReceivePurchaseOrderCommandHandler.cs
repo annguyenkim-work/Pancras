@@ -1,3 +1,4 @@
+using Pancras.Application.Auditing;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Catalog;
 using Pancras.Application.Common;
@@ -12,7 +13,10 @@ public sealed class ReceivePurchaseOrderCommandHandler(
     IPurchaseOrderRepository orders,
     IInventoryRepository inventory,
     ICatalogItemRepository catalog,
-    ILogger<ReceivePurchaseOrderCommandHandler> logger)
+    ILogger<ReceivePurchaseOrderCommandHandler> logger,
+    TimeProvider? clock = null,
+    Pancras.Application.Auditing.IAuditLog? audit = null,
+    Pancras.Application.Auditing.IRequestInfo? request = null)
 {
     public async Task<Result<Guid>> HandleAsync(ReceivePurchaseOrderCommand command, CancellationToken cancellationToken)
     {
@@ -112,6 +116,7 @@ public sealed class ReceivePurchaseOrderCommandHandler(
         }
 
         logger.LogInformation("Received purchase order {PurchaseOrderId}.", order.Id);
+        await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.PurchaseReceived, "purchase_order", order.Id.ToString("D"), null, cancellationToken);
         return Result<Guid>.Ok(order.Id);
     }
 

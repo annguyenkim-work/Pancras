@@ -13,9 +13,9 @@ public class ComingSoonModel : PageModel
         "/quotes",
         "/combos",
         "/receivables",
-        "/warranty",
-        "/locations",
-        "/audit"
+        "/warranty"
+
+
     ];
 
     private static readonly Dictionary<string, string> Titles = new(StringComparer.OrdinalIgnoreCase)

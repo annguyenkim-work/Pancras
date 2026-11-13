@@ -23,8 +23,8 @@ public class ListStockBalancesHandlerTests
         store.Balances.Add(StockBalance.Create(basin.Id, location.Id, 2, 0, 0));
         var handler = Handler(store);
 
-        var byCode = await handler.HandleAsync(StockListFilter.From(null, null, "bc1"), CancellationToken.None);
-        var byName = await handler.HandleAsync(StockListFilter.From(null, null, "lav"), CancellationToken.None);
+        var byCode = await handler.HandleAsync(StockListFilter.From(null, null, "bc1"), TestActors.Admin, CancellationToken.None);
+        var byName = await handler.HandleAsync(StockListFilter.From(null, null, "lav"), TestActors.Admin, CancellationToken.None);
 
         Assert.Equal("ABC123", Assert.Single(byCode).Code);
         Assert.Equal("ABC123", Assert.Single(byName).Code);
@@ -44,7 +44,7 @@ public class ListStockBalancesHandlerTests
         store.Balances.Add(StockBalance.Create(item.Id, showroom.Id, 8, 0, 0));
         var handler = Handler(store);
 
-        var rows = await handler.HandleAsync(StockListFilter.From(warehouse.Id.ToString("D"), null, null), CancellationToken.None);
+        var rows = await handler.HandleAsync(StockListFilter.From(warehouse.Id.ToString("D"), null, null), TestActors.Admin, CancellationToken.None);
 
         var row = Assert.Single(rows);
         Assert.Equal(warehouse.Id, row.StockLocationId);
@@ -66,7 +66,7 @@ public class ListStockBalancesHandlerTests
         store.Balances.Add(StockBalance.Create(bathroom.Id, location.Id, 1, 0, 0));
         var handler = Handler(store);
 
-        var rows = await handler.HandleAsync(StockListFilter.From(null, ProductCategoryToken.Sanitary, null), CancellationToken.None);
+        var rows = await handler.HandleAsync(StockListFilter.From(null, ProductCategoryToken.Sanitary, null), TestActors.Admin, CancellationToken.None);
 
         Assert.Equal("SP01", Assert.Single(rows).Code);
     }
@@ -76,7 +76,7 @@ public class ListStockBalancesHandlerTests
     {
         var handler = Handler(new FakeInventoryStore());
 
-        var rows = await handler.HandleAsync(StockListFilter.From(null, null, "không-có"), CancellationToken.None);
+        var rows = await handler.HandleAsync(StockListFilter.From(null, null, "không-có"), TestActors.Admin, CancellationToken.None);
 
         Assert.Empty(rows);
     }
@@ -94,7 +94,7 @@ public class ListStockBalancesHandlerTests
             store.Balances.Add(StockBalance.Create(item.Id, location.Id, index, 0, 0));
         }
 
-        var rows = await Handler(store).ExportAsync(StockListFilter.From(null, null, null), CancellationToken.None);
+        var rows = await Handler(store).ExportAsync(StockListFilter.From(null, null, null), TestActors.Admin, CancellationToken.None);
 
         Assert.Equal(25, rows.Count);
     }

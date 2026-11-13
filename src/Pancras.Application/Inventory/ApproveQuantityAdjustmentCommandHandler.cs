@@ -1,3 +1,4 @@
+using Pancras.Application.Auditing;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Common;
 using Pancras.Domain.Inventory;
@@ -6,7 +7,10 @@ namespace Pancras.Application.Inventory;
 
 public sealed class ApproveQuantityAdjustmentCommandHandler(
     IInventoryRepository repository,
-    ILogger<ApproveQuantityAdjustmentCommandHandler> logger)
+    ILogger<ApproveQuantityAdjustmentCommandHandler> logger,
+    TimeProvider? clock = null,
+    Pancras.Application.Auditing.IAuditLog? audit = null,
+    Pancras.Application.Auditing.IRequestInfo? request = null)
 {
     public async Task<Result<Guid>> HandleAsync(ApproveDocumentCommand command, CancellationToken cancellationToken)
     {
@@ -14,6 +18,12 @@ public sealed class ApproveQuantityAdjustmentCommandHandler(
         if (adjustment is null)
         {
             logger.LogWarning("Quantity adjustment approval rejected for {QuantityAdjustmentId}.", command.Id);
+            return Result<Guid>.Fail(StockError.ApprovalForbidden);
+        }
+
+        if (!InventoryAccess.CanApproveAdjustment(command.Actor.Role))
+        {
+            logger.LogWarning("Quantity adjustment approval forbidden for employee {EmployeeId}.", command.Actor.Id);
             return Result<Guid>.Fail(StockError.ApprovalForbidden);
         }
 
@@ -27,7 +37,7 @@ public sealed class ApproveQuantityAdjustmentCommandHandler(
 
         var snapshot = BalanceSnapshot.Take(balance);
         var status = adjustment.Status;
-        var decision = adjustment.Approve(command.Role, balance);
+        var decision = adjustment.Approve(command.Actor.Role, balance);
         if (decision != StockDecision.Accepted)
         {
             logger.LogWarning("Quantity adjustment approval rejected for {QuantityAdjustmentId}.", adjustment.Id);
@@ -58,6 +68,7 @@ public sealed class ApproveQuantityAdjustmentCommandHandler(
         }
 
         logger.LogInformation("Approved quantity adjustment {QuantityAdjustmentId}.", adjustment.Id);
+        await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.AdjustmentApproved, "adjustment", adjustment.Id.ToString("D"), null, cancellationToken);
         return Result<Guid>.Ok(adjustment.Id);
     }
 }

@@ -21,6 +21,9 @@ public static class EmployeeRole
         CustomerCare
     ];
 
+    public static bool RequiresLocation(string? role) =>
+        role is WarehouseKeeper or ShowroomWarehouseLead or Sales;
+
     public static bool IsAllowed(string? role) =>
         role is not null && All.Contains(role, StringComparer.Ordinal);
 }

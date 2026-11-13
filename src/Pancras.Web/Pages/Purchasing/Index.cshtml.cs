@@ -25,6 +25,11 @@ public class IndexModel(
 {
     public IReadOnlyList<PurchaseOrderSummary> Orders { get; private set; } = [];
 
+    public bool HasAnyOrders { get; private set; }
+
+    [BindProperty(SupportsGet = true, Name = "q")]
+    public string? Search { get; set; }
+
     public PurchaseOrderDetail? Selected { get; private set; }
 
     public IReadOnlyList<SupplierPurchaseOption> Suppliers { get; private set; } = [];
@@ -279,9 +284,19 @@ public class IndexModel(
     private async Task LoadAsync(Guid? id, Guid? formula)
     {
         var cancellationToken = HttpContext.RequestAborted;
-        Orders = await listOrders.HandleAsync(cancellationToken);
+        var allOrders = await listOrders.HandleAsync(cancellationToken);
+        HasAnyOrders = allOrders.Count > 0;
+        var term = Search?.Trim();
+        Orders = string.IsNullOrEmpty(term)
+            ? allOrders
+            : allOrders.Where(order =>
+                order.Code.Contains(term, StringComparison.OrdinalIgnoreCase)
+                || order.SupplierName.Contains(term, StringComparison.OrdinalIgnoreCase)
+                || order.ContainerNumber.Contains(term, StringComparison.OrdinalIgnoreCase)
+                || order.BillOfLading.Contains(term, StringComparison.OrdinalIgnoreCase)
+                || order.Port.Contains(term, StringComparison.OrdinalIgnoreCase)).ToArray();
         Suppliers = await listSuppliers.HandleAsync(cancellationToken);
-        Locations = await inventory.ListLocationsAsync(cancellationToken);
+        Locations = await inventory.ListAllLocationsAsync(cancellationToken);
         Items = await inventory.ListItemsAsync(cancellationToken);
         if ((id is null || id == Guid.Empty) && Orders.Count > 0)
         {

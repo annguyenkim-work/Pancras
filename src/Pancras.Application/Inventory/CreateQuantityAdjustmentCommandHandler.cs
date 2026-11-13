@@ -13,7 +13,13 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
 {
     public async Task<Result<Guid>> HandleAsync(CreateQuantityAdjustmentCommand command, CancellationToken cancellationToken)
     {
-        if (InventoryRoles.CanPostAdjustment(command.Role))
+        if (!InventoryAccess.CanOperate(command.Actor.Role) || !InventoryAccess.CanAccessLocation(command.Actor, command.StockLocationId))
+        {
+            logger.LogWarning("Quantity adjustment forbidden for employee {EmployeeId}.", command.Actor.Id);
+            return Result<Guid>.Fail(StockError.Forbidden);
+        }
+
+        if (InventoryRoles.CanPostAdjustment(command.Actor.Role))
         {
             return await PostDirectAsync(command, cancellationToken);
         }
@@ -23,7 +29,7 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
         var reserved = before?.Reserved;
         var inTransit = before?.InTransit;
         var decision = QuantityAdjustment.TryCreate(
-            command.Role,
+            command.Actor.Role,
             command.StockLocationId,
             command.CatalogItemId,
             command.Delta,
@@ -66,7 +72,7 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
 
         var snapshot = BalanceSnapshot.Take(balance);
         var decision = QuantityAdjustment.TryApplyDirect(
-            command.Role,
+            command.Actor.Role,
             command.StockLocationId,
             command.CatalogItemId,
             command.Delta,

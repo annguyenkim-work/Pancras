@@ -1,3 +1,4 @@
+using Pancras.Application.Auditing;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Common;
@@ -70,7 +71,10 @@ public sealed class UpdateCatalogPricesCommandValidator : AbstractValidator<Upda
 
 public sealed class UpdateCatalogPricesCommandHandler(
     ICatalogItemRepository repository,
-    ILogger<UpdateCatalogPricesCommandHandler> logger)
+    ILogger<UpdateCatalogPricesCommandHandler> logger,
+    TimeProvider? clock = null,
+    Pancras.Application.Auditing.IAuditLog? audit = null,
+    Pancras.Application.Auditing.IRequestInfo? request = null)
 {
     private readonly UpdateCatalogPricesCommandValidator _validator = new();
 
@@ -145,6 +149,7 @@ public sealed class UpdateCatalogPricesCommandHandler(
         }
 
         logger.LogInformation("Updated prices for catalog item {CatalogItemId}.", item.Id);
+        await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.PricesChanged, "catalog_item", item.Id.ToString("D"), null, cancellationToken);
         return Result<CatalogItemRow>.Ok(CatalogItemRow.From(item));
     }
 }

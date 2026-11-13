@@ -3,10 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Pancras.Application.Common;
 using Pancras.Application.Suppliers;
+using Pancras.Domain.Employees;
 
 namespace Pancras.Web.Pages.Suppliers;
 
-[Authorize]
+[Authorize(Roles = SupplierAccess.Roles)]
 public class IndexModel(
     ListSupplierCardsHandler listHandler,
     CreateSupplierCommandHandler createHandler,

@@ -45,7 +45,7 @@ public class TransferSlipHandlerTests
         var slipId = await CreateAsync(store, 2);
         var handler = new ConfirmTransferShipmentCommandHandler(store.Store, NullLogger<ConfirmTransferShipmentCommandHandler>.Instance);
 
-        var result = await handler.HandleAsync(new ConfirmTransferCommand(slipId), CancellationToken.None);
+        var result = await handler.HandleAsync(new ConfirmTransferCommand(slipId, TestActors.Admin), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(113, store.SourceBalance.OnHand);
@@ -62,7 +62,7 @@ public class TransferSlipHandlerTests
         var slipId = await CreateAsync(store, 2);
         var handler = new ConfirmTransferShipmentCommandHandler(store.Store, NullLogger<ConfirmTransferShipmentCommandHandler>.Instance);
 
-        var result = await handler.HandleAsync(new ConfirmTransferCommand(slipId), CancellationToken.None);
+        var result = await handler.HandleAsync(new ConfirmTransferCommand(slipId, TestActors.Admin), CancellationToken.None);
 
         Assert.Equal(StockError.ShipmentRejected, result.StockError);
         Assert.Equal(1, store.SourceBalance.OnHand);
@@ -78,8 +78,8 @@ public class TransferSlipHandlerTests
         var slipId = await CreateAsync(store, 2);
         var handler = new ConfirmTransferShipmentCommandHandler(store.Store, NullLogger<ConfirmTransferShipmentCommandHandler>.Instance);
 
-        var first = await handler.HandleAsync(new ConfirmTransferCommand(slipId), CancellationToken.None);
-        var second = await handler.HandleAsync(new ConfirmTransferCommand(slipId), CancellationToken.None);
+        var first = await handler.HandleAsync(new ConfirmTransferCommand(slipId, TestActors.Admin), CancellationToken.None);
+        var second = await handler.HandleAsync(new ConfirmTransferCommand(slipId, TestActors.Admin), CancellationToken.None);
 
         Assert.True(first.IsSuccess);
         Assert.Equal(StockError.ShipmentRejected, second.StockError);
@@ -96,7 +96,7 @@ public class TransferSlipHandlerTests
         var slipId = await CreateAsync(store, 3);
         var handler = new ConfirmTransferShipmentCommandHandler(store.Store, NullLogger<ConfirmTransferShipmentCommandHandler>.Instance);
 
-        var result = await handler.HandleAsync(new ConfirmTransferCommand(slipId), CancellationToken.None);
+        var result = await handler.HandleAsync(new ConfirmTransferCommand(slipId, TestActors.Admin), CancellationToken.None);
 
         Assert.Equal(StockError.ShipmentRejected, result.StockError);
         Assert.Equal(10, store.SourceBalance.OnHand);
@@ -112,10 +112,10 @@ public class TransferSlipHandlerTests
         var store = Store(onHand: 10, reserved: 3, destinationOnHand: 4, destinationReserved: 2);
         var slipId = await CreateAsync(store, 3);
         var shipment = new ConfirmTransferShipmentCommandHandler(store.Store, NullLogger<ConfirmTransferShipmentCommandHandler>.Instance);
-        await shipment.HandleAsync(new ConfirmTransferCommand(slipId), CancellationToken.None);
+        await shipment.HandleAsync(new ConfirmTransferCommand(slipId, TestActors.Admin), CancellationToken.None);
         var handler = new ConfirmTransferReceiptCommandHandler(store.Store, NullLogger<ConfirmTransferReceiptCommandHandler>.Instance);
 
-        var result = await handler.HandleAsync(new ConfirmTransferCommand(slipId), CancellationToken.None);
+        var result = await handler.HandleAsync(new ConfirmTransferCommand(slipId, TestActors.Admin), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(0, store.DestinationBalance.InTransit);
@@ -138,6 +138,7 @@ public class TransferSlipHandlerTests
             SourceLocationId = sourceId,
             DestinationLocationId = destinationId,
             Note = "Xe sáng",
+            Actor = TestActors.Admin,
             Lines = [new TransferLineInput(itemId, quantity)]
         };
 

@@ -11,6 +11,9 @@ public sealed class EmployeeRepository(PancrasDbContext context) : IEmployeeRepo
         context.Employees.AsNoTracking()
             .FirstOrDefaultAsync(employee => employee.NormalizedCode == normalizedCode, cancellationToken);
 
+    public Task<Employee?> GetByNormalizedCodeForUpdateAsync(string normalizedCode, CancellationToken cancellationToken) =>
+        context.Employees.FirstOrDefaultAsync(employee => employee.NormalizedCode == normalizedCode, cancellationToken);
+
     public Task<bool> NormalizedCodeExistsAsync(string normalizedCode, CancellationToken cancellationToken) =>
         context.Employees.AsNoTracking()
             .AnyAsync(employee => employee.NormalizedCode == normalizedCode, cancellationToken);
@@ -26,6 +29,19 @@ public sealed class EmployeeRepository(PancrasDbContext context) : IEmployeeRepo
         await context.Employees.AsNoTracking()
             .OrderBy(employee => employee.FullName)
             .ToListAsync(cancellationToken);
+
+    public Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
+        context.Employees.AsNoTracking()
+            .CountAsync(employee => employee.Role == EmployeeRole.Admin && employee.IsActive, cancellationToken);
+
+    public Task<bool> ActiveLeadExistsAsync(Guid stockLocationId, Guid? excludeEmployeeId, CancellationToken cancellationToken) =>
+        context.Employees.AsNoTracking()
+            .AnyAsync(
+                employee => employee.StockLocationId == stockLocationId
+                    && employee.Role == EmployeeRole.ShowroomWarehouseLead
+                    && employee.IsActive
+                    && (excludeEmployeeId == null || employee.Id != excludeEmployeeId),
+                cancellationToken);
 
     public async Task AddAsync(Employee employee, CancellationToken cancellationToken) =>
         await context.Employees.AddAsync(employee, cancellationToken);

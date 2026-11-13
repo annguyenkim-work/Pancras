@@ -22,6 +22,69 @@ namespace Pancras.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Pancras.Domain.Auditing.AuditEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("action");
+
+                    b.Property<string>("ActorCode")
+                        .IsRequired()
+                        .HasMaxLength(220)
+                        .HasColumnType("character varying(220)")
+                        .HasColumnName("actor_code");
+
+                    b.Property<Guid?>("ActorEmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("actor_employee_id");
+
+                    b.Property<string>("Detail")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("detail");
+
+                    b.Property<string>("IpAddress")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<string>("TargetId")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("target_id");
+
+                    b.Property<string>("TargetType")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("target_type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_audit_entry");
+
+                    b.HasIndex("ActorEmployeeId")
+                        .HasDatabaseName("ix_audit_entry_actor_employee_id");
+
+                    b.HasIndex("OccurredAt")
+                        .HasDatabaseName("ix_audit_entry_occurred_at");
+
+                    b.ToTable("audit_entry", (string)null);
+                });
+
             modelBuilder.Entity("Pancras.Domain.Catalog.CatalogItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -154,11 +217,11 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<string>("Branch")
+                    b.Property<string>("Address")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("branch");
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("address");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -178,17 +241,33 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("email");
 
+                    b.Property<int>("FailedLoginCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("failed_login_count");
+
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("full_name");
 
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
                     b.Property<string>("JobTitle")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("job_title");
+
+                    b.Property<long>("LastTotpStep")
+                        .HasColumnType("bigint")
+                        .HasColumnName("last_totp_step");
+
+                    b.Property<DateTimeOffset?>("LockedUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("locked_until");
 
                     b.Property<string>("NormalizedCode")
                         .IsRequired()
@@ -208,6 +287,12 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(30)")
                         .HasColumnName("phone");
 
+                    b.Property<string>("RecoveryCodeHashes")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("recovery_code_hashes");
+
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -220,12 +305,31 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("security_stamp");
 
+                    b.Property<Guid?>("StockLocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("stock_location_id");
+
+                    b.Property<string>("TotpSecret")
+                        .IsRequired()
+                        .HasMaxLength(600)
+                        .HasColumnType("character varying(600)")
+                        .HasColumnName("totp_secret");
+
+                    b.Property<bool>("TwoFactorEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("two_factor_enabled");
+
                     b.HasKey("Id")
                         .HasName("pk_employee");
 
                     b.HasIndex("NormalizedCode")
                         .IsUnique()
                         .HasDatabaseName("ix_employee_normalized_code");
+
+                    b.HasIndex("StockLocationId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_employee_active_lead_per_location")
+                        .HasFilter("role = 'Trưởng Showroom/Kho' AND is_active");
 
                     b.ToTable("employee", (string)null);
                 });
@@ -240,6 +344,12 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("CatalogItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("catalog_item_id");
+
+                    b.Property<string>("CreatedByRole")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("created_by_role");
 
                     b.Property<string>("DocumentRef")
                         .IsRequired()
@@ -397,6 +507,10 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_stock_location");
 
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_stock_location_name");
+
                     b.ToTable("stock_location", (string)null);
                 });
 
@@ -507,6 +621,12 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                     b.Property<int>("CountedQuantity")
                         .HasColumnType("integer")
                         .HasColumnName("counted_quantity");
+
+                    b.Property<string>("CreatedByRole")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("created_by_role");
 
                     b.Property<string>("DocumentRef")
                         .IsRequired()
@@ -884,6 +1004,15 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasFilter("is_deleted = false");
 
                     b.ToTable("supplier", (string)null);
+                });
+
+            modelBuilder.Entity("Pancras.Domain.Employees.Employee", b =>
+                {
+                    b.HasOne("Pancras.Domain.Inventory.StockLocation", null)
+                        .WithMany()
+                        .HasForeignKey("StockLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_employee_stock_locations_stock_location_id");
                 });
 
             modelBuilder.Entity("Pancras.Domain.Inventory.DisposalSlip", b =>

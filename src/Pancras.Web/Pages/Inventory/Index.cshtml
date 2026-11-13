@@ -21,15 +21,21 @@
         }
         <div class="mt-4 flex flex-wrap items-center gap-2">
             <a id="tab-balances" href="@Model.ViewUrl("balances")" class="@TabClass("balances")">Tra cứu tồn kho</a>
-            <a id="tab-transfers" href="@Model.ViewUrl("transfers")" class="@TabClass("transfers")">
-                Chuyển kho
-                @if (Model.MovingCount > 0)
-                {
-                    <span class="inline-flex min-w-5 justify-center rounded-full bg-sky-100 px-1.5 text-xs font-bold text-sky-700">@Model.MovingCount</span>
-                }
-            </a>
-            <a id="tab-stocktakes" href="@Model.ViewUrl("stocktakes")" class="@TabClass("stocktakes")">Kiểm kê &amp; điều chỉnh</a>
+            @if (Model.CanOperate)
+            {
+                <a id="tab-transfers" href="@Model.ViewUrl("transfers")" class="@TabClass("transfers")">
+                    Chuyển kho
+                    @if (Model.MovingCount > 0)
+                    {
+                        <span class="inline-flex min-w-5 justify-center rounded-full bg-sky-100 px-1.5 text-xs font-bold text-sky-700">@Model.MovingCount</span>
+                    }
+                </a>
+                <a id="tab-stocktakes" href="@Model.ViewUrl("stocktakes")" class="@TabClass("stocktakes")">Kiểm kê &amp; điều chỉnh</a>
+            }
+            @if (Model.CanOperate)
+            {
             <button id="open-transfer" type="button" class="sm:ml-auto inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white hover:bg-sky-700" onclick="document.getElementById('transfer-dialog').showModal()">+ Tạo Phiếu Chuyển Kho</button>
+            }
         </div>
     </section>
     @if (Model.Notices.Count > 0)
@@ -54,24 +60,26 @@
     @if (Model.ActiveView == "balances")
     {
         <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5">
-            <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <form method="get" action="/inventory" class="flex min-w-0 flex-1 flex-col gap-3 lg:flex-row lg:items-center">
-                <input type="search" name="q" value="@Model.Search" placeholder="Tìm theo mã SKU, tên thiết bị, thương hiệu..." class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm lg:max-w-md" />
-                <select name="location" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                    <option value="">@Model.LocationOptionLabel</option>
-                    @foreach (var location in Model.Locations)
-                    {
-                        if (string.Equals(Model.Location, location.Id.ToString(), StringComparison.OrdinalIgnoreCase))
+            <form method="get" action="/inventory" data-live-filter class="flex flex-col gap-3 lg:flex-row lg:items-center">
+                <input type="search" name="q" value="@Model.Search" placeholder="Tìm theo mã SKU, tên thiết bị, thương hiệu..." aria-label="Tìm kiếm" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm lg:max-w-md" />
+                @if (Model.IsGlobal)
+                {
+                    <select name="location" aria-label="Kho hoặc showroom" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                        <option value="">@Model.LocationOptionLabel</option>
+                        @foreach (var location in Model.Locations)
                         {
-                            <option value="@location.Id" selected>@location.Name</option>
+                            if (string.Equals(Model.Location, location.Id.ToString(), StringComparison.OrdinalIgnoreCase))
+                            {
+                                <option value="@location.Id" selected>@location.Name</option>
+                            }
+                            else
+                            {
+                                <option value="@location.Id">@location.Name</option>
+                            }
                         }
-                        else
-                        {
-                            <option value="@location.Id">@location.Name</option>
-                        }
-                    }
-                </select>
-                <select name="category" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                    </select>
+                }
+                <select name="category" aria-label="Ngành hàng" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                     <option value="">Tất cả ngành hàng</option>
                     @foreach (var category in Enum.GetValues<ProductCategory>())
                     {
@@ -86,29 +94,25 @@
                         }
                     }
                 </select>
-                <button type="submit" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white">Lọc</button>
-                @if (!string.IsNullOrEmpty(Model.Search) || !string.IsNullOrEmpty(Model.Location) || !string.IsNullOrEmpty(Model.Category))
+                @if (Model.CanExport)
                 {
-                    <a href="/inventory" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600">Bỏ lọc</a>
+                    @Html.AntiForgeryToken()
+                    <button type="submit" formmethod="post" formaction="/inventory?handler=Export" class="lg:ml-auto rounded-lg bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700">Xuất Excel</button>
                 }
-                <span class="text-sm text-slate-500 lg:ml-auto">@Model.Groups.Count mặt hàng</span>
             </form>
-            <form method="post" action="/inventory?handler=Export" class="shrink-0">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="q" value="@Model.Search" />
-                <input type="hidden" name="location" value="@Model.Location" />
-                <input type="hidden" name="category" value="@Model.Category" />
-                <button type="submit" class="rounded-lg bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700">Xuất Excel</button>
-            </form>
-            </div>
-            <div class="mt-4 overflow-x-auto">
+            <div id="live-results">
+                <p class="mt-3 text-sm text-slate-500">@Model.Groups.Count mặt hàng</p>
+                <div class="mt-4 overflow-x-auto">
                 <table class="min-w-[960px] w-full text-left text-sm">
                     <thead class="text-xs uppercase tracking-wide text-slate-500">
                         <tr>
                             <th class="py-2 pr-3 font-semibold">Mã SKU</th>
                             <th class="py-2 pr-3 font-semibold">Tên hàng hóa &amp; Quy cách</th>
                             <th class="py-2 pr-3 font-semibold">ĐVT</th>
-                            <th class="py-2 pr-3 font-semibold">Giá vốn niên yết</th>
+                            @if (Model.CanSeeCost)
+                            {
+                                <th class="py-2 pr-3 font-semibold">Giá vốn niên yết</th>
+                            }
                             <th class="py-2 pr-3 font-semibold">Tồn thực tế</th>
                             <th class="py-2 pr-3 font-semibold">Đang giữ chỗ</th>
                             <th class="py-2 pr-3 font-semibold">Khả dụng</th>
@@ -136,7 +140,10 @@
                                     }
                                 </td>
                                 <td class="py-3 pr-3 text-slate-600">@(string.IsNullOrWhiteSpace(group.Unit) ? "—" : group.Unit)</td>
-                                <td class="py-3 pr-3 text-slate-700">@VndMoney.FormatDong(group.CostPrice)</td>
+                                @if (Model.CanSeeCost)
+                                {
+                                    <td class="py-3 pr-3 text-slate-700">@VndMoney.FormatDong(group.CostPrice)</td>
+                                }
                                 <td class="py-3 pr-3 font-semibold text-slate-900">@IndexModel.Count(group.OnHand)</td>
                                 <td class="py-3 pr-3 font-semibold text-amber-600">@IndexModel.Count(group.Reserved)</td>
                                 <td class="py-3 pr-3 font-semibold text-emerald-600">@IndexModel.Count(group.Available)</td>
@@ -157,6 +164,7 @@
                         }
                     </tbody>
                 </table>
+            </div>
             </div>
         </section>
     }
@@ -252,7 +260,7 @@
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <div>
                     <h2 class="font-display text-lg font-bold text-slate-900">Kiểm Kê Kho Định Kỳ &amp; Cân Đối Tồn Kho</h2>
-                    <p class="mt-1 text-sm text-slate-500">Ghi nhận chênh lệch giữa số đếm thực tế và số sách. Phiếu chờ Trưởng Showroom/Kho duyệt.</p>
+                    <p class="mt-1 text-sm text-slate-500">Ghi nhận chênh lệch giữa số đếm thực tế và số sách. Phiếu của Thủ kho và Trưởng kho chờ duyệt; Admin, Giám đốc, Kế toán ghi thẳng.</p>
                 </div>
                 <div class="sm:ml-auto flex flex-wrap gap-2">
                     @if (Model.CanCountStock)
@@ -313,7 +321,7 @@
                     {
                         <p class="mt-3 text-sm text-slate-600">Chứng từ: @sheet.DocumentRef</p>
                     }
-                    @if (sheet.Status == ApprovalStatus.Pending && Model.CanApproveStocktake)
+                    @if (sheet.Status == ApprovalStatus.Pending && sheet.CanApprove)
                     {
                         <form method="post" action="/inventory?handler=ApproveStocktake" class="mt-4 flex justify-end">
                             <input type="hidden" name="DocumentId" value="@sheet.Id" />
@@ -331,7 +339,7 @@
                     <article id="document-@sheet.Id" class="bg-white rounded-2xl border border-slate-200 p-4 text-sm">
                         <p class="font-semibold">@sheet.Code — @sheet.Name <span class="font-normal text-slate-500">@sheet.LocationName</span></p>
                         <p class="mt-1 text-slate-600">Chênh lệch @sheet.Delta. @sheet.Reason. @StockLabels.Approval(sheet.Status)</p>
-                        @if (sheet.Status == ApprovalStatus.Pending && Model.CanPostAdjustment)
+                        @if (sheet.Status == ApprovalStatus.Pending && sheet.CanApprove)
                         {
                             <form method="post" action="/inventory?handler=ApproveAdjustment" class="mt-3">
                                 <input type="hidden" name="DocumentId" value="@sheet.Id" />
@@ -349,7 +357,7 @@
                     <article id="document-@slip.Id" class="bg-white rounded-2xl border border-slate-200 p-4 text-sm">
                         <p class="font-semibold">@slip.Code — @slip.Name <span class="font-normal text-slate-500">@slip.LocationName</span></p>
                         <p class="mt-1 text-slate-600">@slip.Reason. @StockLabels.Approval(slip.Status)</p>
-                        @if (slip.Status == ApprovalStatus.Pending && Model.CanApproveDisposal)
+                        @if (slip.Status == ApprovalStatus.Pending && slip.CanApprove)
                         {
                             <form method="post" action="/inventory?handler=ApproveDisposal" class="mt-3">
                                 <input type="hidden" name="DocumentId" value="@slip.Id" />
@@ -382,7 +390,7 @@
             <label class="text-sm font-medium text-slate-700">Kho / Showroom nhận (Đích)
                 <select name="Transfer.DestinationLocationId" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2">
                     <option value="">Chọn nơi nhận</option>
-                    @foreach (var location in Model.Locations)
+                    @foreach (var location in Model.AllLocations)
                     {
                         <option value="@location.Id">@location.Name</option>
                     }
@@ -596,7 +604,10 @@
                     {
                         <div class="rounded-xl bg-slate-50 p-3"><p class="text-[11px] font-bold uppercase text-slate-500">Tồn tối thiểu</p><p class="text-sm font-semibold">@VndMoney.FormatMeasure(minimum) @profile.Unit</p></div>
                     }
-                    <div class="rounded-xl bg-slate-50 p-3"><p class="text-[11px] font-bold uppercase text-slate-500">Giá vốn</p><p class="text-sm font-semibold">@VndMoney.FormatDong(profile.CostPrice)</p></div>
+                    @if (Model.CanSeeCost)
+                    {
+                        <div class="rounded-xl bg-slate-50 p-3"><p class="text-[11px] font-bold uppercase text-slate-500">Giá vốn</p><p class="text-sm font-semibold">@VndMoney.FormatDong(profile.CostPrice)</p></div>
+                    }
                     <div class="rounded-xl bg-slate-50 p-3"><p class="text-[11px] font-bold uppercase text-slate-500">Giá lẻ</p><p class="text-sm font-semibold">@VndMoney.FormatDong(profile.RetailPrice)</p></div>
                     <div class="rounded-xl bg-slate-50 p-3"><p class="text-[11px] font-bold uppercase text-slate-500">Giá đại lý</p><p class="text-sm font-semibold">@VndMoney.FormatDong(profile.DealerPrice)</p></div>
                     <div class="rounded-xl bg-slate-50 p-3"><p class="text-[11px] font-bold uppercase text-slate-500">Giá dự án</p><p class="text-sm font-semibold">@VndMoney.FormatDong(profile.ProjectPrice)</p></div>

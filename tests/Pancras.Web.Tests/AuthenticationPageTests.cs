@@ -49,7 +49,7 @@ public class AuthenticationPageTests : IClassFixture<PancrasWebFactory>
         Assert.Contains("Pancras.Auth", setCookie, StringComparison.Ordinal);
         Assert.Contains("expires=", setCookie, StringComparison.OrdinalIgnoreCase);
 
-        var create = await client.GetAsync("/employees/new");
+        var create = await client.GetAsync("/employees?form=1");
         var html = await create.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, create.StatusCode);
@@ -65,10 +65,55 @@ public class AuthenticationPageTests : IClassFixture<PancrasWebFactory>
         ResetEmployees(sales);
         await SignInAsync(client, "SalesLT", "Secret1");
 
-        var response = await client.GetAsync("/employees/new");
+        var response = await client.GetAsync("/employees?form=1");
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.Contains("/access-denied", response.Headers.Location?.OriginalString, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(EmployeeRole.Sales, "/suppliers", true)]
+    [InlineData(EmployeeRole.WarehouseKeeper, "/suppliers", true)]
+    [InlineData(EmployeeRole.Accountant, "/suppliers", false)]
+    [InlineData(EmployeeRole.Sales, "/employees", true)]
+    [InlineData(EmployeeRole.CustomerCare, "/employees", true)]
+    [InlineData(EmployeeRole.Accountant, "/employees", false)]
+    [InlineData(EmployeeRole.Sales, "/locations", true)]
+    [InlineData(EmployeeRole.Accountant, "/locations", false)]
+    [InlineData(EmployeeRole.Sales, "/profile", false)]
+    public async Task RolesSeeOnlyTheirPages(string role, string path, bool denied)
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var person = Employee.Create("Lê Thị Test", "TestLT", "TESTLT", _hasher.Hash("Secret12"), role);
+        ResetEmployees(person);
+        await SignInAsync(client, "TestLT", "Secret12");
+
+        var response = await client.GetAsync(path);
+
+        if (denied)
+        {
+            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+            Assert.Contains("/access-denied", response.Headers.Location?.OriginalString, StringComparison.Ordinal);
+        }
+        else
+        {
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+    }
+
+    [Fact]
+    public async Task DeactivatedEmployee_CannotKeepUsingTheSession()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var person = Employee.Create("Lê Thị Test", "TestLT", "TESTLT", _hasher.Hash("Secret12"), EmployeeRole.Accountant);
+        ResetEmployees(person);
+        await SignInAsync(client, "TestLT", "Secret12");
+        person.Deactivate();
+
+        var response = await client.GetAsync("/suppliers");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Contains("/login", response.Headers.Location?.OriginalString, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -80,7 +125,7 @@ public class AuthenticationPageTests : IClassFixture<PancrasWebFactory>
         await SignInAsync(client, "admin", "Admin@12345");
         Assert.True(admin.ReplacePassword(_hasher.Hash("other-password")));
 
-        var response = await client.GetAsync("/employees/new");
+        var response = await client.GetAsync("/employees?form=1");
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.Contains("/login", response.Headers.Location?.OriginalString, StringComparison.Ordinal);
@@ -123,17 +168,23 @@ public sealed class PancrasWebFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
+        builder.UseSetting("RateLimiting:LoginPerMinute", "100000");
         builder.UseSetting(
             "ConnectionStrings:DefaultConnection",
             "Host=localhost;Port=5432;Database=pancras;Username=postgres;Password=testing");
         builder.ConfigureTestServices(services =>
         {
+            services.RemoveAll<Pancras.Application.Auditing.IAuditLog>();
+            services.AddSingleton<Pancras.Application.Auditing.IAuditLog, NoAuditLog>();
             services.RemoveAll<IEmployeeRepository>();
             services.RemoveAll<IPasswordHasher>();
             services.AddSingleton<FakePasswordHasher>();
             services.AddSingleton<IPasswordHasher>(provider => provider.GetRequiredService<FakePasswordHasher>());
             services.AddSingleton<FakeEmployeeRepository>();
             services.AddSingleton<IEmployeeRepository>(provider => provider.GetRequiredService<FakeEmployeeRepository>());
+            services.RemoveAll<Pancras.Application.Locations.ILocationRepository>();
+            services.AddSingleton<LocationDirectoryDouble>();
+            services.AddSingleton<Pancras.Application.Locations.ILocationRepository>(provider => provider.GetRequiredService<LocationDirectoryDouble>());
             services.RemoveAll<ISupplierRepository>();
             services.AddSingleton<SupplierDirectoryDouble>();
             services.AddSingleton<ISupplierRepository>(provider => provider.GetRequiredService<SupplierDirectoryDouble>());
@@ -164,6 +215,9 @@ internal sealed class FakeEmployeeRepository : IEmployeeRepository
     public Task<Employee?> GetByNormalizedCodeAsync(string normalizedCode, CancellationToken cancellationToken) =>
         Task.FromResult(Employees.FirstOrDefault(employee => employee.NormalizedCode == normalizedCode));
 
+    public Task<Employee?> GetByNormalizedCodeForUpdateAsync(string normalizedCode, CancellationToken cancellationToken) =>
+        GetByNormalizedCodeAsync(normalizedCode, cancellationToken);
+
     public Task<bool> NormalizedCodeExistsAsync(string normalizedCode, CancellationToken cancellationToken) =>
         Task.FromResult(Employees.Any(employee => employee.NormalizedCode == normalizedCode));
 
@@ -175,6 +229,12 @@ internal sealed class FakeEmployeeRepository : IEmployeeRepository
 
     public Task<IReadOnlyList<Employee>> ListReadOnlyAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<Employee>>(Employees.ToArray());
+
+    public Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(Employees.Count(employee => employee.Role == EmployeeRole.Admin && employee.IsActive));
+
+    public Task<bool> ActiveLeadExistsAsync(Guid stockLocationId, Guid? excludeEmployeeId, CancellationToken cancellationToken) =>
+        Task.FromResult(false);
 
     public Task AddAsync(Employee employee, CancellationToken cancellationToken) =>
         Task.CompletedTask;
@@ -240,4 +300,34 @@ internal sealed class SupplierDirectoryDouble : ISupplierRepository
 
         return suppliers.OrderBy(supplier => supplier.Name).ThenBy(supplier => supplier.Code).ToList();
     }
+}
+
+internal sealed class LocationDirectoryDouble : Pancras.Application.Locations.ILocationRepository
+{
+    public List<Pancras.Domain.Inventory.StockLocation> Locations { get; } = [];
+
+    public Task<IReadOnlyList<Pancras.Domain.Inventory.StockLocation>> ListAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<Pancras.Domain.Inventory.StockLocation>>(Locations.ToArray());
+
+    public Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken) =>
+        Task.FromResult(Locations.Any(location => location.Id == id));
+
+    public Task<bool> NameExistsAsync(string name, CancellationToken cancellationToken) =>
+        Task.FromResult(Locations.Any(location => string.Equals(location.Name, name, StringComparison.OrdinalIgnoreCase)));
+
+    public Task<bool> TryAddAsync(Pancras.Domain.Inventory.StockLocation location, CancellationToken cancellationToken)
+    {
+        Locations.Add(location);
+        return Task.FromResult(true);
+    }
+}
+
+internal sealed class NoAuditLog : Pancras.Application.Auditing.IAuditLog
+{
+    public Task RecordAsync(Pancras.Domain.Auditing.AuditEntry entry, CancellationToken cancellationToken) => Task.CompletedTask;
+
+    public Task<IReadOnlyList<Pancras.Domain.Auditing.AuditEntry>> ListAsync(string? search, int pageNumber, int pageSize, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<Pancras.Domain.Auditing.AuditEntry>>([]);
+
+    public Task<int> CountAsync(string? search, CancellationToken cancellationToken) => Task.FromResult(0);
 }

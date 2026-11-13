@@ -1,0 +1,123 @@
+@page "/profile"
+@model Pancras.Web.Pages.Account.ProfileModel
+@using Pancras.Application.Common
+@{
+    ViewData["Title"] = "Hồ sơ của tôi";
+    const string inputClass = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2";
+    string? ErrorText(EmployeeError error) => error switch
+    {
+        EmployeeError.None => null,
+        EmployeeError.ProfileIncomplete => "Cần đủ họ tên, email đúng dạng và điện thoại.",
+        EmployeeError.WeakPassword => "Mật khẩu mới cần từ 8 ký tự trở lên.",
+        EmployeeError.WrongPassword => "Mật khẩu hiện tại không đúng.",
+        EmployeeError.InvalidCode => "Mã xác thực không đúng hoặc đã hết hạn. Thử mã mới trong ứng dụng.",
+        EmployeeError.TwoFactorAlreadyEnabled => "Xác thực hai bước đã được bật.",
+        EmployeeError.TwoFactorNotEnabled => "Xác thực hai bước chưa được bật.",
+        _ => "Không thực hiện được."
+    };
+}
+
+<section class="bg-white rounded-xl border border-slate-200 p-6">
+    <h1 class="font-display text-xl sm:text-2xl font-bold text-slate-900">Hồ sơ của tôi</h1>
+    <p class="mt-1 text-sm text-slate-500">
+        Mã <span class="font-mono font-medium text-slate-700">@Model.Code</span> · @Model.Role@(string.IsNullOrWhiteSpace(Model.JobTitle) ? "" : " · " + Model.JobTitle).
+        Vai trò, chức vụ và kho/showroom do Admin hoặc Giám đốc thay đổi.
+    </p>
+    @if (Model.ProfileSaved)
+    {
+        <p class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800" role="status">Đã lưu hồ sơ.</p>
+    }
+    @if (Model.PasswordChanged)
+    {
+        <p class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800" role="status">Đã đổi mật khẩu.</p>
+    }
+    @if (Model.Error != EmployeeError.None)
+    {
+        <p class="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800" role="alert">@ErrorText(Model.Error)</p>
+    }
+</section>
+
+<div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+    <section class="bg-white rounded-xl border border-slate-200 p-6">
+        <h2 class="text-base font-bold text-slate-900">Thông tin cá nhân</h2>
+        <form method="post" asp-page-handler="Profile" class="mt-4 space-y-3">
+            <label class="block text-sm">Họ tên<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="Profile.FullName" class="@inputClass" /></label>
+            <label class="block text-sm">Email<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="Profile.Email" type="email" class="@inputClass" /></label>
+            <label class="block text-sm">Điện thoại<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="Profile.Phone" class="@inputClass" /></label>
+            <label class="block text-sm">Địa chỉ<input asp-for="Profile.Address" class="@inputClass" /></label>
+            <div class="flex justify-end">
+                <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Lưu hồ sơ</button>
+            </div>
+        </form>
+    </section>
+    <section class="bg-white rounded-xl border border-slate-200 p-6">
+        <h2 class="text-base font-bold text-slate-900">Đổi mật khẩu</h2>
+        <form method="post" asp-page-handler="Password" class="mt-4 space-y-3">
+            <label class="block text-sm">Mật khẩu hiện tại<input asp-for="Password.CurrentPassword" type="password" autocomplete="current-password" class="@inputClass" /></label>
+            <label class="block text-sm">Mật khẩu mới <span class="text-xs text-slate-500">(từ 8 ký tự)</span><input asp-for="Password.NewPassword" type="password" autocomplete="new-password" class="@inputClass" /></label>
+            <div class="flex justify-end">
+                <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Đổi mật khẩu</button>
+            </div>
+        </form>
+    </section>
+</div>
+
+<section class="mt-4 bg-white rounded-xl border border-slate-200 p-6">
+    <h2 class="text-base font-bold text-slate-900">Xác thực hai bước (tùy chọn)</h2>
+    <p class="mt-1 text-sm text-slate-500">Thêm một lớp bảo vệ: sau mật khẩu, bạn nhập thêm mã 6 số từ ứng dụng Google Authenticator, Microsoft Authenticator hoặc Authy. Không tốn phí.</p>
+    @if (Model.TwoFactorOff)
+    {
+        <p class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800" role="status">Đã tắt xác thực hai bước.</p>
+    }
+    @if (Model.NewRecoveryCodes.Count > 0)
+    {
+        <div class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4" role="status">
+            <p class="text-sm font-bold text-emerald-900">Đã bật xác thực hai bước.</p>
+            <p class="mt-1 text-sm text-emerald-900">Lưu các mã khôi phục này ở nơi an toàn. Mỗi mã dùng được một lần khi mất điện thoại. Mã chỉ hiện lúc này, sẽ không xem lại được.</p>
+            <ul class="mt-3 grid grid-cols-2 gap-2 font-mono text-sm text-slate-900 sm:grid-cols-5">
+                @foreach (var recovery in Model.NewRecoveryCodes)
+                {
+                    <li class="rounded bg-white px-2 py-1 text-center">@recovery</li>
+                }
+            </ul>
+        </div>
+    }
+    else if (Model.TwoFactorEnabled)
+    {
+        <p class="mt-4 text-sm font-medium text-emerald-700">Đang bật. Còn @Model.RecoveryCodesLeft mã khôi phục.</p>
+        <form method="post" asp-page-handler="DisableTwoFactor" class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label class="block text-sm">Mật khẩu hiện tại<input asp-for="DisableCode.CurrentPassword" type="password" autocomplete="current-password" class="@inputClass" /></label>
+            <label class="block text-sm">Mã xác thực hoặc mã khôi phục<input asp-for="DisableCode.Code" autocomplete="one-time-code" class="@inputClass font-mono" /></label>
+            <div class="sm:col-span-2 flex justify-end">
+                <button type="submit" class="px-4 py-2 text-sm font-bold rounded-lg bg-rose-50 text-rose-700">Tắt xác thực hai bước</button>
+            </div>
+        </form>
+    }
+    else if (Model.Setup is not null)
+    {
+        <div class="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-[auto_1fr]">
+            <div class="mx-auto w-44 rounded-lg border border-slate-200 bg-white p-2">@Html.Raw(Model.QrSvg)</div>
+            <div>
+                <ol class="list-decimal space-y-1 pl-5 text-sm text-slate-700">
+                    <li>Mở ứng dụng xác thực và quét mã QR (hoặc nhập khóa bên dưới).</li>
+                    <li>Nhập mã 6 số ứng dụng hiển thị để xác nhận.</li>
+                </ol>
+                <p class="mt-3 text-xs text-slate-500">Khóa nhập tay</p>
+                <p class="font-mono text-sm tracking-wider text-slate-900 break-all">@Model.Setup.Secret</p>
+                <form method="post" asp-page-handler="ConfirmTwoFactor" class="mt-4 flex flex-wrap items-end gap-3">
+                    <input type="hidden" asp-for="ConfirmCode.ProtectedSecret" />
+                    <input type="hidden" asp-for="SetupSecretText" />
+                    <label class="block text-sm">Mã 6 số<input asp-for="ConfirmCode.Code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" class="@inputClass font-mono w-40" /></label>
+                    <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Xác nhận và bật</button>
+                    <a href="/profile" class="px-4 py-2 text-sm rounded-lg bg-slate-100 text-slate-600">Hủy</a>
+                </form>
+            </div>
+        </div>
+    }
+    else
+    {
+        <form method="post" asp-page-handler="BeginTwoFactor" class="mt-4">
+            <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Bật xác thực hai bước</button>
+        </form>
+    }
+</section>

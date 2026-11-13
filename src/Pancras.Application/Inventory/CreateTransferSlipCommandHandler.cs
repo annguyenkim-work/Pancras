@@ -10,6 +10,12 @@ public sealed class CreateTransferSlipCommandHandler(
 {
     public async Task<Result<Guid>> HandleAsync(CreateTransferSlipCommand command, CancellationToken cancellationToken)
     {
+        if (!InventoryAccess.CanOperate(command.Actor.Role) || !InventoryAccess.CanAccessLocation(command.Actor, command.SourceLocationId))
+        {
+            logger.LogWarning("Transfer forbidden for employee {EmployeeId}.", command.Actor.Id);
+            return Result<Guid>.Fail(StockError.Forbidden);
+        }
+
         var lines = (command.Lines ?? [])
             .Select(line => (line.CatalogItemId, line.Quantity))
             .ToArray();

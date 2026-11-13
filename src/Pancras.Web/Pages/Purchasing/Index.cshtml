@@ -24,11 +24,25 @@
     {
         <p class="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800" role="alert">@Model.ErrorMessage</p>
     }
+    @if (Model.HasAnyOrders)
+    {
+        <form method="get" action="/purchasing" data-live-filter class="mt-5">
+            <input name="q" value="@Model.Search" type="search" placeholder="Tìm theo mã đơn, nhà cung cấp, container, B/L, cảng..." aria-label="Tìm kiếm đơn mua" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        </form>
+    }
 </section>
 
+<div id="live-results">
 @if (Model.Orders.Count == 0)
 {
-    <partial name="_EmptyState" model='new EmptyStateModel("Chưa có đơn mua.", "Tạo đơn mua đầu tiên để theo dõi container và phân bổ giá vốn.", "+ Tạo Đơn Mua Hàng & Container", "/purchasing?form=1")' />
+    @if (Model.HasAnyOrders)
+    {
+        <partial name="_EmptyState" model='new EmptyStateModel("Không có đơn mua khớp từ khóa.", "Thử mã đơn, nhà cung cấp, số container hoặc B/L khác.")' />
+    }
+    else
+    {
+        <partial name="_EmptyState" model='new EmptyStateModel("Chưa có đơn mua.", "Tạo đơn mua đầu tiên để theo dõi container và phân bổ giá vốn.", "+ Tạo Đơn Mua Hàng & Container", "/purchasing?form=1")' />
+    }
 }
 else
 {
@@ -183,6 +197,7 @@ else
         }
     </div>
 }
+</div>
 
 @if (Model.ShowForm)
 {

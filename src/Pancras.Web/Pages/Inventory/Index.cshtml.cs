@@ -7,11 +7,12 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Pancras.Application.Common;
 using Pancras.Application.Inventory;
 using Pancras.Domain.Inventory;
+using Pancras.Web.Security;
 using Pancras.Web.Formatting;
 
 namespace Pancras.Web.Pages.Inventory;
 
-[Authorize]
+[Authorize(Roles = InventoryAccess.ViewRoles)]
 public class IndexModel(
     ListStockBalancesHandler listHandler,
     ListInventoryDocumentsHandler documentsHandler,
@@ -48,15 +49,27 @@ public class IndexModel(
 
     public IReadOnlyList<StockNotice> Notices { get; private set; } = [];
 
-    public bool CanCountStock => InventoryRoles.IsWarehouseKeeper(Role());
+    public Pancras.Domain.Employees.EmployeeActor Actor => User.ToActor();
 
-    public bool CanApproveStocktake => InventoryRoles.IsShowroomLead(Role());
+    public IReadOnlyList<StockLocationChoice> AllLocations { get; private set; } = [];
+
+    public bool CanOperate => InventoryAccess.CanOperate(Role());
+
+    public bool CanSeeCost => InventoryAccess.CanSeeCost(Role());
+
+    public bool CanExport => InventoryAccess.CanExport(Role());
+
+    public bool IsGlobal => InventoryAccess.IsGlobal(Role());
+
+    public bool CanCountStock => InventoryAccess.CanOperate(Role());
+
+    public bool CanApproveStocktake => InventoryRoles.IsShowroomLead(Role()) || InventoryRoles.IsFinance(Role());
 
     public bool CanDraftAdjustment => InventoryRoles.CanDraftAdjustment(Role());
 
     public bool CanPostAdjustment => InventoryRoles.CanPostAdjustment(Role());
 
-    public bool CanApproveDisposal => InventoryRoles.IsShowroomLead(Role()) || InventoryRoles.IsDirector(Role());
+    public bool CanApproveDisposal => InventoryRoles.IsShowroomLead(Role()) || InventoryRoles.IsFinance(Role());
 
     public StockItemDetail? Detail { get; private set; }
 
@@ -80,7 +93,7 @@ public class IndexModel(
 
     public int MovingCount => Transfers.Count(slip => slip.Status == TransferStatus.InTransit);
 
-    public string ActiveView => View switch
+    public string ActiveView => !CanOperate ? "balances" : View switch
     {
         "transfers" => "transfers",
         "stocktakes" => "stocktakes",
@@ -158,7 +171,7 @@ public class IndexModel(
 
     public async Task<IActionResult> OnPostExportAsync(CancellationToken cancellationToken)
     {
-        var rows = await listHandler.ExportAsync(CurrentFilter(), cancellationToken);
+        var rows = await listHandler.ExportAsync(CurrentFilter(), Actor, cancellationToken);
         return File(StockCsv.Write(rows), "text/csv; charset=utf-8", "ton-kho.csv");
     }
 
@@ -174,7 +187,8 @@ public class IndexModel(
                 SourceLocationId = Transfer.SourceLocationId,
                 DestinationLocationId = Transfer.DestinationLocationId,
                 Note = Transfer.Note,
-                Lines = lines
+                Lines = lines,
+                Actor = Actor
             },
             cancellationToken);
         if (created.IsFailure || created.Value == Guid.Empty)
@@ -182,7 +196,7 @@ public class IndexModel(
             return await FailAsync(created.StockError, openTransfer: true, "transfers", cancellationToken);
         }
 
-        var shipped = await shipmentHandler.HandleAsync(new ConfirmTransferCommand(created.Value), cancellationToken);
+        var shipped = await shipmentHandler.HandleAsync(new ConfirmTransferCommand(created.Value, Actor), cancellationToken);
         if (shipped.IsFailure)
         {
             return await FailAsync(shipped.StockError, openTransfer: true, "transfers", cancellationToken);
@@ -200,6 +214,7 @@ public class IndexModel(
                     SourceLocationId = Transfer.SourceLocationId,
                     DestinationLocationId = Transfer.DestinationLocationId,
                     Note = Transfer.Note,
+                    Actor = Actor,
                     Lines = (Transfer.Lines ?? [])
                         .Where(line => line.CatalogItemId != Guid.Empty && line.Quantity > 0)
                         .Select(line => new TransferLineInput(line.CatalogItemId, line.Quantity))
@@ -210,17 +225,17 @@ public class IndexModel(
             cancellationToken);
 
     public Task<IActionResult> OnPostConfirmShipmentAsync(CancellationToken cancellationToken) =>
-        SaveAsync(shipmentHandler.HandleAsync(new ConfirmTransferCommand(DocumentId), cancellationToken), "transfers", cancellationToken);
+        SaveAsync(shipmentHandler.HandleAsync(new ConfirmTransferCommand(DocumentId, Actor), cancellationToken), "transfers", cancellationToken);
 
     public Task<IActionResult> OnPostConfirmReceiptAsync(CancellationToken cancellationToken) =>
-        SaveAsync(receiptHandler.HandleAsync(new ConfirmTransferCommand(DocumentId), cancellationToken), "transfers", cancellationToken);
+        SaveAsync(receiptHandler.HandleAsync(new ConfirmTransferCommand(DocumentId, Actor), cancellationToken), "transfers", cancellationToken);
 
     public Task<IActionResult> OnPostCreateStocktakeAsync(CancellationToken cancellationToken) =>
         SaveStocktakeAsync(
             createStocktakeHandler.HandleAsync(
                 new CreateStocktakeCommand
                 {
-                    Role = Role(),
+                    Actor = Actor,
                     StockLocationId = Stocktake.StockLocationId,
                     CatalogItemId = Stocktake.CatalogItemId,
                     CountedQuantity = Stocktake.CountedQuantity,
@@ -232,14 +247,14 @@ public class IndexModel(
             cancellationToken);
 
     public Task<IActionResult> OnPostApproveStocktakeAsync(CancellationToken cancellationToken) =>
-        SaveAsync(approveStocktakeHandler.HandleAsync(new ApproveDocumentCommand(DocumentId, Role()), cancellationToken), "stocktakes", cancellationToken);
+        SaveAsync(approveStocktakeHandler.HandleAsync(new ApproveDocumentCommand(DocumentId, Actor), cancellationToken), "stocktakes", cancellationToken);
 
     public Task<IActionResult> OnPostCreateAdjustmentAsync(CancellationToken cancellationToken) =>
         SaveAsync(
             createAdjustmentHandler.HandleAsync(
                 new CreateQuantityAdjustmentCommand
                 {
-                    Role = Role(),
+                    Actor = Actor,
                     StockLocationId = Adjustment.StockLocationId,
                     CatalogItemId = Adjustment.CatalogItemId,
                     Delta = Adjustment.Delta,
@@ -252,13 +267,14 @@ public class IndexModel(
             cancellationToken);
 
     public Task<IActionResult> OnPostApproveAdjustmentAsync(CancellationToken cancellationToken) =>
-        SaveAsync(approveAdjustmentHandler.HandleAsync(new ApproveDocumentCommand(DocumentId, Role()), cancellationToken), "stocktakes", cancellationToken);
+        SaveAsync(approveAdjustmentHandler.HandleAsync(new ApproveDocumentCommand(DocumentId, Actor), cancellationToken), "stocktakes", cancellationToken);
 
     public Task<IActionResult> OnPostCreateDisposalAsync(CancellationToken cancellationToken) =>
         SaveAsync(
             createDisposalHandler.HandleAsync(
                 new CreateDisposalSlipCommand
                 {
+                    Actor = Actor,
                     StockLocationId = Disposal.StockLocationId,
                     CatalogItemId = Disposal.CatalogItemId,
                     Reason = Disposal.Reason,
@@ -284,7 +300,7 @@ public class IndexModel(
     }
 
     public Task<IActionResult> OnPostApproveDisposalAsync(CancellationToken cancellationToken) =>
-        SaveAsync(approveDisposalHandler.HandleAsync(new ApproveDocumentCommand(DocumentId, Role()), cancellationToken), "stocktakes", cancellationToken);
+        SaveAsync(approveDisposalHandler.HandleAsync(new ApproveDocumentCommand(DocumentId, Actor), cancellationToken), "stocktakes", cancellationToken);
 
     public string ViewUrl(string view) => BuildUrl(view, item: null, kind: null, place: null, page: null, size: null);
 
@@ -390,16 +406,18 @@ public class IndexModel(
         }
 
         var filter = CurrentFilter();
-        var filtered = await listHandler.HandleAsync(filter, cancellationToken);
+        var filtered = await listHandler.HandleAsync(filter, Actor, cancellationToken);
         var badges = await listHandler.HandleAsync(
             new StockListFilter(null, filter.LocationRejected, filter.Category, filter.CategoryRejected, filter.Term),
+            Actor,
             cancellationToken);
-        Locations = await documentsHandler.ListLocationsAsync(cancellationToken);
+        Locations = await documentsHandler.ListLocationsAsync(Actor, cancellationToken);
+        AllLocations = await documentsHandler.ListAllLocationsAsync(cancellationToken);
         Items = await documentsHandler.ListItemsAsync(cancellationToken);
-        Transfers = await documentsHandler.ListTransfersAsync(cancellationToken);
-        Stocktakes = await documentsHandler.ListStocktakesAsync(cancellationToken);
-        Adjustments = await documentsHandler.ListAdjustmentsAsync(cancellationToken);
-        Disposals = await documentsHandler.ListDisposalsAsync(cancellationToken);
+        Transfers = await documentsHandler.ListTransfersAsync(Actor, cancellationToken);
+        Stocktakes = await documentsHandler.ListStocktakesAsync(Actor, cancellationToken);
+        Adjustments = await documentsHandler.ListAdjustmentsAsync(Actor, cancellationToken);
+        Disposals = await documentsHandler.ListDisposalsAsync(Actor, cancellationToken);
         Notices = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var employeeId)
             ? await noticesHandler.HandleAsync(employeeId, cancellationToken)
             : [];
@@ -412,7 +430,7 @@ public class IndexModel(
         VisibleHistory = [];
         if (Guid.TryParse(Item, out var itemId))
         {
-            Detail = await detailHandler.HandleAsync(itemId, cancellationToken);
+            Detail = await detailHandler.HandleAsync(itemId, Actor, cancellationToken);
             SliceHistory();
         }
     }

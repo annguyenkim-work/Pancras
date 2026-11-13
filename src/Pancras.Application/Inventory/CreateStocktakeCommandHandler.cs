@@ -10,10 +10,16 @@ public sealed class CreateStocktakeCommandHandler(
 {
     public async Task<Result<Guid>> HandleAsync(CreateStocktakeCommand command, CancellationToken cancellationToken)
     {
+        if (!InventoryAccess.CanOperate(command.Actor.Role) || !InventoryAccess.CanAccessLocation(command.Actor, command.StockLocationId))
+        {
+            logger.LogWarning("Stocktake forbidden for employee {EmployeeId}.", command.Actor.Id);
+            return Result<Guid>.Fail(StockError.Forbidden);
+        }
+
         var balance = await repository.FindBalanceForUpdateAsync(command.CatalogItemId, command.StockLocationId, cancellationToken);
         var bookQuantity = balance?.OnHand ?? 0;
         var decision = StocktakeSheet.TryCreate(
-            command.Role,
+            command.Actor.Role,
             command.StockLocationId,
             command.CatalogItemId,
             bookQuantity,

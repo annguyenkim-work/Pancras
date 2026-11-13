@@ -1,3 +1,4 @@
+using Pancras.Application.Auditing;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Common;
 using Pancras.Domain.Inventory;
@@ -6,7 +7,10 @@ namespace Pancras.Application.Inventory;
 
 public sealed class ApproveStocktakeCommandHandler(
     IInventoryRepository repository,
-    ILogger<ApproveStocktakeCommandHandler> logger)
+    ILogger<ApproveStocktakeCommandHandler> logger,
+    TimeProvider? clock = null,
+    Pancras.Application.Auditing.IAuditLog? audit = null,
+    Pancras.Application.Auditing.IRequestInfo? request = null)
 {
     public async Task<Result<Guid>> HandleAsync(ApproveDocumentCommand command, CancellationToken cancellationToken)
     {
@@ -17,8 +21,14 @@ public sealed class ApproveStocktakeCommandHandler(
             return Result<Guid>.Fail(StockError.ApprovalForbidden);
         }
 
+        if (!InventoryAccess.CanApprove(command.Actor, sheet.CreatedByRole, sheet.StockLocationId))
+        {
+            logger.LogWarning("Stocktake approval forbidden for employee {EmployeeId}.", command.Actor.Id);
+            return Result<Guid>.Fail(StockError.ApprovalForbidden);
+        }
+
         var status = sheet.Status;
-        var decision = sheet.Approve(command.Role);
+        var decision = sheet.Approve(command.Actor.Role);
         if (decision != StockDecision.Accepted)
         {
             logger.LogWarning("Stocktake approval rejected for {StocktakeId}.", sheet.Id);
@@ -33,6 +43,7 @@ public sealed class ApproveStocktakeCommandHandler(
         }
 
         logger.LogInformation("Approved stocktake {StocktakeId}.", sheet.Id);
+        await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.StocktakeApproved, "stocktake", sheet.Id.ToString("D"), null, cancellationToken);
         return Result<Guid>.Ok(sheet.Id);
     }
 }

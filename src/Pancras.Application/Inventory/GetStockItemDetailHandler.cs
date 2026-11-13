@@ -1,4 +1,6 @@
 using Microsoft.Extensions.Logging;
+using Pancras.Domain.Employees;
+using Pancras.Domain.Inventory;
 
 namespace Pancras.Application.Inventory;
 
@@ -6,9 +8,9 @@ public sealed class GetStockItemDetailHandler(
     IInventoryRepository repository,
     ILogger<GetStockItemDetailHandler> logger)
 {
-    public async Task<StockItemDetail?> HandleAsync(Guid catalogItemId, CancellationToken cancellationToken)
+    public async Task<StockItemDetail?> HandleAsync(Guid catalogItemId, EmployeeActor actor, CancellationToken cancellationToken)
     {
-        if (catalogItemId == Guid.Empty)
+        if (catalogItemId == Guid.Empty || !InventoryAccess.CanView(actor.Role))
         {
             return null;
         }
@@ -20,8 +22,13 @@ public sealed class GetStockItemDetailHandler(
             return null;
         }
 
-        var balances = await repository.ListItemBalancesAsync(catalogItemId, cancellationToken);
-        var movements = await repository.ListItemMovementsAsync(catalogItemId, cancellationToken);
+        var scope = InventoryAccess.Scope(actor);
+        var balances = (await repository.ListItemBalancesAsync(catalogItemId, cancellationToken))
+            .Where(balance => scope is null || balance.StockLocationId == scope)
+            .ToArray();
+        var movements = (await repository.ListItemMovementsAsync(catalogItemId, cancellationToken))
+            .Where(movement => scope is null || movement.StockLocationId == scope)
+            .ToArray();
         var locations = await repository.ListLocationsAsync(cancellationToken);
         var names = locations.ToDictionary(location => location.Id, location => location.Name);
         var history = movements
@@ -37,6 +44,12 @@ public sealed class GetStockItemDetailHandler(
             "Read stock detail for {CatalogItemId} with {StockMovementCount} movements.",
             catalogItemId,
             history.Length);
+        if (!InventoryAccess.CanSeeCost(actor.Role))
+        {
+            profile = profile with { CostPrice = 0 };
+            balances = balances.Select(balance => balance with { CostPrice = 0 }).ToArray();
+        }
+
         return new StockItemDetail(profile, balances, history);
     }
 }

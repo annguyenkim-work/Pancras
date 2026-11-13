@@ -11,6 +11,13 @@ public sealed class ConfirmTransferShipmentCommandHandler(
     public async Task<Result<Guid>> HandleAsync(ConfirmTransferCommand command, CancellationToken cancellationToken)
     {
         var slip = await repository.FindTransferForUpdateAsync(command.TransferSlipId, cancellationToken);
+        if (slip is not null
+            && (!InventoryAccess.CanOperate(command.Actor.Role) || !InventoryAccess.CanAccessLocation(command.Actor, slip.SourceLocationId)))
+        {
+            logger.LogWarning("Shipment forbidden for employee {EmployeeId}.", command.Actor.Id);
+            return Result<Guid>.Fail(StockError.Forbidden);
+        }
+
         if (slip is null || slip.Status != TransferStatus.Draft)
         {
             logger.LogWarning("Shipment rejected for {TransferSlipId}.", command.TransferSlipId);

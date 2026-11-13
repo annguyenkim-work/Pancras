@@ -13,6 +13,7 @@ public sealed class StocktakeSheet
         Reason = string.Empty;
         DocumentRef = string.Empty;
         ImageRef = string.Empty;
+        CreatedByRole = string.Empty;
     }
 
     public Guid Id { get; private set; }
@@ -31,6 +32,8 @@ public sealed class StocktakeSheet
 
     public string ImageRef { get; private set; }
 
+    public string CreatedByRole { get; private set; }
+
     public ApprovalStatus Status { get; private set; }
 
     public int Variance => CountedQuantity - BookQuantity;
@@ -47,7 +50,7 @@ public sealed class StocktakeSheet
         out StocktakeSheet? sheet)
     {
         sheet = null;
-        if (!InventoryRoles.IsWarehouseKeeper(role))
+        if (!InventoryRoles.CanCountStock(role))
         {
             return StockDecision.WrongRole;
         }
@@ -72,14 +75,15 @@ public sealed class StocktakeSheet
             Reason = storedReason,
             DocumentRef = storedDocument,
             ImageRef = storedImage,
-            Status = ApprovalStatus.Pending
+            Status = InventoryRoles.IsFinance(role) ? ApprovalStatus.Approved : ApprovalStatus.Pending,
+            CreatedByRole = role ?? string.Empty
         };
         return StockDecision.Accepted;
     }
 
     public StockDecision Approve(string? role)
     {
-        if (!InventoryRoles.IsShowroomLead(role))
+        if (!InventoryRoles.IsShowroomLead(role) && !InventoryRoles.IsFinance(role))
         {
             return StockDecision.WrongRole;
         }

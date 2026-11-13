@@ -10,6 +10,7 @@ public static class StockErrorMessages
         StockError.ShipmentRejected => "Không đủ hàng để xuất.",
         StockError.MissingEvidence => "Cần lý do và chứng từ.",
         StockError.ApprovalForbidden => "Bạn không được duyệt phiếu này.",
+        StockError.Forbidden => "Bạn không có quyền thao tác với kho này.",
         StockError.NegativeStock => "Tồn không được âm.",
         StockError.DisposalRejected => "Tồn không được âm.",
         _ => null

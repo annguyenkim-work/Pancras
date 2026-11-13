@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Pancras.Domain.Employees;
 using Pancras.Domain.Inventory;
 
 namespace Pancras.Application.Inventory;
@@ -7,7 +8,18 @@ public sealed class ListInventoryDocumentsHandler(
     IInventoryRepository repository,
     ILogger<ListInventoryDocumentsHandler> logger)
 {
-    public async Task<IReadOnlyList<StockLocationChoice>> ListLocationsAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<StockLocationChoice>> ListLocationsAsync(EmployeeActor actor, CancellationToken cancellationToken)
+    {
+        var locations = await repository.ListLocationsAsync(cancellationToken);
+        return locations
+            .Where(location => InventoryAccess.Scope(actor) is not Guid scope || location.Id == scope)
+            .OrderBy(location => location.Name, StringComparer.Ordinal)
+            .Select(location => new StockLocationChoice(location.Id, location.Name, location.Kind))
+            .ToArray();
+    }
+
+    /// <summary>Mọi địa điểm, dùng làm nơi nhận của phiếu chuyển. Chỉ có tên và loại.</summary>
+    public async Task<IReadOnlyList<StockLocationChoice>> ListAllLocationsAsync(CancellationToken cancellationToken)
     {
         var locations = await repository.ListLocationsAsync(cancellationToken);
         return locations
@@ -22,11 +34,15 @@ public sealed class ListInventoryDocumentsHandler(
         return items.OrderBy(item => item.Name, StringComparer.Ordinal).ThenBy(item => item.Code, StringComparer.Ordinal).ToArray();
     }
 
-    public async Task<IReadOnlyList<TransferSlipRow>> ListTransfersAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<TransferSlipRow>> ListTransfersAsync(EmployeeActor actor, CancellationToken cancellationToken)
     {
-        var slips = await repository.ListTransfersAsync(cancellationToken);
+        var slips = InventoryAccess.CanOperate(actor.Role)
+            ? (await repository.ListTransfersAsync(cancellationToken))
+                .Where(slip => InventoryAccess.CanAccessLocation(actor, slip.SourceLocationId) || InventoryAccess.CanAccessLocation(actor, slip.DestinationLocationId))
+                .ToArray()
+            : [];
         var names = await NamesAsync(cancellationToken);
-        logger.LogInformation("Listed {TransferSlipCount} transfer slips.", slips.Count);
+        logger.LogInformation("Listed {TransferSlipCount} transfer slips.", slips.Length);
         return slips
             .OrderBy(slip => slip.Status == TransferStatus.InTransit ? 0 : slip.Status == TransferStatus.Draft ? 1 : 2)
             .ThenByDescending(slip => slip.Id)
@@ -45,9 +61,11 @@ public sealed class ListInventoryDocumentsHandler(
             .ToArray();
     }
 
-    public async Task<IReadOnlyList<StocktakeRow>> ListStocktakesAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<StocktakeRow>> ListStocktakesAsync(EmployeeActor actor, CancellationToken cancellationToken)
     {
-        var sheets = await repository.ListStocktakesAsync(cancellationToken);
+        var sheets = InventoryAccess.CanOperate(actor.Role)
+            ? (await repository.ListStocktakesAsync(cancellationToken)).Where(sheet => InventoryAccess.CanAccessLocation(actor, sheet.StockLocationId)).ToArray()
+            : [];
         var names = await NamesAsync(cancellationToken);
         return sheets.Select(sheet => new StocktakeRow(
             sheet.Id,
@@ -60,12 +78,15 @@ public sealed class ListInventoryDocumentsHandler(
             sheet.Reason,
             sheet.DocumentRef,
             sheet.Status,
-            names.Unit(sheet.CatalogItemId))).ToArray();
+            names.Unit(sheet.CatalogItemId),
+            sheet.Status == ApprovalStatus.Pending && InventoryAccess.CanApprove(actor, sheet.CreatedByRole, sheet.StockLocationId))).ToArray();
     }
 
-    public async Task<IReadOnlyList<AdjustmentRow>> ListAdjustmentsAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<AdjustmentRow>> ListAdjustmentsAsync(EmployeeActor actor, CancellationToken cancellationToken)
     {
-        var adjustments = await repository.ListAdjustmentsAsync(cancellationToken);
+        var adjustments = InventoryAccess.CanOperate(actor.Role)
+            ? (await repository.ListAdjustmentsAsync(cancellationToken)).Where(item => InventoryAccess.CanAccessLocation(actor, item.StockLocationId)).ToArray()
+            : [];
         var names = await NamesAsync(cancellationToken);
         return adjustments.Select(adjustment => new AdjustmentRow(
             adjustment.Id,
@@ -75,12 +96,15 @@ public sealed class ListInventoryDocumentsHandler(
             adjustment.Delta,
             adjustment.Reason,
             adjustment.DocumentRef,
-            adjustment.Status)).ToArray();
+            adjustment.Status,
+            adjustment.Status == ApprovalStatus.Pending && InventoryAccess.CanApproveAdjustment(actor.Role))).ToArray();
     }
 
-    public async Task<IReadOnlyList<DisposalRow>> ListDisposalsAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<DisposalRow>> ListDisposalsAsync(EmployeeActor actor, CancellationToken cancellationToken)
     {
-        var slips = await repository.ListDisposalsAsync(cancellationToken);
+        var slips = InventoryAccess.CanOperate(actor.Role)
+            ? (await repository.ListDisposalsAsync(cancellationToken)).Where(item => InventoryAccess.CanAccessLocation(actor, item.StockLocationId)).ToArray()
+            : [];
         var names = await NamesAsync(cancellationToken);
         return slips.Select(slip => new DisposalRow(
             slip.Id,
@@ -89,7 +113,8 @@ public sealed class ListInventoryDocumentsHandler(
             names.Item(slip.CatalogItemId),
             slip.Reason,
             slip.DocumentRef,
-            slip.Status)).ToArray();
+            slip.Status,
+            slip.Status == ApprovalStatus.Pending && InventoryAccess.CanApprove(actor, slip.CreatedByRole, slip.StockLocationId))).ToArray();
     }
 
     private async Task<NameMap> NamesAsync(CancellationToken cancellationToken)

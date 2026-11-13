@@ -61,7 +61,8 @@ internal sealed class FakeInventoryStore : IInventoryRepository
                 balance.OnHand,
                 balance.Reserved,
                 balance.Available,
-                balance.InTransit);
+                balance.InTransit,
+                CostPrice: item.CostPrice);
             if (filter.Matches(row))
             {
                 rows.Add(row);
@@ -203,4 +204,4 @@ internal sealed class FakeInventoryStore : IInventoryRepository
     }
 }
 
-internal sealed record StockItemInfo(Guid Id, string Code, string Name, string Brand, ProductCategory Category);
+internal sealed record StockItemInfo(Guid Id, string Code, string Name, string Brand, ProductCategory Category, decimal CostPrice = 0);

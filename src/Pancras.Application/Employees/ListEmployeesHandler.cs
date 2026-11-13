@@ -1,4 +1,6 @@
 using Microsoft.Extensions.Logging;
+using Pancras.Application.Locations;
+using Pancras.Domain.Employees;
 
 namespace Pancras.Application.Employees;
 
@@ -9,34 +11,51 @@ public sealed record EmployeeCard(
     string Role,
     string Email,
     string Phone,
-    string Branch,
+    Guid? StockLocationId,
+    string LocationName,
+    string Address,
     string JobTitle,
-    string Department);
+    string Department,
+    bool IsActive,
+    bool TwoFactorEnabled = false,
+    DateTimeOffset? LockedUntil = null);
 
 public sealed class ListEmployeesHandler(
     IEmployeeRepository repository,
+    ILocationRepository locations,
     ILogger<ListEmployeesHandler> logger)
 {
     public const int PageSize = 20;
 
     public async Task<IReadOnlyList<EmployeeCard>> HandleAsync(
-        string? name,
-        string? code,
+        EmployeeActor actor,
+        string? search,
         string? role,
-        string? branch,
+        Guid? locationId,
         CancellationToken cancellationToken)
     {
+        if (!EmployeeAccess.CanList(actor))
+        {
+            logger.LogWarning("Employee list forbidden for employee {EmployeeId}.", actor.Id);
+            return [];
+        }
+
+        var scope = EmployeeAccess.ListScope(actor);
+        if (EmployeeAccess.CanList(actor) && actor.Role == EmployeeRole.ShowroomWarehouseLead && scope is null)
+        {
+            return [];
+        }
+
+        var effectiveLocation = scope ?? locationId;
         var employees = await repository.ListReadOnlyAsync(cancellationToken);
-        var nameTerm = name?.Trim();
-        var codeTerm = code?.Trim();
+        var names = (await locations.ListAsync(cancellationToken)).ToDictionary(location => location.Id, location => location.Name);
+        var term = search?.Trim();
         var selectedRole = role?.Trim();
-        var branchTerm = branch?.Trim();
         var cards = employees
             .Where(employee =>
-                (string.IsNullOrEmpty(nameTerm) || employee.FullName.Contains(nameTerm, StringComparison.OrdinalIgnoreCase))
-                && (string.IsNullOrEmpty(codeTerm) || employee.Code.Contains(codeTerm, StringComparison.OrdinalIgnoreCase))
-                && (string.IsNullOrEmpty(selectedRole) || employee.Role == selectedRole)
-                && (string.IsNullOrEmpty(branchTerm) || employee.Branch.Contains(branchTerm, StringComparison.OrdinalIgnoreCase)))
+                (effectiveLocation is null || employee.StockLocationId == effectiveLocation)
+                && (string.IsNullOrEmpty(term) || employee.FullName.Contains(term, StringComparison.OrdinalIgnoreCase) || employee.Code.Contains(term, StringComparison.OrdinalIgnoreCase) || employee.Email.Contains(term, StringComparison.OrdinalIgnoreCase))
+                && (string.IsNullOrEmpty(selectedRole) || employee.Role == selectedRole))
             .OrderBy(employee => employee.FullName, StringComparer.OrdinalIgnoreCase)
             .Select(employee => new EmployeeCard(
                 employee.Id,
@@ -45,9 +64,14 @@ public sealed class ListEmployeesHandler(
                 employee.Role,
                 employee.Email,
                 employee.Phone,
-                employee.Branch,
+                employee.StockLocationId,
+                employee.StockLocationId is Guid id && names.TryGetValue(id, out var locationName) ? locationName : string.Empty,
+                employee.Address,
                 employee.JobTitle,
-                employee.Department))
+                employee.Department,
+                employee.IsActive,
+                employee.TwoFactorEnabled,
+                employee.LockedUntil))
             .ToArray();
         logger.LogInformation("Listed {EmployeeCount} employee cards.", cards.Length);
         return cards;

@@ -21,10 +21,10 @@
             <a href="@Model.AddUrl" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Thêm sản phẩm</a>
         </div>
     </div>
-    <form method="get" action="/catalog" class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-[14rem_1fr_auto] sm:items-end">
+    <form method="get" action="/catalog" data-live-filter class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-[14rem_1fr] sm:items-end">
         <div>
             <label class="block text-sm font-medium text-slate-600" for="catalog-category">Ngành</label>
-            <select id="catalog-category" name="category" class="@inputClass" onchange="this.form.requestSubmit()">
+            <select id="catalog-category" name="category" class="@inputClass">
                 @if (string.IsNullOrEmpty(Model.CategoryToken))
                 {
                     <option value="" selected>Tất cả</option>
@@ -61,14 +61,7 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-600" for="catalog-search">Tìm kiếm</label>
-            <input id="catalog-search" name="q" value="@Model.Search" placeholder="Mã, tên hoặc thương hiệu" class="@inputClass" />
-        </div>
-        <div class="flex gap-2">
-            <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Lọc</button>
-            @if (Model.HasFilter)
-            {
-                <a href="/catalog" class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 text-slate-600">Bỏ lọc</a>
-            }
+            <input id="catalog-search" name="q" value="@Model.Search" type="search" placeholder="Tìm theo mã, tên hoặc thương hiệu..." class="@inputClass" />
         </div>
     </form>
     @if (!string.IsNullOrEmpty(Model.Notice))
@@ -89,6 +82,7 @@
     }
 </section>
 
+<div id="live-results">
 @if (Model.Rows.Count == 0)
 {
     <partial name="_EmptyState" model='Model.HasFilter ? new EmptyStateModel("Không có mặt hàng khớp bộ lọc.", "Thử đổi ngành hoặc từ khóa tìm kiếm.", "Bỏ lọc", "/catalog") : new EmptyStateModel("Chưa có mặt hàng.", "Thêm sản phẩm đầu tiên để bắt đầu quản lý giá và tồn kho.", "Thêm sản phẩm", Model.AddUrl)' />
@@ -182,6 +176,7 @@ else
         </nav>
     }
 }
+</div>
 
 @if (Model.ShowForm)
 {

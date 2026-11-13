@@ -13,6 +13,7 @@ public sealed class StockLocationConfiguration : IEntityTypeConfiguration<StockL
         builder.HasKey(location => location.Id);
         builder.Property(location => location.Name).HasMaxLength(StockLocation.NameMaxLength).IsRequired();
         builder.Property(location => location.Kind).HasConversion<int>().IsRequired();
+        builder.HasIndex(location => location.Name).IsUnique();
     }
 }
 
@@ -94,6 +95,7 @@ public sealed class StocktakeSheetConfiguration : IEntityTypeConfiguration<Stock
         builder.Property(sheet => sheet.Reason).HasMaxLength(StocktakeSheet.ReasonMaxLength).IsRequired();
         builder.Property(sheet => sheet.DocumentRef).HasMaxLength(StocktakeSheet.DocumentRefMaxLength).IsRequired();
         builder.Property(sheet => sheet.ImageRef).HasMaxLength(StocktakeSheet.ImageRefMaxLength).IsRequired();
+        builder.Property(sheet => sheet.CreatedByRole).HasMaxLength(50).IsRequired();
         builder.Property(sheet => sheet.Status).HasConversion<int>().IsRequired();
         builder.Ignore(sheet => sheet.Variance);
         builder.HasOne<StockLocation>().WithMany().HasForeignKey(sheet => sheet.StockLocationId).OnDelete(DeleteBehavior.Restrict);
@@ -130,6 +132,7 @@ public sealed class DisposalSlipConfiguration : IEntityTypeConfiguration<Disposa
         builder.Property(slip => slip.Reason).HasMaxLength(StocktakeSheet.ReasonMaxLength).IsRequired();
         builder.Property(slip => slip.DocumentRef).HasMaxLength(StocktakeSheet.DocumentRefMaxLength).IsRequired();
         builder.Property(slip => slip.ImageRef).HasMaxLength(StocktakeSheet.ImageRefMaxLength).IsRequired();
+        builder.Property(slip => slip.CreatedByRole).HasMaxLength(50).IsRequired();
         builder.Property(slip => slip.Status).HasConversion<int>().IsRequired();
         builder.HasOne<StockLocation>().WithMany().HasForeignKey(slip => slip.StockLocationId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<CatalogItem>().WithMany().HasForeignKey(slip => slip.CatalogItemId).OnDelete(DeleteBehavior.Restrict);

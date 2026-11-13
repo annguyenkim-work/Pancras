@@ -4,27 +4,33 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Pancras.Application.Common;
 using Pancras.Application.Employees;
+using Pancras.Application.Locations;
 using Pancras.Domain.Employees;
+using Pancras.Domain.Inventory;
 using Pancras.Web.Security;
 
 namespace Pancras.Web.Pages.Employees;
 
-[Authorize]
+[Authorize(Roles = EmployeeAccess.ListRoles)]
 public class IndexModel(
     ListEmployeesHandler listEmployees,
     CreateEmployeeCommandHandler createEmployee,
     GetEmployeeHandler getEmployee,
-    UpdateEmployeeCommandHandler updateEmployee) : PageModel
+    UpdateEmployeeCommandHandler updateEmployee,
+    SetEmployeeActiveCommandHandler setActive,
+    UnlockEmployeeCommandHandler unlock,
+    ResetTwoFactorCommandHandler resetTwoFactor,
+    ListLocationsHandler listLocations) : PageModel
 {
     public IReadOnlyList<EmployeeCard> Cards { get; private set; } = [];
 
-    public string? Name { get; private set; }
+    public IReadOnlyList<StockLocation> Locations { get; private set; } = [];
 
-    public string? Code { get; private set; }
+    public string? Search { get; private set; }
 
     public string? Role { get; private set; }
 
-    public string? Branch { get; private set; }
+    public Guid? LocationFilter { get; private set; }
 
     public string? SignedInCode { get; private set; }
 
@@ -38,9 +44,33 @@ public class IndexModel(
 
     public string? EditCode { get; private set; }
 
+    public string? EditTargetRole { get; private set; }
+
     public EmployeeError Error { get; private set; }
 
-    public bool CanManage => User.IsInRole(EmployeeRole.Admin) || User.IsInRole(EmployeeRole.Director);
+    public EmployeeActor Actor => User.ToActor();
+
+    public bool CanCreate => EmployeeAccess.CanCreateAny(Actor);
+
+    public bool IsLead => Actor.Role == EmployeeRole.ShowroomWarehouseLead;
+
+    public IReadOnlyList<string> CreatableRoles => EmployeeAccess.CreatableRoles(Actor);
+
+    public bool CanEditPersonal => EditCommand.Id != Guid.Empty && EmployeeAccess.CanEditPersonal(Actor, EditCommand.Id);
+
+    public bool CanEditAssignment =>
+        EditCommand.Id != Guid.Empty && EmployeeAccess.CanEditAssignment(Actor, EditCommand.Id, EditTargetRole);
+
+    public bool CanResetPassword => EmployeeAccess.CanResetPassword(Actor);
+
+    public bool CanEdit(EmployeeCard card) =>
+        (EmployeeAccess.CanEditPersonal(Actor, card.Id) && card.Id != Actor.Id)
+        || EmployeeAccess.CanEditAssignment(Actor, card.Id, card.Role);
+
+    public bool CanToggle(EmployeeCard card) => EmployeeAccess.CanSetActive(Actor, card.Id, card.Role);
+
+    public IReadOnlyList<StockLocation> LocationChoices =>
+        IsLead && Actor.LocationId is Guid own ? Locations.Where(location => location.Id == own).ToArray() : Locations;
 
     [BindProperty]
     public CreateEmployeeCommand Command { get; set; } = new();
@@ -48,45 +78,41 @@ public class IndexModel(
     [BindProperty]
     public UpdateEmployeeCommand EditCommand { get; set; } = new();
 
-    public async Task OnGetAsync(string? name, string? code, string? role, string? branch, string? form, Guid? edit, int pageNumber = 1)
+    public async Task OnGetAsync(string? q, string? role, Guid? location, string? form, Guid? edit, int pageNumber = 1)
     {
-        ShowForm = form == "1" && edit is null;
-        await LoadAsync(name, code, role, branch, pageNumber, HttpContext.RequestAborted);
-        if (edit is Guid employeeId && employeeId != Guid.Empty && CanManage)
+        ShowForm = form == "1" && edit is null && CanCreate;
+        if (ShowForm && IsLead)
+        {
+            Command.StockLocationId = Actor.LocationId;
+        }
+
+        await LoadAsync(q, role, location, pageNumber, HttpContext.RequestAborted);
+        if (edit is Guid employeeId && employeeId != Guid.Empty)
         {
             await OpenEditAsync(employeeId, HttpContext.RequestAborted);
         }
     }
 
-    public async Task<IActionResult> OnPostCreateAsync(string? name, string? code, string? role, string? branch, CancellationToken cancellationToken)
+    public async Task<IActionResult> OnPostCreateAsync(string? q, string? role, Guid? location, CancellationToken cancellationToken)
     {
-        if (!CanManage)
-        {
-            return Forbid();
-        }
-
-        var result = await createEmployee.HandleAsync(Command, cancellationToken);
+        var result = await createEmployee.HandleAsync(Command, Actor, cancellationToken);
         if (result.IsFailure)
         {
             ShowForm = true;
             Error = result.EmployeeError;
-            await LoadAsync(name, code, role, branch, 1, cancellationToken);
+            await LoadAsync(q, role, location, 1, cancellationToken);
             return Page();
         }
 
         return Redirect(ListUrl());
     }
 
-    public async Task<IActionResult> OnPostUpdateAsync(string? name, string? code, string? role, string? branch, int pageNumber, CancellationToken cancellationToken)
+    public async Task<IActionResult> OnPostUpdateAsync(string? q, string? role, Guid? location, int pageNumber, CancellationToken cancellationToken)
     {
-        if (!CanManage)
-        {
-            return Forbid();
-        }
-
-        await LoadAsync(name, code, role, branch, pageNumber, cancellationToken);
-        var existing = await getEmployee.HandleAsync(EditCommand.Id, cancellationToken);
+        await LoadAsync(q, role, location, pageNumber, cancellationToken);
+        var existing = await getEmployee.HandleAsync(EditCommand.Id, Actor, cancellationToken);
         EditCode = existing.Value?.Code;
+        EditTargetRole = existing.Value?.Role;
         if (existing.IsFailure)
         {
             ShowEdit = true;
@@ -94,7 +120,7 @@ public class IndexModel(
             return Page();
         }
 
-        var result = await updateEmployee.HandleAsync(EditCommand, cancellationToken);
+        var result = await updateEmployee.HandleAsync(EditCommand, Actor, cancellationToken);
         if (result.IsFailure)
         {
             ShowEdit = true;
@@ -105,16 +131,63 @@ public class IndexModel(
         return Redirect(ListUrl());
     }
 
+    public async Task<IActionResult> OnPostSetActiveAsync(Guid id, bool active, string? q, string? role, Guid? location, int pageNumber, CancellationToken cancellationToken)
+    {
+        var result = await setActive.HandleAsync(id, active, Actor, cancellationToken);
+        if (result.IsFailure)
+        {
+            Error = result.EmployeeError;
+            await LoadAsync(q, role, location, pageNumber, cancellationToken);
+            return Page();
+        }
+
+        Search = q;
+        Role = role;
+        LocationFilter = location;
+        PageNumber = pageNumber;
+        return Redirect(ListUrl());
+    }
+
+    public Task<IActionResult> OnPostUnlockAsync(Guid id, string? q, string? role, Guid? location, int pageNumber, CancellationToken cancellationToken) =>
+        AdminActionAsync(unlock.HandleAsync(id, Actor, cancellationToken), q, role, location, pageNumber, cancellationToken);
+
+    public Task<IActionResult> OnPostResetTwoFactorAsync(Guid id, string? q, string? role, Guid? location, int pageNumber, CancellationToken cancellationToken) =>
+        AdminActionAsync(resetTwoFactor.HandleAsync(id, Actor, cancellationToken), q, role, location, pageNumber, cancellationToken);
+
+    private async Task<IActionResult> AdminActionAsync(
+        Task<Result<EmployeeProfile>> action,
+        string? q,
+        string? role,
+        Guid? location,
+        int pageNumber,
+        CancellationToken cancellationToken)
+    {
+        var result = await action;
+        Search = q;
+        Role = role;
+        LocationFilter = location;
+        PageNumber = pageNumber;
+        if (result.IsFailure)
+        {
+            Error = result.EmployeeError;
+            await LoadAsync(q, role, location, pageNumber, cancellationToken);
+            return Page();
+        }
+
+        return Redirect(ListUrl());
+    }
+
+    public bool IsLocked(EmployeeCard card) => card.LockedUntil is DateTimeOffset until && until > DateTimeOffset.UtcNow;
+
     public string PreviewCode =>
         EmployeeCodeGenerator.Attempts(Command.FullName ?? string.Empty).Select(attempt => attempt.Code).FirstOrDefault() ?? string.Empty;
 
     public string ListUrl()
     {
         var parts = new List<string>();
-        Add(parts, "name", Name);
-        Add(parts, "code", Code);
+        Add(parts, "q", Search);
         Add(parts, "role", Role);
-        Add(parts, "branch", Branch);
+        Add(parts, "location", LocationFilter?.ToString("D"));
         if (PageNumber > 1)
         {
             parts.Add("pageNumber=" + PageNumber.ToString(System.Globalization.CultureInfo.InvariantCulture));
@@ -139,7 +212,7 @@ public class IndexModel(
 
     private async Task OpenEditAsync(Guid employeeId, CancellationToken cancellationToken)
     {
-        var result = await getEmployee.HandleAsync(employeeId, cancellationToken);
+        var result = await getEmployee.HandleAsync(employeeId, Actor, cancellationToken);
         ShowEdit = true;
         if (result.IsFailure)
         {
@@ -148,6 +221,7 @@ public class IndexModel(
         }
 
         EditCode = result.Value!.Code;
+        EditTargetRole = result.Value.Role;
         EditCommand = new UpdateEmployeeCommand
         {
             Id = result.Value.Id,
@@ -155,7 +229,8 @@ public class IndexModel(
             Role = result.Value.Role,
             Email = result.Value.Email,
             Phone = result.Value.Phone,
-            Branch = result.Value.Branch,
+            Address = result.Value.Address,
+            StockLocationId = result.Value.StockLocationId,
             JobTitle = result.Value.JobTitle,
             Department = result.Value.Department
         };
@@ -169,14 +244,14 @@ public class IndexModel(
         }
     }
 
-    private async Task LoadAsync(string? name, string? code, string? role, string? branch, int page, CancellationToken cancellationToken)
+    private async Task LoadAsync(string? q, string? role, Guid? location, int page, CancellationToken cancellationToken)
     {
-        Name = name;
-        Code = code;
+        Search = q;
         Role = role;
-        Branch = branch;
+        LocationFilter = location;
         SignedInCode = User.FindFirstValue(EmployeeSessionClaims.EmployeeCode);
-        var cards = await listEmployees.HandleAsync(name, code, role, branch, cancellationToken);
+        Locations = await listLocations.HandleAsync(cancellationToken);
+        var cards = await listEmployees.HandleAsync(Actor, q, role, location, cancellationToken);
         PageCount = Math.Max(1, (cards.Count + ListEmployeesHandler.PageSize - 1) / ListEmployeesHandler.PageSize);
         PageNumber = page < 1 ? 1 : page > PageCount ? PageCount : page;
         Cards = cards.Skip((PageNumber - 1) * ListEmployeesHandler.PageSize).Take(ListEmployeesHandler.PageSize).ToArray();

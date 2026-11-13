@@ -7,6 +7,10 @@
         || User.IsInRole(EmployeeRole.Director)
         || User.IsInRole(EmployeeRole.Accountant);
     var currentPath = Context.Request.Path.Value ?? "/";
+    var roleName = User.FindFirstValue(ClaimTypes.Role);
+    var canManageSuppliers = SupplierAccess.CanManage(roleName);
+    var canViewLocations = LocationAccess.CanView(roleName);
+    var canListEmployees = User.IsInRole(EmployeeRole.Admin) || User.IsInRole(EmployeeRole.Director) || User.IsInRole(EmployeeRole.Accountant) || User.IsInRole(EmployeeRole.ShowroomWarehouseLead);
     bool IsSoon(string path) => Pancras.Web.Pages.ComingSoonModel.Routes.Contains(path, StringComparer.OrdinalIgnoreCase);
     string ItemClass(string path)
     {
@@ -42,7 +46,8 @@
             <img src="~/images/logo-pancras.png" asp-append-version="true" alt="" class="h-10 w-10 rounded-md shrink-0" />
             <span class="font-display font-bold truncate">PancrasERP</span>
         </a>
-        <form method="post" asp-page="/Account/Logout" class="ml-auto">
+        <a href="/profile" class="ml-auto mr-2 text-sm font-medium text-slate-800">Hồ sơ</a>
+        <form method="post" asp-page="/Account/Logout">
             <button type="submit" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Đăng xuất</button>
         </form>
     </div>
@@ -64,12 +69,18 @@
             </div>
             <div>
                 <div class="px-3 mb-1.5 text-[11px] font-bold tracking-wider text-slate-400">VẬN HÀNH KHO BÃI</div>
-                <a href="/inventory" class="@ItemClass("/inventory")"><span class="min-w-0 leading-snug">Quản lý Kho &amp; Điều chuyển</span>@SoonBadge("/inventory")</a>
+                @if (Pancras.Domain.Inventory.InventoryAccess.CanView(roleName))
+                {
+                    <a href="/inventory" class="@ItemClass("/inventory")"><span class="min-w-0 leading-snug">Quản lý Kho &amp; Điều chuyển</span>@SoonBadge("/inventory")</a>
+                }
                 @if (canPurchase)
                 {
                     <a href="/purchasing" class="@ItemClass("/purchasing")"><span class="min-w-0 leading-snug">Mua hàng &amp; Container Nhập</span>@SoonBadge("/purchasing")</a>
                 }
-                <a href="/suppliers" class="@ItemClass("/suppliers")"><span class="min-w-0 leading-snug">Nhà cung cấp nhập khẩu</span>@SoonBadge("/suppliers")</a>
+                @if (canManageSuppliers)
+                {
+                    <a href="/suppliers" class="@ItemClass("/suppliers")"><span class="min-w-0 leading-snug">Nhà cung cấp nhập khẩu</span>@SoonBadge("/suppliers")</a>
+                }
             </div>
             <div>
                 <div class="px-3 mb-1.5 text-[11px] font-bold tracking-wider text-slate-400">KINH DOANH &amp; PHÂN PHỐI</div>
@@ -92,9 +103,18 @@
             </div>
             <div>
                 <div class="px-3 mb-1.5 text-[11px] font-bold tracking-wider text-slate-400">QUẢN TRỊ NỘI BỘ</div>
-                <a href="/employees" class="@ItemClass("/employees")"><span class="min-w-0 leading-snug">Nhân sự &amp; Phân quyền</span>@SoonBadge("/employees")</a>
-                <a href="/locations" class="@ItemClass("/locations")"><span class="min-w-0 leading-snug">Kho &amp; Showroom</span>@SoonBadge("/locations")</a>
-                <a href="/audit" class="@ItemClass("/audit")"><span class="min-w-0 leading-snug">Nhật ký Hệ thống (Audit Log)</span>@SoonBadge("/audit")</a>
+                @if (canListEmployees)
+                {
+                    <a href="/employees" class="@ItemClass("/employees")"><span class="min-w-0 leading-snug">Nhân sự &amp; Phân quyền</span>@SoonBadge("/employees")</a>
+                }
+                @if (canViewLocations)
+                {
+                    <a href="/locations" class="@ItemClass("/locations")"><span class="min-w-0 leading-snug">Kho &amp; Showroom</span>@SoonBadge("/locations")</a>
+                }
+                @if (roleName is Pancras.Domain.Employees.EmployeeRole.Admin or Pancras.Domain.Employees.EmployeeRole.Director)
+                {
+                    <a href="/audit" class="@ItemClass("/audit")"><span class="min-w-0 leading-snug">Nhật ký Hệ thống (Audit Log)</span>@SoonBadge("/audit")</a>
+                }
             </div>
         </nav>
     </aside>
@@ -102,7 +122,7 @@
         <header class="no-print hidden lg:flex items-center justify-between h-16 px-6 bg-white border-b border-slate-200">
             <div class="text-sm text-slate-500">PancrasERP / @ViewData["Title"]</div>
             <div class="flex items-center gap-3">
-                <span class="text-sm font-medium text-slate-800">@User.Identity?.Name</span>
+                <a href="/profile" class="text-sm font-medium text-slate-800 hover:text-sky-700" title="Hồ sơ của tôi">@User.Identity?.Name</a>
                 <span class="px-2 py-1 text-xs font-bold rounded-full bg-sky-50 text-sky-700">@User.FindFirstValue(ClaimTypes.Role)</span>
                 <form method="post" asp-page="/Account/Logout">
                     <button type="submit" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Đăng xuất</button>
@@ -113,5 +133,6 @@
             @RenderBody()
         </main>
     </div>
+    <script src="~/js/live-filter.js" asp-append-version="true" defer></script>
 </body>
 </html>
