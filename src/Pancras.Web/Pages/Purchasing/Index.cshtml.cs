@@ -12,7 +12,7 @@ using Pancras.Web.Security;
 
 namespace Pancras.Web.Pages.Purchasing;
 
-[Authorize(Roles = PurchaseAccess.ManageRoles)]
+[Authorize(Roles = PurchaseAccess.ViewRoles)]
 public class IndexModel(
     ListPurchaseOrdersHandler listOrders,
     GetPurchaseOrderHandler getOrder,
@@ -23,6 +23,8 @@ public class IndexModel(
     OpenPurchaseAttachmentHandler openAttachment,
     DeletePurchaseAttachmentCommandHandler deleteAttachment,
     ReceivePurchaseOrderCommandHandler receiveOrder,
+    ChangePurchaseStatusCommandHandler changeStatus,
+    AdjustPurchaseCostCommandHandler adjustCost,
     ExportPurchaseOrderHandler exportOrder,
     ListSuppliersForPurchaseHandler listSuppliers,
     ListInventoryDocumentsHandler inventory,
@@ -33,6 +35,54 @@ public class IndexModel(
         new Dictionary<Guid, Pancras.Application.Catalog.CatalogItemMeasure>();
 
     private EmployeeActor Actor => User.ToActor();
+
+    /// <summary>Admin, Giám đốc, Kế toán: lập, sửa, chuyển trạng thái, điều chỉnh chi phí, xem giá. Kho chỉ xem đơn của kho mình và nhận hàng.</summary>
+    public bool CanManage => PurchaseAccess.CanManage(Actor);
+
+    /// <summary>Người dùng nhận được hàng của đơn đang chọn (quản lý, hoặc kho đúng kho nhận).</summary>
+    public bool CanReceiveSelected => Selected is { } order && PurchaseAccess.CanReceive(Actor, order.ReceiveLocationId);
+
+    /// <summary>Còn sửa được thông tin, mặt hàng, chi phí: trước lần nhận đầu tiên và chưa hủy (cùng quy tắc với <c>PurchaseOrder.IsEditable</c>).</summary>
+    public static bool IsEditable(PurchaseStatus status) =>
+        status is PurchaseStatus.Draft or PurchaseStatus.PendingApproval or PurchaseStatus.Approved or PurchaseStatus.InTransit;
+
+    public static bool IsReceivable(PurchaseStatus status) =>
+        status is PurchaseStatus.Approved or PurchaseStatus.InTransit or PurchaseStatus.PartiallyReceived;
+
+    public static string StatusLabel(PurchaseStatus status) => status switch
+    {
+        PurchaseStatus.Draft => "Nháp",
+        PurchaseStatus.PendingApproval => "Chờ duyệt",
+        PurchaseStatus.Approved => "Đã duyệt",
+        PurchaseStatus.InTransit => "Hàng đang về",
+        PurchaseStatus.PartiallyReceived => "Đã nhận một phần",
+        PurchaseStatus.Received => "Đã nhập kho",
+        PurchaseStatus.Cancelled => "Đã hủy",
+        _ => "Không rõ"
+    };
+
+    public static string StatusClass(PurchaseStatus status) => status switch
+    {
+        PurchaseStatus.Received => "bg-emerald-50 text-emerald-700",
+        PurchaseStatus.Cancelled => "bg-rose-50 text-rose-700",
+        PurchaseStatus.Draft => "bg-slate-100 text-slate-700",
+        PurchaseStatus.PendingApproval => "bg-sky-50 text-sky-700",
+        _ => "bg-amber-50 text-amber-700"
+    };
+
+    public static string EventLabel(PurchaseEventKind kind) => kind switch
+    {
+        PurchaseEventKind.Created => "Tạo đơn",
+        PurchaseEventKind.Submitted => "Gửi duyệt",
+        PurchaseEventKind.Approved => "Duyệt đơn",
+        PurchaseEventKind.ReturnedToDraft => "Trả về nháp",
+        PurchaseEventKind.InTransit => "Hàng đang về",
+        PurchaseEventKind.PartiallyReceived => "Nhận một phần",
+        PurchaseEventKind.Received => "Nhận đủ, đóng đơn",
+        PurchaseEventKind.Cancelled => "Hủy đơn",
+        PurchaseEventKind.CostAdjusted => "Điều chỉnh chi phí",
+        _ => "Cập nhật"
+    };
 
     private bool NeedMeasures { get; set; }
 
@@ -73,6 +123,13 @@ public class IndexModel(
 
     public async Task OnGetAsync(Guid? id, Guid? order, Guid? formula, string? form, string? notice, string? error, Guid? edit)
     {
+        // Kho không lập hay sửa đơn: bỏ qua ?form và ?edit để họ không thấy form (handler cũng chặn).
+        if (!CanManage)
+        {
+            form = null;
+            edit = null;
+        }
+
         ShowForm = string.Equals(form, "1", StringComparison.Ordinal);
         NeedMeasures = ShowForm || edit is not null;
         Notice = notice switch
@@ -85,6 +142,12 @@ public class IndexModel(
             "group-saved" => "Đã cập nhật nhóm chi phí.",
             "attachment-added" => "Đã đính kèm chứng từ.",
             "attachment-deleted" => "Đã xóa chứng từ.",
+            "submitted" => "Đã gửi duyệt.",
+            "approved" => "Đã duyệt đơn.",
+            "returned" => "Đã trả đơn về nháp.",
+            "in-transit" => "Đã đánh dấu hàng đang về.",
+            "cancelled" => "Đã hủy đơn.",
+            "cost-adjusted" => "Đã ghi điều chỉnh chi phí.",
             _ => null
         };
         if (!string.IsNullOrEmpty(error) && Enum.TryParse<PurchaseError>(error, out var parsed) && parsed != PurchaseError.None)
@@ -99,7 +162,7 @@ public class IndexModel(
         }
 
         await LoadAsync(selected, formula);
-        if (edit is not null && Selected is { Status: PurchaseStatus.Open } editing && editing.Id == edit)
+        if (edit is not null && Selected is { } editing && IsEditable(editing.Status) && editing.Id == edit)
         {
             ShowForm = true;
             EditingId = editing.Id;
@@ -291,6 +354,37 @@ public class IndexModel(
         return Redirect($"/purchasing?order={orderId}&notice=received");
     }
 
+    /// <summary>Gửi duyệt, duyệt, trả về nháp, đánh dấu hàng đang về, hủy. Trả về nháp và hủy phải có lý do.</summary>
+    public async Task<IActionResult> OnPostChangeStatusAsync(Guid orderId, PurchaseStatusAction action, string? note)
+    {
+        var result = await changeStatus.HandleAsync(new ChangePurchaseStatusCommand(orderId, Actor, action, note), HttpContext.RequestAborted);
+        if (result.IsFailure)
+        {
+            return Redirect($"/purchasing?order={orderId}&error={result.PurchaseError}");
+        }
+
+        var notice = action switch
+        {
+            PurchaseStatusAction.Submit => "submitted",
+            PurchaseStatusAction.Approve => "approved",
+            PurchaseStatusAction.ReturnToDraft => "returned",
+            PurchaseStatusAction.MarkInTransit => "in-transit",
+            _ => "cancelled"
+        };
+        return Redirect($"/purchasing?order={orderId}&notice={notice}");
+    }
+
+    /// <summary>Điều chỉnh chi phí sau khi đơn đã nhận đủ (hóa đơn về muộn). Số tiền có dấu: dương tăng giá vốn, âm giảm.</summary>
+    public async Task<IActionResult> OnPostAdjustCostAsync(Guid orderId, string? label, decimal amount, ChargeSplitMethod method, string? reason)
+    {
+        var result = await adjustCost.HandleAsync(
+            new AdjustPurchaseCostCommand { Actor = Actor, PurchaseOrderId = orderId, Label = label, Amount = amount, Method = method, Reason = reason },
+            HttpContext.RequestAborted);
+        return result.IsFailure
+            ? Redirect($"/purchasing?order={orderId}&error={result.PurchaseError}")
+            : Redirect($"/purchasing?order={orderId}&notice=cost-adjusted");
+    }
+
     public async Task<IActionResult> OnPostExportAsync(Guid orderId)
     {
         if (orderId == Guid.Empty)
@@ -326,7 +420,7 @@ public class IndexModel(
     private async Task LoadAsync(Guid? id, Guid? formula)
     {
         var cancellationToken = HttpContext.RequestAborted;
-        var allOrders = await listOrders.HandleAsync(cancellationToken);
+        var allOrders = await listOrders.HandleAsync(Actor, cancellationToken);
         HasAnyOrders = allOrders.Count > 0;
         var term = Search?.Trim();
         if (SupplierFilter is Guid supplierId)
@@ -357,7 +451,7 @@ public class IndexModel(
 
         if (id is Guid selected && selected != Guid.Empty)
         {
-            Selected = await getOrder.HandleAsync(selected, cancellationToken);
+            Selected = await getOrder.HandleAsync(selected, Actor, cancellationToken);
             if (Selected is not null)
             {
                 Attachments = await listAttachments.HandleAsync(Selected.Id, cancellationToken);

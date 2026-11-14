@@ -30,6 +30,13 @@ public static class PurchaseErrorMessages
         PurchaseError.AttachmentInvalid => "File không hợp lệ. Chỉ nhận PDF, JPG, PNG, Excel (xlsx), Word (docx), và nội dung phải đúng định dạng.",
         PurchaseError.AttachmentTooLarge => "File quá lớn. Tối đa 10 MB mỗi file.",
         PurchaseError.AttachmentLimit => "Đơn đã đủ số file đính kèm tối đa (30).",
+        PurchaseError.NotReceivable => "Đơn chưa được duyệt, đã nhận đủ hoặc đã hủy nên chưa nhận hàng được.",
+        PurchaseError.InvalidReceiptQuantity => "Số thực nhận không hợp lệ.",
+        PurchaseError.ReceiptNoteRequired => "Lần nhận cuối lệch số đặt: cần ghi lý do.",
+        PurchaseError.InvalidTransition => "Trạng thái hiện tại của đơn không cho phép bước này. Tải lại trang để xem trạng thái mới nhất.",
+        PurchaseError.ReasonRequired => "Cần ghi lý do.",
+        PurchaseError.NotEditable => "Đơn đã có lần nhận hàng hoặc đã hủy nên không sửa được nữa.",
+        PurchaseError.AdjustmentInvalid => "Khoản điều chỉnh không hợp lệ: đơn phải nhận đủ, số tiền khác 0, có tên khoản và lý do, và chọn cách chia khác \"Nhập tay\".",
         PurchaseError.Forbidden => "Bạn không có quyền thực hiện thao tác này.",
         PurchaseError.AttachmentNotFound => "Không tìm thấy chứng từ.",
         _ => Generic

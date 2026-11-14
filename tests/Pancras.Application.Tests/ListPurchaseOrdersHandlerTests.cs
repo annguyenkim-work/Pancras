@@ -32,7 +32,7 @@ public class ListPurchaseOrdersHandlerTests
         orders.Orders.Add(order);
         var handler = new ListPurchaseOrdersHandler(orders, suppliers, inventory, NullLogger<ListPurchaseOrdersHandler>.Instance);
 
-        var list = await handler.HandleAsync(CancellationToken.None);
+        var list = await handler.HandleAsync(TestActors.Accountant, CancellationToken.None);
 
         var row = Assert.Single(list);
         Assert.Equal("PO-1", row.Code);
@@ -51,7 +51,7 @@ public class ListPurchaseOrdersHandlerTests
             new FakeInventoryStore(),
             NullLogger<ListPurchaseOrdersHandler>.Instance);
 
-        var list = await handler.HandleAsync(CancellationToken.None);
+        var list = await handler.HandleAsync(TestActors.Accountant, CancellationToken.None);
 
         Assert.Empty(list);
     }
@@ -84,7 +84,7 @@ public class ListPurchaseOrdersHandlerTests
         orders.Orders.Add(order);
         var handler = new GetPurchaseOrderHandler(orders, suppliers, inventory, NullLogger<GetPurchaseOrderHandler>.Instance);
 
-        var detail = await handler.HandleAsync(order.Id, CancellationToken.None);
+        var detail = await handler.HandleAsync(order.Id, TestActors.Accountant, CancellationToken.None);
 
         Assert.NotNull(detail);
         Assert.Equal(2, detail.Lines.Count);

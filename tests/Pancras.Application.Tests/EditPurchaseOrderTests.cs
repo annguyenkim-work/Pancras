@@ -282,7 +282,7 @@ public class EditPurchaseOrderTests
     public async Task AReceivedOrder_CannotBeEdited_NorLoseCharges()
     {
         AddFobCharge();
-        Assert.True(_order.TryReceive());
+        _order.ReceiveAll();
 
         var edit = await Update().HandleAsync(Command(Keep(0, 9, 10m), Keep(1, 3, 30m)), CancellationToken.None);
         var delete = await Update().HandleAsync(WithCharges(), CancellationToken.None);

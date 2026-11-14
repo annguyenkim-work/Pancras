@@ -38,12 +38,12 @@ public class PurchaseAuditStampTests
         Assert.Equal(T0.AddHours(1), order.UpdatedAt);
         Assert.Equal("Kế toán 1", order.UpdatedBy);
 
-        Assert.True(order.TryReceive(T0.AddHours(2), "Thủ kho"));
+        var undo = order.ReceiveAll(T0.AddHours(2), "Thủ kho");
         Assert.Equal(T0.AddHours(2), order.ReceivedAt);
         Assert.Equal("Thủ kho", order.ReceivedBy);
         Assert.Equal(T0.AddHours(2), order.UpdatedAt);
 
-        order.RestoreOpen();
+        order.UndoReceipt(undo);
         Assert.Null(order.ReceivedAt);
         Assert.Equal(string.Empty, order.ReceivedBy);
     }
@@ -104,6 +104,7 @@ public class PurchaseAuditStampTests
         var orders = new FakePurchaseStore();
         var order = PurchaseOrder.TryCreate("PO-R", Guid.CreateVersion7(), warehouse.Id, "CONT", null, null, null, 1m, 0m, [(item.Id, 2, 50m, 0m, 0m, 0m, 0m)], true, T0, "AnNK")!;
         orders.Orders.Add(order);
+        order.Approve();
         var handler = new ReceivePurchaseOrderCommandHandler(
             orders, new FakeInventoryStore(), catalog, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance,
             new TestClock(T0.AddDays(1)), null, new FakeRequestInfo("Thukho1"));

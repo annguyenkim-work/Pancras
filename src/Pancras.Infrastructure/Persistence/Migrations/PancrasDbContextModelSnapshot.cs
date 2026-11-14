@@ -1227,6 +1227,98 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                     b.ToTable("purchase_charge_share", (string)null);
                 });
 
+            modelBuilder.Entity("Pancras.Domain.Purchasing.PurchaseCostAdjustment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric(18,0)")
+                        .HasColumnName("amount");
+
+                    b.Property<decimal>("AppliedToStock")
+                        .HasColumnType("numeric(18,0)")
+                        .HasColumnName("applied_to_stock");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("label");
+
+                    b.Property<int>("Method")
+                        .HasColumnType("integer")
+                        .HasColumnName("method");
+
+                    b.Property<Guid>("PurchaseOrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("purchase_order_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.HasKey("Id")
+                        .HasName("pk_purchase_cost_adjustment");
+
+                    b.HasIndex("PurchaseOrderId")
+                        .HasDatabaseName("ix_purchase_cost_adjustment_purchase_order_id");
+
+                    b.ToTable("purchase_cost_adjustment", (string)null);
+                });
+
+            modelBuilder.Entity("Pancras.Domain.Purchasing.PurchaseEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ActorCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("actor_code");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Note")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<Guid>("PurchaseOrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("purchase_order_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_purchase_event");
+
+                    b.HasIndex("PurchaseOrderId")
+                        .HasDatabaseName("ix_purchase_event_purchase_order_id");
+
+                    b.ToTable("purchase_event", (string)null);
+                });
+
             modelBuilder.Entity("Pancras.Domain.Purchasing.PurchaseLine", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1236,6 +1328,10 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("CatalogItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("catalog_item_id");
+
+                    b.Property<decimal>("CostedAmount")
+                        .HasColumnType("numeric(18,0)")
+                        .HasColumnName("costed_amount");
 
                     b.Property<decimal>("DutyRate")
                         .HasColumnType("numeric(9,4)")
@@ -1256,6 +1352,10 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                     b.Property<int>("Quantity")
                         .HasColumnType("integer")
                         .HasColumnName("quantity");
+
+                    b.Property<int>("ReceivedQuantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("received_quantity");
 
                     b.Property<decimal>("SpecialConsumptionTax")
                         .HasColumnType("numeric(18,0)")
@@ -1315,6 +1415,16 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                     b.Property<decimal>("ExchangeRate")
                         .HasColumnType("numeric(18,0)")
                         .HasColumnName("exchange_rate");
+
+                    b.Property<DateOnly?>("ExchangeRateOn")
+                        .HasColumnType("date")
+                        .HasColumnName("exchange_rate_on");
+
+                    b.Property<string>("ExchangeRateSource")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("exchange_rate_source");
 
                     b.Property<DateOnly?>("ExpectedOn")
                         .HasColumnType("date")
@@ -1700,6 +1810,26 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_purchase_charge_share_purchase_charge_purchase_charge_id");
                 });
 
+            modelBuilder.Entity("Pancras.Domain.Purchasing.PurchaseCostAdjustment", b =>
+                {
+                    b.HasOne("Pancras.Domain.Purchasing.PurchaseOrder", null)
+                        .WithMany("Adjustments")
+                        .HasForeignKey("PurchaseOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_purchase_cost_adjustment_purchase_orders_purchase_order_id");
+                });
+
+            modelBuilder.Entity("Pancras.Domain.Purchasing.PurchaseEvent", b =>
+                {
+                    b.HasOne("Pancras.Domain.Purchasing.PurchaseOrder", null)
+                        .WithMany("Events")
+                        .HasForeignKey("PurchaseOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_purchase_event_purchase_orders_purchase_order_id");
+                });
+
             modelBuilder.Entity("Pancras.Domain.Purchasing.PurchaseLine", b =>
                 {
                     b.HasOne("Pancras.Domain.Catalog.CatalogItem", null)
@@ -1746,7 +1876,11 @@ namespace Pancras.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Pancras.Domain.Purchasing.PurchaseOrder", b =>
                 {
+                    b.Navigation("Adjustments");
+
                     b.Navigation("Charges");
+
+                    b.Navigation("Events");
 
                     b.Navigation("Lines");
                 });

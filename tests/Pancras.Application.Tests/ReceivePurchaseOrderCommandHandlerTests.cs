@@ -35,6 +35,7 @@ public class ReceivePurchaseOrderCommandHandlerTests
             0.10m,
             [(item.Id, 3, 100m, 0m, 0m, 0m, 0m)])!;
         orders.Orders.Add(order);
+        order.Approve();
         var handler = new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance);
 
         var first = await handler.HandleAsync(new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant), CancellationToken.None);
@@ -70,6 +71,7 @@ public class ReceivePurchaseOrderCommandHandlerTests
         Assert.True(order.TryAddCharge(20m, ChargeSplitMethod.FobValue, out var chargeId, "THC"));
         Assert.True(order.TryAllocate(chargeId, new Dictionary<Guid, decimal> { [order.Lines[0].Id] = 100m }, false));
         orders.Orders.Add(order);
+        order.Approve();
         var receive = new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance);
 
         var blocked = await receive.HandleAsync(new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant), CancellationToken.None);
@@ -94,12 +96,13 @@ public class ReceivePurchaseOrderCommandHandlerTests
         var orders = new FakePurchaseStore();
         var order = PurchaseOrder.TryCreate("PO-0", Guid.CreateVersion7(), warehouse.Id, "CONT", null, null, null, 25000m, 0m, [(item.Id, 10, 0m, 0m, 0m, 0m, 0m)])!;
         orders.Orders.Add(order);
+        order.Approve();
 
         var result = await new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance)
             .HandleAsync(new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant), CancellationToken.None);
 
         Assert.Equal(PurchaseError.ZeroPrice, result.PurchaseError);
-        Assert.Equal(PurchaseStatus.Open, order.Status);
+        Assert.Equal(PurchaseStatus.Approved, order.Status);
         Assert.Equal(500m, item.CostPrice);
     }
 
@@ -124,6 +127,7 @@ public class ReceivePurchaseOrderCommandHandlerTests
             0m,
             [(item.Id, 3, 100m, 0m, 0m, 0m, 0m)])!;
         orders.Orders.Add(order);
+        order.Approve();
 
         var result = await new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance)
             .HandleAsync(new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant), CancellationToken.None);

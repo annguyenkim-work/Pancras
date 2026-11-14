@@ -154,9 +154,9 @@ public class PurchaseAttachmentTests
     {
         var id = (await UploadAsync("a.pdf", Pdf)).Value;
 
-        var opened = await new OpenPurchaseAttachmentHandler(_store, _store, NullLogger<OpenPurchaseAttachmentHandler>.Instance, null, _audit)
+        var opened = await new OpenPurchaseAttachmentHandler(_orders, _store, _store, NullLogger<OpenPurchaseAttachmentHandler>.Instance, null, _audit)
             .HandleAsync(id, TestActors.Accountant, CancellationToken.None);
-        var missing = await new OpenPurchaseAttachmentHandler(_store, _store, NullLogger<OpenPurchaseAttachmentHandler>.Instance)
+        var missing = await new OpenPurchaseAttachmentHandler(_orders, _store, _store, NullLogger<OpenPurchaseAttachmentHandler>.Instance)
             .HandleAsync(Guid.CreateVersion7(), TestActors.Accountant, CancellationToken.None);
 
         Assert.True(opened.IsSuccess);
@@ -169,14 +169,32 @@ public class PurchaseAttachmentTests
     }
 
     [Fact]
+    public async Task Opening_ByWarehouseStaff_IsAllowedOnlyForVisibleOrdersOfTheirOwnLocation()
+    {
+        var id = (await UploadAsync("a.pdf", Pdf)).Value;
+        var handler = new OpenPurchaseAttachmentHandler(_orders, _store, _store, NullLogger<OpenPurchaseAttachmentHandler>.Instance);
+        var mine = TestActors.Keeper(_order.ReceiveLocationId);
+        var elsewhere = TestActors.Keeper(Guid.CreateVersion7());
+
+        var whileDraft = await handler.HandleAsync(id, mine, CancellationToken.None);
+        _order.Approve();
+        var approvedMine = await handler.HandleAsync(id, mine, CancellationToken.None);
+        var approvedElsewhere = await handler.HandleAsync(id, elsewhere, CancellationToken.None);
+
+        Assert.Equal(PurchaseError.AttachmentNotFound, whileDraft.PurchaseError);
+        Assert.True(approvedMine.IsSuccess);
+        Assert.Equal(PurchaseError.AttachmentNotFound, approvedElsewhere.PurchaseError);
+    }
+
+    [Fact]
     public async Task Deleting_IsAllowedOnlyWhileTheOrderIsOpen()
     {
         var id = (await UploadAsync("a.pdf", Pdf)).Value;
         var delete = new DeletePurchaseAttachmentCommandHandler(_orders, _store, _store, NullLogger<DeletePurchaseAttachmentCommandHandler>.Instance, null, _audit);
-        Assert.True(_order.TryReceive());
+        var undo = _order.ReceiveAll();
 
         var locked = await delete.HandleAsync(id, TestActors.Accountant, CancellationToken.None);
-        _order.RestoreOpen();
+        _order.UndoReceipt(undo);
         var removed = await delete.HandleAsync(id, TestActors.Accountant, CancellationToken.None);
 
         Assert.Equal(PurchaseError.AlreadyReceived, locked.PurchaseError);

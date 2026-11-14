@@ -139,7 +139,9 @@ public sealed class ListPurchaseAttachmentsHandler(IPurchaseAttachmentRepository
             .ToArray();
 }
 
+/// <summary>Tải chứng từ: vai trò quản lý tải mọi file; kho tải mọi file của đơn mà mình được xem (đơn đã duyệt trở đi của kho mình).</summary>
 public sealed class OpenPurchaseAttachmentHandler(
+    IPurchaseOrderRepository orders,
     IPurchaseAttachmentRepository attachments,
     IAttachmentStorage storage,
     ILogger<OpenPurchaseAttachmentHandler> logger,
@@ -149,7 +151,7 @@ public sealed class OpenPurchaseAttachmentHandler(
 {
     public async Task<Result<AttachmentDownload>> HandleAsync(Guid attachmentId, Pancras.Domain.Employees.EmployeeActor actor, CancellationToken cancellationToken)
     {
-        if (!PurchaseAccess.CanManage(actor))
+        if (!PurchaseAccess.CanManage(actor) && !PurchaseAccess.IsWarehouseStaff(actor))
         {
             return Result<AttachmentDownload>.Fail(PurchaseError.Forbidden);
         }
@@ -158,6 +160,16 @@ public sealed class OpenPurchaseAttachmentHandler(
         if (attachment is null)
         {
             return Result<AttachmentDownload>.Fail(PurchaseError.AttachmentNotFound);
+        }
+
+        if (!PurchaseAccess.CanManage(actor))
+        {
+            // Kho: chỉ tải file của đơn mình được xem. Không phân biệt "không có" với "không được xem" để không lộ đơn.
+            var order = await orders.FindReadOnlyAsync(attachment.PurchaseOrderId, cancellationToken);
+            if (order is null || !PurchaseAccess.CanView(actor, order.ReceiveLocationId, order.Status))
+            {
+                return Result<AttachmentDownload>.Fail(PurchaseError.AttachmentNotFound);
+            }
         }
 
         var content = await storage.OpenReadAsync(attachment.StoredName, cancellationToken);

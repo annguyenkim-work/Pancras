@@ -59,7 +59,9 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
             25000m,
             0.10m,
             [(Guid.CreateVersion7(), 1, 10m, 0.05m, 0m, 0m, 0m)])!;
-        Assert.True(order.TryReceive());
+        Assert.True(order.TrySubmit());
+        Assert.True(order.TryApprove());
+        Assert.Equal(ReceiptDecision.Ok, order.TryRecordReceipt(order.Lines.ToDictionary(line => line.Id, line => line.Quantity), true, null, DateTimeOffset.UtcNow, "mua", out _, out _));
         orders.Orders.Add(order);
         await SignInAsync(client);
 
@@ -256,6 +258,117 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         return form;
     }
 
+    private static PurchaseOrder NewOrder(string code, Guid receiveLocation)
+    {
+        var order = PurchaseOrder.TryCreate(
+            code,
+            Guid.CreateVersion7(),
+            receiveLocation,
+            "CONT",
+            "BL",
+            "Hải Phòng",
+            new DateOnly(2026, 11, 12),
+            25000m,
+            0.10m,
+            [(Guid.CreateVersion7(), 4, 10m, 0.05m, 0m, 0m, 0m)])!;
+        return order;
+    }
+
+    [Fact]
+    public async Task WarehouseKeeper_OpensThePage_SeesOnlyApprovedOrdersOfTheirOwnLocation_WithoutAnyPrice()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var mine = Guid.CreateVersion7();
+        var approvedMine = NewOrder("PO-KHO-CUA-TOI", mine);
+        Assert.True(approvedMine.TrySubmit());
+        Assert.True(approvedMine.TryApprove());
+        var draftMine = NewOrder("PO-NHAP-CUA-TOI", mine);
+        var approvedElsewhere = NewOrder("PO-KHO-KHAC", Guid.CreateVersion7());
+        Assert.True(approvedElsewhere.TrySubmit());
+        Assert.True(approvedElsewhere.TryApprove());
+        orders.Orders.AddRange([approvedMine, draftMine, approvedElsewhere]);
+        await SignInAsync(client, EmployeeRole.WarehouseKeeper, mine);
+
+        var page = await client.GetAsync("/purchasing?order=" + approvedMine.Id);
+        var text = System.Net.WebUtility.HtmlDecode(await page.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        Assert.Contains("PO-KHO-CUA-TOI", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("PO-NHAP-CUA-TOI", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("PO-KHO-KHAC", text, StringComparison.Ordinal);
+        Assert.Contains("Nhập Kho & Cập Nhật Giá Vốn", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Giá FOB", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Tỷ giá", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Tạo Đơn Mua Hàng", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("id=\"order-workflow\"", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Sửa đơn", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task WarehouseKeeper_CannotOpenTheCreateOrEditForm_NorStartAWorkflowStep()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var mine = Guid.CreateVersion7();
+        var order = NewOrder("PO-KHO", mine);
+        Assert.True(order.TrySubmit());
+        Assert.True(order.TryApprove());
+        orders.Orders.Add(order);
+        await SignInAsync(client, EmployeeRole.WarehouseKeeper, mine);
+
+        var formPage = await client.GetAsync("/purchasing?form=1");
+        var editPage = await client.GetAsync("/purchasing?edit=" + order.Id);
+        var html = await formPage.Content.ReadAsStringAsync() + await editPage.Content.ReadAsStringAsync();
+
+        Assert.DoesNotContain("id=\"purchase-draft\"", html, StringComparison.Ordinal);
+        Assert.Equal(PurchaseStatus.Approved, order.Status);
+    }
+
+    [Fact]
+    public async Task Accountant_SeesTheWorkflowButtonsOfTheCurrentStatus()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var draft = NewOrder("PO-NHAP", Guid.CreateVersion7());
+        var pending = NewOrder("PO-CHO-DUYET", Guid.CreateVersion7());
+        Assert.True(pending.TrySubmit());
+        orders.Orders.AddRange([draft, pending]);
+        await SignInAsync(client, EmployeeRole.Accountant);
+
+        var draftText = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?order=" + draft.Id)).Content.ReadAsStringAsync());
+        var pendingText = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?order=" + pending.Id)).Content.ReadAsStringAsync());
+
+        Assert.Contains("Gửi duyệt", draftText, StringComparison.Ordinal);
+        Assert.DoesNotContain("Duyệt đơn", draftText, StringComparison.Ordinal);
+        Assert.Contains("Duyệt đơn", pendingText, StringComparison.Ordinal);
+        Assert.Contains("Trả về nháp", pendingText, StringComparison.Ordinal);
+        Assert.Contains("Hủy đơn", pendingText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SubmittingFromThePage_MovesTheOrderToPendingApproval()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var order = NewOrder("PO-GUI", Guid.CreateVersion7());
+        orders.Orders.Add(order);
+        await SignInAsync(client, EmployeeRole.Accountant);
+        var html = await (await client.GetAsync("/purchasing?order=" + order.Id)).Content.ReadAsStringAsync();
+        var token = Regex.Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+
+        var response = await client.PostAsync("/purchasing?handler=ChangeStatus", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = token,
+            ["orderId"] = order.Id.ToString(),
+            ["action"] = ((int)PurchaseStatusAction.Submit).ToString()
+        }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Contains("notice=submitted", response.Headers.Location?.OriginalString, StringComparison.Ordinal);
+        Assert.Equal(PurchaseStatus.PendingApproval, order.Status);
+    }
+
     private PurchaseDirectoryDouble Reset()
     {
         var orders = _factory.Services.GetRequiredService<PurchaseDirectoryDouble>();
@@ -265,11 +378,11 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         return orders;
     }
 
-    private async Task SignInAsync(HttpClient client)
+    private async Task SignInAsync(HttpClient client, string role = EmployeeRole.Admin, Guid? locationId = null)
     {
         var employees = _factory.Services.GetRequiredService<FakeEmployeeRepository>();
         var hasher = _factory.Services.GetRequiredService<FakePasswordHasher>();
-        employees.Employees.Add(Employee.Create("mua", "mua", "MUA", hasher.Hash("Admin@12345"), EmployeeRole.Admin));
+        employees.Employees.Add(Employee.Create("mua", "mua", "MUA", hasher.Hash("Admin@12345"), role, stockLocationId: locationId));
         var login = await client.GetAsync("/login");
         var html = await login.Content.ReadAsStringAsync();
         var token = Regex.Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
