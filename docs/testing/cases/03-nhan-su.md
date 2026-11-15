@@ -14,7 +14,7 @@ Thành phần màn hình:
 ### 1.1 Danh sách, tìm, lọc
 | ID | P | Bước | Kỳ vọng | KQ |
 |---|---|---|---|---|
-| EMP-01 | P2 | Tìm theo tên có dấu / không dấu / một phần mã / email | Ra đúng nhân viên | ☐ |
+| EMP-01 | P2 | Tìm theo tên có dấu / không dấu / một phần mã / email | Ra đúng nhân viên. Tìm "do" ra "Đỗ" là do khớp mã DoZTR, không phải bỏ dấu trên tên | ☐ |
 | EMP-02 | P2 | Lọc Vai trò, lọc Kho, kết hợp cả hai + từ khóa | Kết quả là giao của các điều kiện | ☐ |
 | EMP-03 | P2 | Lọc không ra kết quả | "Chưa có nhân viên khớp bộ lọc." + nút "Bỏ lọc" | ☐ |
 | EMP-04 | P2 | Sang trang 2 rồi bấm Sửa / Ngừng hoạt động | Sau khi lưu vẫn ở trang 2 và giữ bộ lọc | ☐ |
@@ -28,7 +28,7 @@ Thành phần màn hình:
 | EMP-11 | P1 | Tạo thêm 1 người cùng họ tên | Mã có hậu tố số (ví dụ `AnNK2`) | ☐ |
 | EMP-12 | P2 | Gõ họ tên → ô Mã nhân viên | Xem trước mã ngay khi gõ; ô mã không sửa tay được | ☐ |
 | EMP-13 | P2 | Họ tên 1 từ ("An"), có dấu ("Đỗ Thị Ánh"), có số/ký tự lạ, toàn ký tự đặc biệt | Sinh mã hợp lý hoặc báo "tên không dùng được" – không lỗi 500 | ☐ |
-| EMP-14 | P1 | Bỏ trống lần lượt Họ tên / Email / Điện thoại / Vai trò / Chức vụ / Mật khẩu | Báo thiếu, không tạo | ☐ |
+| EMP-14 | P1 | Bỏ trống lần lượt Họ tên / Email / Điện thoại / Vai trò / Chức vụ / Mật khẩu | Báo thiếu, không tạo. Thiếu vai trò: "Cần chọn vai trò." | ☐ |
 | EMP-15 | P1 | Vai trò Trưởng kho / Thủ kho / Sales, **không chọn kho** | Báo bắt buộc chọn kho | ☐ |
 | EMP-16 | P2 | Vai trò Admin / Giám đốc / Kế toán / CSKH, không chọn kho | Tạo được | ☐ |
 | EMP-17 | P1 | Tạo **Trưởng kho thứ 2** cho kho đã có Trưởng kho | Báo kho đã có Trưởng | ☐ |
@@ -47,7 +47,7 @@ Thành phần màn hình:
 | EMP-35 | P1 | Ô "Đặt lại mật khẩu" để trống → Lưu | Mật khẩu giữ nguyên | ☐ |
 | EMP-36 | P1 | Đặt lại mật khẩu ≥ 8 ký tự | NV đăng nhập bằng mật khẩu mới; mật khẩu cũ không dùng được | ☐ |
 | EMP-37 | P1 | Đặt lại mật khẩu 7 ký tự | Báo quá ngắn | ☐ |
-| EMP-38 | P2 | Sau khi Admin đặt lại mật khẩu, NV đăng nhập lần đầu | Theo tài liệu: phải đổi mật khẩu **[Cần xác nhận – ghi lại hành vi thực tế]** | ☐ |
+| EMP-38 | P2 | Sau khi Admin đặt lại mật khẩu, NV đăng nhập lần đầu | Đăng nhập bình thường, không bị buộc đổi mật khẩu | ☐ |
 
 ### 1.4 Ngừng hoạt động / Kích hoạt / Mở khóa / Tắt 2FA
 | ID | P | Bước | Kỳ vọng | KQ |
@@ -60,7 +60,7 @@ Thành phần màn hình:
 | EMP-45 | P2 | Nút "Mở khóa" | Chỉ hiện ở dòng NV đang bị khóa | ☐ |
 | EMP-46 | P1 | NV đã bật 2FA → Admin bấm "Tắt 2FA" | NV đăng nhập không cần mã | ☐ |
 | EMP-47 | P2 | Nút "Tắt 2FA" | Chỉ hiện ở dòng NV đã bật 2FA | ☐ |
-| EMP-48 | P1 | Không có nút "Xóa nhân viên" ở bất kỳ đâu | Đúng (chỉ ngừng hoạt động) | ☐ |
+| EMP-48 | P1 | Nhân viên đang hoạt động / đã ngừng | Nút "Ngừng" và hộp xác nhận "Ngừng hoạt động nhân viên này?..."; sau khi ngừng thì "Kích hoạt lại". Không có nút xóa cứng | ☐ |
 
 ---
 
@@ -94,7 +94,7 @@ Mỗi case kiểm cả hai lớp: (a) nút/ô **không hiển thị**, (b) **ép
 | EMP-P07 | P1 | TK kho A | Bấm Sửa NV kho mình | Chỉ xem; không có ô sửa, không có nút Lưu; có câu giải thích không có quyền | ☐ |
 | EMP-P08 | P1 | TK kho A | Ép request Update / SetActive / Unlock / ResetTwoFactor cho NV kho mình | Bị từ chối | ☐ |
 | EMP-P09 | P1 | KT | Mở danh sách | Thấy tất cả; không có nút Thêm; không có nút Sửa/Ngừng/Mở khóa/Tắt 2FA có hiệu lực | ☐ |
-| EMP-P10 | P1 | KT | Ép request Create / Update / SetActive | Bị từ chối | ☐ |
+| EMP-P10 | P1 | KT | Ép request Create / Update / SetActive | Create: 302 `/access-denied`, không tạo. Update và SetActive bị từ chối | ☐ |
 | EMP-P11 | P1 | GĐ | Thêm NV: danh sách vai trò | Không có "Admin" | ☐ |
 | EMP-P12 | P1 | GĐ | Ép request tạo NV vai trò Admin | Bị từ chối | ☐ |
 | EMP-P13 | P1 | GĐ | Mở hồ sơ NV thường | Khối thông tin cá nhân **chỉ đọc**; khối phân công sửa được; **không** có ô đặt lại mật khẩu | ☐ |
@@ -103,12 +103,12 @@ Mỗi case kiểm cả hai lớp: (a) nút/ô **không hiển thị**, (b) **ép
 | EMP-P16 | P1 | GĐ | Mở hồ sơ tài khoản **Admin** | Không sửa được gì; không có nút Ngừng hoạt động | ☐ |
 | EMP-P17 | P1 | GĐ | Ép request đổi vai trò tài khoản Admin / ngừng hoạt động Admin | Bị từ chối | ☐ |
 | EMP-P18 | P1 | GĐ | Nâng NV thường lên **Admin** (ép request) | Bị từ chối | ☐ |
-| EMP-P19 | P1 | GĐ | Ngừng hoạt động NV thường | Được **[tài liệu ghi "Cần xác nhận"]** | ☐ |
+| EMP-P19 | P1 | GĐ | Ngừng hoạt động NV thường, rồi kích hoạt lại | Được. Thiết kế: Giám đốc ngừng và kích hoạt lại nhân viên thường | ☐ |
 | EMP-P20 | P1 | GĐ | Bấm "Mở khóa" / "Tắt 2FA" | Không có nút; ép request bị từ chối | ☐ |
-| EMP-P21 | P1 | AD | Mở hồ sơ **chính mình** từ `/employees` | Sửa được thông tin cá nhân; **không** sửa được vai trò/kho của mình; không có nút tự ngừng hoạt động | ☐ |
+| EMP-P21 | P1 | AD | Xem dòng **chính mình** trên `/employees` | Không có nút "Sửa". Sửa hồ sơ mình ở `/profile` | ☐ |
 | EMP-P22 | P1 | AD, GĐ | Ép request đổi vai trò / ngừng hoạt động **chính mình** | Bị từ chối | ☐ |
 | EMP-P23 | P1 | AD | Hệ thống có 2 Admin: ngừng hoạt động 1 Admin, rồi thử ngừng Admin còn lại | Lần 1 được, lần 2 bị chặn | ☐ |
-| EMP-P24 | P1 | AD (2 tab) | Có 2 Admin A1, A2. Tab 1 (A1) ngừng A2; đồng thời tab 2 (A2) ngừng A1 | Không bao giờ còn 0 Admin hoạt động | ☐ |
+| EMP-P24 | P1 | AD (2 tab) | Có 2 Admin A1, A2. Tab 1 (A1) ngừng A2; đồng thời tab 2 (A2) ngừng A1 | Chỉ một request thành công. Request kia bị chặn `LastAdmin`. Không còn 0 Admin | ☐ |
 | EMP-P25 | P1 | TK kho A | Gõ id NV kho B vào URL sửa (`?edit=<id>`) | Không mở được hồ sơ | ☐ |
 
 ---
@@ -129,4 +129,4 @@ Tạo  →  Hoạt động  ⇄  Bị khóa tạm (sai 5 lần, 15 phút / Admin
 | EMP-W04 | P1 | AD hạ GĐ xuống Sales trong lúc GĐ đang mở `/audit` | GĐ tải lại: bị từ chối | ☐ |
 | EMP-W05 | P2 | NV mất điện thoại: AD "Tắt 2FA" → NV đăng nhập → tự bật lại 2FA | Bật lại được, khóa bí mật mới; mã cũ không còn dùng được | ☐ |
 | EMP-W06 | P2 | Ngừng hoạt động Trưởng kho A → tạo Trưởng kho A mới | Tạo được (kho không còn Trưởng đang hoạt động) **[xác nhận: ràng buộc 1 Trưởng/kho có tính NV đã ngừng không]** | ☐ |
-| EMP-W07 | P1 | Mọi thao tác trên (tạo, đổi vai trò, đặt lại mật khẩu, ngừng, mở khóa, tắt 2FA) | Đều có dòng tương ứng ở `/audit`, không chứa mật khẩu | ☐ |
+| EMP-W07 | P1 | Mọi thao tác trên (tạo, đổi vai trò, đặt lại mật khẩu, ngừng, mở khóa, tắt 2FA) | Có dòng ở `/audit`, không chứa mật khẩu. Ngừng ghi `employee.deactivated`. Đổi vai trò hoặc phân công ghi `employee.role_changed` | ☐ |
