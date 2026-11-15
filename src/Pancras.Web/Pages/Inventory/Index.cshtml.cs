@@ -607,7 +607,7 @@ public class IndexModel(
     /// <summary>Nhãn loại biến động. Dòng trừ tồn theo phiếu hủy hiện "Xuất hủy" thay vì "Xuất bán" (dữ liệu vẫn là loại xuất).</summary>
     public (string Label, string ClassName) MovementBadge(StockHistoryEntry entry) =>
         entry.Kind == StockMovementKind.Issue && Disposals.Any(slip => slip.Id == entry.DocumentId)
-            ? ("Xuất hủy", "bg-rose-100 text-rose-800")
+            ? ("Xuất hủy", Badge.Colors(BadgeTone.Danger))
             : StockLabels.MovementBadge(entry.Kind, entry.Quantity);
 
     public string Describe(StockHistoryEntry entry)

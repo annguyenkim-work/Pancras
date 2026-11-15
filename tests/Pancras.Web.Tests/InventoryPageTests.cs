@@ -270,7 +270,7 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
         var dialog = Decode(Regex.Match(html, "<dialog id=\"transfer-" + slip.Id + "\".*?</dialog>", RegexOptions.Singleline).Value);
 
         Assert.Contains("id=\"transfer-table\"", html, StringComparison.Ordinal);
-        Assert.Contains("bg-yellow-100 text-yellow-800", html, StringComparison.Ordinal);
+        Assert.Contains("bg-amber-100 text-amber-800", html, StringComparison.Ordinal);
         Assert.Contains("Chờ bạn duyệt", text, StringComparison.Ordinal);
         Assert.Contains("Chờ tôi duyệt", text, StringComparison.Ordinal);
         Assert.Contains("Lịch sử phiếu", dialog, StringComparison.Ordinal);

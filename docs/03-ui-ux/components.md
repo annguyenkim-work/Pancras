@@ -136,7 +136,7 @@ Khung chung cho badge trạng thái và badge phân loại: `rounded-full px-2 p
 | Tab, phân trang | Chưa có; danh sách hiện tải toàn bộ |
 | Toast, banner | Toast đã có (`ToastExtensions`, `_Toasts`, `toast.js`) và dùng ở Catalog, Locations, Purchasing, Suppliers, Profile. Còn banner lỗi viết tay ở nhiều trang (Catalog, Employees, Inventory, Purchasing, Profile): cần chuyển sang partial `_Notice` (đã có, chưa dùng); Inventory (lỗi và cảnh báo sau thao tác) chưa dùng toast |
 | Banner | ~10 kiểu: `rounded-lg`/`rounded-xl`, chữ -700/-800, nơi là khối, nơi chỉ là dòng chữ |
-| Badge | Mua hàng dùng `rounded-md` nền -50; chuyển kho dùng `rounded-full` nền -100 kèm yellow/orange/violet; ánh xạ class nằm rải ở `Purchasing/Index.cshtml.cs`, `Formatting/StockCsv.cs`, `Inventory/Index.cshtml.cs` |
+| Badge | Đã có `Formatting/BadgeTone.cs` (`Badge.Colors`) dùng cho Mua hàng và Kho. Còn badge viết tay: `Employees` (2FA bật, `rounded-md`), `Suppliers` (có yellow/orange), pill vai trò ở `_Layout`; cần chuyển sang helper |
 
 ## Chờ chốt (chưa có hiệu lực)
 

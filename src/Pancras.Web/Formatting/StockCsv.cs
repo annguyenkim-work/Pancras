@@ -49,15 +49,15 @@ public static class StockLabels
     /// <summary>Màu nhãn trạng thái: vàng chờ duyệt, xanh dương đã duyệt, đỏ từ chối, cam chênh lệch, xanh lá hoàn tất.</summary>
     public static string TransferPillClass(TransferStatus status) => status switch
     {
-        TransferStatus.Requested => "bg-yellow-100 text-yellow-800",
-        TransferStatus.Approved => "bg-sky-100 text-sky-800",
-        TransferStatus.Rejected => "bg-rose-100 text-rose-800",
-        TransferStatus.InTransit => "bg-amber-100 text-amber-800",
-        TransferStatus.Received => "bg-emerald-100 text-emerald-800",
-        TransferStatus.ReceivedWithDiscrepancy => "bg-orange-100 text-orange-800",
-        TransferStatus.Cancelled => "bg-slate-200 text-slate-600",
-        TransferStatus.Returned => "bg-violet-100 text-violet-800",
-        _ => "bg-slate-100 text-slate-600"
+        TransferStatus.Requested => Badge.Colors(BadgeTone.Warning),
+        TransferStatus.Approved => Badge.Colors(BadgeTone.Info),
+        TransferStatus.Rejected => Badge.Colors(BadgeTone.Danger),
+        TransferStatus.InTransit => Badge.Colors(BadgeTone.Info),
+        TransferStatus.Received => Badge.Colors(BadgeTone.Success),
+        TransferStatus.ReceivedWithDiscrepancy => Badge.Colors(BadgeTone.Warning),
+        TransferStatus.Cancelled => Badge.Colors(BadgeTone.Neutral),
+        TransferStatus.Returned => Badge.Colors(BadgeTone.Warning),
+        _ => Badge.Colors(BadgeTone.Neutral)
     };
 
     public static string TransferLeg(TransferStatus status) => status switch
@@ -111,12 +111,12 @@ public static class StockLabels
 
     public static (string Label, string ClassName) MovementBadge(StockMovementKind kind, int quantity) => kind switch
     {
-        StockMovementKind.Issue => ("Xuất bán", "bg-sky-100 text-sky-800"),
-        StockMovementKind.Transfer when quantity < 0 => ("Chuyển đi", "bg-amber-100 text-amber-800"),
-        StockMovementKind.Transfer => ("Nhận về", "bg-violet-100 text-violet-800"),
-        StockMovementKind.Adjustment => ("Điều chỉnh", "bg-rose-100 text-rose-800"),
-        StockMovementKind.Receipt => ("Nhập", "bg-emerald-100 text-emerald-800"),
-        _ => (string.Empty, "bg-slate-100 text-slate-700")
+        StockMovementKind.Issue => ("Xuất bán", Badge.Colors(BadgeTone.Info)),
+        StockMovementKind.Transfer when quantity < 0 => ("Chuyển đi", Badge.Colors(BadgeTone.Warning)),
+        StockMovementKind.Transfer => ("Nhận về", Badge.Colors(BadgeTone.Category)),
+        StockMovementKind.Adjustment => ("Điều chỉnh", Badge.Colors(BadgeTone.Danger)),
+        StockMovementKind.Receipt => ("Nhập", Badge.Colors(BadgeTone.Success)),
+        _ => (string.Empty, Badge.Colors(BadgeTone.Neutral))
     };
 
     public static string LocationCode(string name, StockLocationKind kind)

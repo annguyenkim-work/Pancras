@@ -61,14 +61,14 @@ public class IndexModel(
         _ => "Không rõ"
     };
 
-    public static string StatusClass(PurchaseStatus status) => status switch
+    public static string StatusClass(PurchaseStatus status) => Badge.Colors(status switch
     {
-        PurchaseStatus.Received => "bg-emerald-50 text-emerald-700",
-        PurchaseStatus.Cancelled => "bg-rose-50 text-rose-700",
-        PurchaseStatus.Draft => "bg-slate-100 text-slate-700",
-        PurchaseStatus.PendingApproval => "bg-sky-50 text-sky-700",
-        _ => "bg-amber-50 text-amber-700"
-    };
+        PurchaseStatus.Received => BadgeTone.Success,
+        PurchaseStatus.Cancelled => BadgeTone.Neutral,
+        PurchaseStatus.Draft => BadgeTone.Neutral,
+        PurchaseStatus.PendingApproval => BadgeTone.Warning,
+        _ => BadgeTone.Info
+    });
 
     public static string EventLabel(PurchaseEventKind kind) => kind switch
     {

@@ -627,7 +627,7 @@
                     <div class="flex flex-wrap items-center gap-2">
                         <span class="font-mono text-sm font-bold">@StockLabels.DocumentCode("KK", sheet.Id)</span>
                         <span class="text-sm text-slate-600">@sheet.LocationName</span>
-                        <span class="rounded-full px-2 py-0.5 text-xs font-bold @(sheet.Status == ApprovalStatus.Approved ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800")">@StockLabels.StocktakePill(sheet.Status)</span>
+                        <span class="rounded-full px-2 py-0.5 text-xs font-bold @(Badge.Colors(sheet.Status == ApprovalStatus.Approved ? BadgeTone.Success : BadgeTone.Warning))">@StockLabels.StocktakePill(sheet.Status)</span>
                         @if (!string.IsNullOrEmpty(when))
                         {
                             <span class="ml-auto text-xs text-slate-500">@when</span>
