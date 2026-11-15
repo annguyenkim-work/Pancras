@@ -126,13 +126,13 @@ Khung chung cho badge trạng thái và badge phân loại: `rounded-full px-2 p
 
 | Thành phần | Hiện trạng |
 | --- | --- |
-| Nút | 3 kiểu viết class; ~7 nút `rounded-xl`; nút phụ 3 độ đậm chữ (medium/semibold/bold) |
+| Nút | 3 kiểu viết class; nút phụ 3 độ đậm chữ (medium/semibold/bold) (đã đổi `rounded-xl` sang `rounded-lg` cho 23 nút) |
 | Form | 2 bản `inputClass`; nhãn 5 kiểu; viền focus chỉ có ở 1 chỗ; 6 ô viết tay |
 | Modal | 5 độ rộng (28/30/36/40/56rem); 4 modal kiểu cũ `max-h-[90vh]`, không `flex-col`/`!flex` (Inventory chuyển kho, một số ở Catalog/Purchasing) |
 | Tiêu đề trang | 3 trang lệch (`text-lg`, `text-2xl`, `mt-6`) |
 | Bảng | `thead` lúc có `bg-slate-50`, lúc không; padding ô 3 kiểu (`py-2 pr-3`, `px-3 py-3`, `px-4 py-3`) |
 | Bảng mobile | Đã bọc `overflow-x-auto` nhưng chưa có cột đầu sticky; cột hành động đang ở cuối dòng ở hầu hết bảng, phải dời lên vị trí thứ 2 |
-| Chống bấm đúp | Có 3 xử lý riêng (`_ConfirmDialog`, `Purchasing/Index.cshtml`, 1 nút ở `Inventory/Index.cshtml`); 49 form POST còn lại chưa có; chưa có `form-guard.js` |
+| Chống bấm đúp | Đã có `wwwroot/js/form-guard.js` (nạp ở `_Layout` và `_AuthLayout`); còn 3 xử lý riêng cũ (`_ConfirmDialog`, `Purchasing/Index.cshtml`, 1 nút ở `Inventory/Index.cshtml`) cần gỡ cho thống nhất; chưa kiểm thử trên trình duyệt thật (cần thử với form có hộp xác nhận và form tải tệp) |
 | Tab, phân trang | Chưa có; danh sách hiện tải toàn bộ |
 | Toast | Chưa có; 4 trang tự render banner emerald từ `TempData` (Catalog, Locations, Purchasing, Suppliers) cùng 6 khóa TempData riêng (CatalogNotice, SupplierNotice, ProfileSaved...) |
 | Banner | ~10 kiểu: `rounded-lg`/`rounded-xl`, chữ -700/-800, nơi là khối, nơi chỉ là dòng chữ |

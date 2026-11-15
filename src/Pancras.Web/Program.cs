@@ -293,7 +293,8 @@ app.UseExceptionHandler(errorApp =>
     {
         var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Pancras.Unhandled");
         var failure = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
-        logger.LogError(failure?.Error, "Unhandled exception.");
+        var traceId = System.Diagnostics.Activity.Current?.Id ?? context.TraceIdentifier;
+        logger.LogError(failure?.Error, "Unhandled exception. TraceId {TraceId}", traceId);
         context.Response.StatusCode = StatusCodes.Status500InternalServerError;
         context.Response.ContentType = "text/html; charset=utf-8";
         await context.Response.WriteAsync(
@@ -303,6 +304,7 @@ app.UseExceptionHandler(errorApp =>
             + "<div class=\"w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-sm\">"
             + "<h1 class=\"text-xl font-bold\">Đã có lỗi</h1>"
             + "<p class=\"mt-2 text-sm text-slate-600\">Hệ thống chưa xử lý được yêu cầu của bạn. Thử lại sau ít phút. Nếu lỗi lặp lại, báo cho quản trị viên.</p>"
+            + "<p class=\"mt-3 text-xs text-slate-500\">Mã theo dõi: <span class=\"font-mono\">" + System.Net.WebUtility.HtmlEncode(traceId) + "</span></p>"
             + "<a href=\"/\" class=\"mt-6 inline-block rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white\">Về trang chủ</a>"
             + "</div></main></body></html>");
     });

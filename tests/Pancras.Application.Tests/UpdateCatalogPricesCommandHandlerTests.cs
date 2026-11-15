@@ -13,7 +13,6 @@ public class UpdateCatalogPricesCommandHandlerTests
     [InlineData(EmployeeRole.Admin)]
     [InlineData(EmployeeRole.Director)]
     [InlineData(EmployeeRole.Accountant)]
-    [InlineData(EmployeeRole.ShowroomWarehouseLead)]
     public async Task AllowedRole_UpdatesThePrices(string role)
     {
         var repository = new FakeCatalogRepository();
@@ -28,15 +27,17 @@ public class UpdateCatalogPricesCommandHandlerTests
         Assert.Equal(1, repository.SaveCount);
     }
 
-    [Fact]
-    public async Task Sales_CannotChangeThePriceList()
+    [Theory]
+    [InlineData(EmployeeRole.Sales)]
+    [InlineData(EmployeeRole.ShowroomWarehouseLead)]
+    public async Task OtherRoles_CannotChangeThePriceList(string role)
     {
         var repository = new FakeCatalogRepository();
         var item = ListCatalogItemsHandlerTests.Item("SP01", "Vòi", ProductCategory.SanitaryEquipment);
         repository.Items.Add(item);
         var handler = new UpdateCatalogPricesCommandHandler(repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
 
-        var result = await handler.HandleAsync(Command(item.Id, EmployeeRole.Sales, 1m), CancellationToken.None);
+        var result = await handler.HandleAsync(Command(item.Id, role, 1m), CancellationToken.None);
 
         Assert.Equal(CatalogError.PriceListForbidden, result.CatalogError);
         Assert.Equal(15000000m, item.RetailPrice);

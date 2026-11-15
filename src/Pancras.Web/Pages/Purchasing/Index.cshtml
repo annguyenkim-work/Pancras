@@ -429,7 +429,7 @@ else
                         <form method="post" asp-page-handler="AdjustCost" class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-4" data-confirm data-confirm-title="Ghi điều chỉnh chi phí" data-confirm-message="Giá vốn của hàng còn tồn sẽ đổi." data-confirm-label="Ghi điều chỉnh">
                             <input type="hidden" name="orderId" value="@order.Id" />
                             <label class="text-sm">Tên khoản<input name="label" required maxlength="200" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
-                            <label class="text-sm">Số tiền (đ, có dấu)<input name="amount" required inputmode="numeric" pattern="-?[0-9]+" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
+                            <label class="text-sm">Số tiền (VNĐ, có dấu)<input name="amount" required inputmode="numeric" pattern="-?[0-9]+" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
                             <label class="text-sm">Cách chia
                                 <select name="method" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
                                     <option value="@((int)ChargeSplitMethod.FobValue)">Theo trị giá FOB</option>
@@ -568,10 +568,10 @@ else
                     </select>
                 </label>
                 <label class="flex flex-col justify-between gap-1 text-sm">
-                    <span>Tỷ giá (đ / USD)</span>
+                    <span>Tỷ giá (VNĐ / USD)</span>
                     <span class="relative block">
                         <input name="Form.ExchangeRate" value="@Model.Form.ExchangeRate.ToString("0", CultureInfo.InvariantCulture)" id="rate" inputmode="numeric" class="vnd draft w-full rounded-lg border border-slate-300 py-2 pl-3 pr-8" />
-                        <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-slate-500">đ</span>
+                        <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-slate-500">VNĐ</span>
                     </span>
                 </label>
                 <label class="text-sm">Số hiệu Container<input asp-for="Form.ContainerNumber" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
@@ -596,7 +596,7 @@ else
                             <th class="py-2 pr-2">Số lượng</th>
                             <th class="py-2 pr-2">Đơn giá FOB (USD)</th>
                             <th class="py-2 pr-2">Thuế NK %</th>
-                            <th class="py-2 pr-2" title="Thuế bổ sung, tiêu thụ đặc biệt, môi trường (tổng). Không khấu trừ nên tính vào giá vốn.">Thuế khác (đ)</th>
+                            <th class="py-2 pr-2" title="Thuế bổ sung, tiêu thụ đặc biệt, môi trường (tổng). Không khấu trừ nên tính vào giá vốn.">Thuế khác (VNĐ)</th>
                             <th class="py-2 pr-2 text-right">Giá vốn / đơn vị</th>
                             <th class="py-2"></th>
                         </tr>
@@ -624,7 +624,7 @@ else
                                 <td class="py-2 pr-2"><input name="Form.UnitPrices[@index]" value="@unitPrice.ToString("0.####", CultureInfo.InvariantCulture)" class="line-unit draft w-24 rounded-lg border border-slate-300 px-2 py-2" /></td>
                                 <td class="py-2 pr-2"><input name="Form.DutyPercents[@index]" value="@dutyPercent.ToString("0.####", CultureInfo.InvariantCulture)" class="line-duty draft w-16 rounded-lg border border-amber-200 bg-amber-50 px-2 py-2" /></td>
                                 <td class="py-2 pr-2"><input name="Form.Lines[@index].SupplementalDuty" value="@line.SupplementalDuty.ToString("0", CultureInfo.InvariantCulture)" inputmode="numeric" class="line-other draft w-28 rounded-lg border border-slate-300 px-2 py-2" /></td>
-                                <td class="out-unit py-2 pr-2 text-right font-bold tabular-nums">0 đ</td>
+                                <td class="out-unit py-2 pr-2 text-right font-bold tabular-nums">0 VNĐ</td>
                                 <td class="py-2 text-right">
                                     <button type="button" class="remove-line rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600" aria-label="Xóa mặt hàng" title="Xóa mặt hàng">
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -640,7 +640,7 @@ else
             <section id="charge-section" class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <h3 class="text-sm font-bold text-slate-900">CHI PHÍ CHUNG CỦA CẢ ĐƠN</h3>
-                    <p class="text-sm font-bold">Tổng chi phí chung: <span id="sum-charges">0 đ</span></p>
+                    <p class="text-sm font-bold">Tổng chi phí chung: <span id="sum-charges">0 VNĐ</span></p>
                 </div>
                 <p class="mt-1 text-xs leading-5 text-slate-600">Mỗi dòng là một khoản chi phí của cả container (không thuộc riêng mặt hàng nào), nhập số tiền <b>chưa gồm VAT của hóa đơn dịch vụ</b>. Chọn <b>Nhóm</b> và <b>Cách chia</b> cho từng dòng, hệ thống chia cho các mặt hàng và hiện kết quả ở bảng kiểm tra bên dưới. Không có khoản nào thì để số tiền 0 hoặc xóa dòng.</p>
                 <p class="mt-1 text-xs leading-5 text-slate-600">Gợi ý cách chia: cước biển, kéo xe theo thể tích hoặc khối lượng; bảo hiểm, kiểm định theo trị giá; khoản chung nhỏ theo số lượng.</p>
@@ -653,7 +653,7 @@ else
                         <thead class="text-left text-xs font-bold text-slate-600">
                             <tr>
                                 <th class="py-2 pr-2">Tên khoản chi phí</th>
-                                <th class="py-2 pr-2">Số tiền (đ)</th>
+                                <th class="py-2 pr-2">Số tiền (VNĐ)</th>
                                 <th class="py-2 pr-2">Nhóm</th>
                                 <th class="py-2 pr-2">Cách chia cho các mặt hàng</th>
                                 <th class="py-2"></th>
@@ -671,7 +671,7 @@ else
                                     <p class="font-medium text-slate-900">VAT hàng nhập khẩu (tự tính)</p>
                                     <p class="text-xs text-slate-600">= (trị giá hải quan + thuế NK + thuế khác) × suất VAT</p>
                                 </td>
-                                <td class="py-2 pr-2 text-right text-base font-bold tabular-nums text-slate-900"><span id="vat-amount">0 đ</span></td>
+                                <td class="py-2 pr-2 text-right text-base font-bold tabular-nums text-slate-900"><span id="vat-amount">0 VNĐ</span></td>
                                 <td class="py-2 pr-2">
                                     <label class="block text-xs text-slate-600">Suất VAT
                                         <span class="relative mt-1 block">
@@ -736,21 +736,21 @@ else
             </details>
 
             <div class="mt-4 rounded-xl bg-slate-900 px-5 py-4 text-sm text-slate-300">
-                <div class="flex justify-between gap-3 py-0.5"><span>Tổng tiền hàng FOB quy đổi</span><span class="tabular-nums" id="t-fob">0 đ</span></div>
-                <div class="flex justify-between gap-3 py-0.5"><span>Cước biển / bảo hiểm (nhóm trị giá hải quan)</span><span class="tabular-nums" id="t-adj">0 đ</span></div>
-                <div class="flex justify-between gap-3 py-0.5"><span>Thuế nhập khẩu</span><span class="tabular-nums" id="t-duty">0 đ</span></div>
-                <div class="flex justify-between gap-3 py-0.5"><span>Thuế khác không khấu trừ</span><span class="tabular-nums" id="t-other">0 đ</span></div>
-                <div class="flex justify-between gap-3 py-0.5"><span>Logistics (THC, D/O, kiểm định, kéo xe...)</span><span class="tabular-nums" id="t-log">0 đ</span></div>
-                <div class="flex justify-between gap-3 py-0.5"><span>Khoản thuế không khấu trừ khác</span><span class="tabular-nums" id="t-nonded">0 đ</span></div>
-                <div class="flex justify-between gap-3 py-0.5"><span id="t-vatcost-label">VAT tính vào giá vốn</span><span class="tabular-nums" id="t-vatcost">0 đ</span></div>
-                <div class="mt-2 flex justify-between gap-3 border-t border-slate-700 pt-2 text-base font-bold text-emerald-300"><span>Giá vốn hàng nhập</span><span class="tabular-nums" id="t-landed">0 đ</span></div>
-                <div class="mt-2 flex justify-between gap-3 py-0.5"><span>VAT được khấu trừ (không vào giá vốn)</span><span class="tabular-nums" id="t-vatded">0 đ</span></div>
-                <div class="flex justify-between gap-3 py-0.5"><span>Khoản thuế khấu trừ khác (không vào giá vốn)</span><span class="tabular-nums" id="t-ded">0 đ</span></div>
-                <div class="mt-1 flex justify-between gap-3 font-bold text-white"><span>Tổng tiền thực chi cho container (gồm VAT nộp khi thông quan)</span><span class="tabular-nums" id="sum-order">0 đ</span></div>
+                <div class="flex justify-between gap-3 py-0.5"><span>Tổng tiền hàng FOB quy đổi</span><span class="tabular-nums" id="t-fob">0 VNĐ</span></div>
+                <div class="flex justify-between gap-3 py-0.5"><span>Cước biển / bảo hiểm (nhóm trị giá hải quan)</span><span class="tabular-nums" id="t-adj">0 VNĐ</span></div>
+                <div class="flex justify-between gap-3 py-0.5"><span>Thuế nhập khẩu</span><span class="tabular-nums" id="t-duty">0 VNĐ</span></div>
+                <div class="flex justify-between gap-3 py-0.5"><span>Thuế khác không khấu trừ</span><span class="tabular-nums" id="t-other">0 VNĐ</span></div>
+                <div class="flex justify-between gap-3 py-0.5"><span>Logistics (THC, D/O, kiểm định, kéo xe...)</span><span class="tabular-nums" id="t-log">0 VNĐ</span></div>
+                <div class="flex justify-between gap-3 py-0.5"><span>Khoản thuế không khấu trừ khác</span><span class="tabular-nums" id="t-nonded">0 VNĐ</span></div>
+                <div class="flex justify-between gap-3 py-0.5"><span id="t-vatcost-label">VAT tính vào giá vốn</span><span class="tabular-nums" id="t-vatcost">0 VNĐ</span></div>
+                <div class="mt-2 flex justify-between gap-3 border-t border-slate-700 pt-2 text-base font-bold text-emerald-300"><span>Giá vốn hàng nhập</span><span class="tabular-nums" id="t-landed">0 VNĐ</span></div>
+                <div class="mt-2 flex justify-between gap-3 py-0.5"><span>VAT được khấu trừ (không vào giá vốn)</span><span class="tabular-nums" id="t-vatded">0 VNĐ</span></div>
+                <div class="flex justify-between gap-3 py-0.5"><span>Khoản thuế khấu trừ khác (không vào giá vốn)</span><span class="tabular-nums" id="t-ded">0 VNĐ</span></div>
+                <div class="mt-1 flex justify-between gap-3 font-bold text-white"><span>Tổng tiền thực chi cho container (gồm VAT nộp khi thông quan)</span><span class="tabular-nums" id="sum-order">0 VNĐ</span></div>
             </div>
             @* Thanh dưới cố định: kết quả chính và nút Lưu luôn thấy được, không phải cuộn tới cuối form. *@
             <div class="sticky -bottom-5 z-10 -mx-5 -mb-5 mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-3 sm:-mx-6 sm:px-6">
-                <p class="text-sm text-slate-600">Giá vốn hàng nhập <strong id="f-landed" class="text-base text-emerald-700">0 đ</strong> <span class="mx-1 text-slate-300">|</span> Tổng thực chi <strong id="f-cash" class="text-base text-slate-900">0 đ</strong></p>
+                <p class="text-sm text-slate-600">Giá vốn hàng nhập <strong id="f-landed" class="text-base text-emerald-700">0 VNĐ</strong> <span class="mx-1 text-slate-300">|</span> Tổng thực chi <strong id="f-cash" class="text-base text-slate-900">0 VNĐ</strong></p>
                 <div class="flex gap-2">
                     <a href="/purchasing" data-leave class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600">Hủy</a>
                     <button type="submit" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white">@(Model.EditingId is null ? "Lưu Đơn Mua Hàng & Container" : "Lưu thay đổi")</button>
@@ -770,7 +770,7 @@ else
             const lineBody = document.getElementById("line-body");
             const chargeBody = document.getElementById("charge-body");
             const money = new Intl.NumberFormat("vi-VN");
-            const dong = (value) => money.format(Math.round(value)) + " đ";
+            const dong = (value) => money.format(Math.round(value)) + " VNĐ";
             const roundDong = (value) => Math.sign(value) * Math.round(Math.abs(value));
             const plainNumber = (input) => {
                 if (input.classList.contains("vnd")) {
@@ -936,7 +936,7 @@ else
                 const total = { qty: 0, fob: 0, adj: 0, customs: 0, duty: 0, other: 0, vatBase: 0, vat: 0, extra: 0, landed: 0, log: 0, nonded: 0, ded: 0 };
                 let html = "";
                 lineRows.forEach((row) => {
-                    row.querySelector(".out-unit").textContent = "0 đ";
+                    row.querySelector(".out-unit").textContent = "0 VNĐ";
                 });
                 drafts.forEach((line) => {
                     const customs = line.fob + line.adj;

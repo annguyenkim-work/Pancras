@@ -43,7 +43,6 @@
 | Vấn đề | Hiện trạng |
 | --- | --- |
 | Mức Warning | 109 lời gọi `LogWarning`, phần lớn là "Rejected ..." từ chối nghiệp vụ thường; cần hạ xuống `Information` khi chạm tới |
-| Trang 500 | Chưa hiện `TraceId`; HTML nằm cứng trong `Program.cs` |
 | `catch` rỗng | `catch` không điều kiện ở `StockDocumentAttachmentHandlers.cs:136`, `TransferAttachmentHandlers.cs:165`, `PurchaseAttachmentHandlers.cs:127`: cần thu hẹp theo loại ngoại lệ và log |
 | `.Result` | `UpdateEmployeeCommandHandler.cs:85` (`outcome.Result`) là thuộc tính của kết quả, không phải chờ task; giữ nhưng nên đổi tên cho khỏi gây nhầm |
 | Bắt `OverflowException` | `Purchasing/Index.cshtml.cs:231` và `Domain/Purchasing/ChargeAllocation.cs:97`: kiểm tra phạm vi trước thay vì bắt ngoại lệ, nếu được |

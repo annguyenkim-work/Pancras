@@ -56,7 +56,7 @@ Thứ tự từ trên xuống:
 | --- | --- |
 | Menu viết tay | `_Layout.cshtml` lặp markup từng mục, điều kiện hiện trải khắp tệp, gồm `IsInRole` ở `canListEmployees` và so vai trò cho menu Audit |
 | Trang chủ | `Index.cshtml` tự tính `canPurchase`, `canManageStaff` bằng `IsInRole`/so chuỗi vai trò thay vì `CanX`; lối tắt chưa dùng chung danh sách với menu |
-| `ComingSoonModel.Routes` | Có dòng trống thừa trong danh sách; tiêu đề nằm ở từ điển riêng |
+| `ComingSoonModel.Routes` | Tiêu đề nằm ở từ điển riêng, tách khỏi danh sách route; gộp vào danh sách dữ liệu của menu |
 | Tiêu đề trang | Hai chuẩn `h1` lệch (xem components.md); cần thống nhất theo mục 5 |
 | Breadcrumb | Chỉ một cấp; chưa có quy tắc cho trang con nếu sau này tách trang chi tiết |
 

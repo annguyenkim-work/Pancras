@@ -284,11 +284,11 @@ public class IndexModel(
         Form.WarrantyMonths = string.IsNullOrWhiteSpace(Form.WarrantyMonths) ? "24" : Form.WarrantyMonths;
         Form.WeightKg = string.IsNullOrWhiteSpace(Form.WeightKg) ? "10" : Form.WeightKg;
         Form.MinimumStock = string.IsNullOrWhiteSpace(Form.MinimumStock) ? "5" : Form.MinimumStock;
-        Form.CostPrice = string.IsNullOrWhiteSpace(Form.CostPrice) ? "0 đ" : Form.CostPrice;
-        Form.RetailPrice = string.IsNullOrWhiteSpace(Form.RetailPrice) ? "0 đ" : Form.RetailPrice;
-        Form.DealerPrice = string.IsNullOrWhiteSpace(Form.DealerPrice) ? "0 đ" : Form.DealerPrice;
-        Form.DistributorPrice = string.IsNullOrWhiteSpace(Form.DistributorPrice) ? "0 đ" : Form.DistributorPrice;
-        Form.ProjectPrice = string.IsNullOrWhiteSpace(Form.ProjectPrice) ? "0 đ" : Form.ProjectPrice;
+        Form.CostPrice = string.IsNullOrWhiteSpace(Form.CostPrice) ? "0 VNĐ" : Form.CostPrice;
+        Form.RetailPrice = string.IsNullOrWhiteSpace(Form.RetailPrice) ? "0 VNĐ" : Form.RetailPrice;
+        Form.DealerPrice = string.IsNullOrWhiteSpace(Form.DealerPrice) ? "0 VNĐ" : Form.DealerPrice;
+        Form.DistributorPrice = string.IsNullOrWhiteSpace(Form.DistributorPrice) ? "0 VNĐ" : Form.DistributorPrice;
+        Form.ProjectPrice = string.IsNullOrWhiteSpace(Form.ProjectPrice) ? "0 VNĐ" : Form.ProjectPrice;
     }
 
     private async Task RefreshCostLockAsync(Guid id, CancellationToken cancellationToken)

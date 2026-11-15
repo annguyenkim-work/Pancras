@@ -9,7 +9,7 @@ public static class VndMoney
     public static string FormatDong(decimal amount)
     {
         var whole = decimal.Round(amount, 0, MidpointRounding.AwayFromZero);
-        return whole.ToString("N0", Vietnamese) + " đ";
+        return whole.ToString("N0", Vietnamese) + " VNĐ";
     }
 
     public static string FormatMeasure(decimal amount) => amount.ToString("0.###", Vietnamese);

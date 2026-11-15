@@ -23,8 +23,7 @@ dotnet run --project src/Pancras.Web --launch-profile http                      
 ## 2. Cảnh báo và cấu hình dự án
 
 - **Không được để cảnh báo biên dịch** (`Nullable` bật).
-- Quy tắc ép trong cấu hình, không chỉ nhờ tham số lệnh: `TreatWarningsAsErrors` trong `Directory.Build.props`, `global.json` ghim phiên bản SDK, `.editorconfig` cho kiểu code (thụt lề, tên, using).
-- Khi bật `TreatWarningsAsErrors`, phải dọn hết cảnh báo hiện có trước.
+- Quy tắc ép trong cấu hình, không chỉ nhờ tham số lệnh: `TreatWarningsAsErrors` trong `Directory.Build.props`, `global.json` ghim phiên bản SDK, `.editorconfig` cho kiểu code (thụt lề, charset, using); đã áp dụng.
 
 ## 3. CSS (Tailwind)
 
@@ -61,11 +60,8 @@ Ghi chú: đổi class UI thì thêm `npm run build:css`. Chưa có CI; dự đ�
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Ép cảnh báo | `Directory.Build.props` chỉ có `Nullable` và `ImplicitUsings`; chưa có `TreatWarningsAsErrors` |
-| Cấu hình thiếu | Chưa có `global.json`, chưa có `.editorconfig` |
 | Tên nhánh | Nhánh hiện tại `dev/annk/feature/Sprint1/Login&Warehouse` có ký tự `&` và cấp con `Sprint1`; đổi tên khi tiện |
 | CI | Chưa có |
-| CLAUDE.md | Cần đồng bộ với file này khi rút gọn |
 
 ## Chờ chốt (chưa có hiệu lực)
 

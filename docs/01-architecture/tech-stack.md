@@ -33,7 +33,7 @@
 | `Microsoft.AspNetCore.Mvc.Testing` | Web.Tests | Test trang |
 
 - Phiên bản phụ/bản vá có thể nâng khi cần; nâng **phiên bản chính** (ví dụ .NET, EF Core, Tailwind 4) phải hỏi trước.
-- Cấu hình dùng chung: `Directory.Build.props` (`Nullable`, `ImplicitUsings`; sẽ thêm `TreatWarningsAsErrors`), `global.json` (ghim SDK, sẽ thêm), `.editorconfig` (sẽ thêm) — xem [build-and-git.md](../02-coding-rules/build-and-git.md).
+- Cấu hình dùng chung: `Directory.Build.props` (`Nullable`, `ImplicitUsings`, `TreatWarningsAsErrors`), `global.json` (ghim SDK 10.0.402, `rollForward: latestFeature`), `.editorconfig` — xem [build-and-git.md](../02-coding-rules/build-and-git.md).
 
 ## 3. Quy trình thêm thư viện
 
@@ -54,8 +54,7 @@
 | Vấn đề | Hiện trạng |
 | --- | --- |
 | Phông chữ | Chưa tự host; cần tải 3 phông (các độ đậm: DM Sans 400/500/700, Plus Jakarta 600/700, JetBrains Mono 500), thêm `@font-face`, bỏ link Google ở `_Head.cshtml`, sửa `font-src`/`style-src` trong `Program.cs` |
-| Cấu hình dự án | Chưa có `global.json`, `.editorconfig`, `TreatWarningsAsErrors` |
-| Gói dùng chung | `Microsoft.Extensions.Logging.Abstractions` có hai phiên bản (10.0.4 và 10.0.5) giữa dự án; thống nhất |
+| Gói dùng chung | `Microsoft.Extensions.Logging.Abstractions` 10.0.4 (Application) và 10.0.5 (Infrastructure.Tests, do `EntityFrameworkCore.InMemory` 10.0.5 yêu cầu); sẽ thống nhất khi nâng cả solution lên 10.0.5 |
 
 ## Chờ chốt (chưa có hiệu lực)
 

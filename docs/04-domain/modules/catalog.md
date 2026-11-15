@@ -59,7 +59,6 @@ Năm mức: **giá vốn**, **giá lẻ (niêm yết)**, **giá đại lý**, **
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| `PriceListRole` | Còn chứa `ShowroomWarehouseLead`; bỏ vai này |
 | Disable | Chưa có `IsActive` trên `CatalogItem`; cần thêm cột, migration, bộ lọc "đang kinh doanh" ở danh sách chọn, nút Ngừng/Kích hoạt |
 | Mã lỗi | `CatalogError`/`CatalogIssue` còn trong `Common/Result.cs`; `CatalogValidation` kiểm tra viết tay, chưa dùng FluentValidation |
 | Tài liệu cũ | Spec 004 ghi "ai sửa bảng giá" khác; docs mới thay thế |

@@ -273,23 +273,23 @@ else
             <p class="mt-4 text-xs font-medium text-slate-500">@CatalogLabels.PricesIncludeVat</p>
             <div class="mt-2 grid grid-cols-2 gap-4 lg:grid-cols-5">
                 <div>
-                    <label class="@labelClass" for="Form_CostPrice">Giá vốn (đ)</label>
+                    <label class="@labelClass" for="Form_CostPrice">Giá vốn (VNĐ)</label>
                     <input asp-for="Form.CostPrice" id="Form_CostPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
                 </div>
                 <div>
-                    <label class="@labelClass" for="Form_RetailPrice">Giá lẻ (đ)</label>
+                    <label class="@labelClass" for="Form_RetailPrice">Giá lẻ (VNĐ)</label>
                     <input asp-for="Form.RetailPrice" id="Form_RetailPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
                 </div>
                 <div>
-                    <label class="@labelClass" for="Form_DealerPrice">Giá đại lý (đ)</label>
+                    <label class="@labelClass" for="Form_DealerPrice">Giá đại lý (VNĐ)</label>
                     <input asp-for="Form.DealerPrice" id="Form_DealerPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
                 </div>
                 <div>
-                    <label class="@labelClass" for="Form_DistributorPrice">Giá nhà phân phối (đ)</label>
+                    <label class="@labelClass" for="Form_DistributorPrice">Giá nhà phân phối (VNĐ)</label>
                     <input asp-for="Form.DistributorPrice" id="Form_DistributorPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
                 </div>
                 <div>
-                    <label class="@labelClass" for="Form_ProjectPrice">Giá dự án (đ)</label>
+                    <label class="@labelClass" for="Form_ProjectPrice">Giá dự án (VNĐ)</label>
                     <input asp-for="Form.ProjectPrice" id="Form_ProjectPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
                 </div>
             </div>
@@ -433,7 +433,7 @@ else
             <p class="mt-4 text-xs font-medium text-slate-500">@CatalogLabels.PricesIncludeVat</p>
             <div class="mt-2 grid grid-cols-2 gap-4 lg:grid-cols-5">
                 <div>
-                    <label class="@labelClass" for="Prices_CostPrice">Giá vốn (đ)</label>
+                    <label class="@labelClass" for="Prices_CostPrice">Giá vốn (VNĐ)</label>
                     @if (Model.CostLocked)
                     {
                         <input id="Prices_CostPrice" value="@Model.Prices.CostPrice" disabled class="@fieldClass bg-slate-50 font-mono tabular-nums text-slate-500" />
@@ -446,19 +446,19 @@ else
                     }
                 </div>
                 <div>
-                    <label class="@labelClass" for="Prices_RetailPrice">Giá lẻ (đ)</label>
+                    <label class="@labelClass" for="Prices_RetailPrice">Giá lẻ (VNĐ)</label>
                     <input asp-for="Prices.RetailPrice" id="Prices_RetailPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
                 </div>
                 <div>
-                    <label class="@labelClass" for="Prices_DealerPrice">Giá đại lý (đ)</label>
+                    <label class="@labelClass" for="Prices_DealerPrice">Giá đại lý (VNĐ)</label>
                     <input asp-for="Prices.DealerPrice" id="Prices_DealerPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
                 </div>
                 <div>
-                    <label class="@labelClass" for="Prices_DistributorPrice">Giá nhà phân phối (đ)</label>
+                    <label class="@labelClass" for="Prices_DistributorPrice">Giá nhà phân phối (VNĐ)</label>
                     <input asp-for="Prices.DistributorPrice" id="Prices_DistributorPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
                 </div>
                 <div>
-                    <label class="@labelClass" for="Prices_ProjectPrice">Giá dự án (đ)</label>
+                    <label class="@labelClass" for="Prices_ProjectPrice">Giá dự án (VNĐ)</label>
                     <input asp-for="Prices.ProjectPrice" id="Prices_ProjectPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
                 </div>
             </div>
@@ -568,7 +568,7 @@ else
                 return;
             }
             var whole = Math.max(0, Math.round(number));
-            input.value = new Intl.NumberFormat("vi-VN").format(whole) + " đ";
+            input.value = new Intl.NumberFormat("vi-VN").format(whole) + " VNĐ";
         });
     });
 </script>

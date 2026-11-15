@@ -62,7 +62,6 @@ Nguồn code: `src/Pancras.Web/Formatting/` (`VndMoney.cs`, `StockCsv.cs`, `Cata
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Hậu tố tiền | `VndMoney.FormatDong` đang trả `đ`; phải đổi sang `VNĐ`, kể cả test, spec 005, CLAUDE.md |
 | USD | Tự `ToString("#,##0.##", vi-VN) + " USD"` rải rác (vd. Purchasing/Index.cshtml dòng 234), chưa có hàm chung |
 | Múi giờ | `ToLocalTime()` ở 5+ chỗ (Audit, Employees, Inventory, Purchasing, `_AuditStamp`) phụ thuộc múi giờ máy chủ |
 | Giọng văn nút | `Lưu Biên Bản Kiểm Kê`, `Hủy bỏ`, `Hủy` (vừa đóng modal vừa hủy phiếu) |

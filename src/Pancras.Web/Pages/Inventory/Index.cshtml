@@ -175,7 +175,7 @@
                     <h2 class="font-display text-lg font-bold text-slate-900">Lịch Sử Điều Chuyển Hàng Giữa Các Kho &amp; Showroom</h2>
                     <p class="mt-1 text-sm text-slate-500">Hàng hóa chuyển từ kho này sang kho hoặc showroom khác được theo dõi theo trạng thái đang vận chuyển. Bấm vào một phiếu để xem chi tiết và xử lý.</p>
                 </div>
-                <button id="open-transfer" type="button" class="sm:ml-auto inline-flex items-center rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white hover:bg-sky-700" onclick="document.getElementById('transfer-dialog').showModal()">+ Tạo Phiếu Đề Nghị Chuyển Kho</button>
+                <button id="open-transfer" type="button" class="sm:ml-auto inline-flex items-center rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white hover:bg-sky-700" onclick="document.getElementById('transfer-dialog').showModal()">+ Tạo Phiếu Đề Nghị Chuyển Kho</button>
             </div>
 
             @{
@@ -499,7 +499,7 @@
                                             <label class="block text-sm font-medium text-slate-700">Lý do / ghi chú
                                                 <textarea name="Transfer.Note" rows="3" maxlength="500" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">@slip.Note</textarea>
                                             </label>
-                                            <div class="flex justify-end"><button type="submit" class="rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white">Lưu thay đổi</button></div>
+                                            <div class="flex justify-end"><button type="submit" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white">Lưu thay đổi</button></div>
                                         </form>
                                     </details>
                                 }
@@ -529,7 +529,7 @@
                                             <input type="file" name="files" multiple accept="image/*,.pdf,.jpg,.jpeg,.png,.xlsx,.docx" class="mt-1 block text-xs" />
                                         </label>
                                         <div class="flex justify-end">
-                                            <button type="submit" class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white">Xác Nhận Đã Nhận Hàng &amp; Nhập Kho</button>
+                                            <button type="submit" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white">Xác Nhận Đã Nhận Hàng &amp; Nhập Kho</button>
                                         </div>
                                     </form>
                                 }
@@ -542,7 +542,7 @@
                                         <label class="block text-sm font-bold text-amber-900">Xử lý chênh lệch (Kế toán / Giám đốc)
                                             <textarea name="resolution" maxlength="500" rows="3" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"></textarea>
                                         </label>
-                                        <div class="flex justify-end"><button type="submit" class="rounded-xl bg-amber-600 px-4 py-2 text-sm font-bold text-white">Xác nhận đã xử lý</button></div>
+                                        <div class="flex justify-end"><button type="submit" class="rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white">Xác nhận đã xử lý</button></div>
                                     </form>
                                 }
 
@@ -555,8 +555,8 @@
                                                 <input type="hidden" name="DocumentId" value="@slip.Id" />
                                                 <input type="hidden" name="view" value="transfers" />
                                                 <input type="hidden" name="reason" value="" />
-                                                <button type="submit" name="approve" value="false" data-confirm-title="Từ chối phiếu @slipCode" data-confirm-message="Người lập phiếu sẽ được thông báo. Nhập lý do từ chối." data-reason="required" data-confirm-label="Từ chối" data-confirm-tone="danger" class="rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-bold text-rose-700">Từ chối</button>
-                                                <button type="submit" name="approve" value="true" data-confirm-title="Duyệt phiếu @slipCode" data-confirm-message="Hệ thống sẽ kiểm tồn khả dụng và giữ hàng ở @slip.SourceName cho tới khi xuất kho hoặc hủy phiếu." data-confirm-label="Duyệt" class="rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white">Duyệt</button>
+                                                <button type="submit" name="approve" value="false" data-confirm-title="Từ chối phiếu @slipCode" data-confirm-message="Người lập phiếu sẽ được thông báo. Nhập lý do từ chối." data-reason="required" data-confirm-label="Từ chối" data-confirm-tone="danger" class="rounded-lg border border-rose-200 bg-white px-4 py-2 text-sm font-bold text-rose-700">Từ chối</button>
+                                                <button type="submit" name="approve" value="true" data-confirm-title="Duyệt phiếu @slipCode" data-confirm-message="Hệ thống sẽ kiểm tồn khả dụng và giữ hàng ở @slip.SourceName cho tới khi xuất kho hoặc hủy phiếu." data-confirm-label="Duyệt" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white">Duyệt</button>
                                             </form>
                                         }
                                         @if (flow.CanShip)
@@ -566,7 +566,7 @@
                                                 <input type="hidden" name="view" value="transfers" />
                                                 <input name="sealNumber" maxlength="100" placeholder="Số seal niêm phong" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm" />
                                                 <input name="carrier" maxlength="200" placeholder="Người vận chuyển (ghi chú)" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm" />
-                                                <button type="submit" class="rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white">Xuất kho</button>
+                                                <button type="submit" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white">Xuất kho</button>
                                             </form>
                                         }
                                         @if (flow.CanReturn)
@@ -575,7 +575,7 @@
                                                 <input type="hidden" name="DocumentId" value="@slip.Id" />
                                                 <input type="hidden" name="view" value="transfers" />
                                                 <input type="hidden" name="reason" value="" />
-                                                <button type="submit" class="rounded-xl border border-violet-200 bg-white px-4 py-2 text-sm font-bold text-violet-700">Trả về kho xuất</button>
+                                                <button type="submit" class="rounded-lg border border-violet-200 bg-white px-4 py-2 text-sm font-bold text-violet-700">Trả về kho xuất</button>
                                             </form>
                                         }
                                         @if (flow.CanCancel)
@@ -584,7 +584,7 @@
                                                 <input type="hidden" name="DocumentId" value="@slip.Id" />
                                                 <input type="hidden" name="view" value="transfers" />
                                                 <input type="hidden" name="reason" value="" />
-                                                <button type="submit" class="rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-bold text-rose-700">Hủy phiếu</button>
+                                                <button type="submit" class="rounded-lg border border-rose-200 bg-white px-4 py-2 text-sm font-bold text-rose-700">Hủy phiếu</button>
                                             </form>
                                         }
                                     </div>
@@ -607,13 +607,13 @@
                 <div class="sm:ml-auto flex flex-wrap gap-2">
                     @if (Model.CanCountStock)
                     {
-                        <button id="open-stocktake" type="button" class="inline-flex items-center rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white" onclick="document.getElementById('stocktake-dialog').showModal()">+ Lập Biên Bản Kiểm Kê</button>
+                        <button id="open-stocktake" type="button" class="inline-flex items-center rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white" onclick="document.getElementById('stocktake-dialog').showModal()">+ Lập Biên Bản Kiểm Kê</button>
                     }
                     @if (Model.CanDraftAdjustment || Model.CanPostAdjustment)
                     {
-                        <button type="button" class="inline-flex items-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white" onclick="document.getElementById('adjustment-dialog').showModal()">+ Phiếu điều chỉnh</button>
+                        <button type="button" class="inline-flex items-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white" onclick="document.getElementById('adjustment-dialog').showModal()">+ Phiếu điều chỉnh</button>
                     }
-                    <button type="button" class="inline-flex items-center rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white" onclick="document.getElementById('disposal-dialog').showModal()">+ Phiếu hủy</button>
+                    <button type="button" class="inline-flex items-center rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white" onclick="document.getElementById('disposal-dialog').showModal()">+ Phiếu hủy</button>
                 </div>
             </div>
             @if (Model.Stocktakes.Count == 0)
@@ -678,7 +678,7 @@
                     {
                         <form method="post" asp-antiforgery="true" action="/inventory?handler=ApproveStocktake" class="mt-4 flex justify-end">
                             <input type="hidden" name="DocumentId" value="@sheet.Id" />
-                            <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white">Duyệt biên bản</button>
+                            <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white">Duyệt biên bản</button>
                         </form>
                     }
                 </article>
@@ -810,8 +810,8 @@
             </label>
         </div>
         <div class="flex shrink-0 justify-end gap-2 border-t border-slate-100 p-4">
-            <button type="button" class="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" onclick="this.closest('dialog').close()">Hủy bỏ</button>
-            <button type="submit" class="rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-60" onclick="var f=this.form; if (f.checkValidity()) { setTimeout(function () { this.disabled = true; }.bind(this), 0); }">Gửi Đề Nghị Chuyển Kho</button>
+            <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" onclick="this.closest('dialog').close()">Hủy bỏ</button>
+            <button type="submit" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-60" onclick="var f=this.form; if (f.checkValidity()) { setTimeout(function () { this.disabled = true; }.bind(this), 0); }">Gửi Đề Nghị Chuyển Kho</button>
         </div>
     </form>
 </dialog>
@@ -832,8 +832,8 @@
             </div>
         </div>
         <div class="flex shrink-0 justify-end gap-2 border-t border-slate-100 p-4">
-            <button type="button" id="confirm-cancel" class="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Quay lại</button>
-            <button type="button" id="confirm-ok" class="rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white">Xác nhận</button>
+            <button type="button" id="confirm-cancel" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Quay lại</button>
+            <button type="button" id="confirm-ok" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white">Xác nhận</button>
         </div>
     </div>
 </dialog>
@@ -882,8 +882,8 @@
         </label>
         </div>
         <div class="flex shrink-0 justify-end gap-2 border-t border-slate-100 p-4">
-            <button type="button" class="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" onclick="this.closest('dialog').close()">Hủy</button>
-            <button type="submit" class="rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white">Lưu Biên Bản Kiểm Kê</button>
+            <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" onclick="this.closest('dialog').close()">Hủy</button>
+            <button type="submit" class="rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white">Lưu Biên Bản Kiểm Kê</button>
         </div>
     </form>
 </dialog>
@@ -929,8 +929,8 @@
         </label>
         </div>
         <div class="flex shrink-0 justify-end gap-2 border-t border-slate-100 p-4">
-            <button type="button" class="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" onclick="this.closest('dialog').close()">Hủy</button>
-            <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white">Lưu điều chỉnh</button>
+            <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" onclick="this.closest('dialog').close()">Hủy</button>
+            <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white">Lưu điều chỉnh</button>
         </div>
     </form>
 </dialog>
@@ -972,8 +972,8 @@
         </label>
         </div>
         <div class="flex shrink-0 justify-end gap-2 border-t border-slate-100 p-4">
-            <button type="button" class="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" onclick="this.closest('dialog').close()">Hủy</button>
-            <button type="submit" class="rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white">Lưu phiếu hủy</button>
+            <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" onclick="this.closest('dialog').close()">Hủy</button>
+            <button type="submit" class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white">Lưu phiếu hủy</button>
         </div>
     </form>
 </dialog>
