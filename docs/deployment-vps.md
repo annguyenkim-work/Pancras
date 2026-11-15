@@ -79,7 +79,7 @@ sudo -u pancras env \
   PANCRAS_ADMIN_NAME="Nguyễn Văn A" \
   PANCRAS_ADMIN_EMAIL="admin@congty.com" \
   PANCRAS_ADMIN_PHONE="0900000000" \
-  PANCRAS_ADMIN_PASSWORD="mật khẩu từ 8 ký tự" \
+  PANCRAS_ADMIN_PASSWORD="mật khẩu từ 8 đến 128 ký tự" \
   dotnet Pancras.Web.dll create-admin
 ```
 

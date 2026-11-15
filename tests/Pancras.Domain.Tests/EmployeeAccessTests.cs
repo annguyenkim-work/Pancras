@@ -90,10 +90,12 @@ public class EmployeeAccessTests
         Assert.Equal(expected, SupplierAccess.CanManage(role));
 
     [Fact]
-    public void PasswordPolicy_RequiresEightCharacters()
+    public void PasswordPolicy_AcceptsEightThroughOneHundredTwentyEightCharacters()
     {
         Assert.False(PasswordPolicy.IsAcceptable("1234567"));
         Assert.True(PasswordPolicy.IsAcceptable("12345678"));
+        Assert.True(PasswordPolicy.IsAcceptable(new string('a', PasswordPolicy.MaxLength)));
+        Assert.False(PasswordPolicy.IsAcceptable(new string('a', PasswordPolicy.MaxLength + 1)));
         Assert.False(PasswordPolicy.IsAcceptable(null));
     }
 }

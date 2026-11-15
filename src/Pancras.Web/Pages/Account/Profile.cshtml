@@ -8,7 +8,7 @@
     {
         EmployeeError.None => null,
         EmployeeError.ProfileIncomplete => "Cần đủ họ tên, email đúng dạng và điện thoại.",
-        EmployeeError.WeakPassword => "Mật khẩu mới cần từ 8 ký tự trở lên.",
+        EmployeeError.WeakPassword => "Mật khẩu mới cần từ 8 đến 128 ký tự.",
         EmployeeError.WrongPassword => "Mật khẩu hiện tại không đúng.",
         EmployeeError.InvalidCode => "Mã xác thực không đúng hoặc đã hết hạn. Thử mã mới trong ứng dụng.",
         EmployeeError.TwoFactorAlreadyEnabled => "Xác thực hai bước đã được bật.",
@@ -54,7 +54,7 @@
         <h2 class="text-base font-bold text-slate-900">Đổi mật khẩu</h2>
         <form method="post" asp-page-handler="Password" class="mt-4 space-y-3">
             <label class="block text-sm">Mật khẩu hiện tại<input asp-for="Password.CurrentPassword" type="password" autocomplete="current-password" class="@inputClass" /></label>
-            <label class="block text-sm">Mật khẩu mới <span class="text-xs text-slate-500">(từ 8 ký tự)</span><input asp-for="Password.NewPassword" type="password" autocomplete="new-password" class="@inputClass" /></label>
+            <label class="block text-sm">Mật khẩu mới <span class="text-xs text-slate-500">(8–128 ký tự)</span><input asp-for="Password.NewPassword" type="password" autocomplete="new-password" class="@inputClass" /></label>
             <div class="flex justify-end">
                 <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Đổi mật khẩu</button>
             </div>

@@ -147,6 +147,122 @@ public class AuthenticationPageTests : IClassFixture<PancrasWebFactory>
         Assert.Contains("/login", response.Headers.Location?.OriginalString, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task CancelTwoFactor_ClearsThePendingSession()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var person = Employee.Create("Lê Thị Hai", "TwoFaLT", "TWOFALT", _hasher.Hash("Secret12"), EmployeeRole.Accountant);
+        person.EnableTwoFactor("protected-secret", [], 0);
+        ResetEmployees(person);
+
+        var login = await SignInAsync(client, "TwoFaLT", "Secret12");
+        Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
+        Assert.Contains("/login/verify", login.Headers.Location?.OriginalString, StringComparison.Ordinal);
+
+        var page = await client.GetAsync("/login/verify");
+        var html = await page.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        Assert.Contains("handler=Cancel", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("href=\"/login\"", html, StringComparison.Ordinal);
+        var token = Regex.Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+        Assert.False(string.IsNullOrEmpty(token));
+
+        var cancel = await client.PostAsync("/login/verify?handler=Cancel", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = token
+        }));
+
+        Assert.Equal(HttpStatusCode.Redirect, cancel.StatusCode);
+        Assert.Contains("/login", cancel.Headers.Location?.OriginalString, StringComparison.Ordinal);
+        Assert.DoesNotContain("/login/verify", cancel.Headers.Location?.OriginalString, StringComparison.Ordinal);
+
+        var again = await client.GetAsync("/login/verify");
+        Assert.Equal(HttpStatusCode.Redirect, again.StatusCode);
+        Assert.Contains("/login", again.Headers.Location?.OriginalString, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task UnknownUrl_WhenSignedIn_ShowsVietnameseNotFoundPage()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        ResetEmployees(Admin());
+        await SignInAsync(client, "admin", "Admin@12345");
+
+        var response = await client.GetAsync("/abc");
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Contains("Không tìm thấy trang", html, StringComparison.Ordinal);
+        Assert.Contains("Về trang chủ", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Exception", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PasswordHints_StateTheEightToOneHundredTwentyEightRange()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        ResetEmployees(Admin());
+        await SignInAsync(client, "admin", "Admin@12345");
+
+        var profile = await client.GetAsync("/profile");
+        var employees = await client.GetAsync("/employees?form=1");
+        var profileHtml = await profile.Content.ReadAsStringAsync();
+        var employeesHtml = await employees.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, profile.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, employees.StatusCode);
+        Assert.Contains("8–128 ký tự", profileHtml, StringComparison.Ordinal);
+        Assert.Contains("8–128 ký tự", employeesHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("từ 8 ký tự", profileHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("từ 8 ký tự", employeesHtml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LoginRateLimit_ReturnsVietnameseTooManyRequestsPage()
+    {
+        using var factory = new PancrasWebFactory { LoginPerMinute = "2" };
+        using var client = factory.CreateClient(NoRedirect);
+
+        var first = await client.GetAsync("/login");
+        var second = await client.GetAsync("/login");
+        var third = await client.GetAsync("/login");
+        var html = await third.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        Assert.Equal(HttpStatusCode.TooManyRequests, third.StatusCode);
+        Assert.Contains("Bạn thử đăng nhập quá nhiều lần. Vui lòng đợi một phút rồi thử lại.", html, StringComparison.Ordinal);
+        Assert.Contains("Về trang chủ", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Session_EndsTwelveHoursAfterSignIn_EvenIfTheCookieSlides()
+    {
+        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 11, 15, 0, 0, 0, TimeSpan.Zero));
+        using var factory = new PancrasWebFactory { Clock = clock };
+        using var client = factory.CreateClient(NoRedirect);
+        var repository = factory.Services.GetRequiredService<FakeEmployeeRepository>();
+        var hasher = factory.Services.GetRequiredService<FakePasswordHasher>();
+        repository.Employees.Add(Employee.Create(
+            "Lê Thị Test", "TestLT", "TESTLT", hasher.Hash("Secret12"), EmployeeRole.Accountant));
+
+        var login = await SignInAsync(client, "TestLT", "Secret12");
+        Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
+
+        clock.Advance(TimeSpan.FromHours(5));
+        var stillSignedIn = await client.GetAsync("/");
+        Assert.Equal(HttpStatusCode.OK, stillSignedIn.StatusCode);
+
+        clock.Advance(TimeSpan.FromHours(6));
+        var pastSlidingWindow = await client.GetAsync("/");
+        Assert.Equal(HttpStatusCode.OK, pastSlidingWindow.StatusCode);
+
+        clock.Advance(TimeSpan.FromHours(1));
+        var expired = await client.GetAsync("/");
+        Assert.Equal(HttpStatusCode.Redirect, expired.StatusCode);
+        Assert.Contains("/login", expired.Headers.Location?.OriginalString, StringComparison.Ordinal);
+    }
+
     private Employee Admin() =>
         Employee.Create("Quản trị hệ thống", "admin", "ADMIN", _hasher.Hash("Admin@12345"), EmployeeRole.Admin);
 
@@ -181,15 +297,25 @@ public class AuthenticationPageTests : IClassFixture<PancrasWebFactory>
 
 public sealed class PancrasWebFactory : WebApplicationFactory<Program>
 {
+    public string LoginPerMinute { get; init; } = "100000";
+
+    public TimeProvider? Clock { get; init; }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
-        builder.UseSetting("RateLimiting:LoginPerMinute", "100000");
+        builder.UseSetting("RateLimiting:LoginPerMinute", LoginPerMinute);
         builder.UseSetting(
             "ConnectionStrings:DefaultConnection",
             "Host=localhost;Port=5432;Database=pancras;Username=postgres;Password=testing");
         builder.ConfigureTestServices(services =>
         {
+            if (Clock is not null)
+            {
+                services.RemoveAll<TimeProvider>();
+                services.AddSingleton(Clock);
+            }
+
             services.RemoveAll<Pancras.Application.Auditing.IAuditLog>();
             services.AddSingleton<Pancras.Application.Auditing.IAuditLog, NoAuditLog>();
             services.RemoveAll<IEmployeeRepository>();
@@ -227,6 +353,15 @@ public sealed class PancrasWebFactory : WebApplicationFactory<Program>
             services.AddSingleton<IAttachmentStorage>(provider => provider.GetRequiredService<AttachmentDouble>());
         });
     }
+}
+
+internal sealed class ManualTimeProvider(DateTimeOffset start) : TimeProvider
+{
+    private DateTimeOffset _utc = start;
+
+    public void Advance(TimeSpan by) => _utc += by;
+
+    public override DateTimeOffset GetUtcNow() => _utc;
 }
 
 internal sealed class FakePasswordHasher : IPasswordHasher

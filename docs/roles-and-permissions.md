@@ -87,7 +87,7 @@ Ai duyệt phiếu chờ duyệt của kiểm kê và phiếu hủy (**[Cần x�
 
 ## 5. Bảo mật tài khoản (app public)
 
-- Mật khẩu tối thiểu 8 ký tự.
+- Mật khẩu từ 8 đến 128 ký tự.
 - Sai 5 lần thì khóa tài khoản 15 phút. Thêm giới hạn theo IP để không bị khóa Admin có chủ đích. Admin mở khóa được.
 - Đáp ứng đăng nhập có thời gian như nhau với tài khoản không tồn tại và sai mật khẩu.
 - Xác thực hai bước (2FA) là tùy chọn cho mọi vai trò (khách hàng chốt). Mỗi người tự bật hoặc tắt trong trang hồ sơ cá nhân (`/profile`), bằng TOTP (app Google/Microsoft Authenticator, Authy), tự cài trong app, không dùng dịch vụ trả phí. Có 10 mã khôi phục dùng một lần (lưu dạng hash). Mất điện thoại thì Admin reset 2FA. Nhập sai mã 2FA tính vào bộ đếm khóa. Mỗi mã chỉ dùng được một lần.

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Pancras.Application.Catalog;
 using Pancras.Application.Employees;
 using Pancras.Application.Inventory;
@@ -42,6 +43,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
             return validator.ValidateAsync(context);
         };
     });
+builder.Services.AddOptions<CookieAuthenticationOptions>(CookieAuthenticationDefaults.AuthenticationScheme)
+    .PostConfigure<TimeProvider>((options, timeProvider) => options.TimeProvider = timeProvider);
 builder.Services.AddAuthentication().AddCookie(PendingTwoFactor.Scheme, options =>
 {
     options.Cookie.Name = PendingTwoFactor.CookieName;
@@ -61,11 +64,23 @@ if (!string.IsNullOrWhiteSpace(keysPath))
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        context.HttpContext.Response.ContentType = "text/html; charset=utf-8";
+        await context.HttpContext.Response.WriteAsync(
+            PlainStatusPage(
+                "Thử lại sau",
+                "Bạn thử đăng nhập quá nhiều lần. Vui lòng đợi một phút rồi thử lại."),
+            cancellationToken);
+    };
+    // RemoteIpAddress: khi đứng sau reverse proxy, bật Deployment:BehindReverseProxy và KnownProxies
+    // để không gom mọi người dùng vào một bucket.
     options.AddPolicy("login", context => System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
         {
-            PermitLimit = builder.Configuration.GetValue("RateLimiting:LoginPerMinute", 20),
+            PermitLimit = builder.Configuration.GetValue("RateLimiting:LoginPerMinute", 120),
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0
         }));
@@ -275,6 +290,20 @@ app.UseExceptionHandler(errorApp =>
     });
 });
 
+app.UseStatusCodePages(async statusContext =>
+{
+    var response = statusContext.HttpContext.Response;
+    if (response.StatusCode != StatusCodes.Status404NotFound)
+    {
+        return;
+    }
+
+    response.ContentType = "text/html; charset=utf-8";
+    await response.WriteAsync(PlainStatusPage(
+        "Không tìm thấy trang",
+        "Địa chỉ này không có trên hệ thống."));
+});
+
 app.UseStaticFiles();
 app.UseRateLimiter();
 app.UseAuthentication();
@@ -288,5 +317,15 @@ if (args.Length > 0 && string.Equals(args[0], AdminBootstrap.Command, StringComp
 
 app.Run();
 return 0;
+
+static string PlainStatusPage(string title, string message) =>
+    "<!DOCTYPE html><html lang=\"vi\"><head><meta charset=\"utf-8\" /><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />"
+    + "<title>" + title + " - PancrasERP</title><link rel=\"stylesheet\" href=\"/css/site.css\" /></head>"
+    + "<body class=\"min-h-screen bg-slate-100 font-sans text-slate-900\"><main class=\"flex min-h-screen items-center justify-center p-4\">"
+    + "<div class=\"w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-sm\">"
+    + "<h1 class=\"text-xl font-bold\">" + title + "</h1>"
+    + "<p class=\"mt-2 text-sm text-slate-600\">" + message + "</p>"
+    + "<a href=\"/\" class=\"mt-6 inline-block rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white\">Về trang chủ</a>"
+    + "</div></main></body></html>";
 
 public partial class Program;

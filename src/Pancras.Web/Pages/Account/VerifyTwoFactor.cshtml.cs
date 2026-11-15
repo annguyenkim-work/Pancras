@@ -53,6 +53,12 @@ public class VerifyTwoFactorModel(VerifyTwoFactorCommandHandler verify, Employee
         return RedirectToPage("/Index");
     }
 
+    public async Task<IActionResult> OnPostCancelAsync()
+    {
+        await HttpContext.SignOutAsync(PendingTwoFactor.Scheme);
+        return RedirectToPage("/Account/Login");
+    }
+
     private async Task<Guid?> PendingEmployeeAsync()
     {
         var pending = await HttpContext.AuthenticateAsync(PendingTwoFactor.Scheme);

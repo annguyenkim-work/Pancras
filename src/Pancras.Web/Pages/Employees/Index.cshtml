@@ -20,7 +20,7 @@
         EmployeeError.LocationNotFound => "Kho hoặc showroom không tồn tại.",
         EmployeeError.LeadExists => "Kho hoặc showroom này đã có Trưởng đang hoạt động.",
         EmployeeError.LastAdmin => "Hệ thống phải còn ít nhất một Admin đang hoạt động.",
-        EmployeeError.WeakPassword => "Mật khẩu cần từ 8 ký tự trở lên.",
+        EmployeeError.WeakPassword => "Mật khẩu cần từ 8 đến 128 ký tự.",
         EmployeeError.WrongPassword => "Mật khẩu hiện tại không đúng.",
         _ => "Không thực hiện được."
     };
@@ -256,7 +256,7 @@ else
                 </label>
                 <label class="text-sm">Chức vụ<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="Command.JobTitle" class="@inputClass" /></label>
                 <label class="text-sm">Phòng ban<input asp-for="Command.Department" class="@inputClass" /></label>
-                <label class="text-sm sm:col-span-2">Mật khẩu<span class="text-rose-600" aria-hidden="true"> *</span> <span class="text-xs text-slate-500">(từ 8 ký tự)</span><input asp-for="Command.Password" type="password" autocomplete="new-password" class="@inputClass" /></label>
+                <label class="text-sm sm:col-span-2">Mật khẩu<span class="text-rose-600" aria-hidden="true"> *</span> <span class="text-xs text-slate-500">(8–128 ký tự)</span><input asp-for="Command.Password" type="password" autocomplete="new-password" class="@inputClass" /></label>
             </div>
             <div class="mt-4 flex justify-end gap-2">
                 <a href="@Model.ListUrl()" class="px-4 py-2 text-sm rounded-lg bg-slate-100 text-slate-600">Hủy</a>
@@ -366,7 +366,7 @@ else
 
                     @if (Model.CanResetPassword)
                     {
-                        <label class="text-sm sm:col-span-2">Đặt lại mật khẩu <span class="text-xs text-slate-500">(để trống nếu giữ nguyên, từ 8 ký tự)</span><input asp-for="EditCommand.Password" type="password" autocomplete="new-password" class="@inputClass" /></label>
+                        <label class="text-sm sm:col-span-2">Đặt lại mật khẩu <span class="text-xs text-slate-500">(để trống nếu giữ nguyên, 8–128 ký tự)</span><input asp-for="EditCommand.Password" type="password" autocomplete="new-password" class="@inputClass" /></label>
                     }
                 </div>
                 @if (Model.CanEditPersonal || Model.CanEditAssignment || Model.CanResetPassword)
