@@ -1,0 +1,55 @@
+@model Pancras.Web.Pages.Purchasing.ChargeRowView
+@using System.Globalization
+@using Pancras.Domain.Purchasing
+@{
+    var row = Model.Row;
+    var i = Model.Index;
+    var manual = row.Method == ChargeSplitMethod.Manual;
+    var shares = row.ManualShares is null
+        ? string.Empty
+        : System.Text.Json.JsonSerializer.Serialize(row.ManualShares.ToDictionary(pair => pair.Key.ToString("D"), pair => pair.Value));
+}
+@* Một dòng chi phí chung. Khoản chia tay (nhập số từng mặt hàng) chỉ xem ở đây, sửa ở chi tiết đơn. *@
+<tr class="charge-row border-t border-amber-200 align-top" data-manual="@(manual ? "1" : "0")" data-auto="@(row.AutoVolume ? "1" : "0")" data-shares="@shares">
+    <td class="py-2 pr-2">
+        <input type="hidden" class="charge-id" name="Form.Charges[@i].ChargeId" value="@(row.ChargeId?.ToString() ?? "")" />
+        <input name="Form.Charges[@i].Label" value="@row.Label" maxlength="200" placeholder="Tên khoản chi phí" readonly="@manual" class="charge-label w-full rounded-lg border border-slate-300 bg-white px-2 py-2" />
+    </td>
+    <td class="py-2 pr-2">
+        <input name="Form.Charges[@i].Amount" value="@row.Amount.ToString("0", CultureInfo.InvariantCulture)" inputmode="numeric" readonly="@manual" aria-label="Số tiền (đ)" class="charge-amount vnd draft w-36 rounded-lg border border-slate-300 bg-white px-2 py-2 text-right tabular-nums" />
+    </td>
+    <td class="py-2 pr-2">
+        @* Nhãn ngắn để không bị cắt; giải thích đầy đủ nằm ở title (rê chuột) và phần "Các nhóm chi phí" dưới bảng. *@
+        <select name="Form.Charges[@i].Group" aria-label="Nhóm chi phí" title="Nhóm quyết định khoản này vào giá vốn thế nào. Xem 'Các nhóm chi phí' dưới bảng." class="charge-group draft w-full min-w-[11rem] rounded-lg border border-slate-300 bg-white px-2 py-2">
+            <option value="@((int)ChargeGroup.CustomsValueAdjustment)" selected="@(row.Group == ChargeGroup.CustomsValueAdjustment)" title="Cước biển, bảo hiểm: cộng vào trị giá tính thuế nên làm tăng thuế nhập khẩu và VAT, rồi vào giá vốn.">Trị giá hải quan</option>
+            <option value="@((int)ChargeGroup.Logistics)" selected="@(row.Group == ChargeGroup.Logistics)" title="THC, D/O, kiểm định, kéo xe: cộng thẳng vào giá vốn, không tính thuế nhập khẩu.">Logistics</option>
+            <option value="@((int)ChargeGroup.NonDeductibleTax)" selected="@(row.Group == ChargeGroup.NonDeductibleTax)" title="Khoản thuế doanh nghiệp không được khấu trừ: tính vào giá vốn.">Thuế không khấu trừ</option>
+            <option value="@((int)ChargeGroup.DeductibleTax)" selected="@(row.Group == ChargeGroup.DeductibleTax)" title="Thuế được khấu trừ (ví dụ VAT hóa đơn dịch vụ): không vào giá vốn nhưng vẫn là tiền phải trả.">Thuế khấu trừ</option>
+        </select>
+    </td>
+    <td class="py-2 pr-2">
+        @if (manual)
+        {
+            <input type="hidden" class="charge-method" name="Form.Charges[@i].Method" value="@((int)ChargeSplitMethod.Manual)" />
+            <span class="text-xs text-slate-600">Nhập tay từng mặt hàng (sửa ở chi tiết đơn)</span>
+        }
+        else
+        {
+            <select name="Form.Charges[@i].Method" aria-label="Cách chia" class="charge-method draft w-full rounded-lg border border-slate-300 bg-white px-2 py-2">
+                <option value="@((int)ChargeSplitMethod.FobValue)" selected="@(row.Method == ChargeSplitMethod.FobValue)">Theo trị giá FOB</option>
+                <option value="@((int)ChargeSplitMethod.Quantity)" selected="@(row.Method == ChargeSplitMethod.Quantity)">Bình quân theo số lượng</option>
+                <option value="@((int)ChargeSplitMethod.Weight)" selected="@(row.Method == ChargeSplitMethod.Weight)">Theo khối lượng</option>
+                <option value="@((int)ChargeSplitMethod.Volume)" selected="@(row.Method == ChargeSplitMethod.Volume)">Theo thể tích</option>
+            </select>
+        }
+        <p class="charge-auto mt-1 text-xs text-slate-500"></p>
+        <p class="charge-warn mt-1 text-xs font-medium text-rose-700"></p>
+    </td>
+    <td class="py-2 text-right">
+        <button type="button" class="remove-charge rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600" aria-label="Xóa dòng chi phí" title="Xóa dòng chi phí">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-9 0 1 12h8l1-12" />
+            </svg>
+        </button>
+    </td>
+</tr>

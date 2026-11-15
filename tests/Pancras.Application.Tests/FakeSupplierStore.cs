@@ -1,7 +1,21 @@
 using Pancras.Application.Suppliers;
+using Pancras.Domain.Employees;
 using Pancras.Domain.Suppliers;
 
 namespace Pancras.Application.Tests;
+
+internal static class SupplierActors
+{
+    public static EmployeeActor Admin { get; } = new(Guid.CreateVersion7(), EmployeeRole.Admin, null);
+
+    public static EmployeeActor Director { get; } = new(Guid.CreateVersion7(), EmployeeRole.Director, null);
+
+    public static EmployeeActor Accountant { get; } = new(Guid.CreateVersion7(), EmployeeRole.Accountant, null);
+
+    public static EmployeeActor Keeper { get; } = new(Guid.CreateVersion7(), EmployeeRole.WarehouseKeeper, Guid.CreateVersion7());
+
+    public static EmployeeActor Sales { get; } = new(Guid.CreateVersion7(), EmployeeRole.Sales, Guid.CreateVersion7());
+}
 
 internal sealed class FakeSupplierRepository : ISupplierRepository
 {
@@ -10,15 +24,15 @@ internal sealed class FakeSupplierRepository : ISupplierRepository
     public bool RejectNextSave { get; set; }
 
     public Task<IReadOnlyList<Supplier>> ListAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<Supplier>>(ActiveOrdered(null));
+        Task.FromResult<IReadOnlyList<Supplier>>(Filtered(SupplierListFilter.From(null)));
 
     public Task<SupplierSlice> ListFilteredAsync(
-        string? term,
+        SupplierListFilter filter,
         int pageNumber,
         int pageSize,
         CancellationToken cancellationToken)
     {
-        var ordered = ActiveOrdered(term);
+        var ordered = Filtered(filter);
         var size = pageSize < 1 ? SupplierPageRequest.DefaultSize : pageSize;
         var totalPages = ordered.Count == 0 ? 1 : (ordered.Count + size - 1) / size;
         var number = Math.Clamp(pageNumber < 1 ? 1 : pageNumber, 1, totalPages);
@@ -26,38 +40,69 @@ internal sealed class FakeSupplierRepository : ISupplierRepository
         return Task.FromResult(new SupplierSlice(items, ordered.Count, number));
     }
 
-    private List<Supplier> ActiveOrdered(string? term)
+    public Task<IReadOnlyList<string>> ListCountriesAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<string>>(Suppliers.Select(supplier => supplier.Country).Distinct().Order().ToList());
+
+    private List<Supplier> Filtered(SupplierListFilter filter)
     {
-        IEnumerable<Supplier> suppliers = Suppliers.Where(supplier => !supplier.IsDeleted);
-        if (!string.IsNullOrWhiteSpace(term))
+        IEnumerable<Supplier> suppliers = filter.Status switch
         {
-            var needle = term.Trim();
+            SupplierStatusFilter.Inactive => Suppliers.Where(supplier => supplier.IsInactive),
+            SupplierStatusFilter.All => Suppliers,
+            _ => Suppliers.Where(supplier => !supplier.IsInactive)
+        };
+
+        if (filter.Country is not null)
+        {
+            suppliers = suppliers.Where(supplier => supplier.Country == filter.Country);
+        }
+
+        if (filter.Term is not null)
+        {
+            var needle = filter.Term;
             suppliers = suppliers.Where(supplier =>
                 supplier.Code.Contains(needle, StringComparison.OrdinalIgnoreCase)
-                || supplier.Name.Contains(needle, StringComparison.OrdinalIgnoreCase));
+                || supplier.Name.Contains(needle, StringComparison.OrdinalIgnoreCase)
+                || supplier.ContactName.Contains(needle, StringComparison.OrdinalIgnoreCase)
+                || supplier.Email.Contains(needle, StringComparison.OrdinalIgnoreCase)
+                || supplier.Phone.Contains(needle, StringComparison.OrdinalIgnoreCase)
+                || supplier.Country.Contains(needle, StringComparison.OrdinalIgnoreCase));
         }
 
         return suppliers.OrderBy(supplier => supplier.Name).ThenBy(supplier => supplier.Code).ToList();
     }
 
     public Task<Supplier?> GetActiveReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult(Suppliers.FirstOrDefault(supplier => supplier.Id == id && !supplier.IsDeleted));
+        Task.FromResult(Suppliers.FirstOrDefault(supplier => supplier.Id == id && !supplier.IsInactive));
+
+    public Task<Supplier?> GetAnyReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
+        Task.FromResult(Suppliers.FirstOrDefault(supplier => supplier.Id == id));
 
     public Task<Supplier?> GetActiveForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         GetActiveReadOnlyAsync(id, cancellationToken);
+
+    public Task<Supplier?> GetAnyForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
+        GetAnyReadOnlyAsync(id, cancellationToken);
+
+    public Task<IReadOnlyDictionary<Guid, string>> GetNamesAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyDictionary<Guid, string>>(
+            Suppliers.Where(supplier => ids.Contains(supplier.Id)).ToDictionary(supplier => supplier.Id, supplier => supplier.Name));
 
     public Task<bool> NormalizedCodeExistsAsync(
         string normalizedCode,
         Guid? excludingId,
         CancellationToken cancellationToken) =>
         Task.FromResult(Suppliers.Any(supplier =>
-            !supplier.IsDeleted
+            !supplier.IsInactive
             && supplier.NormalizedCode == normalizedCode
             && supplier.Id != excludingId));
 
+    public Task<string?> InactiveNameWithCodeAsync(string normalizedCode, CancellationToken cancellationToken) =>
+        Task.FromResult(Suppliers.FirstOrDefault(supplier => supplier.IsInactive && supplier.NormalizedCode == normalizedCode)?.Name);
+
     public Task<bool> TryAddAsync(Supplier supplier, CancellationToken cancellationToken)
     {
-        if (Suppliers.Any(existing => !existing.IsDeleted && existing.NormalizedCode == supplier.NormalizedCode))
+        if (Suppliers.Any(existing => !existing.IsInactive && existing.NormalizedCode == supplier.NormalizedCode))
         {
             return Task.FromResult(false);
         }
@@ -69,7 +114,7 @@ internal sealed class FakeSupplierRepository : ISupplierRepository
     public Task<int> CountActiveBeforeAsync(string name, string code, CancellationToken cancellationToken)
     {
         var count = Suppliers.Count(supplier =>
-            !supplier.IsDeleted
+            !supplier.IsInactive
             && (string.CompareOrdinal(supplier.Name, name) < 0
                 || (supplier.Name == name && string.CompareOrdinal(supplier.Code, code) < 0)));
         return Task.FromResult(count);

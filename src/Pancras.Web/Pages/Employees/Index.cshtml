@@ -1,0 +1,397 @@
+@page "/employees"
+@model Pancras.Web.Pages.Employees.IndexModel
+@using Pancras.Application.Common
+@using Pancras.Application.Employees
+@using Pancras.Domain.Employees
+@{
+    ViewData["Title"] = "Nhân sự & Phân quyền";
+    const string inputClass = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2";
+    const string readonlyClass = "mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-700";
+    string? ErrorText(EmployeeError error) => error switch
+    {
+        EmployeeError.None => null,
+        EmployeeError.ProfileIncomplete => "Cần đủ họ tên, email đúng dạng, điện thoại và chức vụ.",
+        EmployeeError.InvalidRole => "Vai trò không hợp lệ.",
+        EmployeeError.RoleRequired => "Cần chọn vai trò.",
+        EmployeeError.NotFound => "Không tìm thấy hồ sơ nhân viên.",
+        EmployeeError.NameUnusable => "Họ tên chưa đủ để sinh mã nhân viên.",
+        EmployeeError.CodeExhausted => "Không cấp được mã nhân viên. Thử lại sau.",
+        EmployeeError.Forbidden => "Bạn không có quyền thực hiện thao tác này.",
+        EmployeeError.LocationRequired => "Vai trò này cần gắn với một kho hoặc showroom.",
+        EmployeeError.LocationNotFound => "Kho hoặc showroom không tồn tại.",
+        EmployeeError.LeadExists => "Kho hoặc showroom này đã có Trưởng đang hoạt động.",
+        EmployeeError.LastAdmin => "Hệ thống phải còn ít nhất một Admin đang hoạt động.",
+        EmployeeError.WeakPassword => "Mật khẩu cần từ 8 đến 128 ký tự.",
+        EmployeeError.WrongPassword => "Mật khẩu hiện tại không đúng.",
+        _ => "Không thực hiện được."
+    };
+    string LocationLabel(Guid? id) => id is Guid value
+        ? Model.Locations.FirstOrDefault(location => location.Id == value)?.Name ?? "—"
+        : "Chưa gán";
+}
+
+<section class="bg-white rounded-xl border border-slate-200 p-6">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+            <h1 class="font-display text-xl sm:text-2xl font-bold text-slate-900">Nhân sự &amp; Phân quyền</h1>
+            <p class="mt-1 text-sm text-slate-500">@(Model.IsLead ? "Nhân viên thuộc kho/showroom của bạn." : "Hồ sơ nhân viên.")</p>
+        </div>
+        @if (Model.CanCreate)
+        {
+            <a href="@Model.FormUrl()" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Thêm nhân viên</a>
+        }
+    </div>
+    @if (!Model.ShowForm && !Model.ShowEdit && Model.Error != EmployeeError.None)
+    {
+        <p class="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800" role="alert">@ErrorText(Model.Error)</p>
+    }
+    <form method="get" action="/employees" data-live-filter class="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+        <input name="q" value="@Model.Search" type="search" placeholder="Tìm theo tên, mã hoặc email..." aria-label="Tìm kiếm nhân viên" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        <label class="block">
+            <select name="role" aria-label="Vai trò" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                <option value="">Tất cả vai trò</option>
+                @foreach (var role in EmployeeRoles.All)
+                {
+                    if (Model.Role == role)
+                    {
+                        <option value="@role" selected>@role</option>
+                    }
+                    else
+                    {
+                        <option value="@role">@role</option>
+                    }
+                }
+            </select>
+        </label>
+        @if (!Model.IsLead)
+        {
+            <label class="block">
+                <select name="location" aria-label="Kho hoặc showroom" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                    <option value="">Tất cả kho/showroom</option>
+                    @foreach (var location in Model.Locations)
+                    {
+                        if (Model.LocationFilter == location.Id)
+                        {
+                            <option value="@location.Id" selected>@location.Name</option>
+                        }
+                        else
+                        {
+                            <option value="@location.Id">@location.Name</option>
+                        }
+                    }
+                </select>
+            </label>
+        }
+    </form>
+</section>
+
+<div id="live-results">
+@if (Model.Cards.Count == 0)
+{
+    <partial name="_EmptyState" model='new EmptyStateModel("Chưa có nhân viên khớp bộ lọc.", "Thử đổi điều kiện lọc.", "Bỏ lọc", "/employees")' />
+}
+else
+{
+    <div class="mt-4 max-w-full overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <table class="w-full min-w-[64rem] text-left text-sm xl:min-w-0">
+            <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                    <th class="px-3 py-3 font-semibold">Nhân viên</th>
+                    <th class="px-3 py-3 font-semibold">Vai trò</th>
+                    <th class="px-3 py-3 font-semibold">Kho/showroom</th>
+                    <th class="px-3 py-3 font-semibold">Liên hệ</th>
+                    <th class="px-3 py-3 font-semibold">Chức vụ / Phòng ban</th>
+                    <th class="px-3 py-3 font-semibold whitespace-nowrap xl:whitespace-normal">Người cập nhật</th>
+                    <th class="px-3 py-3 font-semibold whitespace-nowrap xl:whitespace-normal">Ngày cập nhật</th>
+                    <th class="px-3 py-3 text-right font-semibold">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var card in Model.Cards)
+                {
+                    var signedIn = string.Equals(card.Code, Model.SignedInCode, StringComparison.OrdinalIgnoreCase);
+                    <tr class="border-t border-slate-100 align-top hover:bg-slate-50 @(card.IsActive ? "" : "opacity-70")">
+                        <td class="px-3 py-3">
+                            <p class="font-bold text-slate-900">@card.FullName</p>
+                            <p class="font-mono text-xs font-medium tracking-wide text-slate-500">@card.Code</p>
+                            @if (signedIn)
+                            {
+                                <p class="text-xs font-medium text-emerald-700">Đang đăng nhập</p>
+                            }
+                        </td>
+                        <td class="px-3 py-3">
+                            <div class="flex flex-wrap gap-1">
+                                <span class="rounded-md bg-sky-50 px-2 py-1 text-xs font-medium text-sky-700">@card.Role</span>
+                                @if (!card.IsActive)
+                                {
+                                    <span class="rounded-md bg-slate-200 px-2 py-1 text-xs font-medium text-slate-700">Đã vô hiệu hóa</span>
+                                }
+                                @if (Model.IsLocked(card))
+                                {
+                                    <span class="rounded-md bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800">Bị khóa tạm</span>
+                                }
+                                @if (card.TwoFactorEnabled)
+                                {
+                                    <span class="rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">2FA bật</span>
+                                }
+                            </div>
+                        </td>
+                        <td class="px-3 py-3 text-slate-700">@(string.IsNullOrWhiteSpace(card.LocationName) ? "—" : card.LocationName)</td>
+                        <td class="px-3 py-3 text-slate-700">
+                            <p class="break-all">@(string.IsNullOrWhiteSpace(card.Email) ? "—" : card.Email)</p>
+                            <p class="font-mono text-xs tabular-nums">@card.Phone</p>
+                            @if (!string.IsNullOrWhiteSpace(card.Address))
+                            {
+                                <p class="text-xs text-slate-500">@card.Address</p>
+                            }
+                        </td>
+                        <td class="px-3 py-3 text-slate-700">
+                            <p>@(string.IsNullOrWhiteSpace(card.JobTitle) ? "—" : card.JobTitle)</p>
+                            @if (!string.IsNullOrWhiteSpace(card.Department))
+                            {
+                                <p class="text-xs text-slate-500">@card.Department</p>
+                            }
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-slate-700 xl:whitespace-normal">@(card.Stamp?.UpdatedAt is not null && !string.IsNullOrWhiteSpace(card.Stamp.UpdatedBy) ? card.Stamp.UpdatedBy : "—")</td>
+                        <td class="whitespace-nowrap px-3 py-3 tabular-nums text-slate-700 xl:whitespace-normal">@(card.Stamp?.UpdatedAt is DateTimeOffset updated ? updated.ToLocalTime().ToString("dd/MM/yyyy HH:mm") : "—")</td>
+                        <td class="px-3 py-3">
+                            <div class="flex flex-wrap items-center justify-end gap-2">
+                            @if (Model.CanResetPassword && Model.IsLocked(card))
+                            {
+                                <form method="post" asp-page-handler="Unlock">
+                                    <input type="hidden" name="id" value="@card.Id" />
+                                    <input type="hidden" name="q" value="@Model.Search" />
+                                    <input type="hidden" name="role" value="@Model.Role" />
+                                    <input type="hidden" name="location" value="@Model.LocationFilter" />
+                                    <input type="hidden" name="pageNumber" value="@Model.PageNumber" />
+                                    <button type="submit" class="px-3 py-1.5 text-sm font-medium rounded-lg text-amber-700 hover:bg-amber-50">Mở khóa</button>
+                                </form>
+                            }
+                            @if (Model.CanResetPassword && card.TwoFactorEnabled)
+                            {
+                                <form method="post" asp-page-handler="ResetTwoFactor" data-confirm data-confirm-title="Tắt xác thực hai bước" data-confirm-message="Tắt xác thực hai bước của nhân viên này? Họ sẽ đăng nhập chỉ bằng mật khẩu cho tới khi bật lại." data-confirm-label="Tắt 2FA" data-confirm-tone="danger">
+                                    <input type="hidden" name="id" value="@card.Id" />
+                                    <input type="hidden" name="q" value="@Model.Search" />
+                                    <input type="hidden" name="role" value="@Model.Role" />
+                                    <input type="hidden" name="location" value="@Model.LocationFilter" />
+                                    <input type="hidden" name="pageNumber" value="@Model.PageNumber" />
+                                    <button type="submit" class="px-3 py-1.5 text-sm font-medium rounded-lg text-slate-700 hover:bg-slate-100">Tắt 2FA</button>
+                                </form>
+                            }
+                            @if (Model.CanToggle(card))
+                            {
+                                <form method="post" asp-page-handler="SetActive" data-confirm="@(card.IsActive ? "" : null)" data-confirm-title="@(card.IsActive ? "Ngừng hoạt động nhân viên" : null)" data-confirm-message="@(card.IsActive ? "Ngừng hoạt động nhân viên này? Hồ sơ được vô hiệu hóa và có thể kích hoạt lại." : null)" data-confirm-label="@(card.IsActive ? "Ngừng" : null)" data-confirm-tone="@(card.IsActive ? "danger" : null)">
+                                    <input type="hidden" name="id" value="@card.Id" />
+                                    <input type="hidden" name="active" value="@(card.IsActive ? "false" : "true")" />
+                                    <input type="hidden" name="q" value="@Model.Search" />
+                                    <input type="hidden" name="role" value="@Model.Role" />
+                                    <input type="hidden" name="location" value="@Model.LocationFilter" />
+                                    <input type="hidden" name="pageNumber" value="@Model.PageNumber" />
+                                    <button type="submit" class="px-3 py-1.5 text-sm font-medium rounded-lg @(card.IsActive ? "text-rose-700 hover:bg-rose-50" : "text-emerald-700 hover:bg-emerald-50")">@(card.IsActive ? "Ngừng" : "Kích hoạt lại")</button>
+                                </form>
+                            }
+                            @if (Model.CanEdit(card))
+                            {
+                                <a class="px-3 py-1.5 text-sm font-bold rounded-lg bg-slate-100 text-slate-700" href="@Model.EditUrl(card.Id)">Sửa</a>
+                            }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    @if (Model.PageCount > 1)
+    {
+        <p class="mt-4 text-sm text-slate-500">Trang @Model.PageNumber / @Model.PageCount</p>
+    }
+}
+</div>
+
+@if (Model.CanCreate && Model.ShowForm)
+{
+    <dialog id="employee-create-dialog" class="m-auto !flex w-[min(40rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
+        <div class="flex shrink-0 items-center justify-between gap-3 px-6 pt-6">
+            <h2 class="text-lg font-bold">Thêm nhân viên</h2>
+            <a href="@Model.ListUrl()" class="text-slate-400" aria-label="Đóng">×</a>
+        </div>
+        <form method="post" asp-page-handler="Create" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
+            <input type="hidden" name="q" value="@Model.Search" />
+            <input type="hidden" name="role" value="@Model.Role" />
+            <input type="hidden" name="location" value="@Model.LocationFilter" />
+            @if (Model.Error != EmployeeError.None)
+            {
+                <p class="mt-3 text-sm text-rose-700" role="alert">@ErrorText(Model.Error)</p>
+            }
+            <p class="mt-3 text-xs text-slate-500"><span class="text-rose-600">*</span> Trường bắt buộc</p>
+            <div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label class="text-sm sm:col-span-2">Họ tên<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="Command.FullName" id="employee-name" class="@inputClass" /></label>
+                <label class="text-sm sm:col-span-2">Mã nhân viên <span class="text-xs text-slate-500">(tự sinh từ họ tên)</span>
+                    <input id="employee-code" value="@Model.PreviewCode" readonly class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono" />
+                </label>
+                <label class="text-sm">Email<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="Command.Email" type="email" class="@inputClass" /></label>
+                <label class="text-sm">Điện thoại<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="Command.Phone" class="@inputClass" /></label>
+                <label class="text-sm sm:col-span-2">Địa chỉ<input asp-for="Command.Address" class="@inputClass" /></label>
+                <label class="text-sm">Vai trò<span class="text-rose-600" aria-hidden="true"> *</span>
+                    <select asp-for="Command.Role" required class="@inputClass">
+                        <option value="" disabled selected required>Chọn vai trò</option>
+                        @foreach (var role in Model.CreatableRoles)
+                        {
+                            <option value="@role">@role</option>
+                        }
+                    </select>
+                </label>
+                <label class="text-sm">Kho/showroom
+                    @if (Model.IsLead)
+                    {
+                        <input type="hidden" asp-for="Command.StockLocationId" />
+                        <input value="@LocationLabel(Model.Actor.LocationId)" readonly class="@readonlyClass" />
+                    }
+                    else
+                    {
+                        <select asp-for="Command.StockLocationId" class="@inputClass">
+                            <option value="">Chưa gán</option>
+                            @foreach (var location in Model.LocationChoices)
+                            {
+                                <option value="@location.Id">@location.Name</option>
+                            }
+                        </select>
+                    }
+                    <span class="mt-1 block text-xs font-normal text-slate-500">Bắt buộc với Trưởng kho, Thủ kho và Sales.</span>
+                </label>
+                <label class="text-sm">Chức vụ<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="Command.JobTitle" class="@inputClass" /></label>
+                <label class="text-sm">Phòng ban<input asp-for="Command.Department" class="@inputClass" /></label>
+                <label class="text-sm sm:col-span-2">Mật khẩu<span class="text-rose-600" aria-hidden="true"> *</span> <span class="text-xs text-slate-500">(8–128 ký tự)</span><input asp-for="Command.Password" type="password" autocomplete="new-password" class="@inputClass" /></label>
+            </div>
+            <div class="mt-4 flex justify-end gap-2">
+                <a href="@Model.ListUrl()" class="px-4 py-2 text-sm rounded-lg bg-slate-100 text-slate-600">Hủy</a>
+                <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Lưu</button>
+            </div>
+        </form>
+    </dialog>
+    <script>
+        document.getElementById("employee-create-dialog").showModal();
+        (function () {
+            const name = document.getElementById("employee-name");
+            const code = document.getElementById("employee-code");
+            if (!name || !code) return;
+            const preview = (value) => {
+                const words = value.trim().split(/\s+/).filter(Boolean).map((word) => word.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/gi, "d").replace(/[^A-Za-z0-9]/g, ""));
+                if (words.length === 0) return "";
+                const parts = words.map((word) => word[0].toUpperCase() + word.slice(1).toLowerCase());
+                if (parts.length === 1) return parts[0];
+                return parts[parts.length - 1] + parts.slice(0, -1).map((part) => part[0].toUpperCase()).join("");
+            };
+            name.addEventListener("input", () => { code.value = preview(name.value); });
+        })();
+    </script>
+}
+
+@if (Model.ShowEdit)
+{
+    <dialog id="employee-edit-dialog" class="m-auto !flex w-[min(40rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
+        <div class="flex shrink-0 items-center justify-between gap-3 px-6 pt-6">
+            <h2 class="text-lg font-bold">Hồ sơ nhân viên</h2>
+            <a href="@Model.ListUrl()" class="text-slate-400" aria-label="Đóng">×</a>
+        </div>
+        <form method="post" asp-page-handler="Update" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
+            <input type="hidden" asp-for="EditCommand.Id" />
+            <input type="hidden" name="q" value="@Model.Search" />
+            <input type="hidden" name="role" value="@Model.Role" />
+            <input type="hidden" name="location" value="@Model.LocationFilter" />
+            <input type="hidden" name="pageNumber" value="@Model.PageNumber" />
+            @if (Model.Error == EmployeeError.NotFound || Model.Error == EmployeeError.Forbidden)
+            {
+                <p class="mt-3 text-sm text-rose-700" role="alert">@ErrorText(Model.Error)</p>
+            }
+            else
+            {
+                <p class="mt-3 text-sm text-slate-700">Mã nhân viên: <span class="font-mono font-bold">@Model.EditCode</span></p>
+                @if (Model.Error != EmployeeError.None)
+                {
+                    <p class="mt-3 text-sm text-rose-700" role="alert">@ErrorText(Model.Error)</p>
+                }
+                @if (!Model.CanEditPersonal)
+                {
+                    <p class="mt-3 text-xs text-slate-500">Họ tên, email, điện thoại, địa chỉ do Admin hoặc chính nhân viên cập nhật.</p>
+                }
+                <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    @if (Model.CanEditPersonal)
+                    {
+                        <label class="text-sm sm:col-span-2">Họ tên<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="EditCommand.FullName" class="@inputClass" /></label>
+                        <label class="text-sm">Email<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="EditCommand.Email" type="email" class="@inputClass" /></label>
+                        <label class="text-sm">Điện thoại<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="EditCommand.Phone" class="@inputClass" /></label>
+                        <label class="text-sm sm:col-span-2">Địa chỉ<input asp-for="EditCommand.Address" class="@inputClass" /></label>
+                    }
+                    else
+                    {
+                        <input type="hidden" asp-for="EditCommand.FullName" />
+                        <input type="hidden" asp-for="EditCommand.Email" />
+                        <input type="hidden" asp-for="EditCommand.Phone" />
+                        <input type="hidden" asp-for="EditCommand.Address" />
+                        <div class="text-sm sm:col-span-2">Họ tên<p class="@readonlyClass">@Model.EditCommand.FullName</p></div>
+                        <div class="text-sm">Email<p class="@readonlyClass">@Model.EditCommand.Email</p></div>
+                        <div class="text-sm">Điện thoại<p class="@readonlyClass">@Model.EditCommand.Phone</p></div>
+                        <div class="text-sm sm:col-span-2">Địa chỉ<p class="@readonlyClass">@(string.IsNullOrWhiteSpace(Model.EditCommand.Address) ? "—" : Model.EditCommand.Address)</p></div>
+                    }
+
+                    @if (Model.CanEditAssignment)
+                    {
+                        <label class="text-sm">Vai trò<span class="text-rose-600" aria-hidden="true"> *</span>
+                            <select asp-for="EditCommand.Role" class="@inputClass">
+                                @foreach (var role in Model.CreatableRoles)
+                                {
+                                    <option value="@role">@role</option>
+                                }
+                            </select>
+                        </label>
+                        <label class="text-sm">Kho/showroom
+                            <select asp-for="EditCommand.StockLocationId" class="@inputClass">
+                                <option value="">Chưa gán</option>
+                                @foreach (var location in Model.LocationChoices)
+                                {
+                                    <option value="@location.Id">@location.Name</option>
+                                }
+                            </select>
+                            <span class="mt-1 block text-xs font-normal text-slate-500">Bắt buộc với Trưởng kho, Thủ kho và Sales.</span>
+                        </label>
+                        <label class="text-sm">Chức vụ<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="EditCommand.JobTitle" class="@inputClass" /></label>
+                        <label class="text-sm">Phòng ban<input asp-for="EditCommand.Department" class="@inputClass" /></label>
+                    }
+                    else
+                    {
+                        <input type="hidden" asp-for="EditCommand.Role" />
+                        <input type="hidden" asp-for="EditCommand.StockLocationId" />
+                        <input type="hidden" asp-for="EditCommand.JobTitle" />
+                        <input type="hidden" asp-for="EditCommand.Department" />
+                        <div class="text-sm">Vai trò<p class="@readonlyClass">@Model.EditCommand.Role</p></div>
+                        <div class="text-sm">Kho/showroom<p class="@readonlyClass">@LocationLabel(Model.EditCommand.StockLocationId)</p></div>
+                        <div class="text-sm">Chức vụ<p class="@readonlyClass">@Model.EditCommand.JobTitle</p></div>
+                        <div class="text-sm">Phòng ban<p class="@readonlyClass">@(string.IsNullOrWhiteSpace(Model.EditCommand.Department) ? "—" : Model.EditCommand.Department)</p></div>
+                    }
+
+                    @if (Model.CanResetPassword)
+                    {
+                        <label class="text-sm sm:col-span-2">Đặt lại mật khẩu <span class="text-xs text-slate-500">(để trống nếu giữ nguyên, 8–128 ký tự)</span><input asp-for="EditCommand.Password" type="password" autocomplete="new-password" class="@inputClass" /></label>
+                    }
+                </div>
+                @if (Model.CanEditPersonal || Model.CanEditAssignment || Model.CanResetPassword)
+                {
+                    <div class="mt-4 flex justify-end gap-2">
+                        <a href="@Model.ListUrl()" class="px-4 py-2 text-sm rounded-lg bg-slate-100 text-slate-600">Hủy</a>
+                        <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Lưu</button>
+                    </div>
+                }
+                else
+                {
+                    <div class="mt-4 flex justify-end">
+                        <a href="@Model.ListUrl()" class="px-4 py-2 text-sm rounded-lg bg-slate-100 text-slate-600">Đóng</a>
+                    </div>
+                }
+            }
+        </form>
+    </dialog>
+    <script>document.getElementById("employee-edit-dialog").showModal();</script>
+}
+
+<partial name="_ConfirmDialog" />

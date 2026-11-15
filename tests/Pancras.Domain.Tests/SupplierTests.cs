@@ -66,7 +66,7 @@ public class SupplierTests
         Assert.Equal("NCC02", supplier.NormalizedCode);
         Assert.Equal("Tên mới", supplier.Name);
         Assert.Equal("b@c.co", supplier.Email);
-        Assert.False(supplier.IsDeleted);
+        Assert.False(supplier.IsInactive);
     }
 
     [Fact]
@@ -80,14 +80,65 @@ public class SupplierTests
     }
 
     [Fact]
-    public void MarkDeleted_KeepsTheRowAndHidesIt()
+    public void Deactivate_KeepsTheRow()
     {
         var supplier = Valid();
 
-        supplier.MarkDeleted();
+        supplier.Deactivate();
 
-        Assert.True(supplier.IsDeleted);
+        Assert.True(supplier.IsInactive);
         Assert.Equal("NCC01", supplier.Code);
+    }
+
+    [Fact]
+    public void Reactivate_ClearsTheInactiveFlag()
+    {
+        var supplier = Valid();
+        supplier.Deactivate();
+
+        supplier.Reactivate();
+
+        Assert.False(supplier.IsInactive);
+    }
+
+    [Fact]
+    public void EmailPhoneAndPaymentDetails_AreOptional()
+    {
+        var supplier = Supplier.Create("NCC01", "Kim An", "Trung Quốc", "Nguyễn An", " ", "", "");
+
+        Assert.Equal(string.Empty, supplier.Phone);
+        Assert.Equal(string.Empty, supplier.Email);
+        Assert.Equal(string.Empty, supplier.Account);
+        Assert.Equal(string.Empty, supplier.BankName);
+        Assert.Equal(string.Empty, supplier.SwiftCode);
+    }
+
+    [Fact]
+    public void OptionalFields_AreStillValidatedWhenGiven()
+    {
+        Assert.Throws<ArgumentException>(() => Supplier.Create("NCC01", "Kim An", "Trung Quốc", "An", "abc", "", ""));
+        Assert.Throws<ArgumentException>(() => Supplier.Create("NCC01", "Kim An", "Trung Quốc", "An", "", "a@b", ""));
+        Assert.Throws<ArgumentException>(() => Supplier.Create("NCC01", "Kim An", "Trung Quốc", "An", "", "", "", "", "ABC"));
+    }
+
+    [Fact]
+    public void BankDetails_AreTrimmed_AndSwiftIsUppercased()
+    {
+        var supplier = Supplier.Create("NCC01", "Kim An", "Trung Quốc", "An", "", "", " 123 ", " Bank of China ", " bkchcnbj ");
+
+        Assert.Equal("123", supplier.Account);
+        Assert.Equal("Bank of China", supplier.BankName);
+        Assert.Equal("BKCHCNBJ", supplier.SwiftCode);
+    }
+
+    [Fact]
+    public void Swift_AcceptsEightOrElevenLettersAndDigits()
+    {
+        Assert.True(SupplierSwift.IsCode("BKCHCNBJ"));
+        Assert.True(SupplierSwift.IsCode("BKCHCNBJ300"));
+        Assert.False(SupplierSwift.IsCode("BKCHCNB"));
+        Assert.False(SupplierSwift.IsCode("BKCHCNBJ30"));
+        Assert.False(SupplierSwift.IsCode("BKCH-NBJ"));
     }
 
     [Fact]

@@ -26,17 +26,33 @@ public sealed class CreateCatalogItemCommandValidator : AbstractValidator<Create
             .WithState(_ => new CatalogIssue(CatalogField.Brand, CatalogIssueKind.TooLong, CatalogItem.BrandMaxLength));
         RuleFor(command => command.Origin).Must(value => CatalogValidation.Fits(value, CatalogItem.OriginMaxLength))
             .WithState(_ => new CatalogIssue(CatalogField.Origin, CatalogIssueKind.TooLong, CatalogItem.OriginMaxLength));
+        RuleFor(command => command.Unit).Must(CatalogValidation.HasText)
+            .WithState(_ => new CatalogIssue(CatalogField.Unit, CatalogIssueKind.Missing));
         RuleFor(command => command.Unit).Must(value => CatalogValidation.Fits(value, CatalogItem.UnitMaxLength))
             .WithState(_ => new CatalogIssue(CatalogField.Unit, CatalogIssueKind.TooLong, CatalogItem.UnitMaxLength));
 
         RuleFor(command => command.WeightKg).Must(CatalogValidation.NotNegative)
             .WithState(_ => new CatalogIssue(CatalogField.Weight, CatalogIssueKind.Negative));
+        RuleFor(command => command.WeightKg).Must(CatalogValidation.MeasureFits)
+            .WithState(_ => new CatalogIssue(CatalogField.Weight, CatalogIssueKind.TooLarge));
         RuleFor(command => command.VolumeM3).Must(CatalogValidation.NotNegative)
             .WithState(_ => new CatalogIssue(CatalogField.Volume, CatalogIssueKind.Negative));
+        RuleFor(command => command.VolumeM3).Must(CatalogValidation.MeasureFits)
+            .WithState(_ => new CatalogIssue(CatalogField.Volume, CatalogIssueKind.TooLarge));
         RuleFor(command => command.WarrantyMonths).Must(CatalogValidation.NotNegative)
             .WithState(_ => new CatalogIssue(CatalogField.WarrantyMonths, CatalogIssueKind.Negative));
         RuleFor(command => command.MinimumStock).Must(CatalogValidation.NotNegative)
             .WithState(_ => new CatalogIssue(CatalogField.MinimumStock, CatalogIssueKind.Negative));
+        RuleFor(command => command.MinimumStock).Must(CatalogValidation.MeasureFits)
+            .WithState(_ => new CatalogIssue(CatalogField.MinimumStock, CatalogIssueKind.TooLarge));
+        RuleFor(command => command.HeightMm).Must(CatalogValidation.NotNegative)
+            .WithState(_ => new CatalogIssue(CatalogField.Height, CatalogIssueKind.Negative));
+        RuleFor(command => command.LengthMm).Must(CatalogValidation.NotNegative)
+            .WithState(_ => new CatalogIssue(CatalogField.Length, CatalogIssueKind.Negative));
+        RuleFor(command => command.WidthMm).Must(CatalogValidation.NotNegative)
+            .WithState(_ => new CatalogIssue(CatalogField.Width, CatalogIssueKind.Negative));
+        RuleFor(command => command.ImagePath).Must(value => CatalogValidation.Fits(value, CatalogItem.ImagePathMaxLength))
+            .WithState(_ => new CatalogIssue(CatalogField.Image, CatalogIssueKind.TooLong, CatalogItem.ImagePathMaxLength));
 
         Price(command => command.CostPrice, CatalogField.CostPrice);
         Price(command => command.RetailPrice, CatalogField.RetailPrice);
@@ -52,6 +68,8 @@ public sealed class CreateCatalogItemCommandValidator : AbstractValidator<Create
         RuleFor(property).NotNull().WithState(_ => new CatalogIssue(field, CatalogIssueKind.Missing));
         RuleFor(property).Must(CatalogValidation.NotNegative)
             .WithState(_ => new CatalogIssue(field, CatalogIssueKind.Negative));
+        RuleFor(property).Must(CatalogValidation.PriceFits)
+            .WithState(_ => new CatalogIssue(field, CatalogIssueKind.TooLarge));
     }
 }
 
@@ -98,7 +116,11 @@ public sealed class CreateCatalogItemCommandHandler(
             command.RetailPrice!.Value,
             command.DealerPrice!.Value,
             command.DistributorPrice!.Value,
-            command.ProjectPrice!.Value);
+            command.ProjectPrice!.Value,
+            command.HeightMm,
+            command.LengthMm,
+            command.WidthMm,
+            command.ImagePath);
         if (!await repository.TryAddAsync(item, cancellationToken))
         {
             logger.LogWarning("Rejected a duplicate catalog item.");

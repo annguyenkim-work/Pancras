@@ -16,3 +16,10 @@ Thumbs.db
 /specs
 *.cursorrules
 /ARCHITECTURE.md
+src/Pancras.Web/wwwroot/uploads/
+
+node_modules/
+
+# Chứng từ tải lên khi chạy thử (không đưa vào git)
+App_Data/
+/.claude/launch.json

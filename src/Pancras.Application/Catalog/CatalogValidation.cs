@@ -30,6 +30,11 @@ internal static class CatalogValidation
             return CatalogError.Negative;
         }
 
+        if (issues.Any(issue => issue.Kind == CatalogIssueKind.TooLarge))
+        {
+            return CatalogError.TooLarge;
+        }
+
         return CatalogError.Incomplete;
     }
 
@@ -56,4 +61,10 @@ internal static class CatalogValidation
     public static bool NotNegative(decimal? value) => value is null || value >= 0;
 
     public static bool NotNegative(int? value) => value is null || value >= 0;
+
+    public static bool PriceFits(decimal? value) =>
+        value is null || decimal.Round(value.Value, 0, MidpointRounding.AwayFromZero) <= CatalogItem.MaxPrice;
+
+    public static bool MeasureFits(decimal? value) =>
+        value is null || decimal.Round(value.Value, 3, MidpointRounding.AwayFromZero) <= CatalogItem.MaxMeasure;
 }

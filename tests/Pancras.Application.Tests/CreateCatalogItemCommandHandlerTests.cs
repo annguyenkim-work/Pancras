@@ -24,6 +24,39 @@ public class CreateCatalogItemCommandHandlerTests
     }
 
     [Fact]
+    public async Task Create_StoresDimensionsAndImagePath()
+    {
+        var repository = new FakeCatalogRepository();
+        var command = Command("SP10", "Chậu");
+        command.HeightMm = 800;
+        command.LengthMm = 1200;
+        command.WidthMm = 450;
+        command.ImagePath = "/uploads/catalog/chau.png";
+
+        var result = await Handler(repository).HandleAsync(command, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var item = Assert.Single(repository.Items);
+        Assert.Equal(800, item.HeightMm);
+        Assert.Equal(1200, item.LengthMm);
+        Assert.Equal(450, item.WidthMm);
+        Assert.Equal("/uploads/catalog/chau.png", item.ImagePath);
+    }
+
+    [Fact]
+    public async Task Create_RejectsANegativeDimension()
+    {
+        var repository = new FakeCatalogRepository();
+        var command = Command("SP11", "Chậu");
+        command.WidthMm = -1;
+
+        var result = await Handler(repository).HandleAsync(command, CancellationToken.None);
+
+        Assert.Equal(CatalogError.Negative, result.CatalogError);
+        Assert.Empty(repository.Items);
+    }
+
+    [Fact]
     public async Task Create_RejectsDuplicateCode_WithoutAddingAnotherRow()
     {
         var repository = new FakeCatalogRepository();
@@ -70,6 +103,47 @@ public class CreateCatalogItemCommandHandlerTests
 
         Assert.Equal(CatalogError.Negative, result.CatalogError);
         Assert.Empty(repository.Items);
+    }
+
+    [Fact]
+    public async Task Create_RejectsABlankUnit()
+    {
+        var repository = new FakeCatalogRepository();
+        var command = Command("SP12", "Gương");
+        command.Unit = " ";
+
+        var result = await Handler(repository).HandleAsync(command, CancellationToken.None);
+
+        Assert.Equal(CatalogError.Incomplete, result.CatalogError);
+        Assert.Contains(result.CatalogIssues, issue => issue.Field == CatalogField.Unit && issue.Kind == CatalogIssueKind.Missing);
+        Assert.Empty(repository.Items);
+    }
+
+    [Fact]
+    public async Task Create_RejectsAPriceAboveTheColumn()
+    {
+        var repository = new FakeCatalogRepository();
+        var command = Command("SP13", "Gương");
+        command.RetailPrice = 100000000000000000000m;
+
+        var result = await Handler(repository).HandleAsync(command, CancellationToken.None);
+
+        Assert.Equal(CatalogError.TooLarge, result.CatalogError);
+        Assert.Contains(result.CatalogIssues, issue => issue.Field == CatalogField.RetailPrice && issue.Kind == CatalogIssueKind.TooLarge);
+        Assert.Empty(repository.Items);
+    }
+
+    [Fact]
+    public async Task Create_StoresAPriceOfTenToTheFifteenth()
+    {
+        var repository = new FakeCatalogRepository();
+        var command = Command("SP14", "Gương");
+        command.RetailPrice = 1_000_000_000_000_000m;
+
+        var result = await Handler(repository).HandleAsync(command, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1_000_000_000_000_000m, Assert.Single(repository.Items).RetailPrice);
     }
 
     private static CreateCatalogItemCommandHandler Handler(FakeCatalogRepository repository) =>

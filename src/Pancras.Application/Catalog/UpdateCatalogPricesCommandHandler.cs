@@ -1,6 +1,8 @@
+using Pancras.Application.Auditing;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Common;
+using Pancras.Application.Inventory;
 using Pancras.Domain.Catalog;
 
 namespace Pancras.Application.Catalog;
@@ -33,16 +35,36 @@ public sealed class UpdateCatalogPricesCommandValidator : AbstractValidator<Upda
                 .WithState(_ => new CatalogIssue(CatalogField.Brand, CatalogIssueKind.TooLong, CatalogItem.BrandMaxLength));
             RuleFor(command => command.Origin).Must(value => CatalogValidation.Fits(value, CatalogItem.OriginMaxLength))
                 .WithState(_ => new CatalogIssue(CatalogField.Origin, CatalogIssueKind.TooLong, CatalogItem.OriginMaxLength));
+            RuleFor(command => command.Unit).Must(CatalogValidation.HasText)
+                .WithState(_ => new CatalogIssue(CatalogField.Unit, CatalogIssueKind.Missing));
             RuleFor(command => command.Unit).Must(value => CatalogValidation.Fits(value, CatalogItem.UnitMaxLength))
                 .WithState(_ => new CatalogIssue(CatalogField.Unit, CatalogIssueKind.TooLong, CatalogItem.UnitMaxLength));
             RuleFor(command => command.WeightKg).Must(CatalogValidation.NotNegative)
                 .WithState(_ => new CatalogIssue(CatalogField.Weight, CatalogIssueKind.Negative));
+            RuleFor(command => command.WeightKg).Must(CatalogValidation.MeasureFits)
+                .WithState(_ => new CatalogIssue(CatalogField.Weight, CatalogIssueKind.TooLarge));
             RuleFor(command => command.VolumeM3).Must(CatalogValidation.NotNegative)
                 .WithState(_ => new CatalogIssue(CatalogField.Volume, CatalogIssueKind.Negative));
+            RuleFor(command => command.VolumeM3).Must(CatalogValidation.MeasureFits)
+                .WithState(_ => new CatalogIssue(CatalogField.Volume, CatalogIssueKind.TooLarge));
             RuleFor(command => command.WarrantyMonths).Must(CatalogValidation.NotNegative)
                 .WithState(_ => new CatalogIssue(CatalogField.WarrantyMonths, CatalogIssueKind.Negative));
             RuleFor(command => command.MinimumStock).Must(CatalogValidation.NotNegative)
                 .WithState(_ => new CatalogIssue(CatalogField.MinimumStock, CatalogIssueKind.Negative));
+            RuleFor(command => command.MinimumStock).Must(CatalogValidation.MeasureFits)
+                .WithState(_ => new CatalogIssue(CatalogField.MinimumStock, CatalogIssueKind.TooLarge));
+            RuleFor(command => command.HeightMm).Must(CatalogValidation.NotNegative)
+                .WithState(_ => new CatalogIssue(CatalogField.Height, CatalogIssueKind.Negative));
+            RuleFor(command => command.LengthMm).Must(CatalogValidation.NotNegative)
+                .WithState(_ => new CatalogIssue(CatalogField.Length, CatalogIssueKind.Negative));
+            RuleFor(command => command.WidthMm).Must(CatalogValidation.NotNegative)
+                .WithState(_ => new CatalogIssue(CatalogField.Width, CatalogIssueKind.Negative));
+        });
+
+        When(command => command.ReplaceImage, () =>
+        {
+            RuleFor(command => command.ImagePath).Must(value => CatalogValidation.Fits(value, CatalogItem.ImagePathMaxLength))
+                .WithState(_ => new CatalogIssue(CatalogField.Image, CatalogIssueKind.TooLong, CatalogItem.ImagePathMaxLength));
         });
     }
 
@@ -53,12 +75,18 @@ public sealed class UpdateCatalogPricesCommandValidator : AbstractValidator<Upda
         RuleFor(property).NotNull().WithState(_ => new CatalogIssue(field, CatalogIssueKind.Missing));
         RuleFor(property).Must(CatalogValidation.NotNegative)
             .WithState(_ => new CatalogIssue(field, CatalogIssueKind.Negative));
+        RuleFor(property).Must(CatalogValidation.PriceFits)
+            .WithState(_ => new CatalogIssue(field, CatalogIssueKind.TooLarge));
     }
 }
 
 public sealed class UpdateCatalogPricesCommandHandler(
     ICatalogItemRepository repository,
-    ILogger<UpdateCatalogPricesCommandHandler> logger)
+    ILogger<UpdateCatalogPricesCommandHandler> logger,
+    TimeProvider? clock = null,
+    Pancras.Application.Auditing.IAuditLog? audit = null,
+    Pancras.Application.Auditing.IRequestInfo? request = null,
+    IInventoryRepository? stock = null)
 {
     private readonly UpdateCatalogPricesCommandValidator _validator = new();
 
@@ -79,12 +107,29 @@ public sealed class UpdateCatalogPricesCommandHandler(
             return Result<CatalogItemRow>.Fail(CatalogError.NotFound);
         }
 
+        if (command.Version != item.Version)
+        {
+            logger.LogInformation("Rejected a stale catalog edit for {CatalogItemId}.", item.Id);
+            return Result<CatalogItemRow>.Fail(CatalogError.VersionConflict);
+        }
+
         var validation = _validator.Validate(command);
         if (!validation.IsValid)
         {
             var issues = CatalogValidation.IssuesFrom(validation);
             logger.LogInformation("Rejected a price list edit for {CatalogItemId} with {IssueCount} problems.", item.Id, issues.Count);
             return Result<CatalogItemRow>.Fail(CatalogValidation.Primary(issues), issues);
+        }
+
+        if (stock is not null)
+        {
+            var onHand = await stock.SumOnHandAsync(item.Id, cancellationToken);
+            var submittedCost = decimal.Round(command.CostPrice!.Value, 0, MidpointRounding.AwayFromZero);
+            if (onHand > 0 && submittedCost != item.CostPrice)
+            {
+                logger.LogInformation("Rejected a cost edit for stocked catalog item {CatalogItemId}.", item.Id);
+                return Result<CatalogItemRow>.Fail(CatalogError.CostLocked);
+            }
         }
 
         if (command.IncludeDetails)
@@ -109,7 +154,15 @@ public sealed class UpdateCatalogPricesCommandHandler(
                 command.WeightKg,
                 command.VolumeM3,
                 command.WarrantyMonths,
-                command.MinimumStock);
+                command.MinimumStock,
+                command.HeightMm,
+                command.LengthMm,
+                command.WidthMm);
+        }
+
+        if (command.ReplaceImage)
+        {
+            item.SetImage(command.ImagePath);
         }
 
         item.UpdatePrices(
@@ -118,13 +171,15 @@ public sealed class UpdateCatalogPricesCommandHandler(
             command.DealerPrice!.Value,
             command.DistributorPrice!.Value,
             command.ProjectPrice!.Value);
+        item.AdvanceVersion();
         if (!await repository.TrySaveAsync(cancellationToken))
         {
             logger.LogWarning("Rejected a price list edit for {CatalogItemId}.", item.Id);
-            return Result<CatalogItemRow>.Fail(CatalogError.NotFound);
+            return Result<CatalogItemRow>.Fail(CatalogError.VersionConflict);
         }
 
         logger.LogInformation("Updated prices for catalog item {CatalogItemId}.", item.Id);
+        await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.PricesChanged, "catalog_item", item.Id.ToString("D"), null, cancellationToken);
         return Result<CatalogItemRow>.Ok(CatalogItemRow.From(item));
     }
 }

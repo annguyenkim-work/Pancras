@@ -1,6 +1,6 @@
 namespace Pancras.Domain.Catalog;
 
-public sealed class CatalogItem
+public sealed class CatalogItem : Pancras.Domain.Auditing.AuditStamped
 {
     public const int CodeMaxLength = 32;
 
@@ -12,6 +12,14 @@ public sealed class CatalogItem
 
     public const int UnitMaxLength = 32;
 
+    public const int ImagePathMaxLength = 240;
+
+    /// <summary>Đúng cột <c>numeric(18,0)</c>.</summary>
+    public const decimal MaxPrice = 999_999_999_999_999_999m;
+
+    /// <summary>Đúng cột <c>numeric(12,3)</c>.</summary>
+    public const decimal MaxMeasure = 999_999_999.999m;
+
     public const bool SellingPricesIncludeVat = true;
 
     private CatalogItem()
@@ -22,9 +30,12 @@ public sealed class CatalogItem
         Brand = string.Empty;
         Origin = string.Empty;
         Unit = string.Empty;
+        ImagePath = string.Empty;
     }
 
     public Guid Id { get; private set; }
+
+    public int Version { get; private set; }
 
     public string Code { get; private set; }
 
@@ -43,6 +54,14 @@ public sealed class CatalogItem
     public decimal? WeightKg { get; private set; }
 
     public decimal? VolumeM3 { get; private set; }
+
+    public int? HeightMm { get; private set; }
+
+    public int? LengthMm { get; private set; }
+
+    public int? WidthMm { get; private set; }
+
+    public string ImagePath { get; private set; }
 
     public int? WarrantyMonths { get; private set; }
 
@@ -77,7 +96,11 @@ public sealed class CatalogItem
         decimal retailPrice,
         decimal dealerPrice,
         decimal distributorPrice,
-        decimal projectPrice) =>
+        decimal projectPrice,
+        int? heightMm = null,
+        int? lengthMm = null,
+        int? widthMm = null,
+        string? imagePath = null) =>
         Build(
             false,
             code,
@@ -94,7 +117,11 @@ public sealed class CatalogItem
             retailPrice,
             dealerPrice,
             distributorPrice,
-            projectPrice);
+            projectPrice,
+            heightMm,
+            lengthMm,
+            widthMm,
+            imagePath);
 
     public static CatalogItem CreateCombo(
         string code,
@@ -111,7 +138,11 @@ public sealed class CatalogItem
         decimal retailPrice,
         decimal dealerPrice,
         decimal distributorPrice,
-        decimal projectPrice) =>
+        decimal projectPrice,
+        int? heightMm = null,
+        int? lengthMm = null,
+        int? widthMm = null,
+        string? imagePath = null) =>
         Build(
             true,
             code,
@@ -128,7 +159,11 @@ public sealed class CatalogItem
             retailPrice,
             dealerPrice,
             distributorPrice,
-            projectPrice);
+            projectPrice,
+            heightMm,
+            lengthMm,
+            widthMm,
+            imagePath);
 
     public void UpdatePrices(
         decimal costPrice,
@@ -149,6 +184,16 @@ public sealed class CatalogItem
         ProjectPrice = project;
     }
 
+    public void SetCostPrice(decimal costPrice)
+    {
+        CostPrice = WholeDong(costPrice);
+        AdvanceVersion();
+    }
+
+    public void AdvanceVersion() => Version++;
+
+    public void SetImage(string? imagePath) => ImagePath = OptionalText(imagePath, ImagePathMaxLength);
+
     public void UpdateDetails(
         string code,
         string name,
@@ -159,7 +204,10 @@ public sealed class CatalogItem
         decimal? weightKg,
         decimal? volumeM3,
         int? warrantyMonths,
-        decimal? minimumStock)
+        decimal? minimumStock,
+        int? heightMm = null,
+        int? lengthMm = null,
+        int? widthMm = null)
     {
         var storedCode = RequiredText(code, CodeMaxLength);
         var normalized = NormalizeCode(storedCode);
@@ -185,6 +233,9 @@ public sealed class CatalogItem
         var weight = Measure(weightKg);
         var volume = Measure(volumeM3);
         var stock = Measure(minimumStock);
+        var height = Millimeter(heightMm);
+        var length = Millimeter(lengthMm);
+        var width = Millimeter(widthMm);
         Code = storedCode;
         NormalizedCode = normalized;
         Name = storedName;
@@ -194,6 +245,9 @@ public sealed class CatalogItem
         Unit = storedUnit;
         WeightKg = weight;
         VolumeM3 = volume;
+        HeightMm = height;
+        LengthMm = length;
+        WidthMm = width;
         WarrantyMonths = warrantyMonths;
         MinimumStock = stock;
     }
@@ -214,7 +268,11 @@ public sealed class CatalogItem
         decimal retailPrice,
         decimal dealerPrice,
         decimal distributorPrice,
-        decimal projectPrice)
+        decimal projectPrice,
+        int? heightMm,
+        int? lengthMm,
+        int? widthMm,
+        string? imagePath)
     {
         var storedCode = RequiredText(code, CodeMaxLength);
         var normalized = NormalizeCode(storedCode);
@@ -245,6 +303,10 @@ public sealed class CatalogItem
             Unit = OptionalText(unit, UnitMaxLength),
             WeightKg = Measure(weightKg),
             VolumeM3 = Measure(volumeM3),
+            HeightMm = Millimeter(heightMm),
+            LengthMm = Millimeter(lengthMm),
+            WidthMm = Millimeter(widthMm),
+            ImagePath = OptionalText(imagePath, ImagePathMaxLength),
             WarrantyMonths = warrantyMonths,
             MinimumStock = Measure(minimumStock),
             CostPrice = WholeDong(costPrice),
@@ -276,6 +338,21 @@ public sealed class CatalogItem
         }
 
         return trimmed;
+    }
+
+    private static int? Millimeter(int? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        if (value.Value < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(value));
+        }
+
+        return value;
     }
 
     private static decimal? Measure(decimal? value)

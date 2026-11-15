@@ -107,6 +107,61 @@ public class CatalogItemTests
         Assert.True(combo.IsCombo);
     }
 
+    [Fact]
+    public void Create_StoresDimensionsAndImage()
+    {
+        var item = CatalogItem.Create(
+            "SP01",
+            "Vòi lavabo",
+            ProductCategory.SanitaryEquipment,
+            "Toto",
+            "Việt Nam",
+            "Cái",
+            12m,
+            0.4m,
+            12,
+            1m,
+            8000000m,
+            15000000m,
+            12000000m,
+            11000000m,
+            10000000m,
+            800,
+            1200,
+            450,
+            " /uploads/catalog/voi.png ");
+
+        Assert.Equal(800, item.HeightMm);
+        Assert.Equal(1200, item.LengthMm);
+        Assert.Equal(450, item.WidthMm);
+        Assert.Equal("/uploads/catalog/voi.png", item.ImagePath);
+    }
+
+    [Fact]
+    public void Create_RejectsNegativeHeight()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => CatalogItem.Create(
+            "SP01",
+            "Vòi",
+            ProductCategory.SanitaryEquipment,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            1m,
+            1m,
+            1m,
+            1m,
+            1m,
+            -1,
+            null,
+            null,
+            null));
+    }
+
     private static CatalogItem Sample(string code = "SP01", decimal retail = 15000000m) =>
         CatalogItem.Create(
             code,

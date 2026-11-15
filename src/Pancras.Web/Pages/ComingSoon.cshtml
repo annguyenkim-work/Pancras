@@ -1,0 +1,10 @@
+@page "/coming-soon"
+@model Pancras.Web.Pages.ComingSoonModel
+@{
+    ViewData["Title"] = Model.Title;
+}
+
+<section class="bg-white rounded-xl border border-slate-200 p-6">
+    <h1 class="font-display text-xl sm:text-2xl font-bold text-slate-900">@Model.Title</h1>
+    <p class="mt-4 text-sm text-slate-700">@ComingSoonModel.Message</p>
+</section>

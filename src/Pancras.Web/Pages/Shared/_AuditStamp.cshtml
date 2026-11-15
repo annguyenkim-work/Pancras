@@ -1,0 +1,8 @@
+@model Pancras.Application.Auditing.AuditStampView?
+@* Dấu vết bản ghi: ai ghi lần cuối và lúc nào. Lúc tạo cũng là một lần ghi. *@
+@if (Model is { } stamp && stamp.UpdatedAt.Year > 2000)
+{
+    <p class="audit-stamp text-xs leading-5 text-slate-500">
+        Cập nhật @stamp.UpdatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")@(string.IsNullOrEmpty(stamp.UpdatedBy) ? "" : " bởi " + stamp.UpdatedBy)
+    </p>
+}

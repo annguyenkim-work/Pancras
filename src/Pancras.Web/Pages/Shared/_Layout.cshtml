@@ -1,17 +1,32 @@
 @using System.Security.Claims
 @using Pancras.Domain.Catalog
+@using Pancras.Domain.Employees
 @{
     var canViewCatalog = CatalogAccess.CanView(User.FindFirstValue(ClaimTypes.Role));
+    var canPurchase = Pancras.Domain.Purchasing.PurchaseAccess.CanOpenPage(User.FindFirstValue(ClaimTypes.Role));
     var currentPath = Context.Request.Path.Value ?? "/";
-    var homeLinkClass = string.Equals(currentPath, "/", StringComparison.Ordinal)
-        ? "block px-3 py-2 rounded-lg bg-sky-600 text-white"
-        : "block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800";
-    var supplierLinkClass = currentPath.StartsWith("/nha-cung-cap", StringComparison.OrdinalIgnoreCase)
-        ? "block px-3 py-2 rounded-lg bg-sky-600 text-white"
-        : "block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800";
-    var catalogLinkClass = currentPath.StartsWith("/danh-muc-gia", StringComparison.OrdinalIgnoreCase)
-        ? "block px-3 py-2 rounded-lg bg-sky-600 text-white"
-        : "block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800";
+    var roleName = User.FindFirstValue(ClaimTypes.Role);
+    var canViewSuppliers = SupplierAccess.CanView(roleName);
+    var canViewLocations = LocationAccess.CanView(roleName);
+    var canListEmployees = User.IsInRole(EmployeeRole.Admin) || User.IsInRole(EmployeeRole.Director) || User.IsInRole(EmployeeRole.Accountant) || User.IsInRole(EmployeeRole.ShowroomWarehouseLead);
+    bool IsSoon(string path) => Pancras.Web.Pages.ComingSoonModel.Routes.Contains(path, StringComparer.OrdinalIgnoreCase);
+    string ItemClass(string path)
+    {
+        var active = string.Equals(path, "/", StringComparison.Ordinal)
+            ? string.Equals(currentPath, "/", StringComparison.Ordinal)
+            : currentPath.StartsWith(path, StringComparison.OrdinalIgnoreCase);
+        const string baseClass = "flex items-center justify-between gap-2 min-w-0 px-3 py-2 rounded-lg";
+        if (active)
+        {
+            return baseClass + " bg-sky-600 font-medium text-white";
+        }
+        return IsSoon(path)
+            ? baseClass + " text-slate-500 hover:bg-slate-800/60"
+            : baseClass + " text-slate-100 hover:bg-slate-800";
+    }
+    Microsoft.AspNetCore.Html.HtmlString SoonBadge(string path) => IsSoon(path)
+        ? new("<span class=\"shrink-0 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-slate-400\">Sắp có</span>")
+        : Microsoft.AspNetCore.Html.HtmlString.Empty;
 }
 <!DOCTYPE html>
 <html lang="vi">
@@ -29,44 +44,83 @@
             <img src="~/images/logo-pancras.png" asp-append-version="true" alt="" class="h-10 w-10 rounded-md shrink-0" />
             <span class="font-display font-bold truncate">PancrasERP</span>
         </a>
-        <form method="post" asp-page="/Account/Logout" class="ml-auto">
+        <a href="/profile" class="ml-auto mr-2 text-sm font-medium text-slate-800">Hồ sơ</a>
+        <form method="post" asp-page="/Account/Logout">
             <button type="submit" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Đăng xuất</button>
         </form>
     </div>
     <div id="nav-backdrop" class="hidden fixed inset-0 z-40 bg-slate-900/50 lg:hidden" onclick="document.getElementById('app-sidebar').classList.add('-translate-x-full'); this.classList.add('hidden');"></div>
-    <aside id="app-sidebar" class="no-print fixed inset-y-0 left-0 z-50 w-72 bg-slate-900 text-slate-300 -translate-x-full lg:translate-x-0 transition-transform">
-        <div class="px-4 pt-6 pb-4">
-            <a href="/" class="flex justify-center">
-                <img src="~/images/logo-pancras.png" asp-append-version="true" alt="Pancras" class="h-auto w-36" />
+    <aside id="app-sidebar" class="no-print fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto bg-slate-900 text-slate-300 -translate-x-full lg:translate-x-0 transition-transform">
+        <div class="px-4 py-5 border-b border-slate-800">
+            <a href="/" class="flex items-center gap-3">
+                <img src="~/images/logo-pancras.png" asp-append-version="true" alt="Pancras" class="h-12 w-12 shrink-0 rounded-lg bg-white/90 object-contain p-0.5" />
+                <span class="min-w-0">
+                    <span class="block font-display text-base font-bold text-white">PancrasERP</span>
+                    <span class="block text-xs text-slate-400">Thiết Bị Vệ Sinh &amp; Nội Thất</span>
+                </span>
             </a>
-            <p class="mt-2 text-center text-xs text-slate-400">Thiết Bị Vệ Sinh &amp; Nội Thất</p>
         </div>
-        <nav class="px-3 space-y-4 text-xs">
+        <nav class="px-3 py-4 space-y-5 text-sm">
             <div>
-                <div class="px-3 mb-1 text-[10px] font-bold tracking-wide text-slate-500">HỆ THỐNG</div>
-                <a href="/" class="@homeLinkClass">Trang làm việc</a>
+                <div class="px-3 mb-1.5 text-[11px] font-bold tracking-wider text-slate-400">HỆ THỐNG</div>
+                <a href="/" class="@ItemClass("/")"><span class="min-w-0 leading-snug">Tổng quan điều hành</span></a>
             </div>
             <div>
-                <div class="px-3 mb-1 text-[10px] font-bold tracking-wide text-slate-500">VẬN HÀNH KHO BÃI</div>
-                <a href="/nha-cung-cap" class="@supplierLinkClass">Nhà cung cấp nhập khẩu</a>
+                <div class="px-3 mb-1.5 text-[11px] font-bold tracking-wider text-slate-400">VẬN HÀNH KHO BÃI</div>
+                @if (Pancras.Domain.Inventory.InventoryAccess.CanView(roleName))
+                {
+                    <a href="/inventory" class="@ItemClass("/inventory")"><span class="min-w-0 leading-snug">Quản lý Kho &amp; Điều chuyển</span>@SoonBadge("/inventory")</a>
+                }
+                @if (canPurchase)
+                {
+                    <a href="/purchasing" class="@ItemClass("/purchasing")"><span class="min-w-0 leading-snug">Mua hàng &amp; Container Nhập</span>@SoonBadge("/purchasing")</a>
+                }
+                @if (canViewSuppliers)
+                {
+                    <a href="/suppliers" class="@ItemClass("/suppliers")"><span class="min-w-0 leading-snug">Nhà cung cấp nhập khẩu</span>@SoonBadge("/suppliers")</a>
+                }
             </div>
-            @if (canViewCatalog)
-            {
-                <div>
-                    <div class="px-3 mb-1 text-[10px] font-bold tracking-wide text-slate-500">KINH DOANH &amp; PHÂN PHỐI</div>
-                    <a href="/danh-muc-gia" class="@catalogLinkClass">Danh mục sản phẩm và giá</a>
-                </div>
-            }
-            <div class="px-3 text-[10px] font-bold tracking-wide text-slate-500">TÀI CHÍNH</div>
-            <div class="px-3 text-[10px] font-bold tracking-wide text-slate-500">DỊCH VỤ KHÁCH HÀNG</div>
-            <div class="px-3 text-[10px] font-bold tracking-wide text-slate-500">QUẢN TRỊ NỘI BỘ</div>
+            <div>
+                <div class="px-3 mb-1.5 text-[11px] font-bold tracking-wider text-slate-400">KINH DOANH &amp; PHÂN PHỐI</div>
+                @if (canViewCatalog)
+                {
+                    <a href="/catalog" class="@ItemClass("/catalog")"><span class="min-w-0 leading-snug">Danh mục sản phẩm &amp; giá</span>@SoonBadge("/catalog")</a>
+                }
+                <a href="/customers" class="@ItemClass("/customers")"><span class="min-w-0 leading-snug">Danh bạ khách hàng</span>@SoonBadge("/customers")</a>
+                <a href="/sales" class="@ItemClass("/sales")"><span class="min-w-0 leading-snug">Bán hàng (Lẻ - Đại lý - Dự án)</span>@SoonBadge("/sales")</a>
+                <a href="/quotes" class="@ItemClass("/quotes")"><span class="min-w-0 leading-snug">Báo giá &amp; Catalog</span>@SoonBadge("/quotes")</a>
+                <a href="/combos" class="@ItemClass("/combos")"><span class="min-w-0 leading-snug">Quản lý Combo Sản phẩm</span>@SoonBadge("/combos")</a>
+            </div>
+            <div>
+                <div class="px-3 mb-1.5 text-[11px] font-bold tracking-wider text-slate-400">TÀI CHÍNH</div>
+                <a href="/receivables" class="@ItemClass("/receivables")"><span class="min-w-0 leading-snug">Quản lý Công nợ &amp; Hạn mức</span>@SoonBadge("/receivables")</a>
+            </div>
+            <div>
+                <div class="px-3 mb-1.5 text-[11px] font-bold tracking-wider text-slate-400">DỊCH VỤ KHÁCH HÀNG</div>
+                <a href="/warranty" class="@ItemClass("/warranty")"><span class="min-w-0 leading-snug">Bảo hành Điện tử (Serial/SĐT)</span>@SoonBadge("/warranty")</a>
+            </div>
+            <div>
+                <div class="px-3 mb-1.5 text-[11px] font-bold tracking-wider text-slate-400">QUẢN TRỊ NỘI BỘ</div>
+                @if (canListEmployees)
+                {
+                    <a href="/employees" class="@ItemClass("/employees")"><span class="min-w-0 leading-snug">Nhân sự &amp; Phân quyền</span>@SoonBadge("/employees")</a>
+                }
+                @if (canViewLocations)
+                {
+                    <a href="/locations" class="@ItemClass("/locations")"><span class="min-w-0 leading-snug">Kho &amp; Showroom</span>@SoonBadge("/locations")</a>
+                }
+                @if (roleName is Pancras.Domain.Employees.EmployeeRole.Admin or Pancras.Domain.Employees.EmployeeRole.Director)
+                {
+                    <a href="/audit" class="@ItemClass("/audit")"><span class="min-w-0 leading-snug">Nhật ký Hệ thống (Audit Log)</span>@SoonBadge("/audit")</a>
+                }
+            </div>
         </nav>
     </aside>
     <div class="lg:pl-72">
         <header class="no-print hidden lg:flex items-center justify-between h-16 px-6 bg-white border-b border-slate-200">
             <div class="text-sm text-slate-500">PancrasERP / @ViewData["Title"]</div>
             <div class="flex items-center gap-3">
-                <span class="text-sm font-medium text-slate-800">@User.Identity?.Name</span>
+                <a href="/profile" class="text-sm font-medium text-slate-800 hover:text-sky-700" title="Hồ sơ của tôi">@User.Identity?.Name</a>
                 <span class="px-2 py-1 text-xs font-bold rounded-full bg-sky-50 text-sky-700">@User.FindFirstValue(ClaimTypes.Role)</span>
                 <form method="post" asp-page="/Account/Logout">
                     <button type="submit" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Đăng xuất</button>
@@ -77,5 +131,6 @@
             @RenderBody()
         </main>
     </div>
+    <script src="~/js/live-filter.js" asp-append-version="true" defer></script>
 </body>
 </html>
