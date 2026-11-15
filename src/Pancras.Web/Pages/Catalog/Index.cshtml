@@ -64,10 +64,6 @@
             <input id="catalog-search" name="q" value="@Model.Search" type="search" placeholder="Tìm theo mã, tên hoặc thương hiệu..." class="@inputClass" />
         </div>
     </form>
-    @if (!string.IsNullOrEmpty(Model.Notice))
-    {
-        <p class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800" role="status">@Model.Notice</p>
-    }
     @if (Model.ErrorMessages.Count > 0 && !Model.ShowForm && !Model.ShowPriceForm)
     {
         <div class="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">

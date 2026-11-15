@@ -23,14 +23,6 @@
         Mã <span class="font-mono font-medium text-slate-700">@Model.Code</span> · @Model.Role@(string.IsNullOrWhiteSpace(Model.JobTitle) ? "" : " · " + Model.JobTitle).
         Vai trò, chức vụ và kho/showroom do Admin hoặc Giám đốc thay đổi.
     </p>
-    @if (Model.ProfileSaved)
-    {
-        <p class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800" role="status">Đã lưu hồ sơ.</p>
-    }
-    @if (Model.PasswordChanged)
-    {
-        <p class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800" role="status">Đã đổi mật khẩu.</p>
-    }
     @if (Model.Error != EmployeeError.None)
     {
         <p class="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800" role="alert">@ErrorText(Model.Error)</p>
@@ -65,10 +57,6 @@
 <section class="mt-4 bg-white rounded-xl border border-slate-200 p-6">
     <h2 class="text-base font-bold text-slate-900">Xác thực hai bước (tùy chọn)</h2>
     <p class="mt-1 text-sm text-slate-500">Thêm một lớp bảo vệ: sau mật khẩu, bạn nhập thêm mã 6 số từ ứng dụng Google Authenticator, Microsoft Authenticator hoặc Authy. Không tốn phí.</p>
-    @if (Model.TwoFactorOff)
-    {
-        <p class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800" role="status">Đã tắt xác thực hai bước.</p>
-    }
     @if (Model.NewRecoveryCodes.Count > 0)
     {
         <div class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4" role="status">

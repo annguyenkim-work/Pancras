@@ -1,3 +1,4 @@
+using Pancras.Web.Formatting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -28,7 +29,6 @@ public class IndexModel(
 
     public bool HasAny { get; private set; }
 
-    public string? Notice { get; private set; }
 
     [BindProperty]
     public CreateLocationCommand Command { get; set; } = new();
@@ -43,7 +43,6 @@ public class IndexModel(
     public async Task OnGetAsync(string? form, string? edit, CancellationToken cancellationToken)
     {
         ShowForm = form == "1" && CanManage;
-        Notice = TempData["LocationCreated"] as string;
         if (CanManage && Guid.TryParse(edit, out var editId))
         {
             await LoadAsync(cancellationToken);
@@ -69,7 +68,7 @@ public class IndexModel(
             return Page();
         }
 
-        TempData["LocationCreated"] = "Đã thêm kho/showroom.";
+        TempData.Toast("Đã thêm kho/showroom.");
         return RedirectToPage();
     }
 
@@ -84,14 +83,22 @@ public class IndexModel(
             return Page();
         }
 
-        TempData["LocationCreated"] = "Đã cập nhật kho/showroom.";
+        TempData.Toast("Đã cập nhật kho/showroom.");
         return RedirectToPage();
     }
 
     public async Task<IActionResult> OnPostDeleteAsync(Guid id, CancellationToken cancellationToken)
     {
         var error = await delete.HandleAsync(id, User.ToActor(), cancellationToken);
-        TempData["LocationCreated"] = error == LocationManageError.None ? "Đã xóa kho/showroom." : ManageErrorText(error);
+        if (error == LocationManageError.None)
+        {
+            TempData.Toast("Đã xóa kho/showroom.");
+        }
+        else
+        {
+            TempData.Toast(ManageErrorText(error), ToastLevel.Error);
+        }
+
         return RedirectToPage();
     }
 

@@ -42,7 +42,6 @@ public class IndexModel(
 
     public bool CostLocked { get; private set; }
 
-    public string? Notice { get; private set; }
 
     [BindProperty]
     public CatalogItemForm Form { get; set; } = new();
@@ -116,7 +115,6 @@ public class IndexModel(
             return Redirect(BuildUrl(ItemPage.PageNumber, detail, prices, add));
         }
 
-        Notice = TempData["CatalogNotice"] as string;
         if (add)
         {
             ShowForm = true;
@@ -172,7 +170,7 @@ public class IndexModel(
         }
 
         var created = result.Value!;
-        TempData["CatalogNotice"] = "Đã thêm mặt hàng.";
+        TempData.Toast("Đã thêm mặt hàng.");
         CategoryToken = ProductCategoryToken.From(created.Category);
         Search = created.Code;
         return Redirect(BuildUrl(1));
@@ -218,7 +216,7 @@ public class IndexModel(
             images.Delete(previousImage);
         }
 
-        TempData["CatalogNotice"] = "Đã lưu sản phẩm.";
+        TempData.Toast("Đã lưu sản phẩm.");
         return Redirect(BuildUrl(CatalogPageRequest.From(PageNumber).Number));
     }
 

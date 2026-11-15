@@ -1,3 +1,4 @@
+using Pancras.Web.Formatting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -41,7 +42,6 @@ public class IndexModel(
 
     public SupplierProfile? StopProfile { get; private set; }
 
-    public string? Notice { get; private set; }
 
     /// <summary>Dùng chung cho thêm và sửa: Id rỗng là thêm mới.</summary>
     [BindProperty]
@@ -128,7 +128,6 @@ public class IndexModel(
             return Redirect(BuildUrl(CardPage.PageNumber, edit, stop, add));
         }
 
-        Notice = TempData["SupplierNotice"] as string;
         if (!CanManage)
         {
             return Page();
@@ -205,7 +204,7 @@ public class IndexModel(
             return Page();
         }
 
-        TempData["SupplierNotice"] = "Đã chuyển nhà cung cấp sang trạng thái ngừng hợp tác. Xem lại ở bộ lọc \"Đã ngừng hợp tác\"; Admin có thể khôi phục.";
+        TempData.Toast("Đã chuyển nhà cung cấp sang trạng thái ngừng hợp tác. Xem lại ở bộ lọc \"Đã ngừng hợp tác\"; Admin có thể khôi phục.");
         return Redirect(BuildUrl(SupplierPageRequest.From(PageNumber).Number));
     }
 
@@ -220,7 +219,7 @@ public class IndexModel(
             return Page();
         }
 
-        TempData["SupplierNotice"] = "Đã khôi phục nhà cung cấp. Nhà cung cấp lại xuất hiện khi lập đơn mua.";
+        TempData.Toast("Đã khôi phục nhà cung cấp. Nhà cung cấp lại xuất hiện khi lập đơn mua.");
         return Redirect(BuildUrl(SupplierPageRequest.From(PageNumber).Number));
     }
 
@@ -256,7 +255,7 @@ public class IndexModel(
 
         var created = result.Value!;
         var page = await listHandler.PageContainingAsync(created.Name, created.Code, cancellationToken);
-        TempData["SupplierNotice"] = $"Đã thêm nhà cung cấp {created.Name}.";
+        TempData.Toast($"Đã thêm nhà cung cấp {created.Name}.");
         Search = null;
         Status = null;
         Country = null;
@@ -281,9 +280,9 @@ public class IndexModel(
 
         var cards = await listHandler.HandleAsync(Filter, SupplierPageRequest.From(PageNumber), Actor, cancellationToken);
         var visible = cards.Cards.Any(card => card.Id == result.Value!.Id);
-        TempData["SupplierNotice"] = visible
+        TempData.Toast(visible
             ? $"Đã lưu nhà cung cấp {result.Value!.Name}."
-            : $"Đã lưu nhà cung cấp {result.Value!.Name}. Nhà cung cấp không khớp bộ lọc hiện tại, hãy bỏ lọc để xem.";
+            : $"Đã lưu nhà cung cấp {result.Value!.Name}. Nhà cung cấp không khớp bộ lọc hiện tại, hãy bỏ lọc để xem.");
         return Redirect(BuildUrl(cards.PageNumber));
     }
 

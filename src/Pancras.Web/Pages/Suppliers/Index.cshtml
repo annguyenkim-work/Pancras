@@ -37,10 +37,6 @@
             <option value="all" selected="@(Model.StatusFilter == SupplierStatusFilter.All)">Tất cả</option>
         </select>
     </form>
-    @if (!string.IsNullOrEmpty(Model.Notice))
-    {
-        <p class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800" role="status">@Model.Notice</p>
-    }
     @if (Model.ErrorMessages.Count > 0 && !Model.ShowForm && !Model.ShowStop)
     {
         <div class="mt-4">

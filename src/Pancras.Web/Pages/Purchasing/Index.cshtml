@@ -19,10 +19,6 @@
             <a href="/purchasing?form=1" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">+ Tạo Đơn Mua Hàng &amp; Container</a>
         }
     </div>
-    @if (!string.IsNullOrEmpty(Model.Notice))
-    {
-        <p class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800" role="status">@Model.Notice</p>
-    }
     @* Khi modal đang mở, lỗi hiện trong modal (bên dưới); hiện ở đây sẽ nằm sau lớp phủ và người dùng không thấy. *@
     @if (!string.IsNullOrEmpty(Model.ErrorMessage) && !Model.ShowForm)
     {

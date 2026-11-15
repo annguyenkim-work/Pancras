@@ -134,7 +134,7 @@ Khung chung cho badge trạng thái và badge phân loại: `rounded-full px-2 p
 | Bảng mobile | Đã bọc `overflow-x-auto` nhưng chưa có cột đầu sticky; cột hành động đang ở cuối dòng ở hầu hết bảng, phải dời lên vị trí thứ 2 |
 | Chống bấm đúp | `form-guard.js` chưa kiểm thử trên trình duyệt thật (hộp xác nhận, form tải tệp) |
 | Tab, phân trang | Chưa có; danh sách hiện tải toàn bộ |
-| Toast | Chưa có; 4 trang tự render banner emerald từ `TempData` (Catalog, Locations, Purchasing, Suppliers) cùng 6 khóa TempData riêng (CatalogNotice, SupplierNotice, ProfileSaved...) |
+| Toast, banner | Toast đã có (`ToastExtensions`, `_Toasts`, `toast.js`) và dùng ở Catalog, Locations, Purchasing, Suppliers, Profile. Còn banner lỗi viết tay ở nhiều trang (Catalog, Employees, Inventory, Purchasing, Profile): cần chuyển sang partial `_Notice` (đã có, chưa dùng); Inventory (lỗi và cảnh báo sau thao tác) chưa dùng toast |
 | Banner | ~10 kiểu: `rounded-lg`/`rounded-xl`, chữ -700/-800, nơi là khối, nơi chỉ là dòng chữ |
 | Badge | Mua hàng dùng `rounded-md` nền -50; chuyển kho dùng `rounded-full` nền -100 kèm yellow/orange/violet; ánh xạ class nằm rải ở `Purchasing/Index.cshtml.cs`, `Formatting/StockCsv.cs`, `Inventory/Index.cshtml.cs` |
 

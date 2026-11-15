@@ -1,3 +1,4 @@
+using Pancras.Web.Formatting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -51,9 +52,7 @@ public class ProfileModel(
 
     public EmployeeError Error { get; private set; }
 
-    public bool ProfileSaved { get; private set; }
 
-    public bool PasswordChanged { get; private set; }
 
     public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken)
     {
@@ -71,7 +70,7 @@ public class ProfileModel(
         }
 
         await signIn.SignInAsync(result.Value!);
-        TempData["ProfileSaved"] = "1";
+        TempData.Toast("Đã lưu hồ sơ.");
         return RedirectToPage();
     }
 
@@ -87,7 +86,7 @@ public class ProfileModel(
         }
 
         await signIn.SignInAsync(result.Value!);
-        TempData["PasswordChanged"] = "1";
+        TempData.Toast("Đã đổi mật khẩu.");
         return RedirectToPage();
     }
 
@@ -138,11 +137,10 @@ public class ProfileModel(
         }
 
         await signIn.SignInAsync(result.Value!);
-        TempData["TwoFactorOff"] = "1";
+        TempData.Toast("Đã tắt xác thực hai bước.");
         return RedirectToPage();
     }
 
-    public bool TwoFactorOff => TempData.ContainsKey("TwoFactorOff");
 
     private void ShowSetup(TwoFactorSetup setup)
     {
@@ -156,8 +154,6 @@ public class ProfileModel(
 
     private async Task<bool> LoadAsync(CancellationToken cancellationToken, bool loadForm)
     {
-        ProfileSaved = TempData.ContainsKey("ProfileSaved");
-        PasswordChanged = TempData.ContainsKey("PasswordChanged");
         var result = await getEmployee.HandleAsync(User.ToActor().Id, User.ToActor(), cancellationToken);
         if (result.IsFailure)
         {

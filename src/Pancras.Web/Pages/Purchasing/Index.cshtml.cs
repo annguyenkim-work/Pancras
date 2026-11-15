@@ -114,7 +114,6 @@ public class IndexModel(
 
     public PurchaseLineView? FormulaLine { get; private set; }
 
-    public string? Notice { get; private set; }
 
     public string? ErrorMessage { get; private set; }
 
@@ -132,7 +131,7 @@ public class IndexModel(
 
         ShowForm = string.Equals(form, "1", StringComparison.Ordinal);
         NeedMeasures = ShowForm || edit is not null;
-        Notice = notice switch
+        var noticeText = notice switch
         {
             "created" => "Đã tạo đơn nhập.",
             "received" => "Đã nhập kho.",
@@ -150,6 +149,10 @@ public class IndexModel(
             "cost-adjusted" => "Đã ghi điều chỉnh chi phí.",
             _ => null
         };
+        if (noticeText is not null)
+        {
+            TempData.Toast(noticeText);
+        }
         if (!string.IsNullOrEmpty(error) && Enum.TryParse<PurchaseError>(error, out var parsed) && parsed != PurchaseError.None)
         {
             ErrorMessage = PurchaseErrorMessages.For(parsed);
