@@ -29,7 +29,7 @@ Quy tắc: màu trạng thái (emerald/rose/amber) chỉ dùng đúng nghĩa tr�
 | display | Plus Jakarta Sans (600/700) | Tiêu đề, tên app | `font-display` |
 | mono | JetBrains Mono (500) | Mã, số tiền, số lượng | `font-mono tabular-nums` |
 
-Font **tự host** trong `wwwroot/fonts` (không dùng Google Fonts, xem [tech-stack.md](../01-architecture/tech-stack.md)); hiện `_Head.cshtml` còn nạp từ Google Fonts, cần chuyển. Chỉ dùng các độ đậm đã nạp.
+Font **tự host** trong `wwwroot/fonts` (không dùng Google Fonts, xem [tech-stack.md](../01-architecture/tech-stack.md)). Chỉ dùng các độ đậm đã nạp.
 
 ## 3. Cỡ chữ
 

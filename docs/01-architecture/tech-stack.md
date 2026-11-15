@@ -46,7 +46,6 @@
 
 | Thứ | Hiện trạng | Quyết định |
 | --- | --- | --- |
-| Google Fonts | `_Head.cshtml` nạp từ `fonts.googleapis.com`; CSP cho phép `fonts.googleapis.com` và `fonts.gstatic.com` | **Tự host phông** và bỏ nguồn Google khỏi CSP |
 | Excel | Xuất "Excel" thực ra là CSV | Giữ CSV; xem Chờ chốt |
 
 ## Nợ lệch so với quy định
