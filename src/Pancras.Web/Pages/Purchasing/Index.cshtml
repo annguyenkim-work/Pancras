@@ -95,7 +95,7 @@ else
             var quantity = order.Lines.Sum(line => line.Quantity);
             // Giá vốn còn là dự toán cho đến khi nhận hàng lần đầu.
             var estimated = order.Status is not (PurchaseStatus.Received or PurchaseStatus.PartiallyReceived);
-            <section class="rounded-xl border border-slate-200 bg-white p-5">
+            <section class="min-w-0 rounded-xl border border-slate-200 bg-white p-5">
                 <div class="flex flex-wrap items-start justify-between gap-3">
                     <div>
                         <h2 class="text-base font-bold text-slate-900">@order.Code · @order.SupplierName</h2>
@@ -104,10 +104,9 @@ else
                         {
                             <p class="mt-1 text-sm text-slate-500">Tỷ giá @VndMoney.FormatDong(order.ExchangeRate) / USD · VAT @((order.VatRate * 100m).ToString("0.####"))% @(order.VatDeductible ? "(được khấu trừ)" : "(không khấu trừ, tính vào giá vốn)")</p>
                         }
-                        @* Lịch sử bản ghi: ai tạo, ai sửa lần cuối, ai nhập kho và lúc nào (giờ máy chủ). Chi tiết từng lần sửa nằm ở Nhật ký hệ thống. *@
+                        @* Lần ghi cuối trên đơn (kể cả lúc tạo) và lần nhận kho. Chi tiết từng bước nằm ở Nhật ký hệ thống. *@
                         <p class="mt-1 text-xs text-slate-500" id="order-stamps">
-                            Tạo @order.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")@(string.IsNullOrEmpty(order.CreatedBy) ? "" : " bởi " + order.CreatedBy)
-                            · @(order.UpdatedAt is DateTimeOffset updatedAt ? "Sửa lần cuối " + updatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm") + (string.IsNullOrEmpty(order.UpdatedBy) ? "" : " bởi " + order.UpdatedBy) : "Chưa sửa lần nào")
+                            Cập nhật @order.UpdatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")@(string.IsNullOrEmpty(order.UpdatedBy) ? "" : " bởi " + order.UpdatedBy)
                             @if (order.ReceivedAt is DateTimeOffset receivedAt)
                             {
                                 <text>· Nhận kho @receivedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")@(string.IsNullOrEmpty(order.ReceivedBy) ? "" : " bởi " + order.ReceivedBy)</text>
@@ -126,8 +125,13 @@ else
                         }
                         @if (Model.CanReceiveSelected && Pancras.Web.Pages.Purchasing.IndexModel.IsReceivable(order.Status))
                         {
-                            <form method="post" asp-page-handler="Receive" data-confirm-receive>
+                            <form id="receive-form" method="post" asp-page-handler="Receive" data-confirm data-confirm-title="Ghi nhận hàng vào kho" data-confirm-message="Ghi số thực nhận vào tồn và cập nhật giá vốn bình quân? Thao tác này không hoàn tác được." data-confirm-label="Ghi nhận" data-confirm-tone="danger">
                                 <input type="hidden" name="orderId" value="@order.Id" />
+                                <input type="hidden" name="note" value="" />
+                                <label class="flex items-center gap-2 self-center text-xs font-medium text-slate-600">
+                                    <input type="checkbox" name="closeOrder" value="true" class="rounded border-slate-300" />
+                                    Đóng đơn dù nhận thiếu
+                                </label>
                                 <button type="submit" class="px-3 py-2 text-sm font-bold text-white bg-emerald-600 rounded-lg">Nhập Kho &amp; Cập Nhật Giá Vốn (@order.Lines.Count món)</button>
                             </form>
                         }
@@ -137,10 +141,10 @@ else
                 @if (Model.CanManage && order.Status is PurchaseStatus.Draft or PurchaseStatus.PendingApproval or PurchaseStatus.Approved or PurchaseStatus.InTransit)
                 {
                     @* Luồng đơn: Nháp → Chờ duyệt → Đã duyệt → Hàng đang về → nhận hàng. Trả về nháp và hủy phải ghi lý do. *@
-                    <div class="mt-4 flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3" id="order-workflow">
+                    <div class="mt-4 flex flex-wrap gap-2" id="order-workflow">
                         @if (order.Status == PurchaseStatus.Draft)
                         {
-                            <form method="post" asp-page-handler="ChangeStatus" onsubmit="return confirm('Gửi đơn này đi duyệt?');">
+                            <form method="post" asp-page-handler="ChangeStatus" data-confirm data-confirm-title="Gửi duyệt" data-confirm-message="Gửi đơn này đi duyệt?" data-confirm-label="Gửi duyệt">
                                 <input type="hidden" name="orderId" value="@order.Id" />
                                 <input type="hidden" name="action" value="@((int)Pancras.Application.Purchasing.PurchaseStatusAction.Submit)" />
                                 <button type="submit" class="rounded-lg bg-sky-600 px-3 py-2 text-sm font-bold text-white">Gửi duyệt</button>
@@ -148,34 +152,30 @@ else
                         }
                         @if (order.Status == PurchaseStatus.PendingApproval)
                         {
-                            <form method="post" asp-page-handler="ChangeStatus" onsubmit="return confirm('Duyệt đơn này?');">
+                            <form method="post" asp-page-handler="ChangeStatus" data-confirm data-confirm-title="Duyệt đơn" data-confirm-message="Duyệt đơn này?" data-confirm-label="Duyệt đơn">
                                 <input type="hidden" name="orderId" value="@order.Id" />
                                 <input type="hidden" name="action" value="@((int)Pancras.Application.Purchasing.PurchaseStatusAction.Approve)" />
                                 <button type="submit" class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white">Duyệt đơn</button>
                             </form>
-                            <form method="post" asp-page-handler="ChangeStatus" class="flex flex-wrap items-end gap-2">
+                            <form method="post" asp-page-handler="ChangeStatus" data-confirm data-confirm-title="Trả về nháp" data-confirm-message="Đơn quay về nháp để sửa. Nhập lý do trả về." data-confirm-label="Trả về nháp" data-reason="required">
                                 <input type="hidden" name="orderId" value="@order.Id" />
                                 <input type="hidden" name="action" value="@((int)Pancras.Application.Purchasing.PurchaseStatusAction.ReturnToDraft)" />
-                                <label class="text-xs">Lý do trả về nháp
-                                    <input name="note" required maxlength="500" class="mt-1 block w-56 rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-                                </label>
+                                <input type="hidden" name="note" value="" />
                                 <button type="submit" class="rounded-lg bg-slate-200 px-3 py-2 text-sm font-bold text-slate-800">Trả về nháp</button>
                             </form>
                         }
                         @if (order.Status == PurchaseStatus.Approved)
                         {
-                            <form method="post" asp-page-handler="ChangeStatus" onsubmit="return confirm('Đánh dấu hàng đang trên đường về?');">
+                            <form method="post" asp-page-handler="ChangeStatus" data-confirm data-confirm-title="Hàng đang về" data-confirm-message="Đánh dấu hàng đang trên đường về?" data-confirm-label="Hàng đang về">
                                 <input type="hidden" name="orderId" value="@order.Id" />
                                 <input type="hidden" name="action" value="@((int)Pancras.Application.Purchasing.PurchaseStatusAction.MarkInTransit)" />
                                 <button type="submit" class="rounded-lg bg-sky-600 px-3 py-2 text-sm font-bold text-white">Hàng đang về</button>
                             </form>
                         }
-                        <form method="post" asp-page-handler="ChangeStatus" class="flex flex-wrap items-end gap-2" onsubmit="return confirm('Hủy đơn này? Không hoàn tác được.');">
+                        <form method="post" asp-page-handler="ChangeStatus" data-confirm data-confirm-title="Hủy đơn" data-confirm-message="Hủy đơn này? Không hoàn tác được." data-confirm-label="Hủy đơn" data-confirm-tone="danger" data-reason="required">
                             <input type="hidden" name="orderId" value="@order.Id" />
                             <input type="hidden" name="action" value="@((int)Pancras.Application.Purchasing.PurchaseStatusAction.Cancel)" />
-                            <label class="text-xs">Lý do hủy đơn
-                                <input name="note" required maxlength="500" class="mt-1 block w-56 rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-                            </label>
+                            <input type="hidden" name="note" value="" />
                             <button type="submit" class="rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm font-bold text-rose-700">Hủy đơn</button>
                         </form>
                     </div>
@@ -189,14 +189,18 @@ else
                 {
                     <p class="mt-2 text-xs leading-5 text-slate-500">@costNote</p>
                 }
-                <div class="mt-3 overflow-x-auto">
-                    <table class="min-w-full text-sm">
+                <div class="mt-3 max-w-full overflow-x-auto">
+                    <table class="min-w-full whitespace-nowrap text-sm">
                         <thead class="text-left text-xs font-bold uppercase tracking-wide text-slate-500">
                             <tr>
                                 <th class="py-2 pr-3">Mã SKU</th>
                                 <th class="py-2 pr-3">Tên sản phẩm</th>
                                 <th class="py-2 pr-3">SL đặt</th>
                                 <th class="py-2 pr-3">SL đã nhận</th>
+                                @if (Model.CanReceiveSelected && Pancras.Web.Pages.Purchasing.IndexModel.IsReceivable(order.Status))
+                                {
+                                    <th class="py-2 pr-3">SL nhận lần này</th>
+                                }
                                 @if (order.CostVisible)
                                 {
                                     <th class="py-2 pr-3">Giá FOB (USD)</th>
@@ -218,6 +222,13 @@ else
                                     <td class="py-2 pr-3">@line.ItemName</td>
                                     <td class="py-2 pr-3 tabular-nums">@line.Quantity</td>
                                     <td class="py-2 pr-3 tabular-nums">@line.ReceivedQuantity</td>
+                                    @if (Model.CanReceiveSelected && Pancras.Web.Pages.Purchasing.IndexModel.IsReceivable(order.Status))
+                                    {
+                                        var remaining = Math.Max(0, line.Quantity - line.ReceivedQuantity);
+                                        <td class="py-2 pr-3">
+                                            <input form="receive-form" type="number" name="actuals[@line.Id]" value="@remaining" min="0" data-remaining="@remaining" class="w-20 rounded-lg border border-slate-300 px-2 py-1 text-right tabular-nums" />
+                                        </td>
+                                    }
                                     @if (order.CostVisible)
                                     {
                                         <td class="py-2 pr-3 tabular-nums">@((line.Quantity == 0 ? line.FobUsd : line.FobUsd / line.Quantity).ToString("#,##0.##", CultureInfo.GetCultureInfo("vi-VN"))) USD</td>
@@ -323,8 +334,8 @@ else
                     @* Bảng phân bổ: mỗi khoản chi phí được chia bao nhiêu cho từng mặt hàng, để kế toán đối chiếu. *@
                     <details class="mt-3 rounded-lg border border-slate-200 p-4" open>
                         <summary class="cursor-pointer text-sm font-bold text-sky-700">Bảng phân bổ chi phí cho từng mặt hàng</summary>
-                        <div class="mt-3 overflow-x-auto">
-                            <table class="min-w-full text-xs">
+                        <div class="mt-3 max-w-full overflow-x-auto">
+                            <table class="min-w-full whitespace-nowrap text-xs">
                                 <thead class="text-right font-bold text-slate-600">
                                     <tr class="border-b border-slate-200">
                                         <th class="py-2 pr-3 text-left">Khoản chi phí</th>
@@ -415,7 +426,7 @@ else
                     <details class="mt-3 rounded-lg border border-slate-200 p-4" id="adjust-cost">
                         <summary class="cursor-pointer text-sm font-bold text-sky-700">Ghi điều chỉnh chi phí (hóa đơn về muộn)</summary>
                         <p class="mt-2 text-xs leading-5 text-slate-600">Số tiền có dấu: dương làm tăng giá vốn, âm làm giảm. Khoản này được chia cho các dòng đã nhận theo cách chọn; phần ứng với hàng còn trong kho cộng vào giá vốn bình quân, phần ứng với hàng đã xuất được ghi là chênh lệch và không sửa ngược.</p>
-                        <form method="post" asp-page-handler="AdjustCost" class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-4" onsubmit="return confirm('Ghi điều chỉnh chi phí này? Giá vốn của hàng còn tồn sẽ đổi.');">
+                        <form method="post" asp-page-handler="AdjustCost" class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-4" data-confirm data-confirm-title="Ghi điều chỉnh chi phí" data-confirm-message="Giá vốn của hàng còn tồn sẽ đổi." data-confirm-label="Ghi điều chỉnh">
                             <input type="hidden" name="orderId" value="@order.Id" />
                             <label class="text-sm">Tên khoản<input name="label" required maxlength="200" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
                             <label class="text-sm">Số tiền (đ, có dấu)<input name="amount" required inputmode="numeric" pattern="-?[0-9]+" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
@@ -457,7 +468,7 @@ else
                                     </div>
                                     @if (Model.CanManage && Pancras.Web.Pages.Purchasing.IndexModel.IsEditable(order.Status))
                                     {
-                                        <form method="post" asp-page-handler="DeleteAttachment" onsubmit="return confirm('Xóa chứng từ này?');">
+                                        <form method="post" asp-page-handler="DeleteAttachment" data-confirm data-confirm-title="Xóa chứng từ" data-confirm-message="Xóa chứng từ này?" data-confirm-label="Xóa" data-confirm-tone="danger">
                                             <input type="hidden" name="orderId" value="@order.Id" />
                                             <input type="hidden" name="attachmentId" value="@file.Id" />
                                             <button type="submit" class="text-xs font-bold text-rose-600 hover:underline">Xóa</button>
@@ -516,8 +527,7 @@ else
 
 @if (Model.ShowForm)
 {
-    <div class="fixed inset-0 z-40 bg-slate-900/50"></div>
-    <dialog open class="fixed inset-0 z-50 m-auto flex w-[min(72rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl">
+    <dialog id="purchase-dialog" class="m-auto w-[min(72rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50 open:flex">
         <div class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
             <h2 class="text-lg font-bold text-slate-900">@(Model.EditingId is null ? "Lập Phiếu Mua Hàng & Container Nhập Khẩu (Nhiều Mặt Hàng)" : "Sửa Đơn Mua Hàng (chưa nhập kho)")</h2>
             <a href="/purchasing" data-leave class="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-2xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Đóng">×</a>
@@ -530,6 +540,7 @@ else
             @if (Model.EditingId is Guid editingId)
             {
                 <input type="hidden" name="orderId" value="@editingId" />
+                <input type="hidden" asp-for="Form.Version" />
                 <p class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">Sửa mặt hàng, giá, tỷ giá, thuế sẽ tự chia lại các khoản chi phí của container. Thêm, sửa, xóa khoản chi phí ngay trong bảng "Chi phí chung của cả đơn" bên dưới.</p>
             }
             @if (Model.Suppliers.Count == 0 || Model.Locations.Count == 0 || Model.Items.Count == 0)
@@ -749,6 +760,7 @@ else
     </dialog>
     <script>
         (function () {
+            document.getElementById("purchase-dialog")?.showModal();
             const lineBody = document.getElementById("line-body");
             const chargeBody = document.getElementById("charge-body");
             const money = new Intl.NumberFormat("vi-VN");
@@ -1035,12 +1047,21 @@ else
             });
             document.querySelectorAll("dialog a[data-leave]").forEach((link) => {
                 link.addEventListener("click", (event) => {
-                    if (dirty && !confirm("Bỏ các thay đổi chưa lưu?")) {
-                        event.preventDefault();
+                    if (!dirty) {
                         return;
                     }
 
-                    dirty = false;
+                    event.preventDefault();
+                    window.pancrasConfirm({
+                        title: "Bỏ thay đổi",
+                        message: "Bỏ các thay đổi chưa lưu?",
+                        label: "Bỏ thay đổi",
+                        tone: "danger",
+                        onOk: () => {
+                            dirty = false;
+                            window.location.href = link.href;
+                        }
+                    });
                 });
             });
 
@@ -1055,17 +1076,135 @@ else
     </script>
 }
 
-@* Ghi tồn và cập nhật giá vốn là thao tác không hoàn tác: hỏi lại trước khi gửi và khóa nút để không gửi hai lần. *@
+<dialog id="confirm-dialog" class="m-auto w-[min(30rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50 open:flex" aria-labelledby="confirm-title">
+    <div class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+        <h2 id="confirm-title" class="text-base font-bold text-slate-900">Xác nhận</h2>
+        <button type="button" id="confirm-close" class="grid h-8 w-8 place-items-center rounded-lg text-2xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Đóng">×</button>
+    </div>
+    <div class="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4">
+        <p id="confirm-message" class="text-sm text-slate-600"></p>
+        <div id="confirm-reason-box" class="hidden">
+            <label class="block text-sm font-medium text-slate-700" for="confirm-reason">Lý do
+                <textarea id="confirm-reason" rows="3" maxlength="500" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"></textarea>
+            </label>
+            <p id="confirm-reason-error" class="mt-1 hidden text-xs font-medium text-rose-700" role="alert">Cần nhập lý do.</p>
+        </div>
+    </div>
+    <div class="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
+        <button type="button" id="confirm-cancel" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Quay lại</button>
+        <button type="button" id="confirm-ok" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white">Xác nhận</button>
+    </div>
+</dialog>
 <script>
-    document.querySelectorAll("form[data-confirm-receive]").forEach((form) => {
-        form.addEventListener("submit", (event) => {
-            if (form.dataset.sent === "1" || !confirm("Ghi tồn cho toàn bộ mặt hàng của đơn và cập nhật giá vốn bình quân? Thao tác này không hoàn tác được.")) {
-                event.preventDefault();
+    (function () {
+        const dialog = document.getElementById("confirm-dialog");
+        const title = document.getElementById("confirm-title");
+        const message = document.getElementById("confirm-message");
+        const reasonBox = document.getElementById("confirm-reason-box");
+        const reason = document.getElementById("confirm-reason");
+        const reasonError = document.getElementById("confirm-reason-error");
+        const ok = document.getElementById("confirm-ok");
+        let pending = null;
+
+        function closeDialog() {
+            pending = null;
+            reason.value = "";
+            reasonError.classList.add("hidden");
+            if (dialog.open) {
+                dialog.close();
+            }
+        }
+
+        window.pancrasConfirm = function (options) {
+            pending = options;
+            title.textContent = options.title || "Xác nhận";
+            message.textContent = options.message || "";
+            ok.textContent = options.label || "Xác nhận";
+            ok.className = "rounded-lg px-4 py-2 text-sm font-bold text-white " + (options.tone === "danger" ? "bg-rose-600" : "bg-sky-600");
+            reasonBox.classList.toggle("hidden", options.reason !== "required");
+            reason.value = "";
+            reasonError.classList.add("hidden");
+            dialog.showModal();
+            if (options.reason === "required") {
+                reason.focus();
+            }
+        };
+
+        document.addEventListener("submit", (event) => {
+            const form = event.target;
+            if (!(form instanceof HTMLFormElement) || !form.hasAttribute("data-confirm")) {
                 return;
             }
 
-            form.dataset.sent = "1";
-            form.querySelector("button[type=submit]").disabled = true;
+            if (form.dataset.confirmed === "1") {
+                if (form.dataset.sent === "1") {
+                    event.preventDefault();
+                } else {
+                    form.dataset.sent = "1";
+                }
+
+                return;
+            }
+
+            event.preventDefault();
+            const receiveForm = document.getElementById("receive-form");
+            if (form === receiveForm) {
+                const close = receiveForm.querySelector('input[name="closeOrder"]');
+                const short = [...document.querySelectorAll("input[data-remaining]")].some((input) => Number(input.value) < Number(input.dataset.remaining));
+                if (close instanceof HTMLInputElement && close.checked && short) {
+                    receiveForm.dataset.reason = "required";
+                } else {
+                    delete receiveForm.dataset.reason;
+                }
+            }
+            const submitter = event.submitter;
+            const read = (name) => (submitter && submitter.dataset[name]) || form.dataset[name] || "";
+            window.pancrasConfirm({
+                title: read("confirmTitle"),
+                message: read("confirmMessage"),
+                label: read("confirmLabel"),
+                tone: read("confirmTone"),
+                reason: read("reason"),
+                onOk: (text) => {
+                    if (read("reason") === "required") {
+                        const note = form.querySelector('input[name="note"]');
+                        if (note) {
+                            note.value = text;
+                        }
+                    }
+
+                    form.dataset.confirmed = "1";
+                    form.requestSubmit();
+                    const button = form.querySelector("button[type=submit]");
+                    if (button) {
+                        button.disabled = true;
+                    }
+                }
+            });
+        }, true);
+
+        ok.addEventListener("click", () => {
+            if (!pending) {
+                return;
+            }
+
+            const current = pending;
+            const text = reason.value.trim();
+            if (current.reason === "required" && !text) {
+                reasonError.classList.remove("hidden");
+                reason.focus();
+                return;
+            }
+
+            closeDialog();
+            current.onOk(text);
         });
-    });
+        reason.addEventListener("input", () => reasonError.classList.add("hidden"));
+        document.getElementById("confirm-cancel").addEventListener("click", closeDialog);
+        document.getElementById("confirm-close").addEventListener("click", closeDialog);
+        dialog.addEventListener("cancel", () => {
+            pending = null;
+            reason.value = "";
+        });
+    })();
 </script>

@@ -63,6 +63,7 @@ public class EditPurchaseOrderTests
             ReceiveLocationId = _location.Id,
             ExchangeRate = 25000m,
             VatRate = 0.10m,
+            Version = _order.Version,
             Lines = lines
         };
 
@@ -147,14 +148,11 @@ public class EditPurchaseOrderTests
             new TestClock(at),
             null,
             new FakeRequestInfo("KeToan1"));
-        var createdAt = _order.CreatedAt;
-
         var result = await handler.HandleAsync(Command(Keep(0, 3, 10m), Keep(1, 3, 30m)), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(at, _order.UpdatedAt);
         Assert.Equal("KeToan1", _order.UpdatedBy);
-        Assert.Equal(createdAt, _order.CreatedAt);
     }
 
     [Fact]
@@ -321,5 +319,103 @@ public class EditPurchaseOrderTests
         Assert.Empty(_order.Charges);
         Assert.Equal(10m, costBefore);
         Assert.Equal(0m, PurchaseCosting.For(_order, _order.Lines[0]).LogisticsAllocated);
+    }
+
+    [Fact]
+    public async Task AStaleEdit_KeepsTheFirstSave()
+    {
+        var first = Command(Keep(0, 5, 10m), Keep(1, 3, 30m));
+        var second = Command(Keep(0, 9, 10m), Keep(1, 3, 30m));
+
+        var saved = await Update().HandleAsync(first, CancellationToken.None);
+        var rejected = await Update().HandleAsync(second, CancellationToken.None);
+
+        Assert.True(saved.IsSuccess);
+        Assert.Equal(PurchaseError.VersionConflict, rejected.PurchaseError);
+        Assert.Equal(5, _order.Lines[0].Quantity);
+    }
+
+    [Fact]
+    public async Task ReturnToDraft_RequiresAReasonWithin500Characters()
+    {
+        Assert.True(_order.TrySubmit());
+        var status = new ChangePurchaseStatusCommandHandler(_orders, NullLogger<ChangePurchaseStatusCommandHandler>.Instance);
+
+        var missing = await status.HandleAsync(
+            new ChangePurchaseStatusCommand(_order.Id, TestActors.Accountant, PurchaseStatusAction.ReturnToDraft),
+            CancellationToken.None);
+        Assert.Equal(PurchaseError.ReasonRequired, missing.PurchaseError);
+        Assert.Equal(PurchaseStatus.PendingApproval, _order.Status);
+
+        var tooLong = await status.HandleAsync(
+            new ChangePurchaseStatusCommand(_order.Id, TestActors.Accountant, PurchaseStatusAction.ReturnToDraft, new string('a', 501)),
+            CancellationToken.None);
+        Assert.Equal(PurchaseError.ReasonTooLong, tooLong.PurchaseError);
+        Assert.Equal(PurchaseStatus.PendingApproval, _order.Status);
+
+        var returned = await status.HandleAsync(
+            new ChangePurchaseStatusCommand(_order.Id, TestActors.Accountant, PurchaseStatusAction.ReturnToDraft, "Sai số lượng"),
+            CancellationToken.None);
+        Assert.True(returned.IsSuccess);
+        Assert.Equal(PurchaseStatus.Draft, _order.Status);
+    }
+
+    [Fact]
+    public async Task CostAdjustment_RejectsAnAmountTheColumnCannotStore_AndStoresTheColumnMaximum()
+    {
+        _order.ReceiveAll();
+        var adjust = new AdjustPurchaseCostCommandHandler(
+            _orders,
+            _inventory,
+            _catalog,
+            new GetCatalogMeasuresHandler(_catalog, NullLogger<GetCatalogMeasuresHandler>.Instance),
+            NullLogger<AdjustPurchaseCostCommandHandler>.Instance);
+
+        var overflow = await adjust.HandleAsync(new AdjustPurchaseCostCommand
+        {
+            Actor = TestActors.Accountant,
+            PurchaseOrderId = _order.Id,
+            Label = "Phí trễ",
+            Amount = 1_000_000_000_000_000_000_000m,
+            Method = ChargeSplitMethod.FobValue,
+            Reason = "Hóa đơn về muộn"
+        }, CancellationToken.None);
+        var stored = await adjust.HandleAsync(new AdjustPurchaseCostCommand
+        {
+            Actor = TestActors.Accountant,
+            PurchaseOrderId = _order.Id,
+            Label = "Phí trễ",
+            Amount = PurchaseMoney.MaxDong,
+            Method = ChargeSplitMethod.FobValue,
+            Reason = "Hóa đơn về muộn"
+        }, CancellationToken.None);
+
+        Assert.Equal(PurchaseError.AmountTooLarge, overflow.PurchaseError);
+        Assert.True(stored.IsSuccess);
+        Assert.Equal(PurchaseMoney.MaxDong, _order.Adjustments.Single().Amount);
+    }
+
+    [Fact]
+    public void LinesStayInTheEnteredOrder_AndTheRoundingRemainderStaysOnTheLastLine()
+    {
+        Assert.Equal([_first.Id, _second.Id], _order.Lines.Select(line => line.CatalogItemId).ToArray());
+        Assert.Equal([0, 1], _order.Lines.Select(line => line.SortOrder).ToArray());
+
+        Assert.True(_order.TryUpdateLines(
+            [
+                (_order.Lines[1].Id, _second.Id, 3, 30m, 0.10m, 0m, 0m, 0m),
+                (_order.Lines[0].Id, _first.Id, 2, 10m, 0.10m, 0m, 0m, 0m)
+            ],
+            out _));
+
+        Assert.Equal([_second.Id, _first.Id], _order.Lines.Select(line => line.CatalogItemId).ToArray());
+        Assert.True(_order.TryAddCharge(3m, ChargeSplitMethod.Quantity, out var chargeId, "Lẻ"));
+        Assert.True(_order.TryAllocate(
+            chargeId,
+            _order.Lines.ToDictionary(line => line.Id, line => (decimal)line.Quantity),
+            false));
+        var last = _order.Lines[^1];
+        Assert.Equal(_first.Id, last.CatalogItemId);
+        Assert.Equal(2m, _order.Charges.Single().Shares.Single(share => share.LineId == last.Id).Amount);
     }
 }

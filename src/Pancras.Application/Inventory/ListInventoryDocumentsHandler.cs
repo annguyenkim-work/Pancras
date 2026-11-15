@@ -120,7 +120,7 @@ public sealed class ListInventoryDocumentsHandler(
             return trail.OrderBy(item => item.OccurredAt).Select(item => new TransferEventView(item.Kind, item.ActorCode, item.OccurredAt, item.Note)).ToArray();
         }
 
-        var legacy = new List<TransferEventView> { new(TransferEventKind.Requested, slip.CreatedBy, slip.CreatedAt, slip.Note) };
+        var legacy = new List<TransferEventView> { new(TransferEventKind.Requested, slip.UpdatedBy, slip.UpdatedAt, slip.Note) };
         if (slip.ApprovedAt is DateTimeOffset approved)
         {
             legacy.Add(new(TransferEventKind.Approved, slip.ApprovedBy, approved, string.Empty));

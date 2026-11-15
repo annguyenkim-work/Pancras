@@ -37,6 +37,9 @@ public interface IEmployeeRepository
     Task<bool> TryAddAsync(Employee employee, CancellationToken cancellationToken);
 
     Task SaveChangesAsync(CancellationToken cancellationToken);
+
+    /// <summary>Giữ khóa quy tắc nhân sự (còn Admin, một Trưởng mỗi kho) đến hết transaction, rồi mới đếm và lưu.</summary>
+    Task<T> WithinPersonnelRulesAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken);
 }
 
 public sealed record EmployeeSession(

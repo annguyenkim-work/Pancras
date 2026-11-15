@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Pancras.Application.Common;
 using Pancras.Application.Employees;
+using Pancras.Domain.Auditing;
 using Pancras.Domain.Employees;
 using Pancras.Domain.Inventory;
 
@@ -422,5 +423,72 @@ public class EmployeeProfileCommandHandlerTests
         var result = await handler.HandleAsync(new LoginEmployeeCommand { EmployeeCode = "AnNK", Password = "Secret12" }, CancellationToken.None);
 
         Assert.Equal(LoginError.InvalidCredentials, result.LoginError);
+    }
+
+    [Fact]
+    public async Task BlankRole_AsksForARole_AndDoesNotCreateAnyone()
+    {
+        var before = _repository.Employees.Count;
+
+        var blank = await CreateHandler().HandleAsync(CreateCommand("Nguyễn Kim An", " "), Admin(), CancellationToken.None);
+        var unknown = await CreateHandler().HandleAsync(CreateCommand("Nguyễn Kim An", "Nope"), Admin(), CancellationToken.None);
+
+        Assert.Equal(EmployeeError.RoleRequired, blank.EmployeeError);
+        Assert.Equal(EmployeeError.Forbidden, unknown.EmployeeError);
+        Assert.Equal(before, _repository.Employees.Count);
+    }
+
+    [Fact]
+    public async Task DeactivateAndRoleChange_UseTheirOwnAuditActions()
+    {
+        var audit = new MemoryAudit();
+        var admin = Add("Quản Trị", "admin", EmployeeRole.Admin);
+        Add("Quản Trị Hai", "admin2", EmployeeRole.Admin);
+        var accountant = Add("Nguyễn Kim An", "AnNK", EmployeeRole.Accountant);
+        var active = new SetEmployeeActiveCommandHandler(
+            _repository, NullLogger<SetEmployeeActiveCommandHandler>.Instance, audit: audit);
+        var update = new UpdateEmployeeCommandHandler(
+            _repository, _locations, _hasher, NullLogger<UpdateEmployeeCommandHandler>.Instance, audit: audit);
+
+        var deactivated = await active.HandleAsync(accountant.Id, false, new EmployeeActor(admin.Id, admin.Role, null), CancellationToken.None);
+        var command = UpdateFrom(accountant);
+        command.Role = EmployeeRole.Sales;
+        command.StockLocationId = _kho.Id;
+        var changed = await update.HandleAsync(command, new EmployeeActor(admin.Id, admin.Role, null), CancellationToken.None);
+        var contact = UpdateFrom(accountant);
+        contact.Address = "Hà Nội";
+        var edited = await update.HandleAsync(contact, Admin(), CancellationToken.None);
+
+        Assert.True(deactivated.IsSuccess);
+        Assert.True(changed.IsSuccess);
+        Assert.True(edited.IsSuccess);
+        Assert.Contains(audit.Entries, entry => entry.Action == AuditActions.EmployeeDeactivated);
+        Assert.Contains(audit.Entries, entry => entry.Action == AuditActions.EmployeeRoleChanged);
+        Assert.Contains(audit.Entries, entry => entry.Action == AuditActions.EmployeeUpdated);
+        Assert.DoesNotContain(audit.Entries, entry => entry.Action == AuditActions.EmployeeActivated && entry.Detail == "deactivated");
+    }
+
+    [Fact]
+    public async Task ConcurrentAdminDeactivation_LeavesOneActiveAdmin()
+    {
+        var first = Add("Quản Trị Một", "admin1", EmployeeRole.Admin);
+        var second = Add("Quản Trị Hai", "admin2", EmployeeRole.Admin);
+        var counted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _repository.GateFirstAdminCount(counted, release);
+        var handler = new SetEmployeeActiveCommandHandler(_repository, NullLogger<SetEmployeeActiveCommandHandler>.Instance);
+
+        var stoppingSecond = handler.HandleAsync(second.Id, false, new EmployeeActor(first.Id, first.Role, null), CancellationToken.None);
+        await counted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(1, _repository.AdminCounts);
+        var stoppingFirst = handler.HandleAsync(first.Id, false, new EmployeeActor(second.Id, second.Role, null), CancellationToken.None);
+        await Task.Delay(50);
+        Assert.Equal(1, _repository.AdminCounts);
+        release.TrySetResult(true);
+        var results = await Task.WhenAll(stoppingSecond, stoppingFirst);
+
+        Assert.Equal(1, results.Count(result => result.IsSuccess));
+        Assert.Contains(results, result => result.EmployeeError == EmployeeError.LastAdmin);
+        Assert.Equal(1, _repository.Employees.Count(employee => employee.Role == EmployeeRole.Admin && employee.IsActive));
     }
 }

@@ -41,7 +41,14 @@ public sealed class CreatePurchaseOrderCommandHandler(
             return Result<Guid>.Fail(PurchaseError.InvalidOrder);
         }
 
-        var usable = (command.Lines ?? []).Where(line => line.Quantity > 0).ToArray();
+        var submitted = command.Lines ?? [];
+        if (submitted.Any(line => line.Quantity <= 0 && line.CatalogItemId != Guid.Empty))
+        {
+            logger.LogWarning("Purchase order rejected because a selected line has no quantity.");
+            return Result<Guid>.Fail(PurchaseError.InvalidQuantity);
+        }
+
+        var usable = submitted.Where(line => line.Quantity > 0).ToArray();
         if (usable.Length == 0)
         {
             logger.LogWarning("Purchase order rejected because it has no line.");
@@ -109,7 +116,10 @@ public sealed class CreatePurchaseOrderCommandHandler(
             if (charge.Amount > 0 && !await TryAddChargeAsync(order, charge, cancellationToken))
             {
                 logger.LogWarning("Purchase order rejected because an initial charge could not be split.");
-                return Result<Guid>.Fail(PurchaseError.ChargeFailed);
+                var error = charge.Method is ChargeSplitMethod.Weight or ChargeSplitMethod.Volume
+                    ? PurchaseError.MissingMeasure
+                    : PurchaseError.ChargeFailed;
+                return Result<Guid>.Fail(error);
             }
         }
 

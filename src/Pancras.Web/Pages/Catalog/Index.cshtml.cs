@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Pancras.Application.Catalog;
 using Pancras.Application.Common;
+using Pancras.Application.Inventory;
 using Pancras.Domain.Catalog;
 using Pancras.Web.Catalog;
 using Pancras.Web.Formatting;
@@ -18,7 +19,8 @@ public class IndexModel(
     GetCatalogItemHandler itemHandler,
     CreateCatalogItemCommandHandler createHandler,
     UpdateCatalogPricesCommandHandler priceHandler,
-    CatalogImageStore images) : PageModel
+    CatalogImageStore images,
+    IInventoryRepository stock) : PageModel
 {
     public CatalogItemPage ItemPage { get; private set; } = new([], 1, CatalogPageRequest.DefaultSize, 0);
 
@@ -37,6 +39,8 @@ public class IndexModel(
     public bool ShowDetail { get; private set; }
 
     public bool ShowPriceForm { get; private set; }
+
+    public bool CostLocked { get; private set; }
 
     public string? Notice { get; private set; }
 
@@ -184,6 +188,7 @@ public class IndexModel(
         {
             CurrentImagePath = await ExistingImagePathAsync(Prices.Id, cancellationToken);
             RememberCombined("Không lưu được sản phẩm", image, parsed, parseIssues, Prices.Code);
+            await RefreshCostLockAsync(Prices.Id, cancellationToken);
             ShowPriceForm = true;
             ItemPage = await listHandler.HandleAsync(CurrentFilter(), CatalogPageRequest.From(PageNumber), cancellationToken);
             return Page();
@@ -202,6 +207,7 @@ public class IndexModel(
             images.Delete(command.ImagePath);
             CurrentImagePath = previousImage;
             RememberFailure("Không lưu được sản phẩm", result.CatalogError, result.CatalogIssues, Prices.Code);
+            await RefreshCostLockAsync(Prices.Id, cancellationToken);
             ShowPriceForm = true;
             ItemPage = await listHandler.HandleAsync(CurrentFilter(), CatalogPageRequest.From(PageNumber), cancellationToken);
             return Page();
@@ -261,8 +267,10 @@ public class IndexModel(
             RetailPrice = VndMoney.FormatDong(row.RetailPrice),
             DealerPrice = VndMoney.FormatDong(row.DealerPrice),
             DistributorPrice = VndMoney.FormatDong(row.DistributorPrice),
-            ProjectPrice = VndMoney.FormatDong(row.ProjectPrice)
+            ProjectPrice = VndMoney.FormatDong(row.ProjectPrice),
+            Version = row.Version
         };
+        await RefreshCostLockAsync(row.Id, cancellationToken);
         CurrentImagePath = row.ImagePath;
         ShowPriceForm = true;
         return Page();
@@ -281,6 +289,11 @@ public class IndexModel(
         Form.DealerPrice = string.IsNullOrWhiteSpace(Form.DealerPrice) ? "0 đ" : Form.DealerPrice;
         Form.DistributorPrice = string.IsNullOrWhiteSpace(Form.DistributorPrice) ? "0 đ" : Form.DistributorPrice;
         Form.ProjectPrice = string.IsNullOrWhiteSpace(Form.ProjectPrice) ? "0 đ" : Form.ProjectPrice;
+    }
+
+    private async Task RefreshCostLockAsync(Guid id, CancellationToken cancellationToken)
+    {
+        CostLocked = id != Guid.Empty && await stock.SumOnHandAsync(id, cancellationToken) > 0;
     }
 
     private static string MeasureText(decimal? amount) =>

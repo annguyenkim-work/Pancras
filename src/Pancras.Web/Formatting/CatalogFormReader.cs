@@ -72,7 +72,8 @@ public static class CatalogFormReader
             RetailPrice = Optional(form.RetailPrice, CatalogField.RetailPrice, true, found),
             DealerPrice = Optional(form.DealerPrice, CatalogField.DealerPrice, true, found),
             DistributorPrice = Optional(form.DistributorPrice, CatalogField.DistributorPrice, true, found),
-            ProjectPrice = Optional(form.ProjectPrice, CatalogField.ProjectPrice, true, found)
+            ProjectPrice = Optional(form.ProjectPrice, CatalogField.ProjectPrice, true, found),
+            Version = form.Version
         };
         if (form.IncludeDetails)
         {
@@ -261,6 +262,8 @@ public sealed class CatalogItemForm
     public string? DistributorPrice { get; set; }
 
     public string? ProjectPrice { get; set; }
+
+    public int Version { get; set; }
 }
 
 public sealed class CatalogPriceForm
@@ -304,4 +307,6 @@ public sealed class CatalogPriceForm
     public string? DistributorPrice { get; set; }
 
     public string? ProjectPrice { get; set; }
+
+    public int Version { get; set; }
 }

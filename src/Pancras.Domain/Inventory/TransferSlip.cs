@@ -106,7 +106,7 @@ public sealed class TransferSlip : Pancras.Domain.Auditing.AuditStamped
 
     public DateTimeOffset? ResolvedAt { get; private set; }
 
-    /// <summary>Ghi ai (mã nhân viên) làm bước nào lúc nào. Người lập phiếu là CreatedBy.</summary>
+    /// <summary>Ghi ai (mã nhân viên) làm bước nào lúc nào.</summary>
     public void RecordStep(TransferStep step, DateTimeOffset at, string? by)
     {
         var actor = FitActor(by);

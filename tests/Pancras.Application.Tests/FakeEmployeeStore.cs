@@ -12,7 +12,20 @@ internal sealed class FakePasswordHasher : IPasswordHasher
 
 internal sealed class FakeEmployeeRepository : IEmployeeRepository
 {
+    private readonly SemaphoreSlim _rules = new(1, 1);
+    private int _adminCounts;
+    private TaskCompletionSource<bool>? _firstAdminCounted;
+    private TaskCompletionSource<bool>? _releaseFirstAdminCount;
+
     public List<Employee> Employees { get; } = [];
+
+    public int AdminCounts => _adminCounts;
+
+    public void GateFirstAdminCount(TaskCompletionSource<bool> counted, TaskCompletionSource<bool> release)
+    {
+        _firstAdminCounted = counted;
+        _releaseFirstAdminCount = release;
+    }
 
     public List<Employee> Added { get; } = [];
 
@@ -42,8 +55,18 @@ internal sealed class FakeEmployeeRepository : IEmployeeRepository
     public Task<IReadOnlyList<Employee>> ListReadOnlyAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<Employee>>(Employees.ToArray());
 
-    public Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
-        Task.FromResult(Employees.Count(employee => employee.Role == EmployeeRole.Admin && employee.IsActive));
+    public async Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken)
+    {
+        var count = Employees.Count(employee => employee.Role == EmployeeRole.Admin && employee.IsActive);
+        var call = Interlocked.Increment(ref _adminCounts);
+        if (call == 1 && _releaseFirstAdminCount is not null)
+        {
+            _firstAdminCounted?.TrySetResult(true);
+            await _releaseFirstAdminCount.Task.WaitAsync(cancellationToken);
+        }
+
+        return count;
+    }
 
     public Task<bool> ActiveLeadExistsAsync(Guid stockLocationId, Guid? excludeEmployeeId, CancellationToken cancellationToken) =>
         Task.FromResult(Employees.Any(employee =>
@@ -77,6 +100,21 @@ internal sealed class FakeEmployeeRepository : IEmployeeRepository
     {
         SaveCount++;
         return Task.CompletedTask;
+    }
+
+    public async Task<T> WithinPersonnelRulesAsync<T>(
+        Func<CancellationToken, Task<T>> action,
+        CancellationToken cancellationToken)
+    {
+        await _rules.WaitAsync(cancellationToken);
+        try
+        {
+            return await action(cancellationToken);
+        }
+        finally
+        {
+            _rules.Release();
+        }
     }
 }
 

@@ -61,6 +61,11 @@ public sealed class PurchaseLine
     /// <summary>Giá vốn (đồng) đã đưa vào tồn kho cho dòng này, cộng dồn qua các lần nhận.</summary>
     public decimal CostedAmount { get; private set; }
 
+    /// <summary>Thứ tự nhập trên đơn. Phần lẻ khi chia chi phí dồn về dòng có số này lớn nhất.</summary>
+    public int SortOrder { get; private set; }
+
+    internal void SetSortOrder(int sortOrder) => SortOrder = sortOrder;
+
     internal void SetReceipt(int receivedQuantity, decimal costedAmount)
     {
         ReceivedQuantity = receivedQuantity;
@@ -276,17 +281,23 @@ public sealed partial class PurchaseOrder : Pancras.Domain.Auditing.AuditStamped
 
     public PurchaseStatus Status { get; private set; }
 
+    /// <summary>Tăng mỗi lần lưu để form đang mở bị từ chối nếu đơn đã được sửa.</summary>
+    public int Version { get; private set; }
+
+    public void AdvanceVersion() => Version++;
+
     /// <summary>VAT đầu vào được khấu trừ thì không vào giá vốn; không được khấu trừ thì cộng vào giá vốn.</summary>
     public bool VatDeductible { get; private set; } = true;
 
-    // CreatedAt/By và UpdatedAt/By kế thừa từ AuditStamped. Đơn mua tự đóng dấu bằng handler (thời điểm của đồng hồ ứng dụng)
+    // UpdatedAt/By kế thừa từ AuditStamped. Đơn mua tự đóng dấu bằng handler (thời điểm của đồng hồ ứng dụng), kể cả lúc tạo.
     // để nhập kho ghi được cả ReceivedAt; các thực thể khác do tầng lưu trữ đóng dấu tự động.
 
     public DateTimeOffset? ReceivedAt { get; private set; }
 
     public string ReceivedBy { get; private set; } = string.Empty;
 
-    public IReadOnlyList<PurchaseLine> Lines => _lines;
+    public IReadOnlyList<PurchaseLine> Lines =>
+        _lines.OrderBy(line => line.SortOrder).ThenBy(line => line.Id).ToArray();
 
     public IReadOnlyList<PurchaseCharge> Charges => _charges;
 
@@ -350,14 +361,15 @@ public sealed partial class PurchaseOrder : Pancras.Domain.Auditing.AuditStamped
             ExchangeRateOn = exchangeRateOn,
             ExchangeRateSource = FitSource(exchangeRateSource),
             Status = PurchaseStatus.Draft,
-            CreatedAt = createdAt ?? DateTimeOffset.UtcNow,
-            CreatedBy = FitActor(createdBy)
+            UpdatedAt = createdAt ?? DateTimeOffset.UtcNow,
+            UpdatedBy = FitActor(createdBy)
         };
         if (order.NormalizedCode.Length is < 1 or > CodeMaxLength)
         {
             return null;
         }
 
+        var sort = 0;
         foreach (var line in lines)
         {
             var created = PurchaseLine.Create(
@@ -374,10 +386,12 @@ public sealed partial class PurchaseOrder : Pancras.Domain.Auditing.AuditStamped
                 return null;
             }
 
+            created.SetSortOrder(sort);
+            sort++;
             order._lines.Add(created);
         }
 
-        order.Record(PurchaseEventKind.Created, order.CreatedAt, createdBy, null);
+        order.Record(PurchaseEventKind.Created, order.UpdatedAt, createdBy, null);
         return order;
     }
 
@@ -496,6 +510,12 @@ public sealed partial class PurchaseOrder : Pancras.Domain.Auditing.AuditStamped
             _lines.Add(line);
         }
 
+        for (var index = 0; index < result.Count; index++)
+        {
+            result[index].SetSortOrder(index);
+        }
+
+        _lines.Sort(static (left, right) => left.SortOrder.CompareTo(right.SortOrder));
         return true;
     }
 
@@ -515,22 +535,23 @@ public sealed partial class PurchaseOrder : Pancras.Domain.Auditing.AuditStamped
 
     public bool TryAllocate(Guid chargeId, IReadOnlyDictionary<Guid, decimal> basisByLine, bool manual)
     {
+        var ordered = _lines.OrderBy(line => line.SortOrder).ThenBy(line => line.Id).ToArray();
         var charge = _charges.FirstOrDefault(item => item.Id == chargeId);
-        if (charge is null || _lines.Count == 0)
+        if (charge is null || ordered.Length == 0)
         {
             return false;
         }
 
         if (manual)
         {
-            if (basisByLine.Count != _lines.Count)
+            if (basisByLine.Count != ordered.Length)
             {
                 return false;
             }
 
             decimal sum = 0;
             var shares = new List<(Guid LineId, decimal Amount)>();
-            foreach (var line in _lines)
+            foreach (var line in ordered)
             {
                 if (!basisByLine.TryGetValue(line.Id, out var share) || share < 0)
                 {
@@ -551,8 +572,8 @@ public sealed partial class PurchaseOrder : Pancras.Domain.Auditing.AuditStamped
             return true;
         }
 
-        var weights = new List<decimal>(_lines.Count);
-        foreach (var line in _lines)
+        var weights = new List<decimal>(ordered.Length);
+        foreach (var line in ordered)
         {
             if (!basisByLine.TryGetValue(line.Id, out var weight) || weight <= 0)
             {
@@ -567,10 +588,10 @@ public sealed partial class PurchaseOrder : Pancras.Domain.Auditing.AuditStamped
             return false;
         }
 
-        var built = new List<(Guid LineId, decimal Amount)>(_lines.Count);
-        for (var index = 0; index < _lines.Count; index++)
+        var built = new List<(Guid LineId, decimal Amount)>(ordered.Length);
+        for (var index = 0; index < ordered.Length; index++)
         {
-            built.Add((_lines[index].Id, amounts[index]));
+            built.Add((ordered[index].Id, amounts[index]));
         }
 
         charge.ReplaceShares(built);

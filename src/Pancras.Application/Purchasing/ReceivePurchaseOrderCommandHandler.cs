@@ -148,6 +148,7 @@ public sealed class ReceivePurchaseOrderCommandHandler(
             }
         }
 
+        order.AdvanceVersion();
         if (order.ExchangeRate != exchangeRate || !await inventory.CommitAsync(cancellationToken))
         {
             Restore(order, undo!, balances, previous, items, previousCosts);

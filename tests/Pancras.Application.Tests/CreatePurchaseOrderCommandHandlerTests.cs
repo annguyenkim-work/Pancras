@@ -107,7 +107,7 @@ public class CreatePurchaseOrderCommandHandlerTests
 
         var result = await fixture.Create.HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(PurchaseError.ChargeFailed, result.PurchaseError);
+        Assert.Equal(PurchaseError.MissingMeasure, result.PurchaseError);
         Assert.Empty(fixture.Orders.Orders);
     }
 
@@ -137,7 +137,22 @@ public class CreatePurchaseOrderCommandHandlerTests
 
         var result = await fixture.Create.HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(PurchaseError.InvalidOrder, result.PurchaseError);
+        Assert.Equal(PurchaseError.InvalidQuantity, result.PurchaseError);
+        Assert.Empty(fixture.Orders.Orders);
+    }
+
+    [Fact]
+    public async Task NegativeQuantityOnASelectedLine_DoesNotCreateTheOrder()
+    {
+        var fixture = new PurchaseFixture();
+        var item = Item("SP01", 2m);
+        fixture.Catalog.Items.Add(item);
+        var command = Command(fixture, item.Id, item.Id, 0.1m, 0.1m);
+        command.Lines = [new CreatePurchaseLineInput { CatalogItemId = item.Id, Quantity = -3, FobUsd = 10m, DutyRate = 0.1m }];
+
+        var result = await fixture.Create.HandleAsync(command, CancellationToken.None);
+
+        Assert.Equal(PurchaseError.InvalidQuantity, result.PurchaseError);
         Assert.Empty(fixture.Orders.Orders);
     }
 
@@ -173,7 +188,7 @@ public class CreatePurchaseOrderCommandHandlerTests
 
         var result = await fixture.Create.HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(PurchaseError.ChargeFailed, result.PurchaseError);
+        Assert.Equal(PurchaseError.MissingMeasure, result.PurchaseError);
         Assert.Empty(fixture.Orders.Orders);
     }
 

@@ -95,6 +95,11 @@ public class IndexModel(
 
     public async Task<IActionResult> OnPostCreateAsync(string? q, string? role, Guid? location, CancellationToken cancellationToken)
     {
+        if (!EmployeeAccess.CanCreateAny(Actor))
+        {
+            return Forbid();
+        }
+
         var result = await createEmployee.HandleAsync(Command, Actor, cancellationToken);
         if (result.IsFailure)
         {

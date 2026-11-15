@@ -123,6 +123,9 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         Assert.True(items > 0 && costs > items, "Mặt hàng phải nằm trước chi phí chung.");
         Assert.Contains("id=\"charge-area\"", html, StringComparison.Ordinal);
         Assert.Contains("Nhập mặt hàng, số lượng và đơn giá FOB", html, StringComparison.Ordinal);
+        Assert.Contains("id=\"purchase-dialog\"", html, StringComparison.Ordinal);
+        Assert.Contains("getElementById(\"purchase-dialog\")?.showModal()", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("<dialog open", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -298,6 +301,9 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         Assert.DoesNotContain("PO-NHAP-CUA-TOI", text, StringComparison.Ordinal);
         Assert.DoesNotContain("PO-KHO-KHAC", text, StringComparison.Ordinal);
         Assert.Contains("Nhập Kho & Cập Nhật Giá Vốn", text, StringComparison.Ordinal);
+        Assert.Contains("id=\"receive-form\"", text, StringComparison.Ordinal);
+        Assert.Contains("name=\"actuals[", text, StringComparison.Ordinal);
+        Assert.Contains("name=\"closeOrder\"", text, StringComparison.Ordinal);
         Assert.DoesNotContain("Giá FOB", text, StringComparison.Ordinal);
         Assert.DoesNotContain("Tỷ giá", text, StringComparison.Ordinal);
         Assert.DoesNotContain("Tạo Đơn Mua Hàng", text, StringComparison.Ordinal);

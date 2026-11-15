@@ -16,6 +16,16 @@ public static class CatalogErrorMessages
             return ["Không tìm thấy mặt hàng này."];
         }
 
+        if (error == CatalogError.CostLocked)
+        {
+            return ["Giá vốn không sửa được khi mặt hàng đã có tồn. Giá vốn cập nhật theo nhập kho."];
+        }
+
+        if (error == CatalogError.VersionConflict)
+        {
+            return ["Sản phẩm vừa được người khác sửa. Tải lại và thử lại."];
+        }
+
         var messages = issues.Select(issue => Sentence(issue, code)).Distinct().ToArray();
         if (messages.Length > 0)
         {
@@ -27,6 +37,7 @@ public static class CatalogErrorMessages
             CatalogError.Incomplete => ["Cần nhập mã, tên, ngành và đủ năm mức giá."],
             CatalogError.TooLong => ["Một mục dài hơn mức cho phép."],
             CatalogError.Negative => ["Giá và số đo không được âm."],
+            CatalogError.TooLarge => ["Một số vượt quá giới hạn cho phép."],
             CatalogError.DuplicateCode => ["Mã mặt hàng đã có."],
             _ => []
         };
@@ -43,6 +54,7 @@ public static class CatalogErrorMessages
             CatalogIssueKind.TooLong => $"{label} chỉ được tối đa {issue.Limit} ký tự.",
             CatalogIssueKind.Negative => $"{label} không được âm.",
             CatalogIssueKind.InvalidNumber => $"{label} không phải số.",
+            CatalogIssueKind.TooLarge => $"{label} vượt quá giới hạn cho phép.",
             CatalogIssueKind.Duplicate =>
                 $"Mã mặt hàng \"{code?.Trim()}\" đã có. Mã không phân biệt chữ hoa và chữ thường.",
             _ => $"{label} không hợp lệ."
@@ -56,7 +68,7 @@ public static class CatalogErrorMessages
         CatalogField.Category => "Ngành hàng",
         CatalogField.Brand => "Thương hiệu",
         CatalogField.Origin => "Xuất xứ",
-        CatalogField.Unit => "Đơn vị",
+        CatalogField.Unit => "Đơn vị tính",
         CatalogField.Weight => "Trọng lượng",
         CatalogField.Volume => "Thể tích",
         CatalogField.WarrantyMonths => "Số tháng bảo hành",

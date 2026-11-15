@@ -333,7 +333,8 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
     public Task<IReadOnlyList<StockBalanceRow>> ListBalancesAsync(StockListFilter filter, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<StockBalanceRow>>(Rows.Where(filter.Matches).ToArray());
 
-    public Task<int> SumOnHandAsync(Guid catalogItemId, CancellationToken cancellationToken) => Task.FromResult(0);
+    public Task<int> SumOnHandAsync(Guid catalogItemId, CancellationToken cancellationToken) =>
+        Task.FromResult(Balances.Where(balance => balance.CatalogItemId == catalogItemId).Sum(balance => balance.OnHand));
 
     public Task<StockBalance?> FindBalanceForUpdateAsync(Guid catalogItemId, Guid stockLocationId, CancellationToken cancellationToken) =>
         Task.FromResult(Balances.FirstOrDefault(balance => balance.CatalogItemId == catalogItemId && balance.StockLocationId == stockLocationId));

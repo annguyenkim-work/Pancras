@@ -29,9 +29,8 @@ public class PurchaseAuditStampTests
     {
         var order = PurchaseOrder.TryCreate("PO-S", Guid.CreateVersion7(), Guid.CreateVersion7(), null, null, null, null, 25000m, 0m, [(Guid.CreateVersion7(), 1, 10m, 0m, 0m, 0m, 0m)], true, T0, "AnNK")!;
 
-        Assert.Equal(T0, order.CreatedAt);
-        Assert.Equal("AnNK", order.CreatedBy);
-        Assert.Null(order.UpdatedAt);
+        Assert.Equal(T0, order.UpdatedAt);
+        Assert.Equal("AnNK", order.UpdatedBy);
         Assert.Null(order.ReceivedAt);
 
         order.StampUpdated(T0.AddHours(1), "Kế toán 1");
@@ -54,8 +53,8 @@ public class PurchaseAuditStampTests
         var before = DateTimeOffset.UtcNow.AddSeconds(-1);
         var order = PurchaseOrder.TryCreate("PO-D", Guid.CreateVersion7(), Guid.CreateVersion7(), null, null, null, null, 25000m, 0m, [(Guid.CreateVersion7(), 1, 10m, 0m, 0m, 0m, 0m)], true, null, new string('x', 100))!;
 
-        Assert.True(order.CreatedAt > before);
-        Assert.Equal(PurchaseOrder.ActorMaxLength, order.CreatedBy.Length);
+        Assert.True(order.UpdatedAt > before);
+        Assert.Equal(PurchaseOrder.ActorMaxLength, order.UpdatedBy.Length);
     }
 
     [Fact]
@@ -89,9 +88,8 @@ public class PurchaseAuditStampTests
 
         Assert.True(result.IsSuccess);
         var order = orders.Orders.Single();
-        Assert.Equal(T0, order.CreatedAt);
-        Assert.Equal("AnNK", order.CreatedBy);
-        Assert.Null(order.UpdatedAt);
+        Assert.Equal(T0, order.UpdatedAt);
+        Assert.Equal("AnNK", order.UpdatedBy);
     }
 
     [Fact]
@@ -115,6 +113,6 @@ public class PurchaseAuditStampTests
         Assert.Equal(T0.AddDays(1), order.ReceivedAt);
         Assert.Equal("Thukho1", order.ReceivedBy);
         Assert.Equal(T0.AddDays(1), order.UpdatedAt);
-        Assert.Equal("AnNK", order.CreatedBy);
+        Assert.Equal("Thukho1", order.UpdatedBy);
     }
 }

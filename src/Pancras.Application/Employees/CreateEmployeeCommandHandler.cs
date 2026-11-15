@@ -101,6 +101,11 @@ public sealed class CreateEmployeeCommandHandler(
         EmployeeActor actor,
         CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(command.Role))
+        {
+            return Result<CreatedEmployee>.Fail(EmployeeError.RoleRequired);
+        }
+
         if (!EmployeeAccess.CanCreate(actor, command.Role, command.StockLocationId))
         {
             logger.LogWarning("Employee creation forbidden for employee {EmployeeId}.", actor.Id);

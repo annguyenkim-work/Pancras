@@ -40,6 +40,9 @@ public static class ChargeAllocation
 
 public static class PurchaseMoney
 {
+    /// <summary>Trần của cột numeric(18,0): số đồng lớn nhất còn lưu được.</summary>
+    public const decimal MaxDong = 999_999_999_999_999_999m;
+
     public static decimal RoundDong(decimal value) =>
         decimal.Round(value, 0, MidpointRounding.AwayFromZero);
 

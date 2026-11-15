@@ -74,9 +74,7 @@ public sealed record PurchaseOrderDetail(
     IReadOnlyList<PurchaseChargeView> Charges,
     bool VatDeductible = true,
     Guid SupplierId = default,
-    DateTimeOffset CreatedAt = default,
-    string CreatedBy = "",
-    DateTimeOffset? UpdatedAt = null,
+    DateTimeOffset UpdatedAt = default,
     string UpdatedBy = "",
     DateTimeOffset? ReceivedAt = null,
     string ReceivedBy = "",
@@ -84,7 +82,8 @@ public sealed record PurchaseOrderDetail(
     string ExchangeRateSource = "",
     bool CostVisible = true,
     IReadOnlyList<PurchaseEventView>? Events = null,
-    IReadOnlyList<PurchaseAdjustmentView>? Adjustments = null);
+    IReadOnlyList<PurchaseAdjustmentView>? Adjustments = null,
+    int Version = 0);
 
 public sealed record PurchaseEventView(PurchaseEventKind Kind, DateTimeOffset OccurredAt, string ActorCode, string Note);
 
@@ -209,6 +208,9 @@ public sealed class UpdatePurchaseOrderCommand
     public decimal VatRate { get; set; }
 
     public bool VatDeductible { get; set; }
+
+    /// <summary>Phiên bản đơn lúc mở form sửa. Lệch với đơn đang lưu thì từ chối.</summary>
+    public int Version { get; set; }
 
     public IReadOnlyList<CreatePurchaseLineInput> Lines { get; set; } = [];
 

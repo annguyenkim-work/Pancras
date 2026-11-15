@@ -61,6 +61,12 @@ public sealed class UpdatePurchaseOrderCommandHandler(
             return Result<Guid>.Fail(order.Status == PurchaseStatus.Received ? PurchaseError.AlreadyReceived : PurchaseError.NotEditable);
         }
 
+        if (command.Version != order.Version)
+        {
+            logger.LogInformation("Rejected a stale purchase edit for {PurchaseOrderId}.", order.Id);
+            return Result<Guid>.Fail(PurchaseError.VersionConflict);
+        }
+
         var supplier = await suppliers.GetActiveReadOnlyAsync(command.SupplierId, cancellationToken);
         var locations = await inventory.ListLocationsAsync(cancellationToken);
         if (supplier is null || locations.All(location => location.Id != command.ReceiveLocationId) || lines.Length == 0)
@@ -189,6 +195,7 @@ public sealed class UpdatePurchaseOrderCommandHandler(
         }
 
         order.StampUpdated((clock ?? TimeProvider.System).GetUtcNow(), request?.ActorCode);
+        order.AdvanceVersion();
         if (!await orders.CommitAsync(cancellationToken))
         {
             logger.LogWarning("Purchase order update commit failed for {PurchaseOrderId}.", order.Id);

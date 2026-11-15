@@ -89,8 +89,8 @@
 }
 else
 {
-    <div class="mt-4 overflow-x-auto bg-white rounded-xl border border-slate-200">
-        <table class="min-w-full text-xs">
+    <div class="mt-4 max-w-full overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <table class="min-w-full whitespace-nowrap text-xs">
             <thead class="bg-slate-50 text-left text-slate-500">
                 <tr>
                     <th class="px-3 py-3 font-medium">Ảnh</th>
@@ -129,11 +129,11 @@ else
                         <td class="px-3 py-3 text-slate-700">@CatalogLabels.Category(row.Category)</td>
                         <td class="px-3 py-3 text-slate-700">@CatalogLabels.Text(row.Brand)</td>
                         <td class="px-3 py-3 text-slate-700">@CatalogLabels.Text(row.Unit)</td>
-                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.Format(row.CostPrice)</td>
-                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.Format(row.RetailPrice)</td>
-                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.Format(row.DealerPrice)</td>
-                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.Format(row.DistributorPrice)</td>
-                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.Format(row.ProjectPrice)</td>
+                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.FormatDong(row.CostPrice)</td>
+                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.FormatDong(row.RetailPrice)</td>
+                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.FormatDong(row.DealerPrice)</td>
+                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.FormatDong(row.DistributorPrice)</td>
+                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.FormatDong(row.ProjectPrice)</td>
                         <td class="px-3 py-3 text-right whitespace-nowrap">
                             <a href="@Model.DetailUrl(row.Id)" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Chi tiết</a>
                             <a href="@Model.PriceUrl(row.Id)" class="ml-2 px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Sửa</a>
@@ -357,6 +357,7 @@ else
         <form method="post" enctype="multipart/form-data" asp-page-handler="UpdatePrices" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-4 sm:px-8">
             <input type="hidden" asp-for="Prices.Id" />
             <input type="hidden" asp-for="Prices.IncludeDetails" />
+            <input type="hidden" asp-for="Prices.Version" />
             <input type="hidden" name="q" value="@Model.Search" />
             <input type="hidden" name="category" value="@Model.CategoryToken" />
             <input type="hidden" name="page" value="@Model.ItemPage.PageNumber" />
@@ -433,7 +434,16 @@ else
             <div class="mt-2 grid grid-cols-2 gap-4 lg:grid-cols-5">
                 <div>
                     <label class="@labelClass" for="Prices_CostPrice">Giá vốn (đ)</label>
-                    <input asp-for="Prices.CostPrice" id="Prices_CostPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
+                    @if (Model.CostLocked)
+                    {
+                        <input id="Prices_CostPrice" value="@Model.Prices.CostPrice" disabled class="@fieldClass bg-slate-50 font-mono tabular-nums text-slate-500" />
+                        <input type="hidden" asp-for="Prices.CostPrice" />
+                        <p class="mt-1 text-xs text-slate-500">Giá vốn không sửa được khi mặt hàng đã có tồn. Giá vốn cập nhật theo nhập kho.</p>
+                    }
+                    else
+                    {
+                        <input asp-for="Prices.CostPrice" id="Prices_CostPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
+                    }
                 </div>
                 <div>
                     <label class="@labelClass" for="Prices_RetailPrice">Giá lẻ (đ)</label>
@@ -530,11 +540,11 @@ else
                 <div><dt class="text-slate-500">Thể tích</dt><dd class="font-mono tabular-nums text-slate-900">@CatalogLabels.Measure(detail.VolumeM3)</dd></div>
                 <div><dt class="text-slate-500">Số tháng bảo hành</dt><dd class="font-mono tabular-nums text-slate-900">@CatalogLabels.Months(detail.WarrantyMonths)</dd></div>
                 <div><dt class="text-slate-500">Mức tồn tối thiểu</dt><dd class="font-mono tabular-nums text-slate-900">@CatalogLabels.Measure(detail.MinimumStock)</dd></div>
-                <div><dt class="text-slate-500">Giá vốn</dt><dd class="font-mono tabular-nums text-slate-900">@VndMoney.Format(detail.CostPrice)</dd></div>
-                <div><dt class="text-slate-500">Giá lẻ</dt><dd class="font-mono tabular-nums text-slate-900">@VndMoney.Format(detail.RetailPrice)</dd></div>
-                <div><dt class="text-slate-500">Giá đại lý</dt><dd class="font-mono tabular-nums text-slate-900">@VndMoney.Format(detail.DealerPrice)</dd></div>
-                <div><dt class="text-slate-500">Giá nhà phân phối</dt><dd class="font-mono tabular-nums text-slate-900">@VndMoney.Format(detail.DistributorPrice)</dd></div>
-                <div><dt class="text-slate-500">Giá dự án</dt><dd class="font-mono tabular-nums text-slate-900">@VndMoney.Format(detail.ProjectPrice)</dd></div>
+                <div><dt class="text-slate-500">Giá vốn</dt><dd class="font-mono tabular-nums text-slate-900">@VndMoney.FormatDong(detail.CostPrice)</dd></div>
+                <div><dt class="text-slate-500">Giá lẻ</dt><dd class="font-mono tabular-nums text-slate-900">@VndMoney.FormatDong(detail.RetailPrice)</dd></div>
+                <div><dt class="text-slate-500">Giá đại lý</dt><dd class="font-mono tabular-nums text-slate-900">@VndMoney.FormatDong(detail.DealerPrice)</dd></div>
+                <div><dt class="text-slate-500">Giá nhà phân phối</dt><dd class="font-mono tabular-nums text-slate-900">@VndMoney.FormatDong(detail.DistributorPrice)</dd></div>
+                <div><dt class="text-slate-500">Giá dự án</dt><dd class="font-mono tabular-nums text-slate-900">@VndMoney.FormatDong(detail.ProjectPrice)</dd></div>
             </dl>
             <p class="mt-6 text-sm font-medium text-slate-700">@CatalogLabels.PricesIncludeVat</p>
         </div>

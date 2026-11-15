@@ -39,7 +39,7 @@ public class AuditStampTests
         Supplier.Create("NCC1", "Nhà cung cấp 1", "VN", "A", "0900000000", "a@example.com", "123");
 
     [Fact]
-    public async Task Insert_StampsCreatorCodeAndTime_AndLeavesUpdateEmpty()
+    public async Task Insert_StampsUpdaterCodeAndTime()
     {
         var at = new DateTimeOffset(2026, 11, 13, 8, 0, 0, TimeSpan.Zero);
         var supplier = NewSupplier();
@@ -51,14 +51,12 @@ public class AuditStampTests
 
         await using var read = NewContext("x", new FakeClock(at));
         var saved = await read.Set<Supplier>().AsNoTracking().SingleAsync(s => s.Id == supplier.Id);
-        Assert.Equal("AnNK", saved.CreatedBy);
-        Assert.Equal(at, saved.CreatedAt);
-        Assert.Null(saved.UpdatedAt);
-        Assert.Equal("", saved.UpdatedBy);
+        Assert.Equal("AnNK", saved.UpdatedBy);
+        Assert.Equal(at, saved.UpdatedAt);
     }
 
     [Fact]
-    public async Task Update_StampsLastEditorCode_AndKeepsCreator()
+    public async Task Update_OverwritesLastEditorCodeAndTime()
     {
         var created = new DateTimeOffset(2026, 11, 13, 8, 0, 0, TimeSpan.Zero);
         var edited = created.AddHours(3);
@@ -78,8 +76,6 @@ public class AuditStampTests
 
         await using var read = NewContext("x", new FakeClock(edited));
         var saved = await read.Set<Supplier>().AsNoTracking().SingleAsync(s => s.Id == supplier.Id);
-        Assert.Equal("AnNK", saved.CreatedBy);
-        Assert.Equal(created, saved.CreatedAt);
         Assert.Equal("BinhTT", saved.UpdatedBy);
         Assert.Equal(edited, saved.UpdatedAt);
     }
@@ -91,7 +87,7 @@ public class AuditStampTests
         await using var context = NewContext(null, new FakeClock(DateTimeOffset.UtcNow));
         context.Add(supplier);
         await context.SaveChangesAsync();
-        Assert.Equal(AuditStampInterceptor.SystemActor, supplier.CreatedBy);
+        Assert.Equal(AuditStampInterceptor.SystemActor, supplier.UpdatedBy);
     }
 
     [Fact]
@@ -115,6 +111,7 @@ public class AuditStampTests
         await using var read = NewContext("x", new FakeClock(at));
         var saved = await read.Set<Employee>().AsNoTracking().SingleAsync(e => e.Id == employee.Id);
         Assert.Equal(1, saved.FailedLoginCount);
-        Assert.Null(saved.UpdatedAt);
+        Assert.Equal(at, saved.UpdatedAt);
+        Assert.Equal("Admin", saved.UpdatedBy);
     }
 }

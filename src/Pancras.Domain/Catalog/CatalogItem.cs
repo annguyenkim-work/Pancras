@@ -14,6 +14,12 @@ public sealed class CatalogItem : Pancras.Domain.Auditing.AuditStamped
 
     public const int ImagePathMaxLength = 240;
 
+    /// <summary>Đúng cột <c>numeric(18,0)</c>.</summary>
+    public const decimal MaxPrice = 999_999_999_999_999_999m;
+
+    /// <summary>Đúng cột <c>numeric(12,3)</c>.</summary>
+    public const decimal MaxMeasure = 999_999_999.999m;
+
     public const bool SellingPricesIncludeVat = true;
 
     private CatalogItem()
@@ -28,6 +34,8 @@ public sealed class CatalogItem : Pancras.Domain.Auditing.AuditStamped
     }
 
     public Guid Id { get; private set; }
+
+    public int Version { get; private set; }
 
     public string Code { get; private set; }
 
@@ -176,7 +184,13 @@ public sealed class CatalogItem : Pancras.Domain.Auditing.AuditStamped
         ProjectPrice = project;
     }
 
-    public void SetCostPrice(decimal costPrice) => CostPrice = WholeDong(costPrice);
+    public void SetCostPrice(decimal costPrice)
+    {
+        CostPrice = WholeDong(costPrice);
+        AdvanceVersion();
+    }
+
+    public void AdvanceVersion() => Version++;
 
     public void SetImage(string? imagePath) => ImagePath = OptionalText(imagePath, ImagePathMaxLength);
 

@@ -226,6 +226,11 @@ public class IndexModel(
 
     private async Task<IActionResult> SaveNewAsync(CancellationToken cancellationToken)
     {
+        if (!CanManage)
+        {
+            return Forbid();
+        }
+
         var result = await createHandler.HandleAsync(
             new CreateSupplierCommand
             {
@@ -260,6 +265,11 @@ public class IndexModel(
 
     private async Task<IActionResult> SaveEditAsync(CancellationToken cancellationToken)
     {
+        if (!CanManage)
+        {
+            return Forbid();
+        }
+
         var result = await updateHandler.HandleAsync(Form, cancellationToken);
         if (result.IsFailure)
         {

@@ -13,6 +13,7 @@ public enum EmployeeError
     None = 0,
     ProfileIncomplete,
     InvalidRole,
+    RoleRequired,
     NotFound,
     NameUnusable,
     CodeExhausted,
@@ -73,8 +74,11 @@ public enum CatalogError
     TooLong,
     DuplicateCode,
     Negative,
+    TooLarge,
     NotFound,
     PriceListForbidden,
+    CostLocked,
+    VersionConflict,
     UndecidedSalePrice,
     MissingFilePrice
 }
@@ -108,7 +112,8 @@ public enum CatalogIssueKind
     TooLong,
     Negative,
     Duplicate,
-    InvalidNumber
+    InvalidNumber,
+    TooLarge
 }
 
 public enum StockError
@@ -174,6 +179,15 @@ public enum PurchaseError
     InvalidTransition,
 
     ReasonRequired,
+
+    /// <summary>Lý do trả về nháp hoặc hủy dài hơn 500 ký tự.</summary>
+    ReasonTooLong,
+
+    /// <summary>Người khác đã lưu đơn sau khi form này được mở.</summary>
+    VersionConflict,
+
+    /// <summary>Số tiền điều chỉnh sau khi làm tròn không vừa cột numeric(18,0).</summary>
+    AmountTooLarge,
 
     /// <summary>Đơn đã có lần nhận hàng hoặc đã hủy nên không sửa được nữa.</summary>
     NotEditable,

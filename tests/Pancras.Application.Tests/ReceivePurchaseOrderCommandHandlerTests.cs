@@ -135,4 +135,40 @@ public class ReceivePurchaseOrderCommandHandlerTests
         Assert.True(result.IsSuccess);
         Assert.Equal(33m, item.CostPrice);
     }
+
+    [Fact]
+    public async Task Receive_SixOfTen_StaysPartial_ThenTheRestClosesTheOrder()
+    {
+        var item = CatalogItem.Create("SP10", "Chậu", ProductCategory.SanitaryEquipment, "Toto", "Việt Nam", "Cái", null, null, null, null, 9m, 1m, 1m, 1m, 1m);
+        var warehouse = StockLocation.Create("Kho E", StockLocationKind.Warehouse);
+        var catalog = new FakeCatalogRepository();
+        catalog.Items.Add(item);
+        var inventory = new FakeInventoryStore();
+        var orders = new FakePurchaseStore();
+        var order = PurchaseOrder.TryCreate("PO-10", Guid.CreateVersion7(), warehouse.Id, "CONT", null, null, null, 1m, 0m, [(item.Id, 10, 100m, 0m, 0m, 0m, 0m)])!;
+        orders.Orders.Add(order);
+        order.Approve();
+        var handler = new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance);
+        var lineId = order.Lines[0].Id;
+
+        var shortWithoutReason = await handler.HandleAsync(
+            new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant, new Dictionary<Guid, int> { [lineId] = 6 }, true),
+            CancellationToken.None);
+        Assert.Equal(PurchaseError.ReceiptNoteRequired, shortWithoutReason.PurchaseError);
+        Assert.Equal(PurchaseStatus.Approved, order.Status);
+
+        var partial = await handler.HandleAsync(
+            new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant, new Dictionary<Guid, int> { [lineId] = 6 }, false),
+            CancellationToken.None);
+        Assert.True(partial.IsSuccess);
+        Assert.Equal(PurchaseStatus.PartiallyReceived, order.Status);
+        Assert.Equal(6, order.Lines[0].ReceivedQuantity);
+
+        var rest = await handler.HandleAsync(
+            new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant, new Dictionary<Guid, int> { [lineId] = 4 }, true),
+            CancellationToken.None);
+        Assert.True(rest.IsSuccess);
+        Assert.Equal(PurchaseStatus.Received, order.Status);
+        Assert.Equal(10, order.Lines[0].ReceivedQuantity);
+    }
 }

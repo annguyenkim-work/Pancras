@@ -113,16 +113,6 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(18,0)")
                         .HasColumnName("cost_price");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("created_by");
-
                     b.Property<decimal>("DealerPrice")
                         .HasPrecision(18)
                         .HasColumnType("numeric(18,0)")
@@ -192,7 +182,7 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(32)")
                         .HasColumnName("unit");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
+                    b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
@@ -201,6 +191,11 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasColumnName("updated_by");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
 
                     b.Property<decimal?>("VolumeM3")
                         .HasPrecision(12, 3)
@@ -248,16 +243,6 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasMaxLength(220)
                         .HasColumnType("character varying(220)")
                         .HasColumnName("code");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("created_by");
 
                     b.Property<string>("Department")
                         .IsRequired()
@@ -349,7 +334,7 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("two_factor_enabled");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
+                    b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
@@ -387,16 +372,6 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("catalog_item_id");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("created_by");
-
                     b.Property<string>("CreatedByRole")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -429,7 +404,7 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("stock_location_id");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
+                    b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
@@ -461,16 +436,6 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("CatalogItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("catalog_item_id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("created_by");
 
                     b.Property<int>("Delta")
                         .HasColumnType("integer")
@@ -506,7 +471,7 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("transfer_slip_id");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
+                    b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
@@ -636,16 +601,6 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("created_by");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
@@ -660,7 +615,7 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("name");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
+                    b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
@@ -789,16 +744,6 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("counted_quantity");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("created_by");
-
                     b.Property<string>("CreatedByRole")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -831,7 +776,7 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("stock_location_id");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
+                    b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
@@ -1001,16 +946,6 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("carrier");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("created_by");
-
                     b.Property<Guid>("DestinationLocationId")
                         .HasColumnType("uuid")
                         .HasColumnName("destination_location_id");
@@ -1085,7 +1020,7 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("stock_reserved");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
+                    b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
@@ -1357,6 +1292,10 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("received_quantity");
 
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
                     b.Property<decimal>("SpecialConsumptionTax")
                         .HasColumnType("numeric(18,0)")
                         .HasColumnName("special_consumption_tax");
@@ -1401,16 +1340,6 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasColumnName("container_number");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("created_by");
 
                     b.Property<decimal>("ExchangeRate")
                         .HasColumnType("numeric(18,0)")
@@ -1480,7 +1409,7 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasDefaultValue("")
                         .HasColumnName("supplier_name");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
+                    b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
@@ -1497,6 +1426,11 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                     b.Property<decimal>("VatRate")
                         .HasColumnType("numeric(9,4)")
                         .HasColumnName("vat_rate");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
 
                     b.HasKey("Id")
                         .HasName("pk_purchase_order");
@@ -1553,16 +1487,6 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("country");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("created_by");
-
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(254)
@@ -1601,7 +1525,7 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasDefaultValue("")
                         .HasColumnName("swift_code");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
+                    b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 

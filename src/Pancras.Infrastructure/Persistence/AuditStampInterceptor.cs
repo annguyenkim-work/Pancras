@@ -7,9 +7,9 @@ using Pancras.Domain.Auditing;
 namespace Pancras.Infrastructure.Persistence;
 
 /// <summary>
-/// Ghi dấu vết (ai tạo, ai sửa lần cuối, lúc nào) cho mọi thực thể kế thừa <see cref="AuditStamped"/> ngay trước khi lưu,
-/// nên mọi module có dấu vết như nhau mà handler không phải nhớ. Người thao tác lấy từ <see cref="IRequestInfo"/> (mã nhân viên);
-/// không có người dùng (lệnh tạo Admin đầu tiên, tiến trình nền) thì ghi "system".
+/// Ghi dấu vết (ai ghi lần cuối, lúc nào) cho mọi thực thể kế thừa <see cref="AuditStamped"/> ngay trước khi lưu.
+/// Lúc tạo cũng ghi vào updated_at và updated_by. Người thao tác lấy từ <see cref="IRequestInfo"/> (mã nhân viên);
+/// không có người dùng thì ghi "system".
 /// </summary>
 public sealed class AuditStampInterceptor(IRequestInfo? request = null, TimeProvider? clock = null) : SaveChangesInterceptor
 {
@@ -23,8 +23,6 @@ public sealed class AuditStampInterceptor(IRequestInfo? request = null, TimeProv
 
     private static readonly HashSet<string> StampProperties =
     [
-        nameof(AuditStamped.CreatedAt),
-        nameof(AuditStamped.CreatedBy),
         nameof(AuditStamped.UpdatedAt),
         nameof(AuditStamped.UpdatedBy)
     ];
@@ -63,15 +61,15 @@ public sealed class AuditStampInterceptor(IRequestInfo? request = null, TimeProv
         {
             if (entry.State == EntityState.Added)
             {
-                // Thực thể đã tự đóng dấu (đơn mua) thì giữ nguyên.
-                if (entry.Entity.CreatedAt == default)
+                // Thực thể đã tự đóng dấu (đơn mua) thì giữ nguyên. Lúc tạo cũng ghi vào updated_*.
+                if (entry.Entity.UpdatedAt == default)
                 {
-                    entry.Property(nameof(AuditStamped.CreatedAt)).CurrentValue = now;
+                    entry.Property(nameof(AuditStamped.UpdatedAt)).CurrentValue = now;
                 }
 
-                if (string.IsNullOrEmpty(entry.Entity.CreatedBy))
+                if (string.IsNullOrEmpty(entry.Entity.UpdatedBy))
                 {
-                    entry.Property(nameof(AuditStamped.CreatedBy)).CurrentValue = actor;
+                    entry.Property(nameof(AuditStamped.UpdatedBy)).CurrentValue = actor;
                 }
             }
             else if (entry.State == EntityState.Modified && HasRealChange(entry))

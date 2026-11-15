@@ -7,6 +7,8 @@ namespace Pancras.Infrastructure.Persistence;
 
 public sealed class EmployeeRepository(PancrasDbContext context) : IEmployeeRepository
 {
+    /// <summary>Một khóa cho cả nhóm quy tắc nhân sự: còn ít nhất một Admin, mỗi kho một Trưởng.</summary>
+    private const long PersonnelRulesLockKey = 724_531;
     public Task<Employee?> GetByNormalizedCodeAsync(string normalizedCode, CancellationToken cancellationToken) =>
         context.Employees.AsNoTracking()
             .FirstOrDefaultAsync(employee => employee.NormalizedCode == normalizedCode, cancellationToken);
@@ -63,6 +65,20 @@ public sealed class EmployeeRepository(PancrasDbContext context) : IEmployeeRepo
 
     public Task SaveChangesAsync(CancellationToken cancellationToken) =>
         context.SaveChangesAsync(cancellationToken);
+
+    public async Task<T> WithinPersonnelRulesAsync<T>(
+        Func<CancellationToken, Task<T>> action,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        await context.Database
+            .SqlQuery<long>($"SELECT pg_advisory_xact_lock({PersonnelRulesLockKey})")
+            .ToListAsync(cancellationToken);
+
+        var result = await action(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return result;
+    }
 
     private static bool IsUniqueViolation(DbUpdateException exception) =>
         exception.InnerException is PostgresException postgres

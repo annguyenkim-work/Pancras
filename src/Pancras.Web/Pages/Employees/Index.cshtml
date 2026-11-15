@@ -12,6 +12,7 @@
         EmployeeError.None => null,
         EmployeeError.ProfileIncomplete => "Cần đủ họ tên, email đúng dạng, điện thoại và chức vụ.",
         EmployeeError.InvalidRole => "Vai trò không hợp lệ.",
+        EmployeeError.RoleRequired => "Cần chọn vai trò.",
         EmployeeError.NotFound => "Không tìm thấy hồ sơ nhân viên.",
         EmployeeError.NameUnusable => "Họ tên chưa đủ để sinh mã nhân viên.",
         EmployeeError.CodeExhausted => "Không cấp được mã nhân viên. Thử lại sau.",
@@ -91,8 +92,8 @@
 }
 else
 {
-    <div class="mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table class="w-full min-w-[64rem] text-left text-sm">
+    <div class="mt-4 max-w-full overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <table class="w-full min-w-[64rem] text-left text-sm xl:min-w-0">
             <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                     <th class="px-3 py-3 font-semibold">Nhân viên</th>
@@ -100,6 +101,8 @@ else
                     <th class="px-3 py-3 font-semibold">Kho/showroom</th>
                     <th class="px-3 py-3 font-semibold">Liên hệ</th>
                     <th class="px-3 py-3 font-semibold">Chức vụ / Phòng ban</th>
+                    <th class="px-3 py-3 font-semibold whitespace-nowrap xl:whitespace-normal">Người cập nhật</th>
+                    <th class="px-3 py-3 font-semibold whitespace-nowrap xl:whitespace-normal">Ngày cập nhật</th>
                     <th class="px-3 py-3 text-right font-semibold">Thao tác</th>
                 </tr>
             </thead>
@@ -115,7 +118,6 @@ else
                             {
                                 <p class="text-xs font-medium text-emerald-700">Đang đăng nhập</p>
                             }
-                            <partial name="_AuditStamp" model="card.Stamp" />
                         </td>
                         <td class="px-3 py-3">
                             <div class="flex flex-wrap gap-1">
@@ -150,6 +152,8 @@ else
                                 <p class="text-xs text-slate-500">@card.Department</p>
                             }
                         </td>
+                        <td class="whitespace-nowrap px-3 py-3 text-slate-700 xl:whitespace-normal">@(card.Stamp?.UpdatedAt is not null && !string.IsNullOrWhiteSpace(card.Stamp.UpdatedBy) ? card.Stamp.UpdatedBy : "—")</td>
+                        <td class="whitespace-nowrap px-3 py-3 tabular-nums text-slate-700 xl:whitespace-normal">@(card.Stamp?.UpdatedAt is DateTimeOffset updated ? updated.ToLocalTime().ToString("dd/MM/yyyy HH:mm") : "—")</td>
                         <td class="px-3 py-3">
                             <div class="flex flex-wrap items-center justify-end gap-2">
                             @if (Model.CanResetPassword && Model.IsLocked(card))
@@ -176,14 +180,14 @@ else
                             }
                             @if (Model.CanToggle(card))
                             {
-                                <form method="post" asp-page-handler="SetActive" onsubmit="return @(card.IsActive ? "confirm('Xóa nhân viên này? Hồ sơ được vô hiệu hóa và có thể kích hoạt lại.')" : "true");">
+                                <form method="post" asp-page-handler="SetActive" onsubmit="return @(card.IsActive ? "confirm('Ngừng hoạt động nhân viên này? Hồ sơ được vô hiệu hóa và có thể kích hoạt lại.')" : "true");">
                                     <input type="hidden" name="id" value="@card.Id" />
                                     <input type="hidden" name="active" value="@(card.IsActive ? "false" : "true")" />
                                     <input type="hidden" name="q" value="@Model.Search" />
                                     <input type="hidden" name="role" value="@Model.Role" />
                                     <input type="hidden" name="location" value="@Model.LocationFilter" />
                                     <input type="hidden" name="pageNumber" value="@Model.PageNumber" />
-                                    <button type="submit" class="px-3 py-1.5 text-sm font-medium rounded-lg @(card.IsActive ? "text-rose-700 hover:bg-rose-50" : "text-emerald-700 hover:bg-emerald-50")">@(card.IsActive ? "Xóa" : "Kích hoạt lại")</button>
+                                    <button type="submit" class="px-3 py-1.5 text-sm font-medium rounded-lg @(card.IsActive ? "text-rose-700 hover:bg-rose-50" : "text-emerald-700 hover:bg-emerald-50")">@(card.IsActive ? "Ngừng" : "Kích hoạt lại")</button>
                                 </form>
                             }
                             @if (Model.CanEdit(card))
@@ -228,16 +232,16 @@ else
                 <label class="text-sm">Email<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="Command.Email" type="email" class="@inputClass" /></label>
                 <label class="text-sm">Điện thoại<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="Command.Phone" class="@inputClass" /></label>
                 <label class="text-sm sm:col-span-2">Địa chỉ<input asp-for="Command.Address" class="@inputClass" /></label>
-                <label class="block"><span class="text-rose-600" aria-hidden="true"> *</span>
-                    <select asp-for="Command.Role" class="@inputClass">
-                        <option value="">Chọn vai trò</option>
+                <label class="text-sm">Vai trò<span class="text-rose-600" aria-hidden="true"> *</span>
+                    <select asp-for="Command.Role" required class="@inputClass">
+                        <option value="" disabled selected required>Chọn vai trò</option>
                         @foreach (var role in Model.CreatableRoles)
                         {
                             <option value="@role">@role</option>
                         }
                     </select>
                 </label>
-                <label class="text-sm">Kho/showroom <span class="text-xs text-slate-500">(bắt buộc với Trưởng kho, Thủ kho, Sales)</span>
+                <label class="text-sm">Kho/showroom
                     @if (Model.IsLead)
                     {
                         <input type="hidden" asp-for="Command.StockLocationId" />
@@ -253,6 +257,7 @@ else
                             }
                         </select>
                     }
+                    <span class="mt-1 block text-xs font-normal text-slate-500">Bắt buộc với Trưởng kho, Thủ kho và Sales.</span>
                 </label>
                 <label class="text-sm">Chức vụ<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="Command.JobTitle" class="@inputClass" /></label>
                 <label class="text-sm">Phòng ban<input asp-for="Command.Department" class="@inputClass" /></label>
@@ -332,7 +337,7 @@ else
 
                     @if (Model.CanEditAssignment)
                     {
-                        <label class="block"><span class="text-rose-600" aria-hidden="true"> *</span>
+                        <label class="text-sm">Vai trò<span class="text-rose-600" aria-hidden="true"> *</span>
                             <select asp-for="EditCommand.Role" class="@inputClass">
                                 @foreach (var role in Model.CreatableRoles)
                                 {
@@ -340,7 +345,7 @@ else
                                 }
                             </select>
                         </label>
-                        <label class="block">
+                        <label class="text-sm">Kho/showroom
                             <select asp-for="EditCommand.StockLocationId" class="@inputClass">
                                 <option value="">Chưa gán</option>
                                 @foreach (var location in Model.LocationChoices)
@@ -348,6 +353,7 @@ else
                                     <option value="@location.Id">@location.Name</option>
                                 }
                             </select>
+                            <span class="mt-1 block text-xs font-normal text-slate-500">Bắt buộc với Trưởng kho, Thủ kho và Sales.</span>
                         </label>
                         <label class="text-sm">Chức vụ<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="EditCommand.JobTitle" class="@inputClass" /></label>
                         <label class="text-sm">Phòng ban<input asp-for="EditCommand.Department" class="@inputClass" /></label>

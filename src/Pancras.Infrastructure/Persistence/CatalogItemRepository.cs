@@ -78,7 +78,7 @@ public sealed class CatalogItemRepository(PancrasDbContext context) : ICatalogIt
             await context.SaveChangesAsync(cancellationToken);
             return true;
         }
-        catch (DbUpdateException exception) when (IsUniqueViolation(exception))
+        catch (DbUpdateException exception) when (IsUniqueViolation(exception) || exception is DbUpdateConcurrencyException)
         {
             foreach (var entry in context.ChangeTracker.Entries<CatalogItem>().ToList())
             {

@@ -263,6 +263,67 @@ public class AuthenticationPageTests : IClassFixture<PancrasWebFactory>
         Assert.Contains("/login", expired.Headers.Location?.OriginalString, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task CreateWithoutRole_SaysARoleIsRequired_AndCreatesNobody()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var repository = _factory.Services.GetRequiredService<FakeEmployeeRepository>();
+        ResetEmployees(Admin());
+        await SignInAsync(client, "admin", "Admin@12345");
+        var before = repository.Employees.Count;
+
+        var response = await PostCreateAsync(client, "");
+        var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("Cần chọn vai trò.", html, StringComparison.Ordinal);
+        Assert.Contains("disabled", html, StringComparison.Ordinal);
+        Assert.Equal(before, repository.Employees.Count);
+    }
+
+    [Fact]
+    public async Task AccountantCreate_IsSentToAccessDenied()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var repository = _factory.Services.GetRequiredService<FakeEmployeeRepository>();
+        var accountant = Employee.Create("Kế Toán", "KetoanKT", "KETOANKT", _hasher.Hash("Secret12"), EmployeeRole.Accountant);
+        ResetEmployees(accountant);
+        await SignInAsync(client, "KetoanKT", "Secret12");
+
+        var response = await PostCreateAsync(client, EmployeeRole.Sales);
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Contains("/access-denied", response.Headers.Location?.OriginalString, StringComparison.Ordinal);
+        Assert.Single(repository.Employees);
+    }
+
+    [Fact]
+    public async Task ActiveEmployee_ShowsStop_AndOwnRowHasNoEdit()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var admin = Admin();
+        var other = Employee.Create("Nguyễn Kim An", "AnNK", "ANNK", _hasher.Hash("Secret12"), EmployeeRole.Accountant);
+        ResetEmployees(admin, other);
+        await SignInAsync(client, "admin", "Admin@12345");
+
+        var response = await client.GetAsync("/employees");
+        var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("Ngừng hoạt động nhân viên này?", html, StringComparison.Ordinal);
+        Assert.Contains(">Ngừng<", html, StringComparison.Ordinal);
+        Assert.DoesNotContain(">Kích hoạt lại<", html, StringComparison.Ordinal);
+        Assert.DoesNotContain(">Xóa<", html, StringComparison.Ordinal);
+        Assert.Single(Regex.Matches(html, ">Sửa<"));
+
+        other.Deactivate();
+        var stopped = await client.GetAsync("/employees");
+        var stoppedHtml = WebUtility.HtmlDecode(await stopped.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.OK, stopped.StatusCode);
+        Assert.Contains(">Kích hoạt lại<", stoppedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain(">Ngừng<", stoppedHtml, StringComparison.Ordinal);
+    }
+
     private Employee Admin() =>
         Employee.Create("Quản trị hệ thống", "admin", "ADMIN", _hasher.Hash("Admin@12345"), EmployeeRole.Admin);
 
@@ -286,6 +347,25 @@ public class AuthenticationPageTests : IClassFixture<PancrasWebFactory>
             ["__RequestVerificationToken"] = token
         });
         return await client.PostAsync("/login", form);
+    }
+
+    private static async Task<HttpResponseMessage> PostCreateAsync(HttpClient client, string role)
+    {
+        var page = await client.GetAsync("/employees?form=1");
+        var html = await page.Content.ReadAsStringAsync();
+        var token = Regex.Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+        Assert.False(string.IsNullOrEmpty(token));
+        var form = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Command.FullName"] = "Nguyễn Văn Mới",
+            ["Command.Email"] = "moi@example.com",
+            ["Command.Phone"] = "0901000001",
+            ["Command.JobTitle"] = "Nhân viên",
+            ["Command.Password"] = "Secret123",
+            ["Command.Role"] = role,
+            ["__RequestVerificationToken"] = token
+        });
+        return await client.PostAsync("/employees?handler=Create", form);
     }
 
     private static WebApplicationFactoryClientOptions NoRedirect { get; } = new()
@@ -407,6 +487,9 @@ internal sealed class FakeEmployeeRepository : IEmployeeRepository
 
     public Task SaveChangesAsync(CancellationToken cancellationToken) =>
         Task.CompletedTask;
+
+    public Task<T> WithinPersonnelRulesAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken) =>
+        action(cancellationToken);
 }
 
 internal sealed class SupplierStatsDouble : ISupplierPurchaseStatsReader

@@ -31,9 +31,18 @@ public sealed class ChangePurchaseStatusCommandHandler(
             return Result<Guid>.Fail(PurchaseError.InvalidOrder);
         }
 
-        if (command.Action == PurchaseStatusAction.Cancel && string.IsNullOrWhiteSpace(command.Note))
+        if (command.Action is PurchaseStatusAction.Cancel or PurchaseStatusAction.ReturnToDraft)
         {
-            return Result<Guid>.Fail(PurchaseError.ReasonRequired);
+            var note = command.Note?.Trim() ?? string.Empty;
+            if (note.Length == 0)
+            {
+                return Result<Guid>.Fail(PurchaseError.ReasonRequired);
+            }
+
+            if (note.Length > PurchaseOrder.ReasonMaxLength)
+            {
+                return Result<Guid>.Fail(PurchaseError.ReasonTooLong);
+            }
         }
 
         var at = (clock ?? TimeProvider.System).GetUtcNow();
@@ -54,6 +63,7 @@ public sealed class ChangePurchaseStatusCommandHandler(
         }
 
         order.StampUpdated(at, by);
+        order.AdvanceVersion();
         if (!await orders.CommitAsync(cancellationToken))
         {
             logger.LogWarning("Purchase status commit failed for {PurchaseOrderId}.", order.Id);
@@ -95,6 +105,11 @@ public sealed class AdjustPurchaseCostCommandHandler(
         }
 
         var amount = PurchaseMoney.RoundDong(command.Amount);
+        if (decimal.Abs(amount) > PurchaseMoney.MaxDong)
+        {
+            return Result<Guid>.Fail(PurchaseError.AmountTooLarge);
+        }
+
         var received = order.Lines.Where(line => line.ReceivedQuantity > 0).ToArray();
         if (order.Status != PurchaseStatus.Received || amount == 0 || received.Length == 0)
         {
@@ -156,6 +171,7 @@ public sealed class AdjustPurchaseCostCommandHandler(
             return Result<Guid>.Fail(PurchaseError.AdjustmentInvalid);
         }
 
+        order.AdvanceVersion();
         if (!await orders.CommitAsync(cancellationToken))
         {
             Restore(items, previousCosts);

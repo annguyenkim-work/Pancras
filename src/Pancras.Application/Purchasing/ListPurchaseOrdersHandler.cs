@@ -115,8 +115,6 @@ public sealed class GetPurchaseOrderHandler(
                 : [],
             order.VatDeductible,
             order.SupplierId,
-            order.CreatedAt,
-            order.CreatedBy,
             order.UpdatedAt,
             order.UpdatedBy,
             order.ReceivedAt,
@@ -133,7 +131,8 @@ public sealed class GetPurchaseOrderHandler(
                     .OrderBy(item => item.CreatedAt)
                     .Select(item => new PurchaseAdjustmentView(item.Id, item.Label, item.Amount, item.Method, item.Reason, item.AppliedToStock, item.Variance, item.CreatedAt, item.CreatedBy))
                     .ToArray()
-                : []);
+                : [],
+            order.Version);
     }
 }
 

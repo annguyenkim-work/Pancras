@@ -125,6 +125,40 @@ public class SupplierPageTests : IClassFixture<PancrasWebFactory>
         Assert.Contains("Khôi phục", inactive, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(EmployeeRole.WarehouseKeeper)]
+    [InlineData(EmployeeRole.ShowroomWarehouseLead)]
+    public async Task WarehouseCreateAndUpdate_GoToAccessDenied(string role)
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var supplier = Seed(role);
+        await SignInAsync(client);
+        var page = await client.GetAsync("/suppliers");
+        var token = Regex.Match(await page.Content.ReadAsStringAsync(), "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+        Assert.False(string.IsNullOrEmpty(token));
+
+        var create = await client.PostAsync("/suppliers", Posted(token, Guid.Empty, "NCC mới"));
+        var update = await client.PostAsync("/suppliers", Posted(token, supplier.Id, "Tên đã đổi"));
+        var stored = _factory.Services.GetRequiredService<SupplierDirectoryDouble>().Suppliers;
+
+        Assert.Equal(HttpStatusCode.Redirect, create.StatusCode);
+        Assert.Contains("/access-denied", create.Headers.Location?.OriginalString, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.Redirect, update.StatusCode);
+        Assert.Contains("/access-denied", update.Headers.Location?.OriginalString, StringComparison.Ordinal);
+        var only = Assert.Single(stored);
+        Assert.Equal("Kim An", only.Name);
+    }
+
+    private static FormUrlEncodedContent Posted(string token, Guid id, string name) =>
+        new(new Dictionary<string, string>
+        {
+            ["Form.Id"] = id.ToString("D"),
+            ["Form.Code"] = "ncc01",
+            ["Form.Name"] = name,
+            ["Form.Country"] = "Trung Quốc",
+            ["__RequestVerificationToken"] = token
+        });
+
     private Supplier Seed(string role)
     {
         var repository = _factory.Services.GetRequiredService<SupplierDirectoryDouble>();

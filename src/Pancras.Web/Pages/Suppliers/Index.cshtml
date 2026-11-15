@@ -22,16 +22,16 @@
             <a href="@Model.AddUrl" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Thêm nhà cung cấp</a>
         }
     </div>
-    <form method="get" action="/suppliers" data-live-filter class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_12rem_12rem]">
-        <input id="supplier-search" name="q" value="@Model.Search" type="search" placeholder="Tìm theo mã, tên, người liên hệ, email, điện thoại, quốc gia..." aria-label="Tìm kiếm nhà cung cấp" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white outline-none focus:border-sky-500" />
-        <select name="country" aria-label="Lọc theo quốc gia" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white outline-none focus:border-sky-500">
+    <form method="get" action="/suppliers" data-live-filter class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <input id="supplier-search" name="q" value="@Model.Search" type="search" placeholder="Tìm theo mã, tên, người liên hệ, email, điện thoại, quốc gia..." aria-label="Tìm kiếm nhà cung cấp" class="min-w-0 w-full flex-1 px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white outline-none focus:border-sky-500" />
+        <select name="country" aria-label="Lọc theo quốc gia" class="w-full shrink-0 px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white outline-none focus:border-sky-500 sm:w-52">
             <option value="">Mọi quốc gia</option>
             @foreach (var country in Model.Countries)
             {
                 <option value="@country" selected="@(string.Equals(country, Model.Country, StringComparison.Ordinal))">@country</option>
             }
         </select>
-        <select name="status" aria-label="Lọc theo trạng thái" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white outline-none focus:border-sky-500">
+        <select name="status" aria-label="Lọc theo trạng thái" class="w-full shrink-0 px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white outline-none focus:border-sky-500 sm:w-56">
             <option value="" selected="@(Model.StatusFilter == SupplierStatusFilter.Active)">Đang hợp tác</option>
             <option value="inactive" selected="@(Model.StatusFilter == SupplierStatusFilter.Inactive)">Đã ngừng hợp tác</option>
             <option value="all" selected="@(Model.StatusFilter == SupplierStatusFilter.All)">Tất cả</option>

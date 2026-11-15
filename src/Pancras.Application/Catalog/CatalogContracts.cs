@@ -54,6 +54,7 @@ public sealed record CatalogItemRow(
     int? LengthMm,
     int? WidthMm,
     string ImagePath,
+    int Version = 0,
     Pancras.Application.Auditing.AuditStampView? Stamp = null)
 {
     public static CatalogItemRow From(CatalogItem item) =>
@@ -78,6 +79,7 @@ public sealed record CatalogItemRow(
             item.LengthMm,
             item.WidthMm,
             item.ImagePath,
+            item.Version,
             Pancras.Application.Auditing.AuditStampView.From(item));
 }
 
@@ -282,6 +284,8 @@ public sealed class UpdateCatalogPricesCommand
     public string? ImagePath { get; set; }
 
     public bool ReplaceImage { get; set; }
+
+    public int Version { get; set; }
 }
 
 public sealed record ResolveSalePriceCommand(

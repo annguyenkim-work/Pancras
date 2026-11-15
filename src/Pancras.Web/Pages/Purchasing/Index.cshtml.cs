@@ -184,6 +184,7 @@ public class IndexModel(
             ExchangeRate = decimal.Truncate(detail.ExchangeRate),
             VatPercent = Tidy(detail.VatRate * 100m),
             VatDeductible = detail.VatDeductible,
+            Version = detail.Version,
             Charges = detail.Charges
                 .Select(charge => new ChargeRowInput
                 {
@@ -249,6 +250,7 @@ public class IndexModel(
                 ExchangeRate = Form.ExchangeRate,
                 VatRate = Form.VatPercent / 100m,
                 VatDeductible = Form.VatDeductible,
+                Version = Form.Version,
                 Lines = Form.Lines ?? [],
                 // Danh sách trong form là danh sách đúng: dòng bị xóa trong bảng thì khoản đó bị xóa khỏi đơn.
                 Charges = (Form.Charges ?? [])
@@ -343,9 +345,22 @@ public class IndexModel(
         return Redirect($"/purchasing?order={result.Value}&notice=created");
     }
 
-    public async Task<IActionResult> OnPostReceiveAsync(Guid orderId)
+    public async Task<IActionResult> OnPostReceiveAsync(Guid orderId, bool closeOrder, string? note, Dictionary<Guid, int>? actuals)
     {
-        var result = await receiveOrder.HandleAsync(new ReceivePurchaseOrderCommand(orderId, Actor), HttpContext.RequestAborted);
+        var detail = await getOrder.HandleAsync(orderId, Actor, HttpContext.RequestAborted);
+        if (detail is null)
+        {
+            return Redirect($"/purchasing?order={orderId}&error={PurchaseError.InvalidOrder}");
+        }
+
+        var posted = actuals ?? new Dictionary<Guid, int>();
+        var quantities = detail.Lines.ToDictionary(
+            line => line.Id,
+            line => posted.TryGetValue(line.Id, out var quantity) ? quantity : Math.Max(0, line.Quantity - line.ReceivedQuantity));
+        var completes = detail.Lines.All(line => line.ReceivedQuantity + quantities[line.Id] == line.Quantity);
+        var result = await receiveOrder.HandleAsync(
+            new ReceivePurchaseOrderCommand(orderId, Actor, quantities, completes || closeOrder, note),
+            HttpContext.RequestAborted);
         if (result.IsFailure)
         {
             return Redirect($"/purchasing?order={orderId}&error={result.PurchaseError}");
@@ -486,6 +501,8 @@ public sealed class PurchaseForm
     public decimal VatPercent { get; set; }
 
     public bool VatDeductible { get; set; }
+
+    public int Version { get; set; }
 
     public List<decimal> UnitPrices { get; set; } = [];
 

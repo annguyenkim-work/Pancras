@@ -21,6 +21,7 @@ public sealed class PurchaseOrderConfiguration : IEntityTypeConfiguration<Purcha
         builder.Property(order => order.ExchangeRate).HasColumnType("numeric(18,0)").IsRequired();
         builder.Property(order => order.VatRate).HasColumnType("numeric(9,4)").IsRequired();
         builder.Property(order => order.Status).HasConversion<int>().IsRequired();
+        builder.Property(order => order.Version).IsConcurrencyToken().IsRequired();
         builder.Property(order => order.VatDeductible).IsRequired();
         builder.Property(order => order.ExchangeRateOn);
         builder.Property(order => order.ExchangeRateSource).HasMaxLength(PurchaseOrder.RateSourceMaxLength).IsRequired();
@@ -62,6 +63,7 @@ public sealed class PurchaseLineConfiguration : IEntityTypeConfiguration<Purchas
         builder.Property(line => line.EnvironmentTax).HasColumnType("numeric(18,0)").IsRequired();
         builder.Property(line => line.ReceivedQuantity).IsRequired();
         builder.Property(line => line.CostedAmount).HasColumnType("numeric(18,0)").IsRequired();
+        builder.Property(line => line.SortOrder).IsRequired();
         builder.HasOne<CatalogItem>().WithMany().HasForeignKey(line => line.CatalogItemId).OnDelete(DeleteBehavior.Restrict);
     }
 }

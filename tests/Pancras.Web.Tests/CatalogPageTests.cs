@@ -7,6 +7,7 @@ using Pancras.Application.Catalog;
 using Pancras.Application.Employees;
 using Pancras.Domain.Catalog;
 using Pancras.Domain.Employees;
+using Pancras.Domain.Inventory;
 
 namespace Pancras.Web.Tests;
 
@@ -53,11 +54,13 @@ public class CatalogPageTests : IClassFixture<PancrasWebFactory>
         var detailText = Decode(detailHtml);
         var addText = Decode(addHtml);
         var priceText = Decode(priceHtml);
-        Assert.Contains("15.000.000 VNĐ", text, StringComparison.Ordinal);
-        Assert.Contains("0 VNĐ", text, StringComparison.Ordinal);
+        Assert.Contains("15.000.000 đ", text, StringComparison.Ordinal);
+        Assert.Contains("0 đ", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("15.000.000 VNĐ", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("0 VNĐ", text, StringComparison.Ordinal);
         Assert.Contains("0,4", detailText, StringComparison.Ordinal);
-        Assert.DoesNotContain("0,4 VNĐ", detailText, StringComparison.Ordinal);
-        Assert.DoesNotContain("12 VNĐ", detailText, StringComparison.Ordinal);
+        Assert.DoesNotContain("0,4 đ", detailText, StringComparison.Ordinal);
+        Assert.DoesNotContain("12 đ", detailText, StringComparison.Ordinal);
         Assert.Contains("Giá đã gồm VAT.", addText, StringComparison.Ordinal);
         Assert.Contains("Giá đã gồm VAT.", priceText, StringComparison.Ordinal);
         Assert.Contains("Thêm sản phẩm vào danh mục", addText, StringComparison.Ordinal);
@@ -189,6 +192,88 @@ public class CatalogPageTests : IClassFixture<PancrasWebFactory>
         var listHtml = await list.Content.ReadAsStringAsync();
         Assert.Contains(item.ImagePath, listHtml, StringComparison.Ordinal);
         _factory.Services.GetRequiredService<Pancras.Web.Catalog.CatalogImageStore>().Delete(item.ImagePath);
+    }
+
+    [Fact]
+    public async Task Create_RejectsAPriceAboveTheColumn_OnTheForm()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var repository = Reset();
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+        var add = await client.GetAsync("/catalog?add=true");
+        var token = Regex.Match(await add.Content.ReadAsStringAsync(), "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+        var posted = await client.PostAsync(
+            "/catalog?handler=Create",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["Form.Code"] = "SP88",
+                ["Form.Name"] = "Giá quá lớn",
+                ["Form.Category"] = ProductCategoryToken.Sanitary,
+                ["Form.Unit"] = "Cái",
+                ["Form.CostPrice"] = "1000",
+                ["Form.RetailPrice"] = "100000000000000000000",
+                ["Form.DealerPrice"] = "1000",
+                ["Form.DistributorPrice"] = "1000",
+                ["Form.ProjectPrice"] = "1000",
+                ["__RequestVerificationToken"] = token
+            }));
+        var html = Decode(await posted.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, posted.StatusCode);
+        Assert.Contains("Giá lẻ vượt quá giới hạn cho phép.", html, StringComparison.Ordinal);
+        Assert.Empty(repository.Items);
+    }
+
+    [Fact]
+    public async Task Create_RejectsABlankUnit()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var repository = Reset();
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+        var add = await client.GetAsync("/catalog?add=true");
+        var token = Regex.Match(await add.Content.ReadAsStringAsync(), "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+        var posted = await client.PostAsync(
+            "/catalog?handler=Create",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["Form.Code"] = "SP89",
+                ["Form.Name"] = "Thiếu đơn vị",
+                ["Form.Category"] = ProductCategoryToken.Sanitary,
+                ["Form.Unit"] = "",
+                ["Form.CostPrice"] = "1000",
+                ["Form.RetailPrice"] = "2000",
+                ["Form.DealerPrice"] = "1800",
+                ["Form.DistributorPrice"] = "1600",
+                ["Form.ProjectPrice"] = "1500",
+                ["__RequestVerificationToken"] = token
+            }));
+        var html = Decode(await posted.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, posted.StatusCode);
+        Assert.Contains("Đơn vị tính chưa được nhập.", html, StringComparison.Ordinal);
+        Assert.Empty(repository.Items);
+    }
+
+    [Fact]
+    public async Task StockedItem_LocksTheCostField()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var repository = Reset();
+        var item = CatalogItem.Create("SP01", "Vòi", ProductCategory.SanitaryEquipment, "Toto", null, "Cái", null, null, null, null, 275000m, 300000m, 1m, 1m, 1m);
+        repository.Items.Add(item);
+        var stock = _factory.Services.GetRequiredService<InventoryDirectoryDouble>();
+        stock.Balances.Clear();
+        stock.Balances.Add(StockBalance.Create(item.Id, Guid.NewGuid(), 10, 0, 0));
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+
+        var prices = await client.GetAsync("/catalog?prices=" + item.Id.ToString("D"));
+        var html = Decode(await prices.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, prices.StatusCode);
+        Assert.Contains("disabled", html, StringComparison.Ordinal);
+        Assert.Contains("Giá vốn không sửa được khi mặt hàng đã có tồn. Giá vốn cập nhật theo nhập kho.", html, StringComparison.Ordinal);
+        Assert.Contains("name=\"Prices.Version\"", html, StringComparison.Ordinal);
+        stock.Balances.Clear();
     }
 
     private static readonly byte[] TinyPng =

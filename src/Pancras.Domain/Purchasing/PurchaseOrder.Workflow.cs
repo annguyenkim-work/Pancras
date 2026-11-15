@@ -123,7 +123,7 @@ public sealed record ReceiptUndo(
     PurchaseStatus Status,
     DateTimeOffset? ReceivedAt,
     string ReceivedBy,
-    DateTimeOffset? UpdatedAt,
+    DateTimeOffset UpdatedAt,
     string UpdatedBy,
     IReadOnlyList<(Guid LineId, int Received, decimal Costed)> Lines,
     Guid EventId);

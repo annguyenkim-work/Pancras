@@ -1,11 +1,8 @@
 @model Pancras.Application.Auditing.AuditStampView?
-@* Dấu vết bản ghi dùng chung cho mọi module: tạo bởi ai lúc nào, sửa lần cuối bởi ai lúc nào (mã nhân viên, giờ máy chủ). *@
-@if (Model is { } stamp && stamp.CreatedAt.Year > 2000)
+@* Dấu vết bản ghi: ai ghi lần cuối và lúc nào. Lúc tạo cũng là một lần ghi. *@
+@if (Model is { } stamp && stamp.UpdatedAt.Year > 2000)
 {
     <p class="audit-stamp text-xs leading-5 text-slate-500">
-        Tạo @stamp.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")@(string.IsNullOrEmpty(stamp.CreatedBy) ? "" : " bởi " + stamp.CreatedBy)
-        · @(stamp.UpdatedAt is DateTimeOffset updated
-            ? "Sửa lần cuối " + updated.ToLocalTime().ToString("dd/MM/yyyy HH:mm") + (string.IsNullOrEmpty(stamp.UpdatedBy) ? "" : " bởi " + stamp.UpdatedBy)
-            : "Chưa sửa lần nào")
+        Cập nhật @stamp.UpdatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")@(string.IsNullOrEmpty(stamp.UpdatedBy) ? "" : " bởi " + stamp.UpdatedBy)
     </p>
 }
