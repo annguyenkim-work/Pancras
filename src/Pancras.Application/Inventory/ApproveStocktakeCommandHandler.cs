@@ -32,11 +32,21 @@ public sealed class ApproveStocktakeCommandHandler(
         if (decision != StockDecision.Accepted)
         {
             logger.LogWarning("Stocktake approval rejected for {StocktakeId}.", sheet.Id);
-            return Result<Guid>.Fail(decision == StockDecision.WrongRole ? StockError.ApprovalForbidden : StockError.ApprovalForbidden);
+            return Result<Guid>.Fail(decision == StockDecision.NotPending ? StockError.TransferStateChanged : StockError.ApprovalForbidden);
+        }
+
+        var (applied, snapshot) = await StocktakeApplication.ApplyAsync(
+            repository, sheet, (clock ?? TimeProvider.System).GetUtcNow(), cancellationToken);
+        if (!applied)
+        {
+            sheet.RestoreUncommitted(status);
+            logger.LogWarning("Stocktake approval would drop stock below the reserved quantity for {StocktakeId}.", sheet.Id);
+            return Result<Guid>.Fail(StockError.NegativeStock);
         }
 
         if (!await repository.CommitAsync(cancellationToken))
         {
+            snapshot?.Restore();
             sheet.RestoreUncommitted(status);
             logger.LogWarning("Stocktake approval commit failed for {StocktakeId}.", sheet.Id);
             return Result<Guid>.Fail(StockError.ApprovalForbidden);

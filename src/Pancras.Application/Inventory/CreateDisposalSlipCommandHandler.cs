@@ -29,7 +29,7 @@ public sealed class CreateDisposalSlipCommandHandler(
         if (decision != StockDecision.Accepted || slip is null)
         {
             logger.LogWarning("Disposal slip rejected for {CatalogItemId}.", command.CatalogItemId);
-            return Result<Guid>.Fail(decision == StockDecision.MissingEvidence ? StockError.MissingEvidence : StockError.DisposalRejected);
+            return Result<Guid>.Fail(StockDecisionErrors.ToError(decision));
         }
 
         if (InventoryAccess.IsGlobal(command.Actor.Role))

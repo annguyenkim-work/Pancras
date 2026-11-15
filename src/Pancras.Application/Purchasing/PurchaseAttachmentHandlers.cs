@@ -69,9 +69,15 @@ public sealed class UploadPurchaseAttachmentCommandHandler(
             return Result<Guid>.Fail(PurchaseError.AttachmentInvalid);
         }
 
-        if (await orders.FindReadOnlyAsync(command.PurchaseOrderId, cancellationToken) is null)
+        var order = await orders.FindReadOnlyAsync(command.PurchaseOrderId, cancellationToken);
+        if (order is null)
         {
             return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+        }
+
+        if (order.Status == PurchaseStatus.Cancelled)
+        {
+            return Result<Guid>.Fail(PurchaseError.OrderCancelled);
         }
 
         if ((await attachments.ListAsync(command.PurchaseOrderId, cancellationToken)).Count >= AttachmentRules.MaxPerOrder)

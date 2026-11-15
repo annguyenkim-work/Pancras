@@ -72,6 +72,11 @@ public sealed class UploadTransferAttachmentCommandHandler(
             return Result<Guid>.Fail(StockError.Forbidden);
         }
 
+        if (slip.Status is TransferStatus.Cancelled or TransferStatus.Rejected)
+        {
+            return Result<Guid>.Fail(StockError.TransferStateChanged);
+        }
+
         if (files.Count == 0)
         {
             return Result<Guid>.Ok(slip.Id);
@@ -107,6 +112,11 @@ public sealed class UploadTransferAttachmentCommandHandler(
         if (slip is null || !TransferAccess.CanTouch(command.Actor, slip))
         {
             return Result<Guid>.Fail(StockError.Forbidden);
+        }
+
+        if (slip.Status is TransferStatus.Cancelled or TransferStatus.Rejected)
+        {
+            return Result<Guid>.Fail(StockError.TransferStateChanged);
         }
 
         var cleanName = AttachmentRules.CleanFileName(command.FileName);

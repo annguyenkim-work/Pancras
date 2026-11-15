@@ -37,6 +37,24 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.SecurePolicy = builder.Environment.IsProduction() ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
+        options.Events.OnRedirectToAccessDenied = async context =>
+        {
+            var audit = context.HttpContext.RequestServices.GetRequiredService<Pancras.Application.Auditing.IAuditLog>();
+            var info = context.HttpContext.RequestServices.GetRequiredService<Pancras.Application.Auditing.IRequestInfo>();
+            var request = context.HttpContext.Request;
+            var handler = request.Query["handler"].ToString();
+            var detail = request.Method + " " + request.Path.Value + (string.IsNullOrEmpty(handler) ? string.Empty : " handler=" + handler);
+            try
+            {
+                await audit.RecordAsync(Pancras.Domain.Auditing.AuditEntry.Create(DateTimeOffset.UtcNow, info.ActorId, info.ActorCode, Pancras.Domain.Auditing.AuditActions.AccessDenied, null, null, detail, info.IpAddress), context.HttpContext.RequestAborted);
+            }
+            catch (Exception exception)
+            {
+                context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>().LogWarning(exception, "Could not record an access-denied audit entry.");
+            }
+
+            context.Response.Redirect(context.RedirectUri);
+        };
         options.Events.OnValidatePrincipal = context =>
         {
             var validator = context.HttpContext.RequestServices.GetRequiredService<EmployeePrincipalValidator>();

@@ -27,12 +27,6 @@ public sealed class CreatePurchaseOrderCommandHandler(
             return Result<Guid>.Fail(PurchaseError.Forbidden);
         }
 
-        if (HasNegativeMoney(command))
-        {
-            logger.LogWarning("Purchase order rejected for negative money.");
-            return Result<Guid>.Fail(PurchaseError.NegativeMoney);
-        }
-
         var supplier = await suppliers.GetActiveReadOnlyAsync(command.SupplierId, cancellationToken);
         var locations = await inventory.ListLocationsAsync(cancellationToken);
         if (supplier is null || locations.All(location => location.Id != command.ReceiveLocationId))
@@ -48,6 +42,13 @@ public sealed class CreatePurchaseOrderCommandHandler(
             return Result<Guid>.Fail(PurchaseError.InvalidQuantity);
         }
 
+        // Kiểm tra số lượng trước số tiền: số lượng âm làm thành tiền (đơn giá x số lượng) âm theo và không được báo là lỗi tiền.
+        if (HasNegativeMoney(command))
+        {
+            logger.LogWarning("Purchase order rejected for negative money.");
+            return Result<Guid>.Fail(PurchaseError.NegativeMoney);
+        }
+
         var usable = submitted.Where(line => line.Quantity > 0).ToArray();
         if (usable.Length == 0)
         {
@@ -59,6 +60,16 @@ public sealed class CreatePurchaseOrderCommandHandler(
         {
             logger.LogWarning("Purchase order rejected because a line has no FOB price.");
             return Result<Guid>.Fail(PurchaseError.ZeroPrice);
+        }
+
+        if (!PurchaseMoney.FitsLimits(
+                command.ExchangeRate,
+                command.VatRate,
+                usable.Select(line => (line.FobUsd, line.DutyRate, line.SupplementalDuty, line.SpecialConsumptionTax, line.EnvironmentTax)),
+                (command.Charges ?? []).Select(charge => charge.Amount)))
+        {
+            logger.LogWarning("Purchase order rejected because a number is too large.");
+            return Result<Guid>.Fail(PurchaseError.AmountTooLarge);
         }
 
         foreach (var line in usable)

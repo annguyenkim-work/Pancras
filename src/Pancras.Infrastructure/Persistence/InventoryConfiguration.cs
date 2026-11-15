@@ -73,6 +73,7 @@ public sealed class TransferSlipConfiguration : IEntityTypeConfiguration<Transfe
         builder.Property(slip => slip.ReceivedBy).HasMaxLength(64).IsRequired();
         builder.Property(slip => slip.ResolvedBy).HasMaxLength(64).IsRequired();
         builder.Property(slip => slip.RequestedById).IsRequired();
+        builder.HasIndex(slip => slip.RequestKey).IsUnique();
         builder.Property(slip => slip.StockReserved).IsRequired();
         builder.HasMany(slip => slip.Lines).WithOne().HasForeignKey(line => line.TransferSlipId).OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(slip => slip.Lines).UsePropertyAccessMode(PropertyAccessMode.Field);

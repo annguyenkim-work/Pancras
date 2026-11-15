@@ -761,6 +761,12 @@ else
     <script>
         (function () {
             document.getElementById("purchase-dialog")?.showModal();
+            // Đóng bằng Esc không đổi địa chỉ: bỏ ?form=1 để tải lại trang không mở lại hộp thoại.
+            document.getElementById("purchase-dialog")?.addEventListener("close", () => {
+                if (location.pathname === "/purchasing" && location.search.includes("form=1")) {
+                    history.replaceState(null, "", "/purchasing");
+                }
+            });
             const lineBody = document.getElementById("line-body");
             const chargeBody = document.getElementById("charge-body");
             const money = new Intl.NumberFormat("vi-VN");

@@ -3,9 +3,7 @@
 @using Pancras.Domain.Employees
 @{
     var canViewCatalog = CatalogAccess.CanView(User.FindFirstValue(ClaimTypes.Role));
-    var canPurchase = User.IsInRole(EmployeeRole.Admin)
-        || User.IsInRole(EmployeeRole.Director)
-        || User.IsInRole(EmployeeRole.Accountant);
+    var canPurchase = Pancras.Domain.Purchasing.PurchaseAccess.CanOpenPage(User.FindFirstValue(ClaimTypes.Role));
     var currentPath = Context.Request.Path.Value ?? "/";
     var roleName = User.FindFirstValue(ClaimTypes.Role);
     var canViewSuppliers = SupplierAccess.CanView(roleName);

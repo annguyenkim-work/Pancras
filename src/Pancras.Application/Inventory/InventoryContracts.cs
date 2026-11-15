@@ -9,6 +9,9 @@ public interface IInventoryRepository
 {
     Task<IReadOnlyList<StockLocation>> ListLocationsAsync(CancellationToken cancellationToken);
 
+    /// <summary>Kho đã xóa mềm. Chỉ để hiển thị tên trên phiếu và lịch sử cũ, không dùng để chọn kho.</summary>
+    Task<IReadOnlyList<StockLocation>> ListDeletedLocationsAsync(CancellationToken cancellationToken);
+
     Task<IReadOnlyList<StockItemChoice>> ListItemChoicesAsync(CancellationToken cancellationToken);
 
     Task<IReadOnlyList<StockBalanceRow>> ListBalancesAsync(StockListFilter filter, CancellationToken cancellationToken);
@@ -22,6 +25,8 @@ public interface IInventoryRepository
     Task AddTransferAsync(TransferSlip slip, CancellationToken cancellationToken);
 
     Task<TransferSlip?> FindTransferForUpdateAsync(Guid id, CancellationToken cancellationToken);
+
+    Task<Guid?> FindTransferIdByRequestKeyAsync(Guid requestKey, Guid requestedById, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<TransferSlip>> ListOpenTransfersAsync(CancellationToken cancellationToken);
 
@@ -66,6 +71,12 @@ public interface IInventoryRepository
     Task<StockNotice?> FindNoticeForUpdateAsync(Guid id, CancellationToken cancellationToken);
 
     Task RemoveNoticesAsync(Guid documentId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Kho của một biên bản kiểm kê, phiếu điều chỉnh hoặc phiếu hủy. Chỉ đọc, không khóa dòng và không mở transaction,
+    /// để các thao tác phụ (đính kèm, tải file) không để lại transaction treo.
+    /// </summary>
+    Task<Guid?> FindDocumentLocationAsync(StockDocumentKind kind, Guid id, CancellationToken cancellationToken);
 
     Task<bool> CommitAsync(CancellationToken cancellationToken);
 }
@@ -184,6 +195,9 @@ public sealed class CreateTransferSlipCommand
     public Guid DestinationLocationId { get; set; }
 
     public string? Note { get; set; }
+
+    /// <summary>Mã do form sinh ra khi mở; cùng mã gửi lại thì trả về phiếu đã tạo.</summary>
+    public Guid? RequestKey { get; set; }
 
     public EmployeeActor Actor { get; set; } = new(Guid.Empty, null, null);
 

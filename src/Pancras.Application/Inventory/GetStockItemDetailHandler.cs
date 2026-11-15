@@ -25,7 +25,13 @@ public sealed class GetStockItemDetailHandler(
         var balances = (await repository.ListItemBalancesAsync(catalogItemId, cancellationToken)).ToArray();
         var movements = (await repository.ListItemMovementsAsync(catalogItemId, cancellationToken)).ToArray();
         var locations = await repository.ListLocationsAsync(cancellationToken);
-        var names = locations.ToDictionary(location => location.Id, location => location.Name);
+        var names = (await repository.ListDeletedLocationsAsync(cancellationToken))
+            .ToDictionary(location => location.Id, location => location.Name + " (đã xóa)");
+        foreach (var location in locations)
+        {
+            names[location.Id] = location.Name;
+        }
+
         var history = movements
             .Select(movement => new StockHistoryEntry(
                 movement.Kind,

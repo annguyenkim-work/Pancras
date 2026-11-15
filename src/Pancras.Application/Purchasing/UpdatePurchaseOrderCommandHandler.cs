@@ -48,6 +48,15 @@ public sealed class UpdatePurchaseOrderCommandHandler(
             return Result<Guid>.Fail(PurchaseError.ZeroPrice);
         }
 
+        if (!PurchaseMoney.FitsLimits(
+                command.ExchangeRate,
+                command.VatRate,
+                lines.Select(line => (line.FobUsd, line.DutyRate, line.SupplementalDuty, line.SpecialConsumptionTax, line.EnvironmentTax)),
+                (command.Charges ?? []).Select(charge => charge.Amount)))
+        {
+            return Result<Guid>.Fail(PurchaseError.AmountTooLarge);
+        }
+
         var order = await orders.FindForUpdateAsync(command.PurchaseOrderId, cancellationToken);
         if (order is null)
         {

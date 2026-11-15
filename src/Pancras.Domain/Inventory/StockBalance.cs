@@ -190,6 +190,20 @@ public sealed class StockBalance
         return true;
     }
 
+    /// <summary>Áp chênh lệch kiểm kê. Khác điều chỉnh: cho phép tồn xuống dưới số đang giữ chỗ (khả dụng âm), nhưng không để tồn âm.</summary>
+    public bool TryApplyCount(int delta)
+    {
+        var next = (long)OnHand + delta;
+        if (delta == 0 || next < 0 || next > int.MaxValue)
+        {
+            return false;
+        }
+
+        OnHand = (int)next;
+        Version++;
+        return true;
+    }
+
     public bool TryDisposeOne()
     {
         if (Available < 1)

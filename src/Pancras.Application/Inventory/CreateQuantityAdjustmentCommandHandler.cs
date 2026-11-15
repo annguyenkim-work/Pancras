@@ -19,6 +19,12 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
             return Result<Guid>.Fail(StockError.Forbidden);
         }
 
+        // Thiếu kho hoặc mặt hàng phải bị từ chối trước khi dựng dòng tồn: StockBalance.Create ném lỗi với mã rỗng.
+        if (command.StockLocationId == Guid.Empty || command.CatalogItemId == Guid.Empty)
+        {
+            return Result<Guid>.Fail(StockError.MissingTarget);
+        }
+
         if (InventoryRoles.CanPostAdjustment(command.Actor.Role))
         {
             return await PostDirectAsync(command, cancellationToken);
@@ -40,7 +46,7 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
         if (decision != StockDecision.Accepted || adjustment is null)
         {
             logger.LogWarning("Quantity adjustment rejected for {CatalogItemId}.", command.CatalogItemId);
-            return Result<Guid>.Fail(Map(decision));
+            return Result<Guid>.Fail(StockDecisionErrors.ToError(decision));
         }
 
         if (before is not null && (before.OnHand != onHand || before.Reserved != reserved || before.InTransit != inTransit))
@@ -85,7 +91,9 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
         {
             snapshot.Restore();
             logger.LogWarning("Direct quantity adjustment rejected for {CatalogItemId}.", command.CatalogItemId);
-            return Result<Guid>.Fail(Map(decision));
+            return decision == StockDecision.NegativeStock
+                ? Result<Guid>.Fail(StockError.NegativeStock, StockDecisionErrors.AvailabilityDetail(balance))
+                : Result<Guid>.Fail(StockDecisionErrors.ToError(decision));
         }
 
         await repository.AddAdjustmentAsync(adjustment, cancellationToken);
@@ -131,11 +139,4 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
                 cancellationToken);
         }
     }
-
-    private static StockError Map(StockDecision decision) => decision switch
-    {
-        StockDecision.WrongRole => StockError.ApprovalForbidden,
-        StockDecision.MissingEvidence => StockError.MissingEvidence,
-        _ => StockError.NegativeStock
-    };
 }

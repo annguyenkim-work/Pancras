@@ -29,10 +29,18 @@ public static class StockErrorMessages
         StockError.AttachmentLimit => "Phiếu đã có quá nhiều file đính kèm.",
         StockError.ShipmentRejected => "Không đủ hàng để xuất.",
         StockError.MissingEvidence => "Cần lý do và chứng từ.",
+        StockError.EvidenceTooLong => "Lý do hoặc chứng từ quá dài.",
+        StockError.MissingTarget => "Thiếu địa điểm hoặc mặt hàng.",
+        StockError.InvalidQuantity => "Số lượng không hợp lệ.",
+        StockError.CountRequired => "Số đếm chưa được nhập.",
+        StockError.InvalidCount => "Số đếm phải là số nguyên không âm.",
         StockError.ApprovalForbidden => "Bạn không được duyệt phiếu này.",
         StockError.Forbidden => "Bạn không có quyền thao tác với kho này.",
-        StockError.NegativeStock => "Tồn không được âm.",
-        StockError.DisposalRejected => "Tồn không được âm.",
+        StockError.NegativeStock => NotEnoughAvailable(detail),
+        StockError.DisposalRejected => NotEnoughAvailable(detail),
         _ => null
     };
+
+    private static string NotEnoughAvailable(string? detail) =>
+        string.IsNullOrWhiteSpace(detail) ? "Không đủ tồn khả dụng." : "Không đủ tồn khả dụng. " + detail + ".";
 }

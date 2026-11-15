@@ -74,6 +74,9 @@ public sealed class TransferSlip : Pancras.Domain.Auditing.AuditStamped
     /// <summary>Nhân viên lập phiếu; chỉ người này được sửa hoặc hủy phiếu. Rỗng với phiếu cũ.</summary>
     public Guid RequestedById { get; private set; }
 
+    /// <summary>Mã duy nhất do form lập phiếu gửi kèm, để bấm đúp hoặc gửi lại không tạo phiếu thứ hai.</summary>
+    public Guid? RequestKey { get; private set; }
+
     /// <summary>Phiếu đã duyệt đang giữ hàng ở kho xuất (tăng số giữ chỗ). Phiếu duyệt trước khi có tính năng giữ hàng thì false.</summary>
     public bool StockReserved { get; private set; }
 
@@ -142,7 +145,8 @@ public sealed class TransferSlip : Pancras.Domain.Auditing.AuditStamped
         Guid destinationLocationId,
         string? note,
         IReadOnlyList<(Guid CatalogItemId, int Quantity)> lines,
-        Guid requestedById = default)
+        Guid requestedById = default,
+        Guid? requestKey = null)
     {
         if (sourceLocationId == Guid.Empty
             || destinationLocationId == Guid.Empty
@@ -168,6 +172,7 @@ public sealed class TransferSlip : Pancras.Domain.Auditing.AuditStamped
             DestinationLocationId = destinationLocationId,
             Note = storedNote,
             RequestedById = requestedById,
+            RequestKey = requestKey,
             Status = TransferStatus.Requested
         };
         foreach (var line in lines)

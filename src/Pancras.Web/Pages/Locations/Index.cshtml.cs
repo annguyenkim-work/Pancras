@@ -125,6 +125,7 @@ public class IndexModel(
         LocationManageError.DuplicateName => "Đã có kho/showroom trùng tên.",
         LocationManageError.HasStock => "Không xóa được: kho/showroom còn tồn hàng. Hãy chuyển hết hàng đi trước.",
         LocationManageError.HasActiveEmployees => "Không xóa được: còn nhân viên đang hoạt động gắn với địa điểm này.",
+        LocationManageError.HasOpenDocuments => "Không xóa được: còn đơn mua hoặc phiếu chuyển chưa xử lý liên quan đến kho này.",
         _ => "Không thực hiện được. Thử lại sau."
     };
 

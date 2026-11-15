@@ -71,9 +71,10 @@ public sealed class EmployeeRepository(PancrasDbContext context) : IEmployeeRepo
         CancellationToken cancellationToken)
     {
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-        await context.Database
-            .SqlQuery<long>($"SELECT pg_advisory_xact_lock({PersonnelRulesLockKey})")
-            .ToListAsync(cancellationToken);
+        // pg_advisory_xact_lock returns void, so run it as a command instead of reading a result.
+        await context.Database.ExecuteSqlAsync(
+            $"SELECT pg_advisory_xact_lock({PersonnelRulesLockKey})",
+            cancellationToken);
 
         var result = await action(cancellationToken);
         await transaction.CommitAsync(cancellationToken);

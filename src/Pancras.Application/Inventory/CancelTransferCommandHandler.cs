@@ -30,6 +30,7 @@ public sealed class CancelTransferCommandHandler(
         if (!TransferAccess.CanTouch(command.Actor, slip))
         {
             logger.LogWarning("Transfer cancel forbidden for employee {EmployeeId}.", command.Actor.Id);
+            await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, Pancras.Domain.Auditing.AuditActions.AccessDenied, "transfer_slip", command.TransferSlipId.ToString("D"), "Hủy phiếu chuyển", cancellationToken);
             return Result<Guid>.Fail(StockError.Forbidden);
         }
 

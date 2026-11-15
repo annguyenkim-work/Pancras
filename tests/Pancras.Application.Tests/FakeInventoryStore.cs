@@ -32,6 +32,11 @@ internal sealed class FakeInventoryStore : IInventoryRepository
 
     public List<StockNotice> Notices { get; } = [];
 
+    public List<StockLocation> DeletedLocations { get; } = [];
+
+    public Task<IReadOnlyList<StockLocation>> ListDeletedLocationsAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<StockLocation>>(DeletedLocations.ToArray());
+
     public Task<IReadOnlyList<StockLocation>> ListLocationsAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<StockLocation>>(Locations.ToArray());
 
@@ -93,6 +98,9 @@ internal sealed class FakeInventoryStore : IInventoryRepository
 
     public Task<TransferSlip?> FindTransferForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         Task.FromResult(Transfers.FirstOrDefault(slip => slip.Id == id));
+
+    public Task<Guid?> FindTransferIdByRequestKeyAsync(Guid requestKey, Guid requestedById, CancellationToken cancellationToken) =>
+        Task.FromResult(Transfers.Concat(_stagedTransfers).Where(slip => slip.RequestKey == requestKey && slip.RequestedById == requestedById).Select(slip => (Guid?)slip.Id).FirstOrDefault());
 
     public Task<IReadOnlyList<TransferSlip>> ListOpenTransfersAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<TransferSlip>>(Transfers.Where(slip => slip.Status is TransferStatus.Draft or TransferStatus.InTransit).ToArray());
@@ -172,6 +180,15 @@ internal sealed class FakeInventoryStore : IInventoryRepository
 
     public Task<DisposalSlip?> FindDisposalForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         Task.FromResult(Disposals.FirstOrDefault(slip => slip.Id == id));
+
+    public Task<Guid?> FindDocumentLocationAsync(StockDocumentKind kind, Guid id, CancellationToken cancellationToken) =>
+        Task.FromResult<Guid?>(kind switch
+        {
+            StockDocumentKind.Stocktake => Stocktakes.FirstOrDefault(sheet => sheet.Id == id)?.StockLocationId,
+            StockDocumentKind.Adjustment => Adjustments.FirstOrDefault(item => item.Id == id)?.StockLocationId,
+            StockDocumentKind.Disposal => Disposals.FirstOrDefault(slip => slip.Id == id)?.StockLocationId,
+            _ => null
+        });
 
     public Task<IReadOnlyList<DisposalSlip>> ListDisposalsAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<DisposalSlip>>(Disposals.ToArray());

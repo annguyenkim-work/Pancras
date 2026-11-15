@@ -254,7 +254,7 @@ public class IndexModel(
     [BindProperty(SupportsGet = true, Name = "place")]
     public string? HistoryPlace { get; set; }
 
-    [BindProperty(SupportsGet = true, Name = "page")]
+    [BindProperty(SupportsGet = true, Name = "historyPage")]
     public int HistoryPage { get; set; } = 1;
 
     [BindProperty(SupportsGet = true, Name = "size")]
@@ -320,6 +320,7 @@ public class IndexModel(
                 SourceLocationId = Transfer.SourceLocationId,
                 DestinationLocationId = Transfer.DestinationLocationId,
                 Note = Transfer.Note,
+                RequestKey = Transfer.RequestKey,
                 Lines = lines,
                 Actor = Actor
             },
@@ -357,7 +358,12 @@ public class IndexModel(
     }
 
     public Task<IActionResult> OnPostDecideTransferAsync(bool approve, string? reason, CancellationToken cancellationToken) =>
-        SaveAsync(decideHandler.HandleAsync(new DecideTransferCommand(DocumentId, Actor, approve, reason), cancellationToken), "transfers", cancellationToken);
+        CanApproveAnything
+            ? SaveAsync(decideHandler.HandleAsync(new DecideTransferCommand(DocumentId, Actor, approve, reason), cancellationToken), "transfers", cancellationToken)
+            : Task.FromResult<IActionResult>(Forbid());
+
+    /// <summary>Chỉ Admin, Giám đốc, Kế toán và Trưởng Showroom/Kho có thể duyệt. Người khác gửi POST duyệt bị chặn trước khi đọc dữ liệu phiếu.</summary>
+    private bool CanApproveAnything => InventoryRoles.IsFinance(Actor.Role) || InventoryRoles.IsShowroomLead(Actor.Role);
 
     public Task<IActionResult> OnPostShipTransferAsync(string? sealNumber, string? carrier, CancellationToken cancellationToken) =>
         SaveAsync(shipHandler.HandleAsync(new ShipTransferCommand(DocumentId, Actor, sealNumber, carrier), cancellationToken), "transfers", cancellationToken);
@@ -465,8 +471,20 @@ public class IndexModel(
         return File(download.Content, download.ContentType, download.FileName);
     }
 
-    public Task<IActionResult> OnPostCreateStocktakeAsync(List<IFormFile>? files, CancellationToken cancellationToken) =>
-        CreateStockDocumentAsync(
+    public Task<IActionResult> OnPostCreateStocktakeAsync(List<IFormFile>? files, CancellationToken cancellationToken)
+    {
+        if (Stocktake.CountedQuantity is not int counted)
+        {
+            // Để trống thì báo chưa nhập; nhập chữ hoặc số không đọc được thì báo sai định dạng.
+            var typed = ModelState.TryGetValue("Stocktake.CountedQuantity", out var entry) && entry.Errors.Count > 0;
+            return FailStockDocumentAsync(
+                StockDocumentKind.Stocktake,
+                typed ? StockError.InvalidCount : StockError.CountRequired,
+                null,
+                cancellationToken);
+        }
+
+        return CreateStockDocumentAsync(
             StockDocumentKind.Stocktake,
             () => createStocktakeHandler.HandleAsync(
                 new CreateStocktakeCommand
@@ -474,16 +492,19 @@ public class IndexModel(
                     Actor = Actor,
                     StockLocationId = Stocktake.StockLocationId,
                     CatalogItemId = Stocktake.CatalogItemId,
-                    CountedQuantity = Stocktake.CountedQuantity,
+                    CountedQuantity = counted,
                     Reason = Stocktake.Reason,
                     DocumentRef = Stocktake.DocumentRef
                 },
                 cancellationToken),
             files,
             cancellationToken);
+    }
 
     public Task<IActionResult> OnPostApproveStocktakeAsync(CancellationToken cancellationToken) =>
-        SaveAsync(approveStocktakeHandler.HandleAsync(new ApproveDocumentCommand(DocumentId, Actor), cancellationToken), "stocktakes", cancellationToken);
+        CanApproveAnything
+            ? SaveAsync(approveStocktakeHandler.HandleAsync(new ApproveDocumentCommand(DocumentId, Actor), cancellationToken), "stocktakes", cancellationToken)
+            : Task.FromResult<IActionResult>(Forbid());
 
     public Task<IActionResult> OnPostCreateAdjustmentAsync(List<IFormFile>? files, CancellationToken cancellationToken) =>
         CreateStockDocumentAsync(
@@ -503,7 +524,9 @@ public class IndexModel(
             cancellationToken);
 
     public Task<IActionResult> OnPostApproveAdjustmentAsync(CancellationToken cancellationToken) =>
-        SaveAsync(approveAdjustmentHandler.HandleAsync(new ApproveDocumentCommand(DocumentId, Actor), cancellationToken), "stocktakes", cancellationToken);
+        InventoryAccess.CanApproveAdjustment(Actor.Role)
+            ? SaveAsync(approveAdjustmentHandler.HandleAsync(new ApproveDocumentCommand(DocumentId, Actor), cancellationToken), "stocktakes", cancellationToken)
+            : Task.FromResult<IActionResult>(Forbid());
 
     public Task<IActionResult> OnPostCreateDisposalAsync(List<IFormFile>? files, CancellationToken cancellationToken) =>
         CreateStockDocumentAsync(
@@ -540,7 +563,9 @@ public class IndexModel(
     }
 
     public Task<IActionResult> OnPostApproveDisposalAsync(CancellationToken cancellationToken) =>
-        SaveAsync(approveDisposalHandler.HandleAsync(new ApproveDocumentCommand(DocumentId, Actor), cancellationToken), "stocktakes", cancellationToken);
+        CanApproveAnything
+            ? SaveAsync(approveDisposalHandler.HandleAsync(new ApproveDocumentCommand(DocumentId, Actor), cancellationToken), "stocktakes", cancellationToken)
+            : Task.FromResult<IActionResult>(Forbid());
 
     /// <summary>Địa chỉ trang Chuyển kho với bộ lọc hiện tại, đổi một vài tham số (null thì bỏ tham số đó).</summary>
     public string TransferUrl(string? quick = null, int? page = null, bool keepFilters = true)
@@ -579,14 +604,21 @@ public class IndexModel(
 
     public string CloseUrl() => BuildUrl(ActiveView, null, null, null, null, null);
 
+    /// <summary>Nhãn loại biến động. Dòng trừ tồn theo phiếu hủy hiện "Xuất hủy" thay vì "Xuất bán" (dữ liệu vẫn là loại xuất).</summary>
+    public (string Label, string ClassName) MovementBadge(StockHistoryEntry entry) =>
+        entry.Kind == StockMovementKind.Issue && Disposals.Any(slip => slip.Id == entry.DocumentId)
+            ? ("Xuất hủy", "bg-rose-100 text-rose-800")
+            : StockLabels.MovementBadge(entry.Kind, entry.Quantity);
+
     public string Describe(StockHistoryEntry entry)
     {
         var transfer = Transfers.FirstOrDefault(slip => slip.Id == entry.DocumentId);
         if (transfer is not null)
         {
+            var code = StockDocumentCode.Of(StockDocumentCode.Transfer, transfer.Id);
             var route = entry.Quantity < 0
-                ? "Chuyển sang " + transfer.DestinationName
-                : "Nhận từ " + transfer.SourceName;
+                ? $"{code}: Chuyển sang {transfer.DestinationName}"
+                : $"{code}: Nhận từ {transfer.SourceName}";
             return string.IsNullOrWhiteSpace(transfer.Note) ? route : route + ". " + transfer.Note;
         }
 
@@ -719,7 +751,7 @@ public class IndexModel(
     private async Task<IActionResult> FailAsync(StockError error, string? detail, bool openTransfer, string view, CancellationToken cancellationToken)
     {
         ErrorMessage = StockErrorMessages.Describe(error, detail);
-        OpenTransfer = DocumentId == Guid.Empty ? null : DocumentId;
+        OpenTransfer = view == "transfers" && DocumentId != Guid.Empty ? DocumentId : null;
         ShowTransferDialog = openTransfer;
         View = view;
         await LoadAsync(cancellationToken);
@@ -875,7 +907,7 @@ public class IndexModel(
         Add(parts, "place", place);
         if (page is > 1)
         {
-            parts.Add("page=" + page.Value.ToString(CultureInfo.InvariantCulture));
+            parts.Add("historyPage=" + page.Value.ToString(CultureInfo.InvariantCulture));
         }
 
         if (size is 20 or 50)
@@ -953,6 +985,8 @@ public sealed class TransferInput
 
     public string? Note { get; set; }
 
+    public Guid RequestKey { get; set; } = Guid.NewGuid();
+
     public List<TransferLineForm> Lines { get; set; } = [new()];
 }
 
@@ -969,7 +1003,7 @@ public sealed class StocktakeInput
 
     public Guid CatalogItemId { get; set; }
 
-    public int CountedQuantity { get; set; }
+    public int? CountedQuantity { get; set; }
 
     public string? Reason { get; set; }
 

@@ -151,7 +151,7 @@ public class ProfileModel(
         ConfirmCode.ProtectedSecret = setup.ProtectedSecret;
         using var generator = new QRCodeGenerator();
         using var data = generator.CreateQrCode(setup.OtpAuthUri, QRCodeGenerator.ECCLevel.M);
-        QrSvg = new SvgQRCode(data).GetGraphic(5);
+        QrSvg = new SvgQRCode(data).GetGraphic(5, "#000000", "#ffffff", true, SvgQRCode.SizingMode.ViewBoxAttribute); // không gán width/height cố định: mã tự co theo khung w-44, không tràn sang phần hướng dẫn
     }
 
     private async Task<bool> LoadAsync(CancellationToken cancellationToken, bool loadForm)

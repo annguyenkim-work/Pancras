@@ -141,7 +141,12 @@ public enum StockError
     NegativeStock,
     ApprovalForbidden,
     DisposalRejected,
-    Forbidden
+    Forbidden,
+    MissingTarget,
+    InvalidQuantity,
+    EvidenceTooLong,
+    CountRequired,
+    InvalidCount
 }
 
 public enum PurchaseError
@@ -196,7 +201,10 @@ public enum PurchaseError
     AdjustmentInvalid,
 
     /// <summary>Vai trò hiện tại không được thực hiện thao tác này.</summary>
-    Forbidden
+    Forbidden,
+
+    /// <summary>Đơn đã hủy nên không nhận thêm file đính kèm.</summary>
+    OrderCancelled
 }
 
 public sealed record CatalogIssue(CatalogField Field, CatalogIssueKind Kind, int? Limit = null);

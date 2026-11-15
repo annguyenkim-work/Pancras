@@ -43,7 +43,7 @@ public sealed class DisposalSlip : Pancras.Domain.Auditing.AuditStamped
 
         if (!StocktakeSheet.TryEvidence(true, reason, documentRef, imageRef, out var storedReason, out var storedDocument, out var storedImage))
         {
-            return StockDecision.MissingEvidence;
+            return StocktakeSheet.EvidenceFailure(reason, documentRef, imageRef);
         }
 
         slip = new DisposalSlip

@@ -50,6 +50,7 @@ public class IndexModel(ListAuditHandler list) : PageModel
         AuditActions.EmployeeActivated => "Kích hoạt hoặc vô hiệu hóa nhân viên",
         AuditActions.EmployeeDeactivated => "Ngừng hoạt động nhân viên",
         AuditActions.EmployeeUnlocked => "Mở khóa tài khoản",
+        AuditActions.AccessDenied => "Bị từ chối do thiếu quyền",
         AuditActions.LocationCreated => "Thêm kho/showroom",
         AuditActions.LocationUpdated => "Sửa kho/showroom",
         AuditActions.LocationDeleted => "Xóa kho/showroom",

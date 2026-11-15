@@ -43,6 +43,63 @@ public static class PurchaseMoney
     /// <summary>Trần của cột numeric(18,0): số đồng lớn nhất còn lưu được.</summary>
     public const decimal MaxDong = 999_999_999_999_999_999m;
 
+    /// <summary>Trần của cột numeric(18,2): USD lớn nhất còn lưu được.</summary>
+    public const decimal MaxUsd = 9_999_999_999_999_999.99m;
+
+    /// <summary>Trần của cột numeric(9,4): thuế suất lớn nhất còn lưu được (dạng thập phân, 1 = 100%).</summary>
+    public const decimal MaxRate = 99_999.9999m;
+
+    /// <summary>
+    /// Kiểm tra từng số và tổng ước tính của đơn có nằm trong giới hạn lưu được không, trước khi lưu hay tính giá vốn.
+    /// Tràn phép tính decimal cũng tính là vượt giới hạn.
+    /// </summary>
+    public static bool FitsLimits(
+        decimal exchangeRate,
+        decimal vatRate,
+        IEnumerable<(decimal FobUsd, decimal DutyRate, decimal SupplementalDuty, decimal SpecialConsumptionTax, decimal EnvironmentTax)> lines,
+        IEnumerable<decimal> chargeAmounts)
+    {
+        if (exchangeRate > MaxDong || vatRate > MaxRate)
+        {
+            return false;
+        }
+
+        try
+        {
+            var total = 0m;
+            foreach (var line in lines)
+            {
+                if (line.FobUsd > MaxUsd
+                    || line.DutyRate > MaxRate
+                    || line.SupplementalDuty > MaxDong
+                    || line.SpecialConsumptionTax > MaxDong
+                    || line.EnvironmentTax > MaxDong)
+                {
+                    return false;
+                }
+
+                var goods = line.FobUsd * exchangeRate;
+                total += goods + (goods * line.DutyRate) + line.SupplementalDuty + line.SpecialConsumptionTax + line.EnvironmentTax;
+            }
+
+            foreach (var amount in chargeAmounts)
+            {
+                if (amount > MaxDong)
+                {
+                    return false;
+                }
+
+                total += amount;
+            }
+
+            return total + (total * vatRate) <= MaxDong;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
+
     public static decimal RoundDong(decimal value) =>
         decimal.Round(value, 0, MidpointRounding.AwayFromZero);
 

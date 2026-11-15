@@ -69,7 +69,7 @@ else
                             <td class="px-3 py-3">
                                 <div class="flex items-center justify-end gap-2">
                                     <a href="/locations?edit=@location.Id" class="px-3 py-1.5 text-sm font-bold rounded-lg bg-slate-100 text-slate-700">Sửa</a>
-                                    <form method="post" asp-page-handler="Delete" asp-route-id="@location.Id" onsubmit="return confirm('Xóa kho/showroom này? Địa điểm sẽ bị ẩn khỏi danh sách (xóa mềm).');">
+                                    <form method="post" asp-page-handler="Delete" asp-route-id="@location.Id" data-confirm data-confirm-title="Xóa kho/showroom" data-confirm-message="Xóa kho/showroom này? Địa điểm sẽ bị ẩn khỏi danh sách (xóa mềm)." data-confirm-label="Xóa" data-confirm-tone="danger">
                                         <button type="submit" class="px-3 py-1.5 text-sm font-medium rounded-lg text-rose-700 hover:bg-rose-50">Xóa</button>
                                     </form>
                                 </div>
@@ -143,3 +143,5 @@ else
     </dialog>
     <script>document.getElementById("location-edit-dialog").showModal();</script>
 }
+
+<partial name="_ConfirmDialog" />

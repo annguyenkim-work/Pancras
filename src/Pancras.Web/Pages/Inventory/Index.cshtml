@@ -15,7 +15,10 @@
     <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6">
         <h1 class="font-display text-xl sm:text-2xl font-bold text-slate-900">Quản Lý Đa Kho &amp; Điều Chuyển Hàng Hóa</h1>
         <p class="mt-1 text-sm text-slate-500">@Model.Subtitle</p>
-        @if (!string.IsNullOrEmpty(Model.ErrorMessage) && Model.OpenTransferId is null)
+        @* Lỗi hiện ở đầu trang cả khi thao tác trên phiếu bị chặn. Người không thấy phiếu (không có trong danh sách) không nhận thông báo. *@
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage)
+            && !Model.ShowTransferDialog
+            && (Model.OpenTransferId is null || Model.Transfers.Any(slip => slip.Id == Model.OpenTransferId)))
         {
             <p class="mt-3 text-sm font-medium text-rose-700" role="alert">@Model.ErrorMessage</p>
         }
@@ -747,6 +750,7 @@
 
 <dialog id="transfer-dialog" class="w-[min(42rem,calc(100%-2rem))] max-h-[90vh] overflow-hidden rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/50">
     <form method="post" asp-antiforgery="true" action="/inventory?handler=RequestTransfer" class="flex max-h-[90vh] min-h-0 flex-col overflow-hidden">
+        <input type="hidden" name="Transfer.RequestKey" value="@Model.Transfer.RequestKey" />
         <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 p-5">
             <div>
                 <h2 class="font-display text-lg font-bold">Tạo Phiếu Đề Nghị Chuyển Kho</h2>
@@ -807,7 +811,7 @@
         </div>
         <div class="flex shrink-0 justify-end gap-2 border-t border-slate-100 p-4">
             <button type="button" class="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" onclick="this.closest('dialog').close()">Hủy bỏ</button>
-            <button type="submit" class="rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white">Gửi Đề Nghị Chuyển Kho</button>
+            <button type="submit" class="rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-60" onclick="var f=this.form; if (f.checkValidity()) { setTimeout(function () { this.disabled = true; }.bind(this), 0); }">Gửi Đề Nghị Chuyển Kho</button>
         </div>
     </form>
 </dialog>
@@ -834,15 +838,16 @@
     </div>
 </dialog>
 
-<dialog id="stocktake-dialog" class="w-[min(36rem,calc(100%-2rem))] rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/50">
-    <form method="post" asp-antiforgery="true" action="/inventory?handler=CreateStocktake" enctype="multipart/form-data" class="p-6">
-        <div class="flex items-start justify-between gap-3">
+<dialog id="stocktake-dialog" class="w-[min(36rem,calc(100%-2rem))] max-h-[90vh] overflow-hidden rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/50">
+    <form method="post" asp-antiforgery="true" action="/inventory?handler=CreateStocktake" enctype="multipart/form-data" class="flex max-h-[90vh] min-h-0 flex-col overflow-hidden">
+        <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 p-5">
             <div>
                 <h2 class="font-display text-lg font-bold">Lập Biên Bản Kiểm Kê Kho</h2>
                 <p class="mt-1 text-sm text-slate-500">Kiểm đếm mặt hàng để ghi nhận chênh lệch với tồn sổ sách.</p>
             </div>
             <button type="button" class="text-slate-400" onclick="this.closest('dialog').close()" aria-label="Đóng">×</button>
         </div>
+        <div class="min-h-0 flex-1 overflow-y-auto p-5">
         <label class="mt-4 block text-sm font-medium text-slate-700">Chọn địa điểm kiểm kê
             <select id="stocktake-location" name="Stocktake.StockLocationId" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2">
                 <option value="">Chọn địa điểm</option>
@@ -863,7 +868,7 @@
         </label>
         <p id="stocktake-book" class="mt-2 text-sm text-slate-500">Tồn sổ sách: —</p>
         <label class="mt-3 block text-sm font-medium text-slate-700">Số lượng thực tế kiểm đếm được
-            <input name="Stocktake.CountedQuantity" type="number" min="0" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
+            <input name="Stocktake.CountedQuantity" type="number" min="0" step="1" required class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
         </label>
         <label class="mt-3 block text-sm font-medium text-slate-700">Lý do giải trình chênh lệch
             <input name="Stocktake.Reason" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
@@ -875,19 +880,21 @@
             <input type="file" name="files" multiple accept="image/*,.pdf,.jpg,.jpeg,.png,.xlsx,.docx" class="mt-1 block w-full text-xs text-slate-600" />
             <span class="mt-1 block text-xs font-normal text-slate-500">Tối đa 10 MB mỗi file. Trên điện thoại có thể chụp ảnh trực tiếp.</span>
         </label>
-        <div class="mt-5 flex justify-end gap-2">
+        </div>
+        <div class="flex shrink-0 justify-end gap-2 border-t border-slate-100 p-4">
             <button type="button" class="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" onclick="this.closest('dialog').close()">Hủy</button>
             <button type="submit" class="rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white">Lưu Biên Bản Kiểm Kê</button>
         </div>
     </form>
 </dialog>
 
-<dialog id="adjustment-dialog" class="w-[min(36rem,calc(100%-2rem))] rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/50">
-    <form method="post" asp-antiforgery="true" action="/inventory?handler=CreateAdjustment" enctype="multipart/form-data" class="p-6">
-        <div class="flex items-start justify-between gap-3">
+<dialog id="adjustment-dialog" class="w-[min(36rem,calc(100%-2rem))] max-h-[90vh] overflow-hidden rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/50">
+    <form method="post" asp-antiforgery="true" action="/inventory?handler=CreateAdjustment" enctype="multipart/form-data" class="flex max-h-[90vh] min-h-0 flex-col overflow-hidden">
+        <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 p-5">
             <h2 class="font-display text-lg font-bold">Phiếu điều chỉnh số lượng</h2>
             <button type="button" class="text-slate-400" onclick="this.closest('dialog').close()" aria-label="Đóng">×</button>
         </div>
+        <div class="min-h-0 flex-1 overflow-y-auto p-5">
         <p class="mt-1 text-sm text-slate-500">Thủ kho và trưởng kho lập phiếu chờ duyệt. Admin, Giám đốc và Kế toán ghi thẳng vào tồn.</p>
         <label class="mt-4 block text-sm font-medium text-slate-700">Địa điểm
             <select name="Adjustment.StockLocationId" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2">
@@ -920,19 +927,21 @@
             <input type="file" name="files" multiple accept="image/*,.pdf,.jpg,.jpeg,.png,.xlsx,.docx" class="mt-1 block w-full text-xs text-slate-600" />
             <span class="mt-1 block text-xs font-normal text-slate-500">Tối đa 10 MB mỗi file. Trên điện thoại có thể chụp ảnh trực tiếp.</span>
         </label>
-        <div class="mt-5 flex justify-end gap-2">
+        </div>
+        <div class="flex shrink-0 justify-end gap-2 border-t border-slate-100 p-4">
             <button type="button" class="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" onclick="this.closest('dialog').close()">Hủy</button>
             <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white">Lưu điều chỉnh</button>
         </div>
     </form>
 </dialog>
 
-<dialog id="disposal-dialog" class="w-[min(36rem,calc(100%-2rem))] rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/50">
-    <form method="post" asp-antiforgery="true" action="/inventory?handler=CreateDisposal" enctype="multipart/form-data" class="p-6">
-        <div class="flex items-start justify-between gap-3">
+<dialog id="disposal-dialog" class="w-[min(36rem,calc(100%-2rem))] max-h-[90vh] overflow-hidden rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/50">
+    <form method="post" asp-antiforgery="true" action="/inventory?handler=CreateDisposal" enctype="multipart/form-data" class="flex max-h-[90vh] min-h-0 flex-col overflow-hidden">
+        <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 p-5">
             <h2 class="font-display text-lg font-bold">Phiếu hủy một sản phẩm</h2>
             <button type="button" class="text-slate-400" onclick="this.closest('dialog').close()" aria-label="Đóng">×</button>
         </div>
+        <div class="min-h-0 flex-1 overflow-y-auto p-5">
         <label class="mt-4 block text-sm font-medium text-slate-700">Địa điểm
             <select name="Disposal.StockLocationId" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2">
                 <option value="">Chọn địa điểm</option>
@@ -961,7 +970,8 @@
             <input type="file" name="files" multiple accept="image/*,.pdf,.jpg,.jpeg,.png,.xlsx,.docx" class="mt-1 block w-full text-xs text-slate-600" />
             <span class="mt-1 block text-xs font-normal text-slate-500">Tối đa 10 MB mỗi file. Trên điện thoại có thể chụp ảnh trực tiếp.</span>
         </label>
-        <div class="mt-5 flex justify-end gap-2">
+        </div>
+        <div class="flex shrink-0 justify-end gap-2 border-t border-slate-100 p-4">
             <button type="button" class="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" onclick="this.closest('dialog').close()">Hủy</button>
             <button type="submit" class="rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white">Lưu phiếu hủy</button>
         </div>
@@ -1114,7 +1124,7 @@
                 <div class="mt-3 space-y-2">
                     @foreach (var entry in Model.VisibleHistory)
                     {
-                        var badge = StockLabels.MovementBadge(entry.Kind, entry.Quantity);
+                        var badge = Model.MovementBadge(entry);
                         <article class="rounded-xl border border-slate-100 p-3">
                             <div class="flex items-start justify-between gap-3">
                                 <div>

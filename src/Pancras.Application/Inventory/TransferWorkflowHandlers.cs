@@ -43,7 +43,15 @@ public sealed class CreateTransferRequestCommandHandler(
         }
 
         var lines = (command.Lines ?? []).Select(line => (line.CatalogItemId, line.Quantity)).ToArray();
-        var slip = TransferSlip.Create(command.SourceLocationId, command.DestinationLocationId, command.Note, lines, command.Actor.Id);
+        if (command.RequestKey is Guid key && key != Guid.Empty
+            && await repository.FindTransferIdByRequestKeyAsync(key, command.Actor.Id, cancellationToken) is Guid existing)
+        {
+            logger.LogInformation("Transfer request {RequestKey} was already created as {TransferSlipId}.", key, existing);
+            return Result<Guid>.Ok(existing);
+        }
+
+        var requestKey = command.RequestKey is Guid given && given != Guid.Empty ? given : (Guid?)null;
+        var slip = TransferSlip.Create(command.SourceLocationId, command.DestinationLocationId, command.Note, lines, command.Actor.Id, requestKey);
         var known = (await repository.ListLocationsAsync(cancellationToken)).Select(location => location.Id).ToHashSet();
         if (slip is null || !known.Contains(slip.SourceLocationId) || !known.Contains(slip.DestinationLocationId))
         {
@@ -56,6 +64,13 @@ public sealed class CreateTransferRequestCommandHandler(
         await TransferTrail.NotifyAsync(repository, employees, slip, command.Actor.Id, StockNotice.TransferRequestedStep, TransferAudience.Finance | TransferAudience.SourceLead, clock, cancellationToken);
         if (!await repository.CommitAsync(cancellationToken))
         {
+            // Hai request cùng mã chạy song song: request thua vi phạm chỉ mục duy nhất, trả lại phiếu của request thắng.
+            if (requestKey is Guid lostKey
+                && await repository.FindTransferIdByRequestKeyAsync(lostKey, command.Actor.Id, cancellationToken) is Guid winner)
+            {
+                return Result<Guid>.Ok(winner);
+            }
+
             return Result<Guid>.Fail(StockError.InvalidTransfer);
         }
 

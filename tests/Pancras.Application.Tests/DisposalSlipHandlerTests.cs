@@ -78,7 +78,7 @@ public class DisposalSlipHandlerTests
 
         var second = await ApproveAsync(store, created.Value, EmployeeRole.Director);
 
-        Assert.Equal(StockError.DisposalRejected, second.StockError);
+        Assert.Equal(StockError.TransferStateChanged, second.StockError);
         Assert.Equal(4, store.Balance.Available);
         Assert.Single(store.Notices);
     }

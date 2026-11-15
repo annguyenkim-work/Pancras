@@ -7,5 +7,7 @@ public enum StockDecision
     WrongRole,
     MissingEvidence,
     NegativeStock,
-    NotPending
+    NotPending,
+    InvalidQuantity,
+    TooLong
 }

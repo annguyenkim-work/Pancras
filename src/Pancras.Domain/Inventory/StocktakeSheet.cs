@@ -62,7 +62,7 @@ public sealed class StocktakeSheet : Pancras.Domain.Auditing.AuditStamped
 
         if (!TryEvidence(countedQuantity != bookQuantity, reason, documentRef, imageRef, out var storedReason, out var storedDocument, out var storedImage))
         {
-            return StockDecision.MissingEvidence;
+            return EvidenceFailure(reason, documentRef, imageRef);
         }
 
         sheet = new StocktakeSheet
@@ -98,6 +98,13 @@ public sealed class StocktakeSheet : Pancras.Domain.Auditing.AuditStamped
     }
 
     public void RestoreUncommitted(ApprovalStatus status) => Status = status;
+
+    internal static StockDecision EvidenceFailure(string? reason, string? documentRef, string? imageRef) =>
+        TooLong(reason, ReasonMaxLength) || TooLong(documentRef, DocumentRefMaxLength) || TooLong(imageRef, ImageRefMaxLength)
+            ? StockDecision.TooLong
+            : StockDecision.MissingEvidence;
+
+    private static bool TooLong(string? value, int max) => value is not null && value.Trim().Length > max;
 
     internal static bool TryEvidence(
         bool required,

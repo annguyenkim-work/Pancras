@@ -85,12 +85,12 @@ public sealed class QuantityAdjustment : Pancras.Domain.Auditing.AuditStamped
 
         if (delta == 0)
         {
-            return StockDecision.NegativeStock;
+            return StockDecision.InvalidQuantity;
         }
 
         if (!StocktakeSheet.TryEvidence(true, reason, documentRef, imageRef, out var storedReason, out var storedDocument, out var storedImage))
         {
-            return StockDecision.MissingEvidence;
+            return StocktakeSheet.EvidenceFailure(reason, documentRef, imageRef);
         }
 
         adjustment = new QuantityAdjustment
@@ -147,12 +147,12 @@ public sealed class QuantityAdjustment : Pancras.Domain.Auditing.AuditStamped
 
         if (stockLocationId == Guid.Empty || catalogItemId == Guid.Empty || delta == 0)
         {
-            return delta == 0 ? StockDecision.NegativeStock : StockDecision.Rejected;
+            return delta == 0 ? StockDecision.InvalidQuantity : StockDecision.Rejected;
         }
 
         if (!StocktakeSheet.TryEvidence(true, reason, documentRef, imageRef, out var storedReason, out var storedDocument, out var storedImage))
         {
-            return StockDecision.MissingEvidence;
+            return StocktakeSheet.EvidenceFailure(reason, documentRef, imageRef);
         }
 
         if (!balance.TryAdjust(delta))

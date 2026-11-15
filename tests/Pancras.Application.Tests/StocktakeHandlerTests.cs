@@ -73,7 +73,76 @@ public class StocktakeHandlerTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal(ApprovalStatus.Approved, store.Stocktakes[0].Status);
-        Assert.Equal(10, store.Balance.OnHand);
+        Assert.Equal(9, store.Balance.OnHand);
+    }
+
+    [Fact]
+    public async Task Approve_SetsOnHandToTheCountedQuantity_AndRecordsAMovement()
+    {
+        var store = Store(book: 5);
+        var created = await CreateHandler(store).HandleAsync(Command(store, 3, "Lệch", "BB-01"), CancellationToken.None);
+        var handler = new ApproveStocktakeCommandHandler(store.Store, NullLogger<ApproveStocktakeCommandHandler>.Instance);
+
+        var result = await handler.HandleAsync(new ApproveDocumentCommand(created.Value, TestActors.Lead(store.Location.Id)), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(3, store.Balance.OnHand);
+        var movement = Assert.Single(store.Store.Movements);
+        Assert.Equal(-2, movement.Quantity);
+    }
+
+    [Fact]
+    public async Task Approve_AllowsACountBelowTheReservedQuantity()
+    {
+        var store = Store(book: 10);
+        store.Balance.TryReserve(6);
+        var created = await CreateHandler(store).HandleAsync(Command(store, 4, "Lệch", "BB-01"), CancellationToken.None);
+        var handler = new ApproveStocktakeCommandHandler(store.Store, NullLogger<ApproveStocktakeCommandHandler>.Instance);
+
+        var result = await handler.HandleAsync(new ApproveDocumentCommand(created.Value, TestActors.Lead(store.Location.Id)), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(4, store.Balance.OnHand);
+        Assert.Equal(6, store.Balance.Reserved);
+    }
+
+    [Fact]
+    public async Task Approve_AppliesTheVarianceToTheCurrentStock_WhenTheBookMovedMeanwhile()
+    {
+        var store = Store(book: 26);
+        var created = await CreateHandler(store).HandleAsync(Command(store, 24, "Lệch", "BB-01"), CancellationToken.None);
+        store.Balance.TryAdjust(5);
+        var handler = new ApproveStocktakeCommandHandler(store.Store, NullLogger<ApproveStocktakeCommandHandler>.Instance);
+
+        var result = await handler.HandleAsync(new ApproveDocumentCommand(created.Value, TestActors.Lead(store.Location.Id)), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(29, store.Balance.OnHand);
+    }
+
+    [Fact]
+    public async Task Create_RejectsANegativeCount()
+    {
+        var store = Store(book: 5);
+
+        var result = await CreateHandler(store).HandleAsync(Command(store, -1, "Lệch", "BB-01"), CancellationToken.None);
+
+        Assert.Equal(StockError.InvalidCount, result.StockError);
+        Assert.Empty(store.Stocktakes);
+    }
+
+    [Fact]
+    public async Task Create_ByAccountant_AppliesTheCountImmediately()
+    {
+        var store = Store(book: 5);
+        var command = Command(store, 3, "Lệch", "BB-01");
+        command.Actor = TestActors.Accountant with { LocationId = store.Location.Id };
+
+        var result = await CreateHandler(store).HandleAsync(command, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ApprovalStatus.Approved, store.Stocktakes[0].Status);
+        Assert.Equal(3, store.Balance.OnHand);
     }
 
     private static CreateStocktakeCommandHandler CreateHandler(StocktakeFixture store) =>

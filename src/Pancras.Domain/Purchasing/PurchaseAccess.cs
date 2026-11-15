@@ -10,6 +10,10 @@ public static class PurchaseAccess
     /// <summary>Vào được trang: vai trò quản lý, và kho (chỉ thấy đơn về kho mình, không thấy giá).</summary>
     public const string ViewRoles = ManageRoles + "," + EmployeeRole.WarehouseKeeper + "," + EmployeeRole.ShowroomWarehouseLead;
 
+    /// <summary>Mục "Mua hàng" ở thanh bên và quyền vào trang, theo cùng danh sách với <see cref="ViewRoles"/>.</summary>
+    public static bool CanOpenPage(string? role) =>
+        role is not null && ViewRoles.Split(',').Contains(role, StringComparer.Ordinal);
+
     /// <summary>Lập, sửa, chuyển trạng thái, hủy, điều chỉnh chi phí, quản lý chứng từ và xem giá vốn.</summary>
     public static bool CanManage(EmployeeActor? actor) =>
         actor is not null && actor.Id != Guid.Empty && actor.Role is EmployeeRole.Admin or EmployeeRole.Director or EmployeeRole.Accountant;

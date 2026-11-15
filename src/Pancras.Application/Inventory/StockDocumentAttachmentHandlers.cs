@@ -36,14 +36,9 @@ public sealed class UploadStockDocumentAttachmentCommand
 /// <summary>Tra kho của một biên bản kiểm kê, phiếu điều chỉnh hoặc phiếu hủy để kiểm quyền theo kho.</summary>
 internal static class StockDocumentLookup
 {
-    public static async Task<Guid?> LocationOfAsync(IInventoryRepository repository, StockDocumentKind kind, Guid documentId, CancellationToken cancellationToken) =>
-        kind switch
-        {
-            StockDocumentKind.Stocktake => (await repository.FindStocktakeForUpdateAsync(documentId, cancellationToken))?.StockLocationId,
-            StockDocumentKind.Adjustment => (await repository.FindAdjustmentForUpdateAsync(documentId, cancellationToken))?.StockLocationId,
-            StockDocumentKind.Disposal => (await repository.FindDisposalForUpdateAsync(documentId, cancellationToken))?.StockLocationId,
-            _ => null
-        };
+    // Chỉ đọc, không dùng FindXxxForUpdateAsync: hàm đó mở transaction giữ đến CommitAsync, mà nhánh lưu file không commit nên file bị rollback.
+    public static Task<Guid?> LocationOfAsync(IInventoryRepository repository, StockDocumentKind kind, Guid documentId, CancellationToken cancellationToken) =>
+        repository.FindDocumentLocationAsync(kind, documentId, cancellationToken);
 
     public static bool CanTouch(EmployeeActor actor, Guid locationId) =>
         InventoryAccess.CanOperate(actor.Role) && InventoryAccess.CanAccessLocation(actor, locationId);

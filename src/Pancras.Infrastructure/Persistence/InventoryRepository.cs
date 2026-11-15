@@ -11,6 +11,9 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
     public async Task<IReadOnlyList<StockLocation>> ListLocationsAsync(CancellationToken cancellationToken) =>
         await context.StockLocations.AsNoTracking().OrderBy(location => location.Name).ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<StockLocation>> ListDeletedLocationsAsync(CancellationToken cancellationToken) =>
+        await context.StockLocations.IgnoreQueryFilters().AsNoTracking().Where(location => location.IsDeleted).ToListAsync(cancellationToken);
+
     public async Task<IReadOnlyList<StockItemChoice>> ListItemChoicesAsync(CancellationToken cancellationToken)
     {
         var items = await context.CatalogItems.AsNoTracking()
@@ -132,8 +135,29 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
     public Task AddTransferAsync(TransferSlip slip, CancellationToken cancellationToken) =>
         context.TransferSlips.AddAsync(slip, cancellationToken).AsTask();
 
-    public Task<TransferSlip?> FindTransferForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
-        context.TransferSlips.Include(slip => slip.Lines).FirstOrDefaultAsync(slip => slip.Id == id, cancellationToken);
+    /// <summary>
+    /// Khóa dòng phiếu (SELECT ... FOR UPDATE) trong một transaction giữ đến <see cref="CommitAsync"/>, rồi mới đọc phiếu.
+    /// Hai thao tác đồng thời trên cùng một phiếu chạy lần lượt; thao tác đến sau đọc được trạng thái mới.
+    /// Câu đọc phiếu chạy sau khi khóa được cấp để thấy dữ liệu đã commit của thao tác trước.
+    /// </summary>
+    public async Task<TransferSlip?> FindTransferForUpdateAsync(Guid id, CancellationToken cancellationToken)
+    {
+        if (context.Database.CurrentTransaction is null)
+        {
+            await context.Database.BeginTransactionAsync(cancellationToken);
+        }
+
+        await context.Database
+            .SqlQuery<int>($"SELECT 1 AS \"Value\" FROM transfer_slip WHERE id = {id} FOR UPDATE")
+            .ToListAsync(cancellationToken);
+        return await context.TransferSlips.Include(slip => slip.Lines).FirstOrDefaultAsync(slip => slip.Id == id, cancellationToken);
+    }
+
+    public async Task<Guid?> FindTransferIdByRequestKeyAsync(Guid requestKey, Guid requestedById, CancellationToken cancellationToken) =>
+        await context.TransferSlips.AsNoTracking()
+            .Where(slip => slip.RequestKey == requestKey && slip.RequestedById == requestedById)
+            .Select(slip => (Guid?)slip.Id)
+            .FirstOrDefaultAsync(cancellationToken);
 
     public async Task<IReadOnlyList<TransferSlip>> ListOpenTransfersAsync(CancellationToken cancellationToken) =>
         await context.TransferSlips.AsNoTracking()
@@ -229,7 +253,7 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
         context.StocktakeSheets.AddAsync(sheet, cancellationToken).AsTask();
 
     public Task<StocktakeSheet?> FindStocktakeForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
-        context.StocktakeSheets.FirstOrDefaultAsync(sheet => sheet.Id == id, cancellationToken);
+        LockedAsync("stocktake_sheet", id, context.StocktakeSheets, sheet => sheet.Id == id, cancellationToken);
 
     public async Task<IReadOnlyList<StocktakeSheet>> ListStocktakesAsync(CancellationToken cancellationToken) =>
         await context.StocktakeSheets.AsNoTracking().ToListAsync(cancellationToken);
@@ -238,7 +262,7 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
         context.QuantityAdjustments.AddAsync(adjustment, cancellationToken).AsTask();
 
     public Task<QuantityAdjustment?> FindAdjustmentForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
-        context.QuantityAdjustments.FirstOrDefaultAsync(adjustment => adjustment.Id == id, cancellationToken);
+        LockedAsync("quantity_adjustment", id, context.QuantityAdjustments, adjustment => adjustment.Id == id, cancellationToken);
 
     public async Task<IReadOnlyList<QuantityAdjustment>> ListAdjustmentsAsync(CancellationToken cancellationToken) =>
         await context.QuantityAdjustments.AsNoTracking().ToListAsync(cancellationToken);
@@ -247,7 +271,7 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
         context.DisposalSlips.AddAsync(slip, cancellationToken).AsTask();
 
     public Task<DisposalSlip?> FindDisposalForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
-        context.DisposalSlips.FirstOrDefaultAsync(slip => slip.Id == id, cancellationToken);
+        LockedAsync("disposal_slip", id, context.DisposalSlips, slip => slip.Id == id, cancellationToken);
 
     public async Task<IReadOnlyList<DisposalSlip>> ListDisposalsAsync(CancellationToken cancellationToken) =>
         await context.DisposalSlips.AsNoTracking().ToListAsync(cancellationToken);
@@ -270,9 +294,34 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
         context.StockNotices.RemoveRange(notices);
     }
 
+    /// <summary>Khóa dòng phiếu (SELECT ... FOR UPDATE) trong transaction giữ đến <see cref="CommitAsync"/> rồi mới đọc, để hai lần duyệt đồng thời chạy lần lượt.</summary>
+    private async Task<T?> LockedAsync<T>(string table, Guid id, IQueryable<T> source, System.Linq.Expressions.Expression<Func<T, bool>> match, CancellationToken cancellationToken)
+        where T : class
+    {
+        if (context.Database.CurrentTransaction is null)
+        {
+            await context.Database.BeginTransactionAsync(cancellationToken);
+        }
+
+        await context.Database
+            .SqlQuery<int>(System.Runtime.CompilerServices.FormattableStringFactory.Create("SELECT 1 AS \"Value\" FROM " + table + " WHERE id = {0} FOR UPDATE", id))
+            .ToListAsync(cancellationToken);
+        return await source.FirstOrDefaultAsync(match, cancellationToken);
+    }
+
+    public async Task<Guid?> FindDocumentLocationAsync(StockDocumentKind kind, Guid id, CancellationToken cancellationToken) =>
+        kind switch
+        {
+            StockDocumentKind.Stocktake => await context.StocktakeSheets.AsNoTracking().Where(sheet => sheet.Id == id).Select(sheet => (Guid?)sheet.StockLocationId).FirstOrDefaultAsync(cancellationToken),
+            StockDocumentKind.Adjustment => await context.QuantityAdjustments.AsNoTracking().Where(item => item.Id == id).Select(item => (Guid?)item.StockLocationId).FirstOrDefaultAsync(cancellationToken),
+            StockDocumentKind.Disposal => await context.DisposalSlips.AsNoTracking().Where(slip => slip.Id == id).Select(slip => (Guid?)slip.StockLocationId).FirstOrDefaultAsync(cancellationToken),
+            _ => null
+        };
+
     public async Task<bool> CommitAsync(CancellationToken cancellationToken)
     {
-        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        var transaction = context.Database.CurrentTransaction
+            ?? await context.Database.BeginTransactionAsync(cancellationToken);
         try
         {
             await context.SaveChangesAsync(cancellationToken);
@@ -285,6 +334,10 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
             await transaction.RollbackAsync(cancellationToken);
             context.ChangeTracker.Clear();
             return false;
+        }
+        finally
+        {
+            await transaction.DisposeAsync();
         }
     }
 }

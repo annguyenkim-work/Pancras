@@ -71,6 +71,7 @@ public sealed class AuditEntry
 
 public static class AuditActions
 {
+    public const string AccessDenied = "access.denied";
     public const string LoginSucceeded = "login.succeeded";
     public const string LoginFailed = "login.failed";
     public const string LoginLockedOut = "login.locked_out";

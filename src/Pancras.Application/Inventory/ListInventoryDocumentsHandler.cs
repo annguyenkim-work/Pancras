@@ -227,17 +227,25 @@ public sealed class ListInventoryDocumentsHandler(
     {
         var locations = await repository.ListLocationsAsync(cancellationToken);
         var items = await repository.ListItemChoicesAsync(cancellationToken);
-        return new NameMap(locations, items);
+        var deleted = await repository.ListDeletedLocationsAsync(cancellationToken);
+        return new NameMap(locations, deleted, items);
     }
+
+    internal const string DeletedSuffix = " (đã xóa)";
 
     private sealed class NameMap
     {
         private readonly Dictionary<Guid, string> _locations;
         private readonly Dictionary<Guid, StockItemChoice> _items;
 
-        public NameMap(IReadOnlyList<StockLocation> locations, IReadOnlyList<StockItemChoice> items)
+        public NameMap(IReadOnlyList<StockLocation> locations, IReadOnlyList<StockLocation> deleted, IReadOnlyList<StockItemChoice> items)
         {
-            _locations = locations.ToDictionary(location => location.Id, location => location.Name);
+            _locations = deleted.ToDictionary(location => location.Id, location => location.Name + DeletedSuffix);
+            foreach (var location in locations)
+            {
+                _locations[location.Id] = location.Name;
+            }
+
             _items = items.ToDictionary(item => item.Id);
         }
 

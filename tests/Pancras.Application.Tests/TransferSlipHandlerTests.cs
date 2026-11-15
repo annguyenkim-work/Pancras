@@ -77,6 +77,43 @@ public class TransferSlipHandlerTests
     }
 
     [Fact]
+    public async Task Request_WithTheSameRequestKeyTwice_CreatesOnlyOneSlip()
+    {
+        var store = Store();
+        var command = Command(store.Source.Id, store.Destination.Id, store.ItemId, 2);
+        command.RequestKey = Guid.NewGuid();
+
+        var first = await TransferFlow.RequestAsync(store.Store, command);
+        var second = await TransferFlow.RequestAsync(store.Store, command);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(first.Value, second.Value);
+        Assert.Single(store.Store.Transfers);
+    }
+
+    [Fact]
+    public async Task Attachments_AreRejected_ForCancelledAndRejectedSlips_ButAllowedInTransit()
+    {
+        var store = Store(onHand: 20);
+        var handler = new UploadTransferAttachmentCommandHandler(
+            store.Store, new FakeTransferAttachments(), null!, NullLogger<UploadTransferAttachmentCommandHandler>.Instance);
+        byte[] pdf = [0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34];
+        var file = new PendingTransferFile("a.pdf", 100, pdf);
+
+        var cancelled = (await TransferFlow.RequestAsync(store.Store, Command(store.Source.Id, store.Destination.Id, store.ItemId, 1))).Value;
+        await Cancel(store.Store).HandleAsync(new ConfirmTransferCommand(cancelled, TestActors.Admin, null, "Hủy"), CancellationToken.None);
+        var rejected = (await TransferFlow.RequestAsync(store.Store, Command(store.Source.Id, store.Destination.Id, store.ItemId, 1))).Value;
+        await new DecideTransferCommandHandler(store.Store, NullLogger<DecideTransferCommandHandler>.Instance)
+            .HandleAsync(new DecideTransferCommand(rejected, TestActors.Admin, false, "Không đủ"), CancellationToken.None);
+        var inTransit = (await TransferFlow.ShipAsync(store.Store, Command(store.Source.Id, store.Destination.Id, store.ItemId, 1))).Value;
+
+        Assert.Equal(StockError.TransferStateChanged, (await handler.CheckAsync(cancelled, [file], TestActors.Admin, CancellationToken.None)).StockError);
+        Assert.Equal(StockError.TransferStateChanged, (await handler.CheckAsync(rejected, [file], TestActors.Admin, CancellationToken.None)).StockError);
+        Assert.True((await handler.CheckAsync(inTransit, [file], TestActors.Admin, CancellationToken.None)).IsSuccess);
+    }
+
+    [Fact]
     public async Task Request_RejectsTheSameLocation_AndUnknownLocations()
     {
         var store = Store();

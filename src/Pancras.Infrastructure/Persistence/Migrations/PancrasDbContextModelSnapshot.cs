@@ -972,6 +972,10 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("received_by");
 
+                    b.Property<Guid?>("RequestKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("request_key");
+
                     b.Property<Guid>("RequestedById")
                         .HasColumnType("uuid")
                         .HasColumnName("requested_by_id");
@@ -1035,6 +1039,10 @@ namespace Pancras.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DestinationLocationId")
                         .HasDatabaseName("ix_transfer_slip_destination_location_id");
+
+                    b.HasIndex("RequestKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_transfer_slip_request_key");
 
                     b.HasIndex("SourceLocationId")
                         .HasDatabaseName("ix_transfer_slip_source_location_id");

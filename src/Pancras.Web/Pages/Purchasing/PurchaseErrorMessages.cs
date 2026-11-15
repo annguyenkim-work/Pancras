@@ -41,6 +41,7 @@ public static class PurchaseErrorMessages
         PurchaseError.NotEditable => "Đơn đã có lần nhận hàng hoặc đã hủy nên không sửa được nữa.",
         PurchaseError.AdjustmentInvalid => "Khoản điều chỉnh không hợp lệ: đơn phải nhận đủ, số tiền khác 0, có tên khoản và lý do, và chọn cách chia khác \"Nhập tay\".",
         PurchaseError.Forbidden => "Bạn không có quyền thực hiện thao tác này.",
+        PurchaseError.OrderCancelled => "Đơn đã hủy nên không thêm file đính kèm được.",
         PurchaseError.AttachmentNotFound => "Không tìm thấy chứng từ.",
         _ => Generic
     };

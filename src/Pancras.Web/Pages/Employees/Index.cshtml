@@ -169,7 +169,7 @@ else
                             }
                             @if (Model.CanResetPassword && card.TwoFactorEnabled)
                             {
-                                <form method="post" asp-page-handler="ResetTwoFactor" onsubmit="return confirm('Tắt xác thực hai bước của nhân viên này? Họ sẽ đăng nhập chỉ bằng mật khẩu cho tới khi bật lại.');">
+                                <form method="post" asp-page-handler="ResetTwoFactor" data-confirm data-confirm-title="Tắt xác thực hai bước" data-confirm-message="Tắt xác thực hai bước của nhân viên này? Họ sẽ đăng nhập chỉ bằng mật khẩu cho tới khi bật lại." data-confirm-label="Tắt 2FA" data-confirm-tone="danger">
                                     <input type="hidden" name="id" value="@card.Id" />
                                     <input type="hidden" name="q" value="@Model.Search" />
                                     <input type="hidden" name="role" value="@Model.Role" />
@@ -180,7 +180,7 @@ else
                             }
                             @if (Model.CanToggle(card))
                             {
-                                <form method="post" asp-page-handler="SetActive" onsubmit="return @(card.IsActive ? "confirm('Ngừng hoạt động nhân viên này? Hồ sơ được vô hiệu hóa và có thể kích hoạt lại.')" : "true");">
+                                <form method="post" asp-page-handler="SetActive" data-confirm="@(card.IsActive ? "" : null)" data-confirm-title="@(card.IsActive ? "Ngừng hoạt động nhân viên" : null)" data-confirm-message="@(card.IsActive ? "Ngừng hoạt động nhân viên này? Hồ sơ được vô hiệu hóa và có thể kích hoạt lại." : null)" data-confirm-label="@(card.IsActive ? "Ngừng" : null)" data-confirm-tone="@(card.IsActive ? "danger" : null)">
                                     <input type="hidden" name="id" value="@card.Id" />
                                     <input type="hidden" name="active" value="@(card.IsActive ? "false" : "true")" />
                                     <input type="hidden" name="q" value="@Model.Search" />
@@ -393,3 +393,5 @@ else
     </dialog>
     <script>document.getElementById("employee-edit-dialog").showModal();</script>
 }
+
+<partial name="_ConfirmDialog" />

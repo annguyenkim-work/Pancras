@@ -35,7 +35,8 @@ public sealed class CreateLocationCommand
 {
     public string? Name { get; set; }
 
-    public StockLocationKind Kind { get; set; } = StockLocationKind.Warehouse;
+    /// <summary>Null khi không gửi hoặc gửi giá trị không đọc được: model binding bỏ qua giá trị lạ, nên không được mặc định về Kho.</summary>
+    public StockLocationKind? Kind { get; set; }
 }
 
 public sealed class ListLocationsHandler(ILocationRepository repository)
@@ -59,6 +60,7 @@ public sealed class CreateLocationCommandHandler(
         if (!LocationAccess.CanManage(actor.Role))
         {
             logger.LogWarning("Location creation forbidden for employee {EmployeeId}.", actor.Id);
+            await audit.RecordAsync(clock ?? TimeProvider.System, request, actor.Id, null, Pancras.Domain.Auditing.AuditActions.AccessDenied, "stock_location", null, "Thêm kho/showroom", cancellationToken);
             return new LocationOutcome(null, LocationError.Forbidden);
         }
 
@@ -73,7 +75,7 @@ public sealed class CreateLocationCommandHandler(
             return new LocationOutcome(null, LocationError.NameTooLong);
         }
 
-        if (!Enum.IsDefined(command.Kind))
+        if (command.Kind is not StockLocationKind kind || !Enum.IsDefined(kind))
         {
             return new LocationOutcome(null, LocationError.InvalidKind);
         }
@@ -83,7 +85,7 @@ public sealed class CreateLocationCommandHandler(
             return new LocationOutcome(null, LocationError.DuplicateName);
         }
 
-        var location = StockLocation.Create(name, command.Kind);
+        var location = StockLocation.Create(name, kind);
         if (!await repository.TryAddAsync(location, cancellationToken))
         {
             return new LocationOutcome(null, LocationError.DuplicateName);
@@ -106,6 +108,9 @@ public interface ILocationManagementRepository
 
     Task<bool> HasActiveEmployeesAsync(Guid id, CancellationToken cancellationToken);
 
+    /// <summary>Còn đơn mua (nháp, chờ duyệt, đã duyệt, đang về, nhận một phần) nhận về kho này hoặc phiếu chuyển chưa đóng có kho này là kho xuất hoặc kho nhận.</summary>
+    Task<bool> HasOpenDocumentsAsync(Guid id, CancellationToken cancellationToken);
+
     Task<bool> TrySaveAsync(CancellationToken cancellationToken);
 }
 
@@ -120,6 +125,7 @@ public enum LocationManageError
     DuplicateName,
     HasStock,
     HasActiveEmployees,
+    HasOpenDocuments,
     SaveFailed
 }
 
@@ -129,7 +135,7 @@ public sealed class UpdateLocationCommand
 
     public string? Name { get; set; }
 
-    public StockLocationKind Kind { get; set; } = StockLocationKind.Warehouse;
+    public StockLocationKind? Kind { get; set; }
 }
 
 public sealed class UpdateLocationCommandHandler(
@@ -143,6 +149,7 @@ public sealed class UpdateLocationCommandHandler(
     {
         if (!LocationAccess.CanManage(actor.Role))
         {
+            await audit.RecordAsync(clock ?? TimeProvider.System, request, actor.Id, null, Pancras.Domain.Auditing.AuditActions.AccessDenied, "stock_location", command.Id.ToString("D"), "Sửa kho/showroom", cancellationToken);
             return LocationManageError.Forbidden;
         }
 
@@ -157,7 +164,7 @@ public sealed class UpdateLocationCommandHandler(
             return LocationManageError.NameTooLong;
         }
 
-        if (!Enum.IsDefined(command.Kind))
+        if (command.Kind is not StockLocationKind kind || !Enum.IsDefined(kind))
         {
             return LocationManageError.InvalidKind;
         }
@@ -173,7 +180,7 @@ public sealed class UpdateLocationCommandHandler(
             return LocationManageError.DuplicateName;
         }
 
-        location.Update(name, command.Kind);
+        location.Update(name, kind);
         if (!await repository.TrySaveAsync(cancellationToken))
         {
             return LocationManageError.SaveFailed;
@@ -185,7 +192,7 @@ public sealed class UpdateLocationCommandHandler(
     }
 }
 
-/// <summary>Xóa mềm: ẩn khỏi danh sách, giữ nguyên lịch sử. Không xóa khi còn tồn kho hoặc còn nhân viên đang hoạt động gắn với kho.</summary>
+/// <summary>Xóa mềm: ẩn khỏi danh sách, giữ nguyên lịch sử. Không xóa khi còn tồn kho, nhân viên đang hoạt động, đơn mua hoặc phiếu chuyển chưa đóng liên quan đến kho.</summary>
 public sealed class DeleteLocationCommandHandler(
     ILocationManagementRepository repository,
     ILogger<DeleteLocationCommandHandler> logger,
@@ -197,6 +204,7 @@ public sealed class DeleteLocationCommandHandler(
     {
         if (!LocationAccess.CanManage(actor.Role))
         {
+            await audit.RecordAsync(clock ?? TimeProvider.System, request, actor.Id, null, Pancras.Domain.Auditing.AuditActions.AccessDenied, "stock_location", id.ToString("D"), "Xóa kho/showroom", cancellationToken);
             return LocationManageError.Forbidden;
         }
 
@@ -214,6 +222,11 @@ public sealed class DeleteLocationCommandHandler(
         if (await repository.HasActiveEmployeesAsync(id, cancellationToken))
         {
             return LocationManageError.HasActiveEmployees;
+        }
+
+        if (await repository.HasOpenDocumentsAsync(id, cancellationToken))
+        {
+            return LocationManageError.HasOpenDocuments;
         }
 
         location.MarkDeleted();

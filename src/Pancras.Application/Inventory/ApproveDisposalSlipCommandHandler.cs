@@ -44,9 +44,9 @@ public sealed class ApproveDisposalSlipCommandHandler(
         if (balance is null)
         {
             logger.LogWarning("Disposal approval rejected for {DisposalSlipId}.", slip.Id);
-            return Result<Guid>.Fail(slip.Approve(command.Actor.Role, StockBalance.Create(slip.CatalogItemId, slip.StockLocationId, 0, 0, 0)) == StockDecision.WrongRole
-                ? StockError.ApprovalForbidden
-                : StockError.DisposalRejected);
+            return slip.Approve(command.Actor.Role, StockBalance.Create(slip.CatalogItemId, slip.StockLocationId, 0, 0, 0)) == StockDecision.WrongRole
+                ? Result<Guid>.Fail(StockError.ApprovalForbidden)
+                : Result<Guid>.Fail(StockError.DisposalRejected, StockDecisionErrors.AvailabilityDetail(null));
         }
 
         var snapshot = BalanceSnapshot.Take(balance);
@@ -55,7 +55,12 @@ public sealed class ApproveDisposalSlipCommandHandler(
         if (decision != StockDecision.Accepted)
         {
             logger.LogWarning("Disposal approval rejected for {DisposalSlipId}.", slip.Id);
-            return Result<Guid>.Fail(decision == StockDecision.WrongRole ? StockError.ApprovalForbidden : StockError.DisposalRejected);
+            return decision switch
+            {
+                StockDecision.WrongRole => Result<Guid>.Fail(StockError.ApprovalForbidden),
+                StockDecision.NotPending => Result<Guid>.Fail(StockError.TransferStateChanged),
+                _ => Result<Guid>.Fail(StockError.DisposalRejected, StockDecisionErrors.AvailabilityDetail(balance))
+            };
         }
 
         var occurredAt = DateTimeOffset.UtcNow;

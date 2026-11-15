@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Pancras.Application.Locations;
 using Pancras.Domain.Inventory;
+using Pancras.Domain.Purchasing;
 
 namespace Pancras.Infrastructure.Persistence;
 
@@ -48,6 +49,33 @@ public sealed class LocationRepository(PancrasDbContext context) : ILocationRepo
     public Task<bool> HasActiveEmployeesAsync(Guid id, CancellationToken cancellationToken) =>
         context.Employees.AsNoTracking()
             .AnyAsync(employee => employee.StockLocationId == id && employee.IsActive, cancellationToken);
+
+    public async Task<bool> HasOpenDocumentsAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var openOrder = await context.PurchaseOrders.AsNoTracking()
+            .AnyAsync(
+                order => order.ReceiveLocationId == id
+                    && (order.Status == PurchaseStatus.Draft
+                        || order.Status == PurchaseStatus.PendingApproval
+                        || order.Status == PurchaseStatus.Approved
+                        || order.Status == PurchaseStatus.InTransit
+                        || order.Status == PurchaseStatus.PartiallyReceived),
+                cancellationToken);
+        if (openOrder)
+        {
+            return true;
+        }
+
+        return await context.TransferSlips.AsNoTracking()
+            .AnyAsync(
+                slip => (slip.SourceLocationId == id || slip.DestinationLocationId == id)
+                    && (slip.Status == TransferStatus.Draft
+                        || slip.Status == TransferStatus.Requested
+                        || slip.Status == TransferStatus.Approved
+                        || slip.Status == TransferStatus.InTransit
+                        || slip.Status == TransferStatus.ReceivedWithDiscrepancy),
+                cancellationToken);
+    }
 
     public async Task<bool> TrySaveAsync(CancellationToken cancellationToken)
     {

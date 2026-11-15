@@ -131,6 +131,101 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
         Assert.Empty(inventory.Movements);
     }
 
+    [Theory]
+    [InlineData("ApproveStocktake")]
+    [InlineData("ApproveAdjustment")]
+    [InlineData("ApproveDisposal")]
+    [InlineData("DecideTransfer")]
+    public async Task ApprovalPost_ByAWarehouseKeeper_GoesToAccessDenied(string handler)
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        Reset();
+        await SignInAsync(client, EmployeeRole.WarehouseKeeper, "kho");
+        var token = await TokenAsync(client, "/inventory?view=stocktakes");
+
+        var response = await client.PostAsync(
+            "/inventory?handler=" + handler,
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["__RequestVerificationToken"] = token,
+                ["DocumentId"] = Guid.NewGuid().ToString(),
+                ["approve"] = "true"
+            }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Contains("/access-denied", response.Headers.Location?.OriginalString, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("", "Số đếm chưa được nhập.")]
+    [InlineData("abc", "Số đếm phải là số nguyên không âm.")]
+    [InlineData("-1", "Số đếm phải là số nguyên không âm.")]
+    public async Task CreateStocktake_WithABadCount_ShowsAMessage_AndSavesNothing(string count, string message)
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+        var token = await TokenAsync(client, "/inventory?view=stocktakes");
+
+        var response = await client.PostAsync(
+            "/inventory?handler=CreateStocktake",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["__RequestVerificationToken"] = token,
+                ["Stocktake.StockLocationId"] = Guid.NewGuid().ToString(),
+                ["Stocktake.CatalogItemId"] = Guid.NewGuid().ToString(),
+                ["Stocktake.CountedQuantity"] = count
+            }));
+        var text = Decode(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains(message, text, StringComparison.Ordinal);
+        Assert.Empty(inventory.Stocktakes);
+    }
+
+    private static async Task<string> TokenAsync(HttpClient client, string path) =>
+        Regex.Match(await (await client.GetAsync(path)).Content.ReadAsStringAsync(), "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+
+    [Theory]
+    [InlineData(EmployeeRole.WarehouseKeeper, true)]
+    [InlineData(EmployeeRole.ShowroomWarehouseLead, true)]
+    [InlineData(EmployeeRole.Accountant, true)]
+    [InlineData(EmployeeRole.Sales, false)]
+    public async Task Sidebar_ShowsPurchasing_ForTheRolesThatCanOpenThePage(string role, bool shown)
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        Reset();
+        await SignInAsync(client, role, "nv");
+
+        var html = await (await client.GetAsync("/inventory")).Content.ReadAsStringAsync();
+
+        Assert.Equal(shown, html.Contains("href=\"/purchasing\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task AccessDenied_IsWrittenToTheAuditLog_ForADeniedApprovalPost()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        Reset();
+        var audit = (NoAuditLog)_factory.Services.GetRequiredService<Pancras.Application.Auditing.IAuditLog>();
+        audit.Entries.Clear();
+        await SignInAsync(client, EmployeeRole.WarehouseKeeper, "kho");
+        var token = await TokenAsync(client, "/inventory?view=stocktakes");
+
+        var response = await client.PostAsync(
+            "/inventory?handler=ApproveStocktake",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["__RequestVerificationToken"] = token,
+                ["DocumentId"] = Guid.NewGuid().ToString()
+            }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        var denied = Assert.Single(audit.Entries, entry => entry.Action == Pancras.Domain.Auditing.AuditActions.AccessDenied);
+        Assert.Contains("ApproveStocktake", denied.Detail, StringComparison.Ordinal);
+        Assert.DoesNotContain(audit.Entries, entry => entry.Action == Pancras.Domain.Auditing.AuditActions.AccessDenied && entry.Detail!.Contains("Token", StringComparison.OrdinalIgnoreCase));
+    }
+
     [Fact]
     public async Task EveryPostFormOnTheInventoryPage_CarriesAnAntiforgeryToken()
     {
@@ -324,6 +419,11 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
 
     public List<StockMovement> Movements { get; } = [];
 
+    public List<StockLocation> DeletedLocations { get; } = [];
+
+    public Task<IReadOnlyList<StockLocation>> ListDeletedLocationsAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<StockLocation>>(DeletedLocations.ToArray());
+
     public Task<IReadOnlyList<StockLocation>> ListLocationsAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<StockLocation>>(Locations.ToArray());
 
@@ -350,6 +450,9 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
         Transfers.Add(slip);
         return Task.CompletedTask;
     }
+
+    public Task<Guid?> FindTransferIdByRequestKeyAsync(Guid requestKey, Guid requestedById, CancellationToken cancellationToken) =>
+        Task.FromResult<Guid?>(null);
 
     public Task<TransferSlip?> FindTransferForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         Task.FromResult<TransferSlip?>(null);
@@ -389,7 +492,13 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
     public Task<IReadOnlyList<StockMovement>> ListHistoryAsync(Guid catalogItemId, Guid stockLocationId, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<StockMovement>>([]);
 
-    public Task AddStocktakeAsync(StocktakeSheet sheet, CancellationToken cancellationToken) => Task.CompletedTask;
+    public List<StocktakeSheet> Stocktakes { get; } = [];
+
+    public Task AddStocktakeAsync(StocktakeSheet sheet, CancellationToken cancellationToken)
+    {
+        Stocktakes.Add(sheet);
+        return Task.CompletedTask;
+    }
 
     public Task<StocktakeSheet?> FindStocktakeForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         Task.FromResult<StocktakeSheet?>(null);
@@ -409,6 +518,9 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
 
     public Task<DisposalSlip?> FindDisposalForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         Task.FromResult<DisposalSlip?>(null);
+
+    public Task<Guid?> FindDocumentLocationAsync(StockDocumentKind kind, Guid id, CancellationToken cancellationToken) =>
+        Task.FromResult<Guid?>(null);
 
     public Task<IReadOnlyList<DisposalSlip>> ListDisposalsAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<DisposalSlip>>([]);

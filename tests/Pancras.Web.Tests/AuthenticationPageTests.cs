@@ -238,7 +238,7 @@ public class AuthenticationPageTests : IClassFixture<PancrasWebFactory>
     [Fact]
     public async Task Session_EndsTwelveHoursAfterSignIn_EvenIfTheCookieSlides()
     {
-        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 11, 15, 0, 0, 0, TimeSpan.Zero));
+        var clock = new ManualTimeProvider(new DateTimeOffset(2040, 1, 1, 0, 0, 0, TimeSpan.Zero));
         using var factory = new PancrasWebFactory { Clock = clock };
         using var client = factory.CreateClient(NoRedirect);
         var repository = factory.Services.GetRequiredService<FakeEmployeeRepository>();
@@ -604,7 +604,17 @@ internal sealed class LocationDirectoryDouble : Pancras.Application.Locations.IL
 
 internal sealed class NoAuditLog : Pancras.Application.Auditing.IAuditLog
 {
-    public Task RecordAsync(Pancras.Domain.Auditing.AuditEntry entry, CancellationToken cancellationToken) => Task.CompletedTask;
+    public List<Pancras.Domain.Auditing.AuditEntry> Entries { get; } = [];
+
+    public Task RecordAsync(Pancras.Domain.Auditing.AuditEntry entry, CancellationToken cancellationToken)
+    {
+        lock (Entries)
+        {
+            Entries.Add(entry);
+        }
+
+        return Task.CompletedTask;
+    }
 
     public Task<IReadOnlyList<Pancras.Domain.Auditing.AuditEntry>> ListAsync(string? search, int pageNumber, int pageSize, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<Pancras.Domain.Auditing.AuditEntry>>([]);
