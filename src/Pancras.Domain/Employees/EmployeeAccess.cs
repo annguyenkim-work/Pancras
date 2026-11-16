@@ -9,6 +9,10 @@ public static class EmployeeAccess
     public const string ListRoles =
         EmployeeRole.Admin + "," + EmployeeRole.Director + "," + EmployeeRole.Accountant + "," + EmployeeRole.ShowroomWarehouseLead;
 
+    /// <summary>Hiện mục menu Nhân sự (theo vai; phạm vi kho của Trưởng Showroom/Kho xử lý ở handler).</summary>
+    public static bool CanList(string? role) =>
+        role is EmployeeRole.Admin or EmployeeRole.Director or EmployeeRole.Accountant or EmployeeRole.ShowroomWarehouseLead;
+
     public static bool CanList(EmployeeActor actor) =>
         actor.Role is EmployeeRole.Admin or EmployeeRole.Director or EmployeeRole.Accountant
         || IsLead(actor);

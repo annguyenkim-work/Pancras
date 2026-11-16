@@ -7,7 +7,7 @@ using Pancras.Domain.Employees;
 
 namespace Pancras.Web.Pages.Audit;
 
-[Authorize(Roles = EmployeeRole.Admin + "," + EmployeeRole.Director)]
+[Authorize(Roles = AuditAccess.ViewRoles)]
 public class IndexModel(ListAuditHandler list) : PageModel
 {
     public IReadOnlyList<AuditEntry> Entries { get; private set; } = [];

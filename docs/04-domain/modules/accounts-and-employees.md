@@ -71,7 +71,6 @@ Ghi `IAuditLog` (mã hành động dạng `nhóm.sự_kiện`, hiển thị ti�
 | `Version` | `Employee` chưa có concurrency token (hai Admin sửa cùng lúc ghi đè) |
 | Mã lỗi | `EmployeeError`, `LoginError` còn trong `Common/Result.cs` |
 | Handler gộp | `TwoFactorHandlers.cs` gộp 5 handler |
-| `IsInRole` | `_Layout` và trang chủ tự so vai trò cho menu nhân sự |
 
 ## Chờ chốt (chưa có hiệu lực)
 

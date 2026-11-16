@@ -8,7 +8,7 @@
 
 - **`<Module>Access` (Domain) là nguồn duy nhất** quyết định vai nào được làm gì (ví dụ `PurchaseAccess`, `InventoryAccess`, `CatalogAccess`, `SupplierAccess`, `LocationAccess`, `EmployeeAccess`).
 - **PageModel** chuyển quyết định đó thành thuộc tính `bool CanX` (ví dụ `CanManage`, `CanSeeCost`, `CanApproveDisposal`).
-- **`.cshtml` và `_Layout` chỉ đọc `Model.CanX`.** Không gọi `User.IsInRole(...)`, không so sánh tên vai trò trong view.
+- **`.cshtml` và `_Layout` chỉ đọc `Model.CanX`.** Không gọi `User.IsInRole(...)`, không so sánh tên vai trò trong view. Menu và lối tắt trang chủ lấy từ `Navigation/NavigationMenu.cs`, điều kiện hiện là hàm `Access` (vd. `EmployeeAccess.CanList(role)`).
 - **Handler dùng chính hàm `Access` đó để kiểm tra lại** (ẩn nút không phải bảo mật; xem [principles.md](principles.md) nguyên tắc 3).
 - Thêm hay đổi quyền = sửa `Access` + ma trận quyền + test; không sửa rải rác ở view.
 
@@ -50,10 +50,8 @@ public bool CanSeeCost => InventoryAccess.CanSeeCost(Role());
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| `IsInRole` trong view | `_Layout.cshtml` tự gọi `User.IsInRole(...)` cho `canListEmployees` và so vai trò Admin/Giám đốc cho menu Audit; một số trang tự gọi `<Module>Access.CanView(...)` thay vì qua PageModel |
 | Vị trí lớp Access | `SupplierAccess`, `LocationAccess` nằm chung file `EmployeeAccess.cs`; `InventoryAccess` nằm trong `InventoryText.cs`. Nên mỗi lớp một file trong module của nó |
 | Trang 403 | Đã có trang từ chối `/access-denied` (`Pages/Account/Denied`) và handler `Forbid()` chuyển về đó; cần kiểm tra mọi trang đều đi qua đường này khi gõ URL trực tiếp, và đổi chữ cho khớp "Bạn không có quyền truy cập." |
-| Thiếu `Access` | Employees dùng `IsInRole` ở `_Layout` vì không có `CanList`/`CanOpenPage` tương ứng |
 
 ## Chờ chốt (chưa có hiệu lực)
 

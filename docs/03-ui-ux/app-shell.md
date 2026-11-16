@@ -25,7 +25,7 @@
   6. QUẢN TRỊ NỘI BỘ
 - Tiêu đề nhóm `text-[11px] font-bold tracking-wider text-slate-400`.
 - **Menu là danh sách dữ liệu ở một chỗ** (nhóm, mục, đường dẫn, nhãn, điều kiện hiện qua `CanX`, cờ "chưa làm"); `_Layout` chỉ lặp vòng để vẽ. Thêm module = thêm một dòng dữ liệu.
-- Mục người dùng không có quyền **không hiện** (xem [role-based-ui.md](role-based-ui.md)). Module chưa làm vẫn hiện với badge "Sắp có" và trỏ tới trang `ComingSoon` (danh sách `ComingSoonModel.Routes`); khi làm xong module thì bỏ khỏi danh sách đó.
+- Mục người dùng không có quyền **không hiện** (xem [role-based-ui.md](role-based-ui.md)). Module chưa làm vẫn hiện với badge "Sắp có" và trỏ tới trang `ComingSoon` (`ComingSoonModel.Routes` lấy từ cùng danh sách dữ liệu `Web/Navigation/NavigationMenu.cs`); khi làm xong module thì bỏ khỏi danh sách đó.
 
 ## 3. Header
 
@@ -54,9 +54,6 @@ Thứ tự từ trên xuống:
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Menu viết tay | `_Layout.cshtml` lặp markup từng mục, điều kiện hiện trải khắp tệp, gồm `IsInRole` ở `canListEmployees` và so vai trò cho menu Audit |
-| Trang chủ | `Index.cshtml` tự tính `canPurchase`, `canManageStaff` bằng `IsInRole`/so chuỗi vai trò thay vì `CanX`; lối tắt chưa dùng chung danh sách với menu |
-| `ComingSoonModel.Routes` | Tiêu đề nằm ở từ điển riêng, tách khỏi danh sách route; gộp vào danh sách dữ liệu của menu |
 | Tiêu đề trang | Hai chuẩn `h1` lệch (xem components.md); cần thống nhất theo mục 5 |
 | Breadcrumb | Chỉ một cấp; chưa có quy tắc cho trang con nếu sau này tách trang chi tiết |
 
