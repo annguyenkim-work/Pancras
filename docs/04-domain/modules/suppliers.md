@@ -52,7 +52,7 @@
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Phân trang | Mới có 9 mục/trang theo spec cũ (nếu còn), chưa có chọn 20/50 và sắp xếp theo cột |
+| Phân trang | Đã có 20/50 qua `_Pager`; chưa có sắp xếp theo cột |
 | `Version` | Form sửa gửi `Version`, handler từ chối bằng `SupplierError.VersionConflict`; hai lần lưu chồng nhau thật sự hiện trang 409 chung |
 | Mã lỗi | `SupplierError`/`SupplierIssue` còn nằm trong `Common/Result.cs` |
 

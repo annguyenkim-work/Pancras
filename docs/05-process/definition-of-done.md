@@ -25,6 +25,10 @@
 - Test pass nhưng cảnh báo biên dịch còn.
 - Còn `[CHỜ CHỐT]` ảnh hưởng đến hành vi vừa làm mà chưa được hỏi chủ dự án.
 
+## Thứ tự làm
+
+Docs → viết test (đỏ đúng lý do) → implement → chạy test → báo cáo trong chat → vòng sửa lỗi (tối đa 3 lần, quá thì hỏi chủ dự án). Chi tiết ở [new-module-checklist.md](new-module-checklist.md).
+
 ## Báo cáo khi xong
 
 Nêu ngắn: đã làm gì, test nào chạy và kết quả, điều gì **chưa** kiểm hoặc chưa làm, nợ mới phát sinh.

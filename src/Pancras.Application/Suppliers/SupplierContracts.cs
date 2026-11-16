@@ -72,12 +72,12 @@ public sealed record SupplierListFilter(string? Term, SupplierStatusFilter Statu
 
 public sealed record SupplierPageRequest(int Number, int Size)
 {
-    public const int DefaultSize = 10;
+    public const int DefaultSize = 20;
 
     public static SupplierPageRequest First { get; } = new(1, DefaultSize);
 
-    public static SupplierPageRequest From(int? page) =>
-        new(page is > 0 ? page.Value : 1, DefaultSize);
+    public static SupplierPageRequest From(int? page, int? size = null) =>
+        new(page is > 0 ? page.Value : 1, Pancras.Application.Common.PageSizes.Normalize(size));
 }
 
 public sealed record SupplierSlice(IReadOnlyList<Supplier> Items, int TotalCount, int PageNumber);

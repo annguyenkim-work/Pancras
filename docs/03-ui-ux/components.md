@@ -79,7 +79,7 @@ Ba cỡ rộng, đều `w-[min(<rộng>,calc(100%-2rem))]`:
 - Tab: `rounded-md px-3 py-1.5 text-sm font-medium text-slate-600`; tab đang chọn `bg-white text-slate-900 shadow-sm`.
 - Markup `role="tablist"`, `role="tab"`, `aria-selected`. Chuyển tab bằng query string để link/F5 giữ nguyên tab.
 
-## 6. Phân trang (mẫu mới, chưa có trong code)
+## 6. Phân trang
 
 - Mặc định 20 dòng/trang; người dùng chọn được 20 / 50.
 - Thanh dưới bảng: "Hiển thị X–Y / Z", nút Trước / Sau (nút Phụ cỡ nhỏ), số trang hiện tại; giữ nguyên bộ lọc trong query string.
@@ -133,7 +133,8 @@ Khung chung cho badge trạng thái và badge phân loại: `rounded-full px-2 p
 | Bảng | `thead` lúc có `bg-slate-50`, lúc không; padding ô 3 kiểu (`py-2 pr-3`, `px-3 py-3`, `px-4 py-3`) |
 | Bảng mobile | Đã bọc `overflow-x-auto` nhưng chưa có cột đầu sticky; cột hành động đang ở cuối dòng ở hầu hết bảng, phải dời lên vị trí thứ 2 |
 | Chống bấm đúp | `form-guard.js` chưa kiểm thử trên trình duyệt thật (hộp xác nhận, form tải tệp) |
-| Tab, phân trang | Chưa có; danh sách hiện tải toàn bộ |
+| Tab | Chưa có |
+| Phân trang | Đã có partial `_Pager` (20/50, "Hiển thị X–Y / Z", giữ bộ lọc) ở Danh mục, Nhà cung cấp, Nhân viên, Nhật ký, Thông báo. Chưa có: sắp xếp theo cột, cột đầu sticky, hành động ở cột thứ 2, và các danh sách Mua hàng, Kho. Nhân viên và Thông báo còn cắt trang trong bộ nhớ; đổi cỡ trang sau thao tác POST quay về 20 |
 | Toast, banner | Toast đã dùng ở Catalog, Locations, Purchasing, Suppliers, Profile; banner lỗi dùng `_Notice` ở mọi trang. Còn lại: lỗi sau thao tác ở Inventory vẫn là banner (chưa chuyển sang toast); khung cảnh báo `charge-section` (Purchasing) và mã khôi phục 2FA (Profile) viết tay |
 | Banner | ~10 kiểu: `rounded-lg`/`rounded-xl`, chữ -700/-800, nơi là khối, nơi chỉ là dòng chữ |
 | Badge | Đã dùng `Badge` ở Mua hàng, Kho, Nhân sự, Nhà cung cấp, pill vai trò. Còn chip kho trong bảng tồn (`Inventory`) và bộ đếm nền sky-600 viết tay |

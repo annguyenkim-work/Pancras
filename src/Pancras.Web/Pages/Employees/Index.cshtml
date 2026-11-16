@@ -203,10 +203,7 @@ else
             </tbody>
         </table>
     </div>
-    @if (Model.PageCount > 1)
-    {
-        <p class="mt-4 text-sm text-slate-500">Trang @Model.PageNumber / @Model.PageCount</p>
-    }
+    <partial name="_Pager" model="Model.Pager" />
 }
 </div>
 

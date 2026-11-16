@@ -16,7 +16,9 @@ public class IndexModel(ListAuditHandler list) : PageModel
 
     public int PageNumber { get; private set; } = 1;
 
-    public int PageCount => Math.Max(1, (Total + ListAuditHandler.PageSize - 1) / ListAuditHandler.PageSize);
+    public int PageSize { get; private set; } = Pancras.Application.Common.PageSizes.Default;
+
+    public Pancras.Web.Formatting.PagerModel Pager => new(PageNumber, PageSize, Total, PageUrl);
 
     [BindProperty(SupportsGet = true, Name = "q")]
     public string? Search { get; set; }
@@ -24,13 +26,14 @@ public class IndexModel(ListAuditHandler list) : PageModel
     public async Task OnGetAsync(int pageNumber = 1, CancellationToken cancellationToken = default)
     {
         PageNumber = pageNumber < 1 ? 1 : pageNumber;
-        var result = await list.HandleAsync(Search, PageNumber, cancellationToken);
+        PageSize = Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
+        var result = await list.HandleAsync(Search, PageNumber, PageSize, cancellationToken);
         Entries = result.Entries;
         Total = result.Total;
     }
 
-    public string PageUrl(int page) =>
-        "/audit?" + (string.IsNullOrWhiteSpace(Search) ? string.Empty : "q=" + Uri.EscapeDataString(Search.Trim()) + "&") + "pageNumber=" + page;
+    public string PageUrl(int page, int size) =>
+        "/audit?" + (string.IsNullOrWhiteSpace(Search) ? string.Empty : "q=" + Uri.EscapeDataString(Search.Trim()) + "&") + (size == Pancras.Application.Common.PageSizes.Default ? string.Empty : "size=" + size + "&") + "pageNumber=" + page;
 
     public static string Label(string action) => action switch
     {

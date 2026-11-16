@@ -160,38 +160,7 @@ else
             </tbody>
         </table>
     </div>
-    @if (Model.CardPage.TotalPages > 1)
-    {
-        <nav class="mt-4 flex flex-wrap items-center justify-center gap-2" aria-label="Phân trang">
-            @if (Model.CardPage.HasPrevious)
-            {
-                <a href="@Model.PageUrl(Model.CardPage.PageNumber - 1)" class="px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-slate-200 text-slate-700">Trước</a>
-            }
-            else
-            {
-                <span class="px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-slate-200 text-slate-300">Trước</span>
-            }
-            @foreach (var page in Model.VisiblePages)
-            {
-                if (page == Model.CardPage.PageNumber)
-                {
-                    <span class="px-3 py-1.5 text-sm font-bold rounded-lg bg-sky-600 text-white" aria-current="page">@(page)</span>
-                }
-                else
-                {
-                    <a href="@Model.PageUrl(page)" class="px-3 py-1.5 text-sm font-bold rounded-lg bg-white border border-slate-200 text-slate-700">@(page)</a>
-                }
-            }
-            @if (Model.CardPage.HasNext)
-            {
-                <a href="@Model.PageUrl(Model.CardPage.PageNumber + 1)" class="px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-slate-200 text-slate-700">Sau</a>
-            }
-            else
-            {
-                <span class="px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-slate-200 text-slate-300">Sau</span>
-            }
-        </nav>
-    }
+    <partial name="_Pager" model="Model.Pager" />
 }
 </div>
 

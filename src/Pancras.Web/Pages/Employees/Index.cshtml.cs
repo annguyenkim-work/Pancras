@@ -38,6 +38,12 @@ public class IndexModel(
 
     public int PageCount { get; private set; } = 1;
 
+    public int PageSize { get; private set; } = Pancras.Application.Common.PageSizes.Default;
+
+    public int Total { get; private set; }
+
+    public Pancras.Web.Formatting.PagerModel Pager => new(PageNumber, PageSize, Total, (page, size) => ListUrl(page, size));
+
     public bool ShowForm { get; private set; }
 
     public bool ShowEdit { get; private set; }
@@ -187,15 +193,22 @@ public class IndexModel(
     public string PreviewCode =>
         EmployeeCodeGenerator.Attempts(Command.FullName ?? string.Empty).Select(attempt => attempt.Code).FirstOrDefault() ?? string.Empty;
 
-    public string ListUrl()
+    public string ListUrl(int? page = null, int? size = null)
     {
         var parts = new List<string>();
         Add(parts, "q", Search);
         Add(parts, "role", Role);
         Add(parts, "location", LocationFilter?.ToString("D"));
-        if (PageNumber > 1)
+        var sizeNow = size ?? PageSize;
+        if (sizeNow != Pancras.Application.Common.PageSizes.Default)
         {
-            parts.Add("pageNumber=" + PageNumber.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            parts.Add("size=" + sizeNow.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        var pageNow = page ?? PageNumber;
+        if (pageNow > 1)
+        {
+            parts.Add("pageNumber=" + pageNow.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
 
         return parts.Count == 0 ? "/employees" : "/employees?" + string.Join("&", parts);
@@ -258,8 +271,10 @@ public class IndexModel(
         SignedInCode = User.FindFirstValue(EmployeeSessionClaims.EmployeeCode);
         Locations = await listLocations.HandleAsync(cancellationToken);
         var cards = await listEmployees.HandleAsync(Actor, q, role, location, cancellationToken);
-        PageCount = Math.Max(1, (cards.Count + ListEmployeesHandler.PageSize - 1) / ListEmployeesHandler.PageSize);
+        PageSize = Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
+        Total = cards.Count;
+        PageCount = Math.Max(1, (cards.Count + PageSize - 1) / PageSize);
         PageNumber = page < 1 ? 1 : page > PageCount ? PageCount : page;
-        Cards = cards.Skip((PageNumber - 1) * ListEmployeesHandler.PageSize).Take(ListEmployeesHandler.PageSize).ToArray();
+        Cards = cards.Skip((PageNumber - 1) * PageSize).Take(PageSize).ToArray();
     }
 }

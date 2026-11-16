@@ -39,6 +39,8 @@
 ## 6. Cách báo cáo
 
 - Nêu đã làm gì, test nào chạy và kết quả, điều gì **chưa** kiểm hoặc chưa làm. Không nói "xong" khi test đỏ hoặc cảnh báo còn.
+- **Báo cáo test ngay trong chat** (không tạo file báo cáo): sau mỗi lần chạy nêu số đạt/đỏ, tên và lý do test đỏ.
+- **Vòng sửa lỗi tối đa 3 lần** (sửa, chạy lại, báo cáo). Hết 3 lần mà còn đỏ thì dừng và hỏi chủ dự án; không sửa test cho khớp code hay bỏ test.
 - Chỗ nghi ngờ ghi rõ; không che giấu bước bị bỏ qua.
 - Không để lại file bàn giao trong repo; ngữ cảnh làm việc nằm trong commit và docs.
 

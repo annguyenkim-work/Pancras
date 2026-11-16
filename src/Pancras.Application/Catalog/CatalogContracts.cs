@@ -203,8 +203,8 @@ public sealed record CatalogPageRequest(int Number, int Size)
 
     public static CatalogPageRequest First { get; } = new(1, DefaultSize);
 
-    public static CatalogPageRequest From(int? page) =>
-        new(page is > 0 ? page.Value : 1, DefaultSize);
+    public static CatalogPageRequest From(int? page, int? size = null) =>
+        new(page is > 0 ? page.Value : 1, Pancras.Application.Common.PageSizes.Normalize(size));
 }
 
 public sealed record CatalogItemPage(

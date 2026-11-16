@@ -13,11 +13,24 @@ public class IndexModel(ListStockNoticesHandler handler) : PageModel
 {
     public IReadOnlyList<StockNotice> Notices { get; private set; } = [];
 
-    public async Task OnGetAsync(CancellationToken cancellationToken)
+    public int PageNumber { get; private set; } = 1;
+
+    public int PageSize { get; private set; } = Pancras.Application.Common.PageSizes.Default;
+
+    public int Total { get; private set; }
+
+    public Pancras.Web.Formatting.PagerModel Pager => new(PageNumber, PageSize, Total, (page, size) => "/notifications?pageNumber=" + page + (size == Pancras.Application.Common.PageSizes.Default ? string.Empty : "&size=" + size));
+
+    public async Task OnGetAsync(int pageNumber = 1, CancellationToken cancellationToken = default)
     {
-        Notices = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var employeeId)
+        PageSize = Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
+        var all = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var employeeId)
             ? (await handler.HandleAsync(employeeId, cancellationToken)).OrderBy(notice => notice.Seen).ThenByDescending(notice => notice.CreatedAt).ToArray()
             : [];
+        Total = all.Length;
+        var pages = Math.Max(1, (Total + PageSize - 1) / PageSize);
+        PageNumber = Math.Clamp(pageNumber, 1, pages);
+        Notices = all.Skip((PageNumber - 1) * PageSize).Take(PageSize).ToArray();
     }
 
     /// <summary>Đánh dấu đã xem rồi mở đúng chứng từ: phiếu chuyển mở đúng phiếu, kiểm kê/điều chỉnh/hủy mở tab kiểm kê.</summary>

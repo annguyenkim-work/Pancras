@@ -81,3 +81,15 @@ public class ListCatalogItemsHandlerTests
         string brand = "Toto") =>
         CatalogItem.Create(code, name, category, brand, "Việt Nam", "Cái", 12m, 0.4m, 6, 1m, 8000000m, 15000000m, 12000000m, 11000000m, 10000000m);
 }
+
+public class PageSizesTests
+{
+    [Theory]
+    [InlineData(null, 20)]
+    [InlineData(20, 20)]
+    [InlineData(50, 50)]
+    [InlineData(100, 20)]
+    [InlineData(0, 20)]
+    public void Normalize_AllowsOnly20Or50(int? size, int expected) =>
+        Assert.Equal(expected, Pancras.Application.Common.PageSizes.Normalize(size));
+}

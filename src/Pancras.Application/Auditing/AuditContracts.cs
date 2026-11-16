@@ -44,16 +44,15 @@ public static class AuditLogExtensions
 
 public sealed class ListAuditHandler(IAuditLog log)
 {
-    public const int PageSize = 50;
-
     public async Task<(IReadOnlyList<AuditEntry> Entries, int Total)> HandleAsync(
         string? search,
         int pageNumber,
+        int pageSize,
         CancellationToken cancellationToken)
     {
         var page = pageNumber < 1 ? 1 : pageNumber;
         var total = await log.CountAsync(search, cancellationToken);
-        var entries = await log.ListAsync(search, page, PageSize, cancellationToken);
+        var entries = await log.ListAsync(search, page, pageSize, cancellationToken);
         return (entries, total);
     }
 }
