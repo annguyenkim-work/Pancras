@@ -54,6 +54,6 @@ public class IndexModel(ListNotificationsHandler handler) : PageModel
         null => "/notifications",
         { Kind: NotificationKind.Purchase } => $"/purchasing?order={notice.DocumentId:D}",
         { Kind: NotificationKind.Transfer } => $"/inventory?view=transfers&open={notice.DocumentId:D}",
-        _ => $"/inventory?view=stocktakes#document-{notice.DocumentId:D}"
+        _ => $"/inventory?view=stocktakes&doc={notice.DocumentId:D}#document-{notice.DocumentId:D}"
     };
 }

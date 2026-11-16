@@ -3,7 +3,7 @@
 Thành phần màn hình:
 - Tiêu đề "Lịch Sử Điều Chuyển Hàng Giữa Các Kho & Showroom", nút mở hộp thoại tạo phiếu.
 - **Lọc nhanh**: Tất cả · Chờ tôi duyệt · Chờ tôi xuất kho · Chờ tôi nhận hàng · Chờ xử lý chênh lệch (mỗi mục có số đếm; mục có số 0 thì ẩn).
-- **Bộ lọc**: ô "Mã phiếu, mã SKU, tên hàng...", Trạng thái, Kho/showroom, Từ ngày, Đến ngày, nút **Lọc**, **Xóa lọc**.
+- **Bộ lọc**: ô "Mã phiếu, mã SKU, tên hàng...", Trạng thái, Kho/showroom, Từ ngày, Đến ngày; lọc ngay khi gõ hoặc chọn (không có nút Lọc); nút **Xóa lọc** chỉ hiện khi đang lọc.
 - Bảng: Mã phiếu · Kho xuất → Nơi nhận · Hàng · Trạng thái · Người lập · Ngày lập · **Việc của bạn** · nút mở phiếu.
 - Hộp thoại **Tạo Phiếu Đề Nghị Chuyển Kho**: Kho xuất, Nơi nhận, danh sách mặt hàng (ô gõ mã SKU/tên + Số lượng, "+ Thêm mặt hàng"), Ghi chú (≤ 500 ký tự), nút **Gửi Đề Nghị Chuyển Kho**.
 - Hộp thoại **chi tiết phiếu**: thông tin phiếu, bảng hàng (Mã SKU, Tên, Số lượng chuyển, Thực nhận, ĐVT), số seal / người vận chuyển, file đính kèm + nút **Đính kèm file**, **Lịch sử phiếu**, và tùy trạng thái/quyền:

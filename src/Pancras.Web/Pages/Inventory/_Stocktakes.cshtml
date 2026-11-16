@@ -22,11 +22,12 @@
             <button type="button" class="inline-flex items-center rounded-lg px-4 py-2 text-sm font-bold bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-60" data-open-dialog="disposal-dialog">+ Phiếu hủy</button>
         </div>
     </div>
-    @if (Model.Stocktakes.Count == 0)
+    @{ var slice = Model.StocktakeSlice; }
+    @if (slice.Total == 0)
     {
         <partial name="_EmptyState" model='new EmptyStateModel("Chưa có biên bản kiểm kê.", "Biên bản kiểm kê và phiếu điều chỉnh sẽ hiện ở đây.")' />
     }
-    @foreach (var sheet in Model.Stocktakes)
+    @foreach (var sheet in slice.Stocktakes)
     {
         var when = IndexModel.When(sheet.Id);
         <article id="document-@sheet.Id" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
@@ -90,10 +91,10 @@
         </article>
     }
 
-    @if (Model.Adjustments.Count > 0)
+    @if (slice.Adjustments.Count > 0)
     {
         <h3 class="font-display text-base font-bold text-slate-900">Điều chỉnh số lượng</h3>
-        @foreach (var sheet in Model.Adjustments)
+        @foreach (var sheet in slice.Adjustments)
         {
             <article id="document-@sheet.Id" class="bg-white rounded-2xl border border-slate-200 p-4 text-sm">
                 <p class="font-semibold">@sheet.Code — @sheet.Name <span class="font-normal text-slate-500">@sheet.LocationName</span></p>
@@ -122,10 +123,10 @@
             </article>
         }
     }
-    @if (Model.Disposals.Count > 0)
+    @if (slice.Disposals.Count > 0)
     {
         <h3 class="font-display text-base font-bold text-slate-900">Phiếu hủy</h3>
-        @foreach (var slip in Model.Disposals)
+        @foreach (var slip in slice.Disposals)
         {
             <article id="document-@slip.Id" class="bg-white rounded-2xl border border-slate-200 p-4 text-sm">
                 <p class="font-semibold">@slip.Code — @slip.Name <span class="font-normal text-slate-500">@slip.LocationName</span> <span class="font-mono font-bold tabular-nums">× @slip.Quantity</span></p>
@@ -150,4 +151,5 @@
             </article>
         }
     }
+    <partial name="_Pager" model="Model.StocktakePager" />
 </section>

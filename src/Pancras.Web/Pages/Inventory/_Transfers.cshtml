@@ -43,7 +43,7 @@
         }
     </div>
 
-    <form method="get" action="/inventory" id="transfer-filter" class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <form method="get" action="/inventory" id="transfer-filter" data-live-filter class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <input type="hidden" name="view" value="transfers" />
         @if (!string.IsNullOrWhiteSpace(Model.TransferQuick) && Model.TransferQuick != "all")
         {
@@ -69,16 +69,16 @@
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
             <input type="date" name="tfrom" value="@Model.TransferFrom" aria-label="Từ ngày" class="w-full border px-3 py-2 sm:w-44 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" />
             <input type="date" name="tto" value="@Model.TransferTo" aria-label="Đến ngày" class="w-full border px-3 py-2 sm:w-44 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" />
-            <div class="flex gap-2">
-                <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white">Lọc</button>
-                @if (Model.HasTransferFilter)
-                {
-                    <a href="/inventory?view=transfers" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Xóa lọc</a>
-                }
-            </div>
         </div>
     </form>
 
+    <div id="live-results" class="space-y-4">
+    @if (Model.HasTransferFilter)
+    {
+        <div>
+            <a href="/inventory?view=transfers" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Xóa lọc</a>
+        </div>
+    }
     @if (Model.Transfers.Count == 0)
     {
         <partial name="_EmptyState" model='new EmptyStateModel("Chưa có phiếu chuyển.", "Phiếu chuyển kho giữa các kho và showroom sẽ hiện ở đây.")' />
@@ -414,4 +414,5 @@
             </div>
         </dialog>
     }
+    </div>
 </section>

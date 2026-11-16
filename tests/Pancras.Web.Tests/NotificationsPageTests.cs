@@ -63,7 +63,7 @@ public class NotificationsPageTests : IClassFixture<PancrasWebFactory>
         var adjustment = Notification.Create(Guid.NewGuid(), Guid.NewGuid(), documentId, NotificationKind.AdjustmentPending, Notification.AdjustmentStep, DateTimeOffset.UtcNow);
 
         Assert.Equal($"/inventory?view=transfers&open={documentId:D}", IndexModel.TargetOf(transfer));
-        Assert.Equal($"/inventory?view=stocktakes#document-{documentId:D}", IndexModel.TargetOf(adjustment));
+        Assert.Equal($"/inventory?view=stocktakes&doc={documentId:D}#document-{documentId:D}", IndexModel.TargetOf(adjustment));
         Assert.Equal("/notifications", IndexModel.TargetOf(null));
     }
 }

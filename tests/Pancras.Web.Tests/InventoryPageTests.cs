@@ -287,6 +287,43 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
     }
 
     [Fact]
+    public async Task TransferFilter_IsLive_AndTheResultsIncludeTheRowDialogs()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        var slip = SeedRequestedSlip(inventory);
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+
+        var html = await (await client.GetAsync("/inventory?view=transfers&ts=Requested")).Content.ReadAsStringAsync();
+
+        var form = Regex.Match(html, "<form[^>]*id=\"transfer-filter\"[^>]*>").Value;
+        Assert.Contains("data-live-filter", form, StringComparison.Ordinal);
+        var results = html.IndexOf("id=\"live-results\"", StringComparison.Ordinal);
+        Assert.True(results > 0);
+        Assert.True(html.IndexOf("id=\"transfer-table\"", StringComparison.Ordinal) > results);
+        // Hộp thoại chi tiết của từng dòng nằm trong vùng kết quả, để dòng mới hiện ra sau khi lọc vẫn bấm mở được.
+        Assert.True(html.IndexOf("<dialog id=\"transfer-" + slip.Id + "\"", StringComparison.Ordinal) > results);
+        Assert.Single(Regex.Matches(html, "id=\"live-results\""));
+        Assert.DoesNotContain(">Lọc</button>", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TransferFilter_OffersAClearLink_OnlyWhileFiltering_InsideTheResults()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        SeedRequestedSlip(inventory);
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+
+        var plain = await (await client.GetAsync("/inventory?view=transfers")).Content.ReadAsStringAsync();
+        var filtered = await (await client.GetAsync("/inventory?view=transfers&ts=Approved")).Content.ReadAsStringAsync();
+
+        Assert.DoesNotContain("Xóa lọc", plain, StringComparison.Ordinal);
+        Assert.Contains("Xóa lọc", filtered, StringComparison.Ordinal);
+        Assert.True(filtered.IndexOf("Xóa lọc", StringComparison.Ordinal) > filtered.IndexOf("id=\"live-results\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task TransferList_FiltersByStatus()
     {
         using var client = _factory.CreateClient(NoRedirect);
@@ -372,6 +409,36 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
         Assert.DoesNotContain("7654321", text, StringComparison.Ordinal);
         Assert.DoesNotContain("7.654.321", text, StringComparison.Ordinal);
         Assert.DoesNotContain("Giá vốn", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Balances_ArePaged_TwentyAtATime_WithAPagerThatKeepsTheFilter()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        var location = Guid.CreateVersion7();
+        for (var i = 1; i <= 25; i++)
+        {
+            inventory.Rows.Add(Row("SP" + i.ToString("00"), "Vòi " + i, ProductCategory.SanitaryEquipment, location));
+        }
+
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+
+        var first = Decode(await (await client.GetAsync("/inventory?category=" + ProductCategoryToken.Sanitary)).Content.ReadAsStringAsync());
+        var second = Decode(await (await client.GetAsync("/inventory?category=" + ProductCategoryToken.Sanitary + "&bp=2")).Content.ReadAsStringAsync());
+        var wide = Decode(await (await client.GetAsync("/inventory?size=50")).Content.ReadAsStringAsync());
+
+        Assert.Contains("SP01", first, StringComparison.Ordinal);
+        Assert.Contains("SP20", first, StringComparison.Ordinal);
+        Assert.DoesNotContain("SP21", first, StringComparison.Ordinal);
+        Assert.Contains("Hiển thị 1–20 / 25", first, StringComparison.Ordinal);
+        Assert.Contains("category=" + ProductCategoryToken.Sanitary + "&bp=2", first, StringComparison.Ordinal);
+        Assert.DoesNotContain("SP20", second, StringComparison.Ordinal);
+        Assert.Contains("SP21", second, StringComparison.Ordinal);
+        Assert.Contains("SP25", second, StringComparison.Ordinal);
+        Assert.Contains("Hiển thị 21–25 / 25", second, StringComparison.Ordinal);
+        Assert.Contains("SP25", wide, StringComparison.Ordinal);
+        Assert.Contains("25 mặt hàng", first, StringComparison.Ordinal);
     }
 
     [Fact]

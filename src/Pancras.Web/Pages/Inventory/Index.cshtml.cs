@@ -96,6 +96,71 @@ public class IndexModel(
 
     public bool ShowStocktakeDialog { get; private set; }
 
+    [BindProperty(SupportsGet = true, Name = "bp")]
+    public int BalancePage { get; set; } = 1;
+
+    /// <summary>Trang tra cứu tồn: cắt theo mặt hàng (mỗi mặt hàng một dòng, kèm các kho của nó), 20 hoặc 50 dòng mỗi trang.</summary>
+    public int BalancePageSize => Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
+
+    public int CurrentBalancePage => Math.Clamp(BalancePage, 1, Math.Max(1, (Groups.Count + BalancePageSize - 1) / BalancePageSize));
+
+    public IReadOnlyList<StockItemGroup> PagedGroups =>
+        Groups.Skip((CurrentBalancePage - 1) * BalancePageSize).Take(BalancePageSize).ToArray();
+
+    public Pancras.Web.Formatting.PagerModel BalancePager =>
+        new(CurrentBalancePage, BalancePageSize, Groups.Count, (page, size) => BalancesUrl(page, size));
+
+    private string BalancesUrl(int page, int size)
+    {
+        var parts = new List<string>();
+        Add(parts, "q", Search);
+        Add(parts, "location", Location);
+        Add(parts, "category", Category);
+        if (size != Pancras.Application.Common.PageSizes.Default)
+        {
+            parts.Add("size=" + size.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (page > 1)
+        {
+            parts.Add("bp=" + page.ToString(CultureInfo.InvariantCulture));
+        }
+
+        return parts.Count == 0 ? "/inventory" : "/inventory?" + string.Join('&', parts);
+    }
+
+    [BindProperty(SupportsGet = true, Name = "sp")]
+    public int StocktakePage { get; set; } = 1;
+
+    /// <summary>Phiếu cần mở (từ thông báo): nhảy tới đúng trang chứa phiếu đó ở tab Kiểm kê và điều chỉnh.</summary>
+    [BindProperty(SupportsGet = true, Name = "doc")]
+    public Guid? FocusDocument { get; set; }
+
+    private Pancras.Web.Formatting.DocumentSlice? _stocktakeSlice;
+
+    /// <summary>Kiểm kê, điều chỉnh và phiếu hủy gộp thành một danh sách phân trang 20/50.</summary>
+    public Pancras.Web.Formatting.DocumentSlice StocktakeSlice => _stocktakeSlice ??= Pancras.Web.Formatting.DocumentPaging.Slice(
+        Stocktakes, Adjustments, Disposals, StocktakePage, Pancras.Web.Formatting.PagerModel.SizeFrom(Request), FocusDocument);
+
+    public Pancras.Web.Formatting.PagerModel StocktakePager =>
+        new(StocktakeSlice.Page, Pancras.Web.Formatting.PagerModel.SizeFrom(Request), StocktakeSlice.Total, (page, size) => StocktakesUrl(page, size));
+
+    private static string StocktakesUrl(int page, int size)
+    {
+        var parts = new List<string> { "view=stocktakes" };
+        if (size != Pancras.Application.Common.PageSizes.Default)
+        {
+            parts.Add("size=" + size.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (page > 1)
+        {
+            parts.Add("sp=" + page.ToString(CultureInfo.InvariantCulture));
+        }
+
+        return "/inventory?" + string.Join('&', parts);
+    }
+
     /// <summary>Cỡ trang danh sách phiếu chuyển: 20 hoặc 50 (query `size`).</summary>
     public int TransferPageSize => Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
 
