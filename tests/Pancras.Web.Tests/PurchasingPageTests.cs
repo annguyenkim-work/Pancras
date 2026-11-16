@@ -332,6 +332,44 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         }
     }
 
+    [Theory]
+    [InlineData(EmployeeRole.Accountant, true)]
+    [InlineData(EmployeeRole.Admin, true)]
+    [InlineData(EmployeeRole.WarehouseKeeper, false)]
+    public async Task ReceivableOrder_ShowsTheCostPreviewPanel_OnlyToRolesThatSeeCost(string role, bool shown)
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var location = Guid.CreateVersion7();
+        var order = NewOrder("PO-XEM-TRUOC", location);
+        Assert.True(order.TrySubmit());
+        Assert.True(order.TryApprove());
+        orders.Orders.Add(order);
+        await SignInAsync(client, role, location);
+
+        var page = await client.GetAsync("/purchasing?order=" + order.Id);
+        var text = System.Net.WebUtility.HtmlDecode(await page.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        Assert.Equal(shown, text.Contains("id=\"receipt-preview\"", StringComparison.Ordinal));
+        Assert.Equal(shown, text.Contains("Giá vốn dự kiến", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DraftOrder_HasNoCostPreviewPanel()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var order = NewOrder("PO-NHAP", Guid.CreateVersion7());
+        orders.Orders.Add(order);
+        await SignInAsync(client, EmployeeRole.Accountant);
+
+        var page = await client.GetAsync("/purchasing?order=" + order.Id);
+        var text = System.Net.WebUtility.HtmlDecode(await page.Content.ReadAsStringAsync());
+
+        Assert.DoesNotContain("id=\"receipt-preview\"", text, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task WarehouseKeeper_OpensThePage_SeesOnlyApprovedOrdersOfTheirOwnLocation_WithoutAnyPrice()
     {

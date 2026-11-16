@@ -216,6 +216,7 @@ builder.Services.AddScoped<ApproveDisposalSlipCommandHandler>();
 builder.Services.AddScoped<ListPurchaseOrdersHandler>();
 builder.Services.AddScoped<FindShipmentDuplicatesHandler>();
 builder.Services.AddScoped<GetPurchaseOrderHandler>();
+builder.Services.AddScoped<GetPurchaseReceiptPreviewHandler>();
 builder.Services.AddScoped<ChangePurchaseStatusCommandHandler>();
 builder.Services.AddScoped<AdjustPurchaseCostCommandHandler>();
 builder.Services.AddScoped<CreatePurchaseOrderCommandHandler>();

@@ -166,6 +166,39 @@
 
         @if (order.CostVisible)
         {
+        if (Model.ReceiptPreview.Count > 0)
+        {
+            <section id="receipt-preview" class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-slate-700">
+                <h3 class="font-bold text-slate-900">Xem trước giá vốn khi nhận đủ phần còn lại</h3>
+                <p class="mt-1 text-xs text-slate-500">Giá vốn bình quân của mặt hàng trên toàn công ty, trước và sau khi bấm Nhập Kho &amp; Cập Nhật Giá Vốn.</p>
+                <div class="mt-3 overflow-x-auto">
+                    <table class="min-w-full text-left text-sm">
+                        <thead class="bg-slate-50 text-xs text-slate-600">
+                            <tr>
+                                <th class="px-3 py-2 font-semibold">Mặt hàng</th>
+                                <th class="px-3 py-2 text-right font-semibold">Còn nhận</th>
+                                <th class="px-3 py-2 text-right font-semibold">Tồn hiện tại</th>
+                                <th class="px-3 py-2 text-right font-semibold">Giá vốn hiện tại</th>
+                                <th class="px-3 py-2 text-right font-semibold">Giá vốn dự kiến</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var preview in Model.ReceiptPreview)
+                            {
+                                var previewLine = order.Lines.FirstOrDefault(line => line.Id == preview.LineId);
+                                <tr class="border-t border-emerald-100">
+                                    <td class="px-3 py-2"><span class="font-mono text-xs font-semibold">@previewLine?.ItemCode</span> @previewLine?.ItemName</td>
+                                    <td class="px-3 py-2 text-right tabular-nums">@preview.Remaining</td>
+                                    <td class="px-3 py-2 text-right tabular-nums">@preview.OnHand</td>
+                                    <td class="px-3 py-2 text-right tabular-nums">@VndMoney.FormatDong(preview.CurrentCost)</td>
+                                    <td class="px-3 py-2 text-right tabular-nums font-bold">@VndMoney.FormatDong(preview.ProjectedCost)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        }
         if (Model.FormulaLine is { } formula)
         {
             <section class="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-slate-700">

@@ -29,7 +29,8 @@ public class IndexModel(
     ListSuppliersForPurchaseHandler listSuppliers,
     ListInventoryDocumentsHandler inventory,
     Pancras.Application.Catalog.GetCatalogMeasuresHandler catalogMeasures,
-    FindShipmentDuplicatesHandler findDuplicates) : PageModel
+    FindShipmentDuplicatesHandler findDuplicates,
+    GetPurchaseReceiptPreviewHandler receiptPreview) : PageModel
 {
     /// <summary>Cân nặng và thể tích theo mặt hàng, để bản xem thử trong form chia chi phí theo khối lượng/thể tích đúng như máy chủ.</summary>
     public IReadOnlyDictionary<Guid, Pancras.Application.Catalog.CatalogItemMeasure> ItemMeasures { get; private set; } =
@@ -167,6 +168,9 @@ public class IndexModel(
     public Guid? EditingId { get; private set; }
 
     public PurchaseLineView? FormulaLine { get; private set; }
+
+    /// <summary>Giá vốn cũ → mới từng dòng nếu nhận đủ phần còn lại; chỉ có khi người xem thấy được giá vốn và đơn còn nhận được.</summary>
+    public IReadOnlyList<PurchaseReceiptPreviewLine> ReceiptPreview { get; private set; } = [];
 
 
     public string? ErrorMessage { get; private set; }
@@ -550,6 +554,7 @@ public class IndexModel(
             if (Selected is not null)
             {
                 Attachments = await listAttachments.HandleAsync(Selected.Id, cancellationToken);
+                ReceiptPreview = await receiptPreview.HandleAsync(Selected.Id, Actor, cancellationToken);
             }
 
             if (Selected is not null && formula is Guid formulaId)
