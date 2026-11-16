@@ -43,10 +43,10 @@
 | Vấn đề | Hiện trạng |
 | --- | --- |
 | `catch` rồi `throw;` | `Upload*AttachmentCommandHandler.cs` (3 file) bắt mọi ngoại lệ để xóa tệp vừa ghi rồi ném lại; giữ vì không nuốt lỗi |
-| Bắt `OverflowException` | `Domain/Purchasing/ChargeAllocation.cs:97` còn `try/catch`; phép nhân ở trang Mua hàng đã chuyển sang `SafeMath.MultiplyOrMax` |
 
 ## Quyết định đã chốt (2026-11-16)
 
+- Giữ `try/catch OverflowException` ở `Domain/Purchasing/ChargeAllocation.cs` (hàm kiểm tra giới hạn tiền của đơn): đây là biên kỹ thuật cụ thể, đúng loại được phép bắt; không viết lại phép tính tiền chỉ để bỏ `catch`.
 - Log giữ 30 ngày, xoay vòng (chi tiết ở `06-operations/deployment.md`).
 
 ## Chờ chốt (chưa có hiệu lực)
