@@ -78,9 +78,6 @@ public sealed class CreateEmployeeCommandHandler( /* repositories, ILogger<...> 
 | Vấn đề | Hiện trạng |
 | --- | --- |
 | Kiểm tra viết tay | `CatalogValidation.cs`, `SupplierIssue`/`CatalogIssue` — không đi qua FluentValidation; chuyển khi chạm tới |
-| Enum lỗi một file | Tất cả nằm trong `Common/Result.cs` (xem naming.md) |
-| Handler gộp file | Xem naming.md |
-| `Result<T>` | Một class chứa thuộc tính lỗi cho cả 6 module (Login, Employee, Supplier, Catalog, Stock, Purchase); phải chuyển sang `Result<T, TError>` |
 | Tên phương thức | 63 handler dùng `HandleAsync`; ngoại lệ `ListTransfersAsync`, `ListStocktakesAsync`, `ListLocationsAsync`, `ListItemsAsync`, `ListDisposalsAsync`, `ListCountriesAsync`, `ListAdjustmentsAsync`, `ExportAsync`... cần đổi hoặc tách |
 | Kiểu trả về | Vài handler đọc trả thẳng `StockItemDetail?`, `SupplierCardPage` thay vì `Result` |
 

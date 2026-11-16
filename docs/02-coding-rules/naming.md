@@ -51,10 +51,6 @@
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Handler gộp file | `Employees/TwoFactorHandlers.cs` (5 handler), `Inventory/TransferWorkflowHandlers.cs` (7), `Purchasing/PurchaseWorkflowHandlers.cs` (2), `Inventory/StocktakeApplication.cs`, `*AttachmentHandlers.cs` — tách khi chạm tới |
-| Interface gộp file | Repository và DTO gom trong `<Module>Contracts.cs` (Employees, Catalog, Inventory, Locations, Auditing) — tách mỗi interface một file |
-| Enum lỗi gộp một file | Toàn bộ `LoginError`, `EmployeeError`, `SupplierError`... nằm trong `Common/Result.cs` |
-| Lớp Access lạc chỗ | `SupplierAccess`, `LocationAccess` nằm trong `EmployeeAccess.cs`; `InventoryAccess` nằm trong `InventoryText.cs` |
 | Truy vấn không có `Query` | Đang dùng `CatalogListFilter`, `StockListFilter`, `SupplierListFilter`, `CatalogPageRequest`, `SupplierPageRequest`; handler đọc nhận tham số rời — đổi thành `<Verb><Entity>Query` khi chạm tới |
 | Hậu tố khác | `*Input` ngoài dòng con (`ReceivedLineInput`...), `CreatedCatalogItem`, `*Result` (`TwoFactorEnabledResult`) cần rà lại tên |
 

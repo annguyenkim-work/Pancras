@@ -54,7 +54,6 @@
 | --- | --- |
 | Phân trang, sắp xếp | Đã có 20/50 và sắp xếp theo tên, mã, quốc gia |
 | `Version` | Form sửa gửi `Version`, handler từ chối bằng `SupplierError.VersionConflict`; hai lần lưu chồng nhau thật sự hiện trang 409 chung |
-| Mã lỗi | `SupplierError`/`SupplierIssue` còn nằm trong `Common/Result.cs` |
 
 ## Chờ chốt (chưa có hiệu lực)
 

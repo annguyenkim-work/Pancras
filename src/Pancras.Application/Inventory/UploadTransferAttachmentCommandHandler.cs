@@ -9,48 +9,6 @@ using Pancras.Domain.Purchasing;
 
 namespace Pancras.Application.Inventory;
 
-public interface ITransferAttachmentRepository
-{
-    Task<IReadOnlyList<TransferAttachment>> ListAsync(Guid transferSlipId, CancellationToken cancellationToken);
-
-    Task<TransferAttachment?> FindAsync(Guid id, CancellationToken cancellationToken);
-
-    Task<IReadOnlyDictionary<Guid, IReadOnlyList<TransferAttachment>>> ListForSlipsAsync(IReadOnlyCollection<Guid> transferSlipIds, CancellationToken cancellationToken);
-
-    Task AddAsync(TransferAttachment attachment, CancellationToken cancellationToken);
-}
-
-public sealed record TransferAttachmentView(Guid Id, string FileName, long SizeBytes, DateTimeOffset UploadedAt, string UploadedBy);
-
-/// <summary>Ai được thao tác với một phiếu chuyển: Admin/Giám đốc/Kế toán, hoặc nhân viên kho ở kho nguồn hay kho đích.</summary>
-public static class TransferAccess
-{
-    public static bool CanTouch(EmployeeActor actor, TransferSlip slip) =>
-        InventoryAccess.CanOperate(actor.Role)
-        && (InventoryAccess.CanAccessLocation(actor, slip.SourceLocationId) || InventoryAccess.CanAccessLocation(actor, slip.DestinationLocationId));
-
-    /// <summary>
-    /// Người lập phiếu: chỉ người này được sửa hoặc hủy phiếu (người duyệt chỉ duyệt hoặc từ chối).
-    /// Phiếu cũ chưa ghi người lập thì giữ quy tắc trước đây (nhân viên kho nguồn hoặc kho đích).
-    /// </summary>
-    public static bool IsCreator(EmployeeActor actor, TransferSlip slip) =>
-        slip.RequestedById == Guid.Empty || slip.RequestedById == actor.Id;
-}
-
-/// <summary>File người dùng vừa chọn, chưa lưu: tên, dung lượng và vài byte đầu để đối chiếu đuôi file.</summary>
-public sealed record PendingTransferFile(string? FileName, long Length, byte[] Header);
-
-public sealed class UploadTransferAttachmentCommand
-{
-    public Guid TransferSlipId { get; set; }
-
-    public string? FileName { get; set; }
-
-    public Stream? Content { get; set; }
-
-    public EmployeeActor Actor { get; set; } = new(Guid.Empty, null, null);
-}
-
 public sealed class UploadTransferAttachmentCommandHandler(
     IInventoryRepository inventory,
     ITransferAttachmentRepository attachments,
@@ -170,33 +128,5 @@ public sealed class UploadTransferAttachmentCommandHandler(
 
         await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.TransferAttachmentAdded, "transfer_slip", slip.Id.ToString("D"), cleanName, cancellationToken);
         return Result<Guid, StockError>.Ok(attachment.Id);
-    }
-}
-
-public sealed class OpenTransferAttachmentHandler(
-    IInventoryRepository inventory,
-    ITransferAttachmentRepository attachments,
-    IAttachmentStorage storage,
-    TimeProvider? clock = null,
-    IAuditLog? audit = null,
-    IRequestInfo? request = null)
-{
-    public async Task<Result<AttachmentDownload, StockError>> HandleAsync(Guid attachmentId, EmployeeActor actor, CancellationToken cancellationToken)
-    {
-        var attachment = await attachments.FindAsync(attachmentId, cancellationToken);
-        var slip = attachment is null ? null : await inventory.FindTransferForUpdateAsync(attachment.TransferSlipId, cancellationToken);
-        if (attachment is null || slip is null || !TransferAccess.CanTouch(actor, slip))
-        {
-            return Result<AttachmentDownload, StockError>.Fail(StockError.TransferNotFound);
-        }
-
-        var content = await storage.OpenReadAsync(attachment.StoredName, cancellationToken);
-        if (content is null)
-        {
-            return Result<AttachmentDownload, StockError>.Fail(StockError.TransferNotFound);
-        }
-
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, actor.Id, null, AuditActions.TransferAttachmentDownloaded, "transfer_slip", slip.Id.ToString("D"), attachment.FileName, cancellationToken);
-        return Result<AttachmentDownload, StockError>.Ok(new AttachmentDownload(content, attachment.FileName, attachment.ContentType));
     }
 }

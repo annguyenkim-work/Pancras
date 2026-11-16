@@ -2,26 +2,6 @@ using Pancras.Domain.Auditing;
 
 namespace Pancras.Application.Auditing;
 
-public interface IAuditLog
-{
-    /// <summary>Ghi ngay một dòng nhật ký. Lỗi ghi nhật ký không được làm hỏng thao tác chính.</summary>
-    Task RecordAsync(AuditEntry entry, CancellationToken cancellationToken);
-
-    Task<IReadOnlyList<AuditEntry>> ListAsync(string? search, int pageNumber, int pageSize, bool newestFirst, CancellationToken cancellationToken);
-
-    Task<int> CountAsync(string? search, CancellationToken cancellationToken);
-}
-
-/// <summary>Thông tin yêu cầu hiện tại, do lớp Web cung cấp.</summary>
-public interface IRequestInfo
-{
-    string? IpAddress { get; }
-
-    Guid? ActorId { get; }
-
-    string? ActorCode { get; }
-}
-
 public static class AuditLogExtensions
 {
     public static Task RecordAsync(

@@ -9,41 +9,6 @@ using Pancras.Domain.Purchasing;
 
 namespace Pancras.Application.Inventory;
 
-public interface IStockDocumentAttachmentRepository
-{
-    Task<IReadOnlyList<StockDocumentAttachment>> ListAsync(StockDocumentKind kind, Guid documentId, CancellationToken cancellationToken);
-
-    Task<StockDocumentAttachment?> FindAsync(Guid id, CancellationToken cancellationToken);
-
-    Task<IReadOnlyDictionary<Guid, IReadOnlyList<StockDocumentAttachment>>> ListForDocumentsAsync(IReadOnlyCollection<Guid> documentIds, CancellationToken cancellationToken);
-
-    Task AddAsync(StockDocumentAttachment attachment, CancellationToken cancellationToken);
-}
-
-public sealed class UploadStockDocumentAttachmentCommand
-{
-    public StockDocumentKind Kind { get; set; }
-
-    public Guid DocumentId { get; set; }
-
-    public string? FileName { get; set; }
-
-    public Stream? Content { get; set; }
-
-    public EmployeeActor Actor { get; set; } = new(Guid.Empty, null, null);
-}
-
-/// <summary>Tra kho của một biên bản kiểm kê, phiếu điều chỉnh hoặc phiếu hủy để kiểm quyền theo kho.</summary>
-internal static class StockDocumentLookup
-{
-    // Chỉ đọc, không dùng FindXxxForUpdateAsync: hàm đó mở transaction giữ đến CommitAsync, mà nhánh lưu file không commit nên file bị rollback.
-    public static Task<Guid?> LocationOfAsync(IInventoryRepository repository, StockDocumentKind kind, Guid documentId, CancellationToken cancellationToken) =>
-        repository.FindDocumentLocationAsync(kind, documentId, cancellationToken);
-
-    public static bool CanTouch(EmployeeActor actor, Guid locationId) =>
-        InventoryAccess.CanOperate(actor.Role) && InventoryAccess.CanAccessLocation(actor, locationId);
-}
-
 /// <summary>Đính kèm file vào biên bản kiểm kê, phiếu điều chỉnh hoặc phiếu hủy (thay cho ô "đường dẫn hoặc mã ảnh" nhập tay).</summary>
 public sealed class UploadStockDocumentAttachmentCommandHandler(
     IInventoryRepository inventory,
@@ -141,33 +106,5 @@ public sealed class UploadStockDocumentAttachmentCommandHandler(
 
         await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.StockDocumentAttachmentAdded, command.Kind.ToString().ToLowerInvariant(), command.DocumentId.ToString("D"), cleanName, cancellationToken);
         return Result<Guid, StockError>.Ok(attachment.Id);
-    }
-}
-
-public sealed class OpenStockDocumentAttachmentHandler(
-    IInventoryRepository inventory,
-    IStockDocumentAttachmentRepository attachments,
-    IAttachmentStorage storage,
-    TimeProvider? clock = null,
-    IAuditLog? audit = null,
-    IRequestInfo? request = null)
-{
-    public async Task<Result<AttachmentDownload, StockError>> HandleAsync(Guid attachmentId, EmployeeActor actor, CancellationToken cancellationToken)
-    {
-        var attachment = await attachments.FindAsync(attachmentId, cancellationToken);
-        var location = attachment is null ? null : await StockDocumentLookup.LocationOfAsync(inventory, attachment.Kind, attachment.DocumentId, cancellationToken);
-        if (attachment is null || location is not Guid place || !StockDocumentLookup.CanTouch(actor, place))
-        {
-            return Result<AttachmentDownload, StockError>.Fail(StockError.TransferNotFound);
-        }
-
-        var content = await storage.OpenReadAsync(attachment.StoredName, cancellationToken);
-        if (content is null)
-        {
-            return Result<AttachmentDownload, StockError>.Fail(StockError.TransferNotFound);
-        }
-
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, actor.Id, null, AuditActions.StockDocumentAttachmentDownloaded, attachment.Kind.ToString().ToLowerInvariant(), attachment.DocumentId.ToString("D"), attachment.FileName, cancellationToken);
-        return Result<AttachmentDownload, StockError>.Ok(new AttachmentDownload(content, attachment.FileName, attachment.ContentType));
     }
 }

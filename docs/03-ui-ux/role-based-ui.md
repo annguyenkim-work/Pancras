@@ -50,7 +50,6 @@ public bool CanSeeCost => InventoryAccess.CanSeeCost(Role());
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Vị trí lớp Access | `SupplierAccess`, `LocationAccess` nằm chung file `EmployeeAccess.cs`; `InventoryAccess` nằm trong `InventoryText.cs`. Nên mỗi lớp một file trong module của nó |
 | Trang 403 | Đã có trang từ chối `/access-denied` (`Pages/Account/Denied`) và handler `Forbid()` chuyển về đó; cần kiểm tra mọi trang đều đi qua đường này khi gõ URL trực tiếp, và đổi chữ cho khớp "Bạn không có quyền truy cập." |
 
 ## Chờ chốt (chưa có hiệu lực)
