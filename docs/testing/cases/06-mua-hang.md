@@ -49,11 +49,11 @@ Trạng thái đơn: **Nháp → Chờ duyệt → Đã duyệt → Đang về �
 | PUR-24 | P2 | Chỉ chọn được NCC đang hợp tác; kho nhận là kho/showroom hiện có | Đúng | ☐ |
 
 ### 1.3 Tính giá vốn (đối chiếu tay bằng Excel)
-Chuẩn bị 1 đơn mẫu: tỷ giá 25.000; hàng A SL 10 × 100 USD, thuế NK 10%; hàng B SL 5 × 400 USD, thuế NK 20%, thuế khác 1.000.000 đ; cước biển 6.000.000 đ nhóm *Trị giá hải quan* chia theo FOB; phí THC 3.000.000 đ nhóm *Logistics* chia theo số lượng; VAT 10%.
+Chuẩn bị 1 đơn mẫu: tỷ giá 25.000; hàng A SL 10 × 100 USD, thuế NK 10%; hàng B SL 5 × 400 USD, thuế NK 20%, thuế khác 1.000.000 VNĐ; cước biển 6.000.000 VNĐ nhóm *Trị giá hải quan* chia theo FOB; phí THC 3.000.000 VNĐ nhóm *Logistics* chia theo số lượng; VAT 10%.
 
 | ID | P | Kiểm tra | Kỳ vọng | KQ |
 |---|---|---|---|---|
-| PUR-30 | P1 | ① FOB quy đổi = SL × đơn giá USD × tỷ giá | A = 25.000.000 đ; B = 50.000.000 đ | ☐ |
+| PUR-30 | P1 | ① FOB quy đổi = SL × đơn giá USD × tỷ giá | A = 25.000.000 VNĐ; B = 50.000.000 VNĐ | ☐ |
 | PUR-31 | P1 | ② Cước chia theo FOB (1:2) | A = 2.000.000; B = 4.000.000; tổng đúng 6.000.000 | ☐ |
 | PUR-32 | P1 | ③ Trị giá hải quan = ① + ② | A = 27.000.000; B = 54.000.000 | ☐ |
 | PUR-33 | P1 | ④ Thuế NK = ③ × % | A = 2.700.000; B = 10.800.000 | ☐ |
@@ -61,9 +61,9 @@ Chuẩn bị 1 đơn mẫu: tỷ giá 25.000; hàng A SL 10 × 100 USD, thuế N
 | PUR-35 | P1 | ⑧ THC chia theo số lượng (10:5) | A = 2.000.000; B = 1.000.000 | ☐ |
 | PUR-36 | P1 | ⑨ Giá vốn dòng, ô "VAT được khấu trừ" **tắt** (mặc định): VAT **cộng** vào giá vốn | A = 34.670.000; B = 73.380.000 | ☐ |
 | PUR-37 | P1 | ⑨ khi **bật** "VAT được khấu trừ": VAT không vào giá vốn | A = 31.700.000; B = 66.800.000 | ☐ |
-| PUR-38 | P1 | ⑩ Giá vốn/đơn vị = ⑨ ÷ SL, làm tròn đồng | Khớp; trường hợp lẻ 0,5 đ làm tròn **lên** | ☐ |
+| PUR-38 | P1 | ⑩ Giá vốn/đơn vị = ⑨ ÷ SL, làm tròn đồng | Khớp; trường hợp lẻ 0,5 VNĐ làm tròn **lên** | ☐ |
 | PUR-39 | P1 | Số ở hộp thoại (xem trước) = số ở khung chi tiết sau khi lưu = số trong file CSV | Khớp từng ô | ☐ |
-| PUR-40 | P1 | Tổng tiền các dòng phân bổ của 1 khoản chi phí | Bằng đúng số tiền khoản đó, không lệch 1 đồng (thử số chia không hết: 1.000.000 đ chia 3 dòng) | ☐ |
+| PUR-40 | P1 | Tổng tiền các dòng phân bổ của 1 khoản chi phí | Bằng đúng số tiền khoản đó, không lệch 1 đồng (thử số chia không hết: 1.000.000 VNĐ chia 3 dòng) | ☐ |
 | PUR-41 | P2 | Nhóm *Thuế không khấu trừ* | Cộng vào giá vốn | ☐ |
 | PUR-42 | P2 | Nhóm *Thuế được khấu trừ* | Không cộng vào giá vốn | ☐ |
 | PUR-43 | P2 | Bấm 1 dòng hàng ở khung chi tiết | Hiện "Công thức giá vốn · <mã>" với các con số khớp bảng | ☐ |
@@ -161,13 +161,13 @@ Mã `action` nằm trong hidden input của từng form. Đổi giá trị rồi
 | ID | P | Bước | Kỳ vọng | KQ |
 |---|---|---|---|---|
 | PUR-R01 | P1 | Nút nhập kho | Chữ đúng: "Nhập Kho & Cập Nhật Giá Vốn (N món)" – N = số dòng hàng | ☐ |
-| PUR-R02 | P1 | Bấm nút | Hộp xác nhận "Ghi số thực nhận vào tồn… không hoàn tác được." – bấm Hủy thì không có gì xảy ra | ☐ |
+| PUR-R02 | P1 | Bấm nút | Hộp xác nhận "Ghi số thực nhận vào tồn… không hoàn tác được." – bấm Quay lại thì không có gì xảy ra | ☐ |
 | PUR-R03 | P1 | Xác nhận nhập kho đơn Đã duyệt (chưa bấm "Hàng đang về") | Nhận được; đơn → Đã nhận | ☐ |
 | PUR-R04 | P1 | Xác nhận nhập kho đơn Đang về | Đơn → Đã nhận; cột "SL đã nhận" = SL đặt; lịch sử ghi người nhận, giờ | ☐ |
 | PUR-R05 | P1 | Kiểm tra Kho sau nhập | Tồn thực tế tại **kho nhận** tăng đúng SL từng mặt hàng; kho khác không đổi; Lịch sử thay đổi của mặt hàng có dòng nhập | ☐ |
 | PUR-R06 | P1 | Giá vốn bình quân, hàng **chưa có tồn** | Giá vốn = giá vốn/đơn vị của đơn | ☐ |
-| PUR-R07 | P1 | Giá vốn bình quân, hàng đã có tồn: kho A 6 cái + kho B 4 cái @ 100.000 đ; nhập 10 cái @ 200.000 đ vào kho A | Giá vốn mới = (10×100.000 + 10×200.000) ÷ 20 = **150.000 đ** (tính trên tổng tồn **mọi kho**) | ☐ |
-| PUR-R08 | P1 | Trường hợp ra số lẻ: tồn 1 @ 100.000; nhập 2 @ 100.001 | (100.000 + 200.002) ÷ 3 = 100.000,67 → **100.001 đ** | ☐ |
+| PUR-R07 | P1 | Giá vốn bình quân, hàng đã có tồn: kho A 6 cái + kho B 4 cái @ 100.000 VNĐ; nhập 10 cái @ 200.000 VNĐ vào kho A | Giá vốn mới = (10×100.000 + 10×200.000) ÷ 20 = **150.000 VNĐ** (tính trên tổng tồn **mọi kho**) | ☐ |
+| PUR-R08 | P1 | Trường hợp ra số lẻ: tồn 1 @ 100.000; nhập 2 @ 100.001 | (100.000 + 200.002) ÷ 3 = 100.000,67 → **100.001 VNĐ** | ☐ |
 | PUR-R09 | P1 | Bấm đúp nút / gửi lại request Receive lần 2 / mở 2 tab cùng bấm | Chỉ nhập 1 lần ("Đơn đã nhập kho."); tồn không tăng gấp đôi | ☐ |
 | PUR-R10 | P2 | Nhận **một phần** | Ô "SL nhận lần này" mặc định bằng số còn phải nhận. Nhận 6/10 (không tick đóng đơn) → **Đã nhận một phần**. Nhận nốt 4 → **Đã nhập kho**. Tick "Đóng đơn dù nhận thiếu" mà không ghi lý do → bị từ chối. | ☐ |
 | PUR-R11 | P1 | Đơn còn khoản chi phí chưa gán nhóm → Nhập kho | "Còn khoản chi phí chưa gán nhóm…", không nhập | ☐ |
@@ -178,7 +178,7 @@ Mã `action` nằm trong hidden input của từng form. Đổi giá trị rồi
 ### Điều chỉnh chi phí sau khi nhận
 | ID | P | Bước | Kỳ vọng | KQ |
 |---|---|---|---|---|
-| PUR-A01 | P1 | Đơn Đã nhận, hàng **còn nguyên trong kho**: ghi +1.000.000 đ, chia theo FOB, có lý do | Dòng mới trong bảng điều chỉnh: "Vào giá vốn hàng còn tồn" = 1.000.000; "Chênh lệch" = 0; giá vốn bình quân các mặt hàng tăng tương ứng | ☐ |
+| PUR-A01 | P1 | Đơn Đã nhận, hàng **còn nguyên trong kho**: ghi +1.000.000 VNĐ, chia theo FOB, có lý do | Dòng mới trong bảng điều chỉnh: "Vào giá vốn hàng còn tồn" = 1.000.000; "Chênh lệch" = 0; giá vốn bình quân các mặt hàng tăng tương ứng | ☐ |
 | PUR-A02 | P1 | Hàng đã chuyển đi/hủy/điều chỉnh giảm một phần (ví dụ còn 60%) rồi ghi +1.000.000 | Phần vào giá vốn nhỏ hơn 1.000.000; phần còn lại nằm ở "Chênh lệch (hàng đã xuất)"; hai số cộng lại = 1.000.000 | ☐ |
 | PUR-A03 | P1 | Ghi số **âm** (−500.000) | Giá vốn giảm; không làm giá vốn âm | ☐ |
 | PUR-A04 | P1 | Số tiền 0 / bỏ trống tên khoản / bỏ trống lý do (ép request) | "Khoản điều chỉnh không hợp lệ…" | ☐ |

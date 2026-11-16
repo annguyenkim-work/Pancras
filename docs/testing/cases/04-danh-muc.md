@@ -16,7 +16,7 @@ Thành phần màn hình:
 | CAT-01 | P2 | Lọc theo từng Ngành | Chỉ ra sản phẩm ngành đó | ☐ |
 | CAT-02 | P2 | Tìm theo mã (một phần), tên có dấu, thương hiệu | Đúng kết quả. Tìm không dấu không được hỗ trợ (ví dụ "voi sen" không ra "Vòi sen") | ☐ |
 | CAT-03 | P2 | Lọc ngành + từ khóa → sang trang 2 | Bộ lọc được giữ khi chuyển trang | ☐ |
-| CAT-04 | P2 | Cột tiền | Dạng `1.234.567 đ`, căn phải | ☐ |
+| CAT-04 | P2 | Cột tiền | Dạng `1.234.567 VNĐ`, căn phải | ☐ |
 | CAT-05 | P2 | Sản phẩm chưa có ảnh | Hiện ô giữ chỗ, không vỡ bảng | ☐ |
 | CAT-06 | P2 | Xuất file khi đang lọc | File chỉ chứa dòng khớp bộ lọc; mở được bằng Excel, tiếng Việt không lỗi font | ☐ |
 | CAT-07 | P2 | Bấm "Chi tiết" | Hộp thoại hiện đủ thông tin; đóng được | ☐ |

@@ -89,7 +89,7 @@ Ba khối: **Thông tin cá nhân** (Họ tên*, Email*, Điện thoại*, Đị
 | PROF-20 | P1 | Bấm "Bật xác thực hai bước" | Hiện mã QR / khóa bí mật và ô "Mã 6 số" | ☐ |
 | PROF-21 | P1 | Quét QR, nhập mã đúng → "Xác nhận và bật" | 2FA bật; hiển thị **10 mã khôi phục** (chỉ hiện 1 lần) | ☐ |
 | PROF-22 | P1 | Nhập mã sai khi xác nhận | Báo sai, 2FA chưa bật | ☐ |
-| PROF-23 | P2 | Bấm "Hủy" giữa chừng | 2FA vẫn tắt; đăng nhập lần sau không hỏi mã | ☐ |
+| PROF-23 | P2 | Bấm "Quay lại" giữa chừng | 2FA vẫn tắt; đăng nhập lần sau không hỏi mã | ☐ |
 | PROF-24 | P1 | Tắt 2FA: nhập đúng mật khẩu hiện tại + mã xác thực | Tắt thành công | ☐ |
 | PROF-25 | P1 | Tắt 2FA: mật khẩu sai, hoặc mã sai | Không tắt | ☐ |
 | PROF-26 | P2 | Tắt 2FA bằng mã khôi phục | Tắt được | ☐ |

@@ -49,7 +49,7 @@ Với **dữ liệu bị ẩn** (giá vốn, ngân hàng nhà cung cấp, tiền
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Test case chưa rà theo docs mới | 11 file ở `docs/testing/cases/` viết theo bản 14/11/2026; còn chữ `đ` thay `VNĐ`, "Xuất CSV/Excel", thuật ngữ cũ ("Ngừng hợp tác", "Xóa"), banner thay vì toast, danh sách thẻ... Cần rà từng file theo docs mới khi làm lại từng module |
+| Test case đã rà thuật ngữ, chưa rà logic | 11 file ở `docs/testing/cases/` đã rà (2026-11-16) về thuật ngữ, nhãn nút (Disable/Active, Xuất CSV, Quay lại), `VNĐ` và các câu thông báo trích dẫn so với code. Chưa chạy lại từng case trên bản chạy thật và chưa rà từng kỳ vọng nghiệp vụ so với docs module |
 | Bộ test case trỏ file đã xóa | `KE-HOACH-CHAY-TEST.md` và thư mục `ket-qua/` đã xóa theo quyết định dọn docs; các quy ước dữ liệu test nay nằm ở mục 2 trên |
 
 ## Quyết định đã chốt (2026-11-16)

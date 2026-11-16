@@ -84,8 +84,8 @@ Quy tắc chung:
 | ADJ-01 | P1 | Chênh lệch +2, có lý do + chứng từ | Lưu được | ☐ |
 | ADJ-02 | P1 | Chênh lệch −2, có lý do + chứng từ | Lưu được | ☐ |
 | ADJ-03 | P1 | Bỏ trống lý do **hoặc** chứng từ (kể cả khi chênh lệch dương) | "Cần lý do và chứng từ." | ☐ |
-| ADJ-04 | P1 | Chênh lệch = 0 | Bị từ chối. Ghi lại câu thông báo (hiện có thể ra "Tồn không được âm." – câu chưa đúng ý, mức thấp) | ☐ |
-| ADJ-05 | P1 | Chênh lệch âm lớn hơn tồn (tồn 3, nhập −5) – vai trò tài chính | "Tồn không được âm."; tồn không đổi; không có phiếu nào được tạo | ☐ |
+| ADJ-04 | P1 | Chênh lệch = 0 | Bị từ chối. Ghi lại câu thông báo (hiện ra "Không đủ tồn khả dụng." – câu chưa đúng ý với chênh lệch 0, mức thấp) | ☐ |
+| ADJ-05 | P1 | Chênh lệch âm lớn hơn tồn (tồn 3, nhập −5) – vai trò tài chính | "Không đủ tồn khả dụng…"; tồn không đổi; không có phiếu nào được tạo | ☐ |
 | ADJ-06 | P2 | Nhập số thập phân / chữ vào ô Chênh lệch | Bị chặn, không lỗi 500 | ☐ |
 | ADJ-07 | P2 | File đính kèm hợp lệ / không hợp lệ | Như STK-08 | ☐ |
 | ADJ-08 | P1 | Phiếu **"Đã ghi nhận"** (sinh từ nhận hàng chuyển kho lệch) | Hiện trong danh sách, có mã phiếu chuyển liên quan, **không** có nút duyệt | ☐ |
@@ -97,7 +97,7 @@ Quy tắc chung:
 | ADJ-W01 | P1 | ThK-A lập +2 | Chờ duyệt; tồn chưa đổi; Admin/GĐ/KT nhận thông báo | ☐ |
 | ADJ-W02 | P1 | KT bấm "Duyệt điều chỉnh" | Đã duyệt; tồn +2; lịch sử mặt hàng có dòng điều chỉnh; giá vốn không đổi | ☐ |
 | ADJ-W03 | P1 | KT lập −1 | Ghi thẳng: Đã duyệt, tồn −1 ngay | ☐ |
-| ADJ-W04 | P1 | ThK-A lập −5 khi tồn 6 → trong lúc chờ, xuất chuyển 3 (tồn 3) → KT duyệt | "Tồn không được âm."; phiếu vẫn Chờ duyệt; tồn giữ 3 | ☐ |
+| ADJ-W04 | P1 | ThK-A lập −5 khi tồn 6 → trong lúc chờ, xuất chuyển 3 (tồn 3) → KT duyệt | "Không đủ tồn khả dụng…"; phiếu vẫn Chờ duyệt; tồn giữ 3 | ☐ |
 | ADJ-W05 | P1 | Duyệt 2 lần (2 tab) | Chỉ áp 1 lần | ☐ |
 | ADJ-W06 | P1 | TK-A lập phiếu | Chờ duyệt như Thủ kho | ☐ |
 | ADJ-W07 | P1 | Điều chỉnh âm xuống dưới số đang giữ chỗ | Ghi lại hành vi (như STK-W07) | ☐ |
@@ -126,7 +126,7 @@ Quy tắc chung:
 |---|---|---|---|---|
 | DSP-01 | P1 | Chọn kho, mặt hàng, nhập lý do + chứng từ → Lưu phiếu hủy | Tạo phiếu hủy cho **1 đơn vị** | ☐ |
 | DSP-02 | P1 | Bỏ trống lý do hoặc chứng từ | "Cần lý do và chứng từ." | ☐ |
-| DSP-03 | P1 | Mặt hàng có tồn 0 tại kho đó – vai trò tài chính (ghi thẳng) | "Tồn không được âm."; **không** có phiếu nào được lưu | ☐ |
+| DSP-03 | P1 | Mặt hàng có tồn 0 tại kho đó – vai trò tài chính (ghi thẳng) | "Không đủ tồn khả dụng…"; **không** có phiếu nào được lưu | ☐ |
 | DSP-04 | P2 | Hộp thoại không có ô số lượng | Đúng thiết kế (hủy từng cái). Muốn hủy 3 cái phải lập 3 phiếu – ghi nhận góp ý nếu bất tiện | ☐ |
 | DSP-05 | P2 | Đính kèm ảnh hàng hỏng | Lưu và tải lại được | ☐ |
 
@@ -137,7 +137,7 @@ Quy tắc chung:
 | DSP-W02 | P1 | TK-A bấm "Duyệt hủy" | Đã duyệt; tồn −1; lịch sử mặt hàng có dòng hủy; giá vốn không đổi | ☐ |
 | DSP-W03 | P1 | KT lập | Ghi thẳng; tồn −1 ngay | ☐ |
 | DSP-W04 | P1 | TK-A lập | Chờ duyệt; chỉ AD/GĐ/KT duyệt được | ☐ |
-| DSP-W05 | P1 | ThK lập 2 phiếu hủy khi tồn = 1 → duyệt cả hai | Phiếu 1 duyệt được; phiếu 2 "Tồn không được âm.", vẫn Chờ duyệt | ☐ |
+| DSP-W05 | P1 | ThK lập 2 phiếu hủy khi tồn = 1 → duyệt cả hai | Phiếu 1 duyệt được; phiếu 2 "Không đủ tồn khả dụng…", vẫn Chờ duyệt | ☐ |
 | DSP-W06 | P1 | Duyệt 2 lần 1 phiếu (2 tab) | Chỉ trừ 1 lần | ☐ |
 | DSP-W07 | P1 | Hủy cái cuối cùng đang được **giữ chỗ** cho phiếu chuyển | Ghi lại hành vi (như STK-W07) | ☐ |
 

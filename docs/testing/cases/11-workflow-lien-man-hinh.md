@@ -21,12 +21,12 @@ Vai trò: KT, GĐ, ThK-A, TK-A, ThK-B, AD. Mặt hàng X (chưa có tồn), Y (�
 | 7 | ThK-A | Mua hàng | Tải lại | Thấy đơn, **không** thấy tiền | ☐ |
 | 8 | ThK-B | Mua hàng | Mở `/purchasing` | Không thấy đơn (kho nhận là A) | ☐ |
 | 9 | KT | Mua hàng | Hàng đang về | Đang về | ☐ |
-| 10 | KT | Nhà cung cấp | Thử Ngừng hợp tác NCC | Bị chặn (còn lô chưa nhập kho) | ☐ |
+| 10 | KT | Nhà cung cấp | Thử Disable NCC | Bị chặn (còn lô chưa nhập kho) | ☐ |
 | 11 | ThK-A | Mua hàng | Nhập Kho & Cập Nhật Giá Vốn | Đã nhận | ☐ |
 | 12 🔎 | KT | Kho → Tra cứu | X, Y tại kho A | X: +10; Y: +5. Giá vốn X = giá vốn/đơn vị của đơn; giá vốn Y = bình quân trên tổng tồn mọi kho | ☐ |
 | 13 🔎 | KT | Danh mục | Cột Giá vốn của X, Y | Khớp bước 12 | ☐ |
 | 14 | ThK-A | Kho → Tra cứu | X, Y | Thấy số lượng, không thấy giá vốn | ☐ |
-| 15 | KT | Mua hàng | Ghi điều chỉnh chi phí +500.000 đ | Giá vốn X, Y tăng; chênh lệch = 0 (hàng còn nguyên) | ☐ |
+| 15 | KT | Mua hàng | Ghi điều chỉnh chi phí +500.000 VNĐ | Giá vốn X, Y tăng; chênh lệch = 0 (hàng còn nguyên) | ☐ |
 | 16 | ThK-B | Kho → Chuyển kho | Lập đề nghị A→B: X × 4 | Chờ duyệt; TK-A và KT có thông báo | ☐ |
 | 17 | TK-A | Kho → Chuyển kho | Lọc nhanh "Chờ tôi duyệt" → Duyệt | Đã duyệt; X ở A: giữ chỗ 4 | ☐ |
 | 18 | ThK-A | Kho → Chuyển kho | "Chờ tôi xuất kho" → nhập seal → Xuất kho | Đang vận chuyển | ☐ |
@@ -34,8 +34,8 @@ Vai trò: KT, GĐ, ThK-A, TK-A, ThK-B, AD. Mặt hàng X (chưa có tồn), Y (�
 | 20 | KT | Kho → Chuyển kho | "Chờ xử lý chênh lệch" → nhập cách xử lý → xác nhận | Đã nhận (đóng) | ☐ |
 | 21 🔎 | KT | Kho → Tra cứu | X | A: 6; B: 3; giữ chỗ 0; đang chuyển 0. Giá vốn X **không đổi** so với sau bước 15 | ☐ |
 | 22 | KT | Kho → Kiểm kê & điều chỉnh | Tìm phiếu điều chỉnh "Đã ghi nhận" | Có phiếu −1 tại B gắn với phiếu chuyển; không có nút duyệt | ☐ |
-| 23 | KT | Mua hàng | Ghi điều chỉnh chi phí +300.000 đ lần nữa | Ghi lại phần "vào giá vốn hàng còn tồn" và "chênh lệch" – tổng hai phần = 300.000 | ☐ |
-| 24 | KT | Nhà cung cấp | Ngừng hợp tác NCC | Được (không còn lô chưa nhập) | ☐ |
+| 23 | KT | Mua hàng | Ghi điều chỉnh chi phí +300.000 VNĐ lần nữa | Ghi lại phần "vào giá vốn hàng còn tồn" và "chênh lệch" – tổng hai phần = 300.000 | ☐ |
+| 24 | KT | Nhà cung cấp | Disable NCC | Được (không còn lô chưa nhập) | ☐ |
 | 25 | AD | Nhật ký | Tìm theo mã đơn, mã phiếu | Đủ dòng cho các bước 1–3, 5, 6, 9, 11, 15–20, 23, 24 đúng người | ☐ |
 
 ## E2E-02 – Một ngày của kho: kiểm kê, hao hụt, hủy hàng

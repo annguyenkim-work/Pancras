@@ -65,7 +65,7 @@ Thành phần: tiêu đề "Xin chào, <tên>", khối "Lối tắt".
 
 | ID | P | Kiểm tra | Kỳ vọng | KQ |
 |---|---|---|---|---|
-| UI-01 | P2 | Tiền | Dạng `1.234.567 đ`; không xuất hiện "VND"/"VNĐ" | ☐ |
+| UI-01 | P2 | Tiền | Dạng `1.234.567 VNĐ`; không xuất hiện "VND" hay ký hiệu `đ` | ☐ |
 | UI-02 | P2 | Hộp thoại thêm/sửa | Có nền mờ phía sau; tiêu đề + nút × đứng yên, chỉ phần thân cuộn; Esc đóng được; không cuộn được trang phía sau | ☐ |
 | UI-03 | P2 | Cửa sổ thấp (~600px) với hộp thoại dài | Nút Lưu vẫn bấm được (cuộn trong hộp thoại) | ☐ |
 | UI-04 | P2 | Khi lưu lỗi | Hộp thoại mở lại, dữ liệu đã nhập còn nguyên, lỗi hiện trong hộp thoại | ☐ |

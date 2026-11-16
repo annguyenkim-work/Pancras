@@ -49,7 +49,7 @@ Kỳ vọng viết theo `docs/04-domain/roles-and-permissions.md` (và docs modu
 | U-OFF | Bất kỳ, đã ngừng hoạt động | – |
 | U-2FA | Bất kỳ, đã bật xác thực hai bước | – |
 
-**Dữ liệu**: 3 kho/showroom (A, B là kho; C là showroom); ≥ 5 mặt hàng, trong đó 1 mặt hàng thiếu khối lượng/thể tích; 2 nhà cung cấp đang hợp tác + 1 đã ngừng; mỗi mặt hàng có tồn ở A và B qua 1 đơn mua đã nhập.
+**Dữ liệu**: 3 kho/showroom (A, B là kho; C là showroom); ≥ 5 mặt hàng, trong đó 1 mặt hàng thiếu khối lượng/thể tích; 2 nhà cung cấp Active + 1 Disabled; mỗi mặt hàng có tồn ở A và B qua 1 đơn mua đã nhập.
 
 **File mẫu**: PDF, JPG, PNG, xlsx, docx hợp lệ (< 10 MB); 1 file > 10 MB; 1 file `.exe` đổi đuôi thành `.pdf`.
 
@@ -102,7 +102,7 @@ Sau mỗi bước ghi lại: trạng thái mới, số liệu tồn, lịch sử
 | 8 | Kho – Kiểm kê | Khi tồn sổ sách đổi giữa lúc lập và lúc duyệt: ghi đè theo số đếm hay áp phần chênh lệch? | STK-W06 |
 | 9 | Kho | Kiểm kê / điều chỉnh / hủy có được phép kéo tồn xuống dưới số **đang giữ chỗ** cho phiếu chuyển đã duyệt không? | TRF-W11, STK-W07, ADJ-W07, DSP-W07 |
 | 10 | Kho – Điều chỉnh | Nhập chênh lệch = 0 có thể ra thông báo "Tồn không được âm." (câu chưa đúng ý). | ADJ-04 |
-| 11 | Kho & Showroom | Xóa kho đang có hàng "đang chuyển tới", đang giữ chỗ, hoặc là kho nhận của đơn mua chưa nhập: có bị chặn không? | LOC-12 |
+| 11 | Kho & Showroom | Disable kho đang có hàng "đang chuyển tới", đang giữ chỗ, hoặc là kho nhận của đơn mua chưa nhập: có bị chặn không? (Đã có câu trả lời trong code: bị chặn khi còn đơn mua hoặc phiếu chuyển chưa xử lý; kiểm lại ở LOC-12.) | LOC-12 |
 | 12 | Nhân sự | Ràng buộc "mỗi kho 1 Trưởng kho" có tính người đã ngừng hoạt động không? | EMP-W06 |
 | 13 | Nhân sự | Đã chốt: sau khi Admin đặt lại mật khẩu, nhân viên không bị buộc đổi mật khẩu ở lần đăng nhập đầu. | EMP-38 |
 | 14 | Tài khoản | Giới hạn đăng nhập theo IP (để không khóa Admin có chủ đích) đã có chưa? | LOGIN-P05 |

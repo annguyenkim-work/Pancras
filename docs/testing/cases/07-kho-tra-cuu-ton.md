@@ -4,7 +4,7 @@ Trang "Quản Lý Đa Kho & Điều Chuyển Hàng Hóa" có 3 tab: **Tra cứu 
 
 Thành phần tab Tra cứu tồn kho:
 - Khối **Thông báo kho** (nếu có) – mỗi thông báo có nút "Mở phiếu".
-- Bộ lọc: ô tìm "Tìm theo mã SKU, tên thiết bị, thương hiệu...", chọn **Kho hoặc showroom**, chọn **Ngành hàng**, nút **Xuất Excel**.
+- Bộ lọc: ô tìm "Tìm theo mã SKU, tên thiết bị, thương hiệu...", chọn **Kho hoặc showroom**, chọn **Ngành hàng**, nút **Xuất CSV**.
 - Bảng: Mã SKU · Tên hàng hóa & Quy cách · ĐVT · **Giá vốn niên yết** (chỉ vai trò tài chính) · Tồn thực tế · Đang giữ chỗ · Khả dụng · Đang chuyển · Tồn tại các điểm · Thao tác.
 - Khung **chi tiết mặt hàng**: Thông tin hàng hóa, Tồn theo điểm (Điểm, Tồn, Giữ chỗ, Khả dụng, Đang chuyển tới), Lịch sử thay đổi.
 
@@ -30,8 +30,8 @@ Thành phần tab Tra cứu tồn kho:
 | BAL-09 | P1 | Bấm 1 mặt hàng → khung chi tiết | Thông tin khớp Danh mục; bảng "Tồn theo điểm" khớp dòng trên bảng | ☐ |
 | BAL-10 | P1 | Lịch sử thay đổi của mặt hàng | Liệt kê theo thời gian: nhập mua, xuất chuyển, nhận chuyển, kiểm kê, điều chỉnh, hủy; có số lượng ±, kho, mã phiếu | ☐ |
 | BAL-11 | P1 | Cộng dồn lịch sử từ đầu | = tồn hiện tại | ☐ |
-| BAL-12 | P2 | Xuất Excel khi đang lọc | File `ton-kho.csv` chỉ chứa dòng khớp bộ lọc; mở bằng Excel không lỗi font tiếng Việt | ☐ |
-| BAL-13 | P2 | Giá vốn | Dạng `1.234.567 đ` | ☐ |
+| BAL-12 | P2 | Xuất CSV khi đang lọc | File `ton-kho.csv` chỉ chứa dòng khớp bộ lọc; mở bằng Excel không lỗi font tiếng Việt | ☐ |
+| BAL-13 | P2 | Giá vốn | Dạng `1.234.567 VNĐ` | ☐ |
 
 ### Thông báo kho
 | ID | P | Bước | Kỳ vọng | KQ |
@@ -51,20 +51,20 @@ Thành phần tab Tra cứu tồn kho:
 | Vào `/inventory` | ✔ | ✔ | ✔ | ✔ | ✘ |
 | Thấy số lượng ở **mọi** kho/showroom | ✔ | ✔ | ✔ | ✔ | – |
 | Thấy cột Giá vốn (bảng + khung chi tiết) | ✔ | ✘ | ✘ | ✘ | – |
-| Nút Xuất Excel | ✔ (mọi kho) | ✔ (chỉ kho mình) | ✘ | ✘ | – |
+| Nút Xuất CSV | ✔ (mọi kho) | ✔ (chỉ kho mình) | ✘ | ✘ | – |
 | Thấy tab "Chuyển kho", "Kiểm kê & điều chỉnh" | ✔ | ✔ | ✔ | ✘ | – |
 
 | ID | P | Vai trò | Bước | Kỳ vọng | KQ |
 |---|---|---|---|---|---|
 | BAL-P01 | P1 | CS | Gõ `/inventory` | Từ chối truy cập | ☐ |
-| BAL-P02 | P1 | SA | Mở `/inventory` | Chỉ có tab "Tra cứu tồn kho"; thấy số lượng mọi kho; không có cột Giá vốn, không có nút Xuất Excel | ☐ |
+| BAL-P02 | P1 | SA | Mở `/inventory` | Chỉ có tab "Tra cứu tồn kho"; thấy số lượng mọi kho; không có cột Giá vốn, không có nút Xuất CSV | ☐ |
 | BAL-P03 | P1 | SA | Gõ `/inventory?view=transfers` và `?view=stocktakes` | Không hiện danh sách phiếu (quay về tab tra cứu hoặc trống) | ☐ |
 | BAL-P04 | P1 | SA | Ép request Export | Không trả về dữ liệu (file rỗng hoặc bị từ chối) | ☐ |
 | BAL-P05 | P1 | SA, ThK, TK | Xem mã nguồn trang, khung chi tiết mặt hàng, Network | Không có giá vốn ở bất kỳ đâu | ☐ |
-| BAL-P06 | P1 | ThK | Mở `/inventory` | Thấy 3 tab; không có cột Giá vốn; không có nút Xuất Excel | ☐ |
+| BAL-P06 | P1 | ThK | Mở `/inventory` | Thấy 3 tab; không có cột Giá vốn; không có nút Xuất CSV | ☐ |
 | BAL-P07 | P1 | ThK | Ép request Export | Không trả về dữ liệu | ☐ |
-| BAL-P08 | P1 | TK kho A | Xuất Excel (không lọc; rồi lọc kho B) | File chỉ có số liệu **kho A**; **không** có cột giá vốn | ☐ |
-| BAL-P09 | P1 | AD, GĐ, KT | Xuất Excel | Có đủ mọi kho, có giá vốn | ☐ |
+| BAL-P08 | P1 | TK kho A | Xuất CSV (không lọc; rồi lọc kho B) | File chỉ có số liệu **kho A**; **không** có cột giá vốn | ☐ |
+| BAL-P09 | P1 | AD, GĐ, KT | Xuất CSV | Có đủ mọi kho, có giá vốn | ☐ |
 | BAL-P10 | P1 | Thủ kho **chưa gán kho** | Mở `/inventory` | Tra cứu tồn xem được; tab phiếu không có phiếu nào; không lỗi 500 | ☐ |
 | BAL-P11 | P2 | ThK kho A | Lịch sử thay đổi của mặt hàng | Ghi lại: thấy biến động của mọi kho hay chỉ kho A **[xác nhận]** | ☐ |
 
