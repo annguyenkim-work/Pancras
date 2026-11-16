@@ -27,7 +27,7 @@
 
 | Nguyên tắc | Hiện trạng | Việc cần làm |
 | --- | --- | --- |
-| 12 (toast) | Toast đã có cho kết quả thành công ở 5 trang; lỗi sau thao tác ở Inventory vẫn là banner | Chuyển các banner còn lại sang `_Notice` hoặc toast |
+| 12 (toast) | Toast đã có; lỗi sau thao tác ở Inventory vẫn là banner | Chuyển nếu chủ dự án đồng ý |
 | 11 (JS tối thiểu) | `Inventory/Index.cshtml` còn 16 `onclick` inline; `_Layout` có 2; `_ConfirmDialog` có script inline | Chuyển sang `wwwroot/js` |
 
 ## Chờ chốt (chưa có hiệu lực)

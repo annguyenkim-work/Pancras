@@ -1,4 +1,5 @@
 @page "/profile"
+@using Pancras.Web.Formatting
 @model Pancras.Web.Pages.Account.ProfileModel
 @using Pancras.Application.Common
 @{
@@ -25,7 +26,7 @@
     </p>
     @if (Model.Error != EmployeeError.None)
     {
-        <p class="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800" role="alert">@ErrorText(Model.Error)</p>
+        <div class="mt-4"><partial name="_Notice" model="new NoticeModel(ErrorText(Model.Error), ToastLevel.Error)" /></div>
     }
 </section>
 

@@ -22,7 +22,7 @@
     @* Khi modal đang mở, lỗi hiện trong modal (bên dưới); hiện ở đây sẽ nằm sau lớp phủ và người dùng không thấy. *@
     @if (!string.IsNullOrEmpty(Model.ErrorMessage) && !Model.ShowForm)
     {
-        <p class="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800" role="alert">@Model.ErrorMessage</p>
+        <div class="mt-4"><partial name="_Notice" model="new NoticeModel(Model.ErrorMessage, ToastLevel.Error)" /></div>
     }
     @if (Model.HasAnyOrders)
     {
@@ -275,7 +275,8 @@ else
                 <p class="mt-1 text-xs leading-5 text-slate-600">Mỗi khoản chi phí của container thuộc một nhóm. <b>Điều chỉnh trị giá hải quan</b> (cước biển, bảo hiểm) cộng vào trị giá tính thuế. <b>Logistics</b> (THC, D/O, kiểm định, kéo xe) cộng thẳng vào giá vốn. <b>Thuế không được khấu trừ</b> cộng vào giá vốn. <b>Thuế được khấu trừ</b> không vào giá vốn. Bản scan tờ khai và hóa đơn đính kèm ở mục "Chứng từ đính kèm" bên dưới.</p>
                 @if (ungrouped > 0)
                 {
-                    <p class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800" role="alert">Có @ungrouped khoản chưa gán nhóm (dữ liệu cũ). Bấm "Sửa chi phí" để chọn nhóm; khoản chưa gán nhóm không được tính vào giá vốn và chặn việc nhập kho.</p>
+                    var ungroupedNotice = new NoticeModel($"Có {ungrouped} khoản chưa gán nhóm (dữ liệu cũ). Bấm \"Sửa chi phí\" để chọn nhóm; khoản chưa gán nhóm không được tính vào giá vốn và chặn việc nhập kho.", ToastLevel.Warning);
+                    <div class="mt-3"><partial name="_Notice" model="ungroupedNotice" /></div>
                 }
                 <div class="mt-3 space-y-2 text-sm">
                     <div class="flex items-start justify-between gap-3 rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
@@ -531,7 +532,7 @@ else
         <form method="post" asp-page-handler="@(Model.EditingId is null ? "Create" : "Update")" id="purchase-draft" class="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
             @if (!string.IsNullOrEmpty(Model.ErrorMessage))
             {
-                <p id="form-error" class="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800" role="alert">@Model.ErrorMessage</p>
+                <div class="mb-3"><partial name="_Notice" model='new NoticeModel(Model.ErrorMessage, ToastLevel.Error, null, "form-error")' /></div>
             }
             @if (Model.EditingId is Guid editingId)
             {

@@ -334,7 +334,7 @@
                         <div class="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
                             @if (attention)
                             {
-                                <p class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700" role="alert">@Model.ErrorMessage</p>
+                                <partial name="_Notice" model="new NoticeModel(Model.ErrorMessage!, ToastLevel.Error)" />
                             }
 
                             @if (showSteps)
@@ -761,7 +761,7 @@
         <div class="min-h-0 flex-1 overflow-y-auto p-5">
             @if (Model.ShowTransferDialog && !string.IsNullOrEmpty(Model.ErrorMessage))
             {
-                <p class="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700" role="alert">@Model.ErrorMessage</p>
+                <div class="mb-4"><partial name="_Notice" model="new NoticeModel(Model.ErrorMessage, ToastLevel.Error)" /></div>
             }
             <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <label class="text-sm font-medium text-slate-700">Kho xuất

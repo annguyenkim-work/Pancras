@@ -134,9 +134,9 @@ Khung chung cho badge trạng thái và badge phân loại: `rounded-full px-2 p
 | Bảng mobile | Đã bọc `overflow-x-auto` nhưng chưa có cột đầu sticky; cột hành động đang ở cuối dòng ở hầu hết bảng, phải dời lên vị trí thứ 2 |
 | Chống bấm đúp | `form-guard.js` chưa kiểm thử trên trình duyệt thật (hộp xác nhận, form tải tệp) |
 | Tab, phân trang | Chưa có; danh sách hiện tải toàn bộ |
-| Toast, banner | Toast đã có (`ToastExtensions`, `_Toasts`, `toast.js`) và dùng ở Catalog, Locations, Purchasing, Suppliers, Profile. Còn banner lỗi viết tay ở nhiều trang (Catalog, Employees, Inventory, Purchasing, Profile): cần chuyển sang partial `_Notice` (đã có, chưa dùng); Inventory (lỗi và cảnh báo sau thao tác) chưa dùng toast |
+| Toast, banner | Toast đã dùng ở Catalog, Locations, Purchasing, Suppliers, Profile; banner lỗi dùng `_Notice` ở mọi trang. Còn lại: lỗi sau thao tác ở Inventory vẫn là banner (chưa chuyển sang toast); khung cảnh báo `charge-section` (Purchasing) và mã khôi phục 2FA (Profile) viết tay |
 | Banner | ~10 kiểu: `rounded-lg`/`rounded-xl`, chữ -700/-800, nơi là khối, nơi chỉ là dòng chữ |
-| Badge | Đã có `Formatting/BadgeTone.cs` (`Badge.Colors`) dùng cho Mua hàng và Kho. Còn badge viết tay: `Employees` (2FA bật, `rounded-md`), `Suppliers` (có yellow/orange), pill vai trò ở `_Layout`; cần chuyển sang helper |
+| Badge | Đã dùng `Badge` ở Mua hàng, Kho, Nhân sự, Nhà cung cấp, pill vai trò. Còn chip kho trong bảng tồn (`Inventory`) và bộ đếm nền sky-600 viết tay |
 
 ## Chờ chốt (chưa có hiệu lực)
 

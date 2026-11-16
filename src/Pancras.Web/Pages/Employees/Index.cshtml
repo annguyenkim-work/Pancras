@@ -1,4 +1,5 @@
 @page "/employees"
+@using Pancras.Web.Formatting
 @model Pancras.Web.Pages.Employees.IndexModel
 @using Pancras.Application.Common
 @using Pancras.Application.Employees
@@ -43,7 +44,7 @@
     </div>
     @if (!Model.ShowForm && !Model.ShowEdit && Model.Error != EmployeeError.None)
     {
-        <p class="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800" role="alert">@ErrorText(Model.Error)</p>
+        <div class="mt-4"><partial name="_Notice" model="new NoticeModel(ErrorText(Model.Error), ToastLevel.Error)" /></div>
     }
     <form method="get" action="/employees" data-live-filter class="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
         <input name="q" value="@Model.Search" type="search" placeholder="Tìm theo tên, mã hoặc email..." aria-label="Tìm kiếm nhân viên" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
@@ -121,18 +122,18 @@ else
                         </td>
                         <td class="px-3 py-3">
                             <div class="flex flex-wrap gap-1">
-                                <span class="rounded-md bg-sky-50 px-2 py-1 text-xs font-medium text-sky-700">@card.Role</span>
+                                <span class="@Badge.Classes(BadgeTone.Info)">@card.Role</span>
                                 @if (!card.IsActive)
                                 {
-                                    <span class="rounded-md bg-slate-200 px-2 py-1 text-xs font-medium text-slate-700">Đã vô hiệu hóa</span>
+                                    <span class="@Badge.Classes(BadgeTone.Neutral)">Đã vô hiệu hóa</span>
                                 }
                                 @if (Model.IsLocked(card))
                                 {
-                                    <span class="rounded-md bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800">Bị khóa tạm</span>
+                                    <span class="@Badge.Classes(BadgeTone.Warning)">Bị khóa tạm</span>
                                 }
                                 @if (card.TwoFactorEnabled)
                                 {
-                                    <span class="rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">2FA bật</span>
+                                    <span class="@Badge.Classes(BadgeTone.Success)">2FA bật</span>
                                 }
                             </div>
                         </td>

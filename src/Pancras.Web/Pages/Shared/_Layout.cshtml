@@ -121,7 +121,7 @@
             <div class="text-sm text-slate-500">PancrasERP / @ViewData["Title"]</div>
             <div class="flex items-center gap-3">
                 <a href="/profile" class="text-sm font-medium text-slate-800 hover:text-sky-700" title="Hồ sơ của tôi">@User.Identity?.Name</a>
-                <span class="px-2 py-1 text-xs font-bold rounded-full bg-sky-50 text-sky-700">@User.FindFirstValue(ClaimTypes.Role)</span>
+                <span class="@Pancras.Web.Formatting.Badge.Classes(Pancras.Web.Formatting.BadgeTone.Info)">@User.FindFirstValue(ClaimTypes.Role)</span>
                 <form method="post" asp-page="/Account/Logout">
                     <button type="submit" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Đăng xuất</button>
                 </form>

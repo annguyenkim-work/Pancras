@@ -36,4 +36,4 @@ public static class ToastExtensions
 }
 
 /// <summary>Dữ liệu cho partial <c>_Notice</c> (banner trong trang hoặc form).</summary>
-public sealed record NoticeModel(string Text, ToastLevel Level = ToastLevel.Error);
+public sealed record NoticeModel(string? Text, ToastLevel Level = ToastLevel.Error, IReadOnlyList<string>? Items = null, string? Id = null);
