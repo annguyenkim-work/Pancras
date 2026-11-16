@@ -252,6 +252,8 @@ public sealed class CreateDisposalSlipCommand
 
     public Guid CatalogItemId { get; set; }
 
+    public int Quantity { get; set; } = 1;
+
     public string? Reason { get; set; }
 
     public string? DocumentRef { get; set; }
@@ -337,7 +339,8 @@ public sealed record StocktakeRow(
     string Unit = "",
     bool CanApprove = false,
     AuditStampView? Stamp = null,
-    IReadOnlyList<TransferAttachmentView>? Files = null);
+    IReadOnlyList<TransferAttachmentView>? Files = null,
+    int Quantity = 1);
 
 public sealed record AdjustmentRow(
     Guid Id,
@@ -363,4 +366,5 @@ public sealed record DisposalRow(
     ApprovalStatus Status,
     bool CanApprove = false,
     AuditStampView? Stamp = null,
-    IReadOnlyList<TransferAttachmentView>? Files = null);
+    IReadOnlyList<TransferAttachmentView>? Files = null,
+    int Quantity = 1);

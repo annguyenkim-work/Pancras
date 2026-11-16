@@ -56,6 +56,44 @@ public class DisposalSlipHandlerTests
     }
 
     [Fact]
+    public async Task Approve_DropsTheWholeQuantity()
+    {
+        var store = Prepared(onHand: 5, reserved: 1);
+        var created = await CreateAsync(store, quantity: 3);
+
+        var result = await ApproveAsync(store, created.Value, EmployeeRole.ShowroomWarehouseLead);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, store.Balance.OnHand);
+        Assert.Equal(3, store.Disposals[0].Quantity);
+    }
+
+    [Fact]
+    public async Task Approve_RejectsAQuantityAboveTheAvailableStock()
+    {
+        var store = Prepared(onHand: 5, reserved: 3);
+        var created = await CreateAsync(store, quantity: 3);
+
+        var result = await ApproveAsync(store, created.Value, EmployeeRole.ShowroomWarehouseLead);
+
+        Assert.Equal(StockError.DisposalRejected, result.StockError);
+        Assert.Equal(5, store.Balance.OnHand);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-2)]
+    public async Task Create_RejectsAQuantityBelowOne(int quantity)
+    {
+        var store = Prepared(onHand: 5, reserved: 0);
+
+        var result = await CreateAsync(store, quantity);
+
+        Assert.Equal(StockError.InvalidQuantity, result.StockError);
+        Assert.Empty(store.Disposals);
+    }
+
+    [Fact]
     public async Task Approve_OtherRole_LeavesAvailableUnchanged()
     {
         var store = Prepared(onHand: 5, reserved: 0);
@@ -144,7 +182,7 @@ public class DisposalSlipHandlerTests
         Assert.Equal(StockNoticeKind.AdjustmentPending, notice.Kind);
     }
 
-    private static Task<Result<Guid>> CreateAsync(DisposalFixture store) =>
+    private static Task<Result<Guid>> CreateAsync(DisposalFixture store, int quantity = 1) =>
         new CreateDisposalSlipCommandHandler(
                 store.Store,
                 new ApproveDisposalSlipCommandHandler(store.Store, store.Employees, NullLogger<ApproveDisposalSlipCommandHandler>.Instance),
@@ -155,7 +193,8 @@ public class DisposalSlipHandlerTests
                 StockLocationId = store.Location.Id,
                 CatalogItemId = store.ItemId,
                 Reason = "Vỡ",
-                DocumentRef = "HH-01"
+                DocumentRef = "HH-01",
+                Quantity = quantity
             }, CancellationToken.None);
 
     private static Task<Result<Guid>> ApproveAsync(DisposalFixture store, Guid id, string role) =>

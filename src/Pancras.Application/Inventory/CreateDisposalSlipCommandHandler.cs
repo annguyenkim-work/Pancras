@@ -21,6 +21,7 @@ public sealed class CreateDisposalSlipCommandHandler(
         var decision = DisposalSlip.TryCreate(
             command.StockLocationId,
             command.CatalogItemId,
+            command.Quantity,
             command.Reason,
             command.DocumentRef,
             command.ImageRef,

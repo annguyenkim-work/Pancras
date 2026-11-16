@@ -207,7 +207,8 @@ public sealed class ListInventoryDocumentsHandler(
             slip.Status,
             slip.Status == ApprovalStatus.Pending && InventoryAccess.CanApprove(actor, slip.CreatedByRole, slip.StockLocationId),
             AuditStampView.From(slip),
-            files.GetValueOrDefault(slip.Id))).ToArray();
+            files.GetValueOrDefault(slip.Id),
+            slip.Quantity)).ToArray();
     }
 
     private async Task<Dictionary<Guid, IReadOnlyList<TransferAttachmentView>>> FilesAsync(IEnumerable<Guid> documentIds, CancellationToken cancellationToken)

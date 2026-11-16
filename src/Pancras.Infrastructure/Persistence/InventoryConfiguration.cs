@@ -163,6 +163,7 @@ public sealed class DisposalSlipConfiguration : IEntityTypeConfiguration<Disposa
         builder.HasKey(slip => slip.Id);
         builder.Property(slip => slip.StockLocationId).IsRequired();
         builder.Property(slip => slip.CatalogItemId).IsRequired();
+        builder.Property(slip => slip.Quantity).HasDefaultValue(1).IsRequired();
         builder.Property(slip => slip.Reason).HasMaxLength(StocktakeSheet.ReasonMaxLength).IsRequired();
         builder.Property(slip => slip.DocumentRef).HasMaxLength(StocktakeSheet.DocumentRefMaxLength).IsRequired();
         builder.Property(slip => slip.ImageRef).HasMaxLength(StocktakeSheet.ImageRefMaxLength).IsRequired();

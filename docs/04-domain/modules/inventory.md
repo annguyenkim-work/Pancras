@@ -61,7 +61,7 @@ Requested ──duyệt──▶ Approved ──xuất kho──▶ InTransit �
 | --- | --- | --- | --- |
 | Kiểm kê (`StocktakeSheet`) | Số sổ sách, số đếm; `Variance = đếm − sổ sách` | `Pending` → `Approved` (tài chính lập thì `Approved` ngay) | Khi duyệt: áp chênh lệch lên `OnHand` (cho phép khả dụng âm, không âm tồn thực) |
 | Điều chỉnh (`QuantityAdjustment`) | `Delta` ≠ 0 | `Pending` → `Approved`; hoặc `Recorded` (tự sinh khi nhận lệch) | Khi duyệt: cộng/trừ `OnHand`, không xuống dưới `Reserved` |
-| Hủy (`DisposalSlip`) | Một mặt hàng tại một kho | `Pending` → `Approved` | Khi duyệt: **trừ đúng 1 đơn vị** (xem nợ) |
+| Hủy (`DisposalSlip`) | Một mặt hàng tại một kho | `Pending` → `Approved` | Khi duyệt: **trừ đúng số lượng trên phiếu** (từ 1, không vượt tồn khả dụng) |
 
 - Chênh lệch kiểm kê và mọi điều chỉnh/hủy **bắt buộc lý do và chứng từ** (số chứng từ hoặc ảnh).
 - Tài chính ghi thẳng (không qua duyệt). Thủ kho và Trưởng kho lập phiếu chờ duyệt; người duyệt xem [roles-and-permissions.md](../roles-and-permissions.md) mục 3.
@@ -85,14 +85,13 @@ Requested ──duyệt──▶ Approved ──xuất kho──▶ InTransit �
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| **Phiếu hủy chưa có số lượng** | Bạn chốt phiếu hủy phải có số lượng. Code hiện trừ đúng 1 (`StockBalance.TryDisposeOne`), `DisposalSlip` không có `Quantity`. Cần thêm cột, kiểm ≤ khả dụng, migration, form, test |
 | `StockMovement` đủ chứng từ | Cần rà từng chứng từ (kiểm kê, điều chỉnh, hủy, nhận lệch, trả hàng) đều ghi dòng `StockMovement` đúng loại; hiện chỉ có 4 loại `Receipt/Issue/Transfer/Adjustment` |
 | Enum `Draft` | Còn trong `TransferStatus` dù không dùng |
 | Tệp lớn | `Pages/Inventory/Index.cshtml` hơn 1.000 dòng, 16 `onclick` inline |
 
 ## Chờ chốt (chưa có hiệu lực)
 
-- Phiếu hủy thêm số lượng: quy tắc kiểm và cách hiển thị (xem nợ).
+- Phiếu hủy có số lượng: đang kiểm số lượng ≥ 1 lúc lập và ≤ tồn khả dụng lúc duyệt (suy ra từ quy tắc cũ "trừ 1"); chủ dự án xác nhận hoặc đổi (ví dụ kiểm cả lúc lập, hạn mức).
 - Giữ chỗ cho nguồn khác ngoài phiếu chuyển (ví dụ đơn bán khi có module Bán hàng) dùng chung cột `Reserved`.
 - Duyệt theo ngưỡng giá trị/số lượng; người duyệt thay thế khi Trưởng kho vắng (hiện chỉ có tài chính thay).
 - Thông tin vận chuyển (người vận chuyển, số seal), phiếu giao in được.

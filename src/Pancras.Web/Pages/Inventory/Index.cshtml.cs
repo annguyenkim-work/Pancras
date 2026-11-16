@@ -534,6 +534,7 @@ public class IndexModel(
                     Actor = Actor,
                     StockLocationId = Disposal.StockLocationId,
                     CatalogItemId = Disposal.CatalogItemId,
+                    Quantity = Disposal.Quantity,
                     Reason = Disposal.Reason,
                     DocumentRef = Disposal.DocumentRef
                 },
@@ -1003,6 +1004,8 @@ public sealed class DisposalInput
     public Guid StockLocationId { get; set; }
 
     public Guid CatalogItemId { get; set; }
+
+    public int Quantity { get; set; } = 1;
 
     public string? Reason { get; set; }
 
