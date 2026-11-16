@@ -79,9 +79,17 @@ public class IndexModel(
 
     public bool HasSearch => Filter.HasCriteria;
 
-    private SupplierListFilter Filter => SupplierListFilter.From(Search, StatusFilter, Country);
+    private SupplierListFilter Filter => SupplierListFilter.From(Search, StatusFilter, Country, SortToken);
 
     public string FilteredListUrl => BuildUrl(CardPage.PageNumber);
+
+    [BindProperty(SupportsGet = true, Name = "sort")]
+    public string? SortToken { get; set; }
+
+    public Pancras.Application.Common.ListSort Sort => SupplierOrdering.Parse(SortToken);
+
+    /// <summary>Địa chỉ khi bấm tiêu đề cột: đổi cột hoặc đảo chiều, về trang 1.</summary>
+    public string SortUrl(string key) => BuildUrl(1, sortToken: Sort.Toggle(key).Token);
 
     public int RequestedSize => Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
 
@@ -311,7 +319,7 @@ public class IndexModel(
         Countries = await listHandler.ListCountriesAsync(Actor, cancellationToken);
     }
 
-    private string BuildUrl(int page, Guid? edit = null, Guid? stopId = null, bool add = false, int? size = null)
+    private string BuildUrl(int page, Guid? edit = null, Guid? stopId = null, bool add = false, int? size = null, string? sortToken = null)
     {
         var filter = Filter;
         var parts = new List<string>();
@@ -347,6 +355,12 @@ public class IndexModel(
         if (filter.Country is not null)
         {
             parts.Add("country=" + Uri.EscapeDataString(filter.Country));
+        }
+
+        var order = SupplierOrdering.Parse(sortToken ?? SortToken);
+        if (order != SupplierOrdering.Parse(null))
+        {
+            parts.Add("sort=" + order.Token);
         }
 
         var pageSize = size ?? RequestedSize;

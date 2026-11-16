@@ -52,10 +52,12 @@ public enum SupplierStatusFilter
     All = 2
 }
 
-public sealed record SupplierListFilter(string? Term, SupplierStatusFilter Status = SupplierStatusFilter.Active, string? Country = null)
+public sealed record SupplierListFilter(string? Term, SupplierStatusFilter Status = SupplierStatusFilter.Active, string? Country = null, Pancras.Application.Common.ListSort? Sort = null)
 {
-    public static SupplierListFilter From(string? term, SupplierStatusFilter status = SupplierStatusFilter.Active, string? country = null) =>
-        new(Normalize(term), Enum.IsDefined(status) ? status : SupplierStatusFilter.Active, Normalize(country));
+    public Pancras.Application.Common.ListSort Order => Sort ?? SupplierOrdering.Parse(null);
+
+    public static SupplierListFilter From(string? term, SupplierStatusFilter status = SupplierStatusFilter.Active, string? country = null, string? sort = null) =>
+        new(Normalize(term), Enum.IsDefined(status) ? status : SupplierStatusFilter.Active, Normalize(country), SupplierOrdering.Parse(sort));
 
     public bool HasCriteria => Term is not null || Status != SupplierStatusFilter.Active || Country is not null;
 

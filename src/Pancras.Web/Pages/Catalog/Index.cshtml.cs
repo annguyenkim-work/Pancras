@@ -82,6 +82,14 @@ public class IndexModel(
 
     public string FilteredListUrl => BuildUrl(ItemPage.PageNumber);
 
+    [BindProperty(SupportsGet = true, Name = "sort")]
+    public string? SortToken { get; set; }
+
+    public Pancras.Application.Common.ListSort Sort => CatalogOrdering.Parse(SortToken);
+
+    /// <summary>Địa chỉ khi bấm tiêu đề cột: đổi cột hoặc đảo chiều, về trang 1.</summary>
+    public string SortUrl(string key) => BuildUrl(1, sortToken: Sort.Toggle(key).Token);
+
     public int RequestedSize => Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
 
     public Pancras.Web.Formatting.PagerModel Pager => new(ItemPage.PageNumber, ItemPage.PageSize, ItemPage.TotalCount, (page, size) => BuildUrl(page, size: size));
@@ -343,7 +351,7 @@ public class IndexModel(
         ErrorMessages = messages;
     }
 
-    private CatalogListFilter CurrentFilter() => CatalogListFilter.From(CategoryToken, Search, StatusToken);
+    private CatalogListFilter CurrentFilter() => CatalogListFilter.From(CategoryToken, Search, StatusToken, SortToken);
 
     private void ReadPage()
     {
@@ -374,7 +382,7 @@ public class IndexModel(
         ErrorMessages = CatalogErrorMessages.Describe(error, issues, code);
     }
 
-    private string BuildUrl(int page, Guid? detailId = null, Guid? priceId = null, bool add = false, int? size = null)
+    private string BuildUrl(int page, Guid? detailId = null, Guid? priceId = null, bool add = false, int? size = null, string? sortToken = null)
     {
         var parts = new List<string>();
         if (detailId is Guid detail)
@@ -393,6 +401,12 @@ public class IndexModel(
         }
 
         parts.AddRange(FilterParts());
+        var order = CatalogOrdering.Parse(sortToken ?? SortToken);
+        if (order != CatalogOrdering.Parse(null))
+        {
+            parts.Add("sort=" + order.Token);
+        }
+
         var pageSize = size ?? RequestedSize;
         if (pageSize != Pancras.Application.Common.PageSizes.Default)
         {

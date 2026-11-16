@@ -125,6 +125,24 @@ public class SupplierPageTests : IClassFixture<PancrasWebFactory>
         Assert.Contains("Active", inactive, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Directory_HasSortableHeaders_StickyFirstColumn_AndActionsInTheSecondColumn()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        Seed(EmployeeRole.Admin);
+        await SignInAsync(client);
+
+        var html = WebUtility.HtmlDecode(await (await client.GetAsync("/suppliers")).Content.ReadAsStringAsync());
+        var sorted = WebUtility.HtmlDecode(await (await client.GetAsync("/suppliers?sort=-country")).Content.ReadAsStringAsync());
+
+        Assert.Contains("sort=-name", html, StringComparison.Ordinal);
+        Assert.Contains("sort=code", html, StringComparison.Ordinal);
+        Assert.Contains("sort=country", html, StringComparison.Ordinal);
+        Assert.Contains("sticky left-0", html, StringComparison.Ordinal);
+        Assert.True(html.IndexOf("Thao tác", StringComparison.Ordinal) < html.IndexOf("Liên hệ", StringComparison.Ordinal));
+        Assert.Contains("▼", sorted, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData(EmployeeRole.WarehouseKeeper)]
     [InlineData(EmployeeRole.ShowroomWarehouseLead)]

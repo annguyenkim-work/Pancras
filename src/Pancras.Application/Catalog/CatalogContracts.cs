@@ -132,8 +132,11 @@ public sealed record CatalogListFilter(
     ProductCategory? Category,
     bool CategoryRejected,
     string? Term,
-    CatalogStatusFilter Status = CatalogStatusFilter.Active)
+    CatalogStatusFilter Status = CatalogStatusFilter.Active,
+    Pancras.Application.Common.ListSort? Sort = null)
 {
+    public Pancras.Application.Common.ListSort Order => Sort ?? CatalogOrdering.Parse(null);
+
     public static CatalogStatusFilter ParseStatus(string? token) => token?.Trim().ToLowerInvariant() switch
     {
         "disabled" => CatalogStatusFilter.Disabled,
@@ -141,21 +144,22 @@ public sealed record CatalogListFilter(
         _ => CatalogStatusFilter.Active
     };
 
-    public static CatalogListFilter From(string? categoryToken, string? term, string? statusToken = null)
+    public static CatalogListFilter From(string? categoryToken, string? term, string? statusToken = null, string? sortToken = null)
     {
         var normalizedTerm = Normalize(term);
         var status = ParseStatus(statusToken);
+        var sort = CatalogOrdering.Parse(sortToken);
         if (string.IsNullOrWhiteSpace(categoryToken))
         {
-            return new CatalogListFilter(null, false, normalizedTerm, status);
+            return new CatalogListFilter(null, false, normalizedTerm, status, sort);
         }
 
         if (ProductCategoryToken.TryParse(categoryToken, out var category))
         {
-            return new CatalogListFilter(category, false, normalizedTerm, status);
+            return new CatalogListFilter(category, false, normalizedTerm, status, sort);
         }
 
-        return new CatalogListFilter(null, true, normalizedTerm, status);
+        return new CatalogListFilter(null, true, normalizedTerm, status, sort);
     }
 
     public bool Matches(CatalogItem item)

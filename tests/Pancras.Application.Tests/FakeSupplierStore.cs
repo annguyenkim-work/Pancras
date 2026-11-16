@@ -32,7 +32,7 @@ internal sealed class FakeSupplierRepository : ISupplierRepository
         int pageSize,
         CancellationToken cancellationToken)
     {
-        var ordered = Filtered(filter);
+        var ordered = SupplierOrdering.Apply(Filtered(filter).AsQueryable(), filter.Order).ToList();
         var size = pageSize < 1 ? SupplierPageRequest.DefaultSize : pageSize;
         var totalPages = ordered.Count == 0 ? 1 : (ordered.Count + size - 1) / size;
         var number = Math.Clamp(pageNumber < 1 ? 1 : pageNumber, 1, totalPages);

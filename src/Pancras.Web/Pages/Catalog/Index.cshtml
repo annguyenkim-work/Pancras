@@ -89,47 +89,25 @@ else
         <table class="min-w-full whitespace-nowrap text-xs">
             <thead class="bg-slate-50 text-left text-slate-500">
                 <tr>
+                    <th class="sticky left-0 z-10 bg-slate-50 px-3 py-3 font-medium"><partial name="_SortHeader" model='new SortHeaderModel("Mã", Model.SortUrl("code"), Model.Sort.Key == "code", Model.Sort.Descending)' /></th>
+                    <th class="px-3 py-3 font-medium"></th>
                     <th class="px-3 py-3 font-medium">Ảnh</th>
-                    <th class="px-3 py-3 font-medium">Mã</th>
-                    <th class="px-3 py-3 font-medium">Tên</th>
+                    <th class="px-3 py-3 font-medium"><partial name="_SortHeader" model='new SortHeaderModel("Tên", Model.SortUrl("name"), Model.Sort.Key == "name", Model.Sort.Descending)' /></th>
                     <th class="px-3 py-3 font-medium">Ngành</th>
-                    <th class="px-3 py-3 font-medium">Thương hiệu</th>
+                    <th class="px-3 py-3 font-medium"><partial name="_SortHeader" model='new SortHeaderModel("Thương hiệu", Model.SortUrl("brand"), Model.Sort.Key == "brand", Model.Sort.Descending)' /></th>
                     <th class="px-3 py-3 font-medium">Đơn vị</th>
                     <th class="px-3 py-3 font-medium text-right">Giá vốn</th>
                     <th class="px-3 py-3 font-medium text-right">Giá lẻ</th>
                     <th class="px-3 py-3 font-medium text-right">Giá đại lý</th>
                     <th class="px-3 py-3 font-medium text-right">Giá nhà phân phối</th>
                     <th class="px-3 py-3 font-medium text-right">Giá dự án</th>
-                    <th class="px-3 py-3 font-medium"></th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var row in Model.Rows)
                 {
-                    <tr class="border-t border-slate-100 hover:bg-slate-50">
-                        <td class="px-3 py-3">
-                            @{
-                                var imageUrl = CatalogImageStore.PublicUrl(row.ImagePath);
-                            }
-                            @if (imageUrl is null)
-                            {
-                                <span class="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-slate-400">—</span>
-                            }
-                            else
-                            {
-                                <img src="@imageUrl" alt="@row.Name" class="h-12 w-12 rounded-lg object-cover" />
-                            }
-                        </td>
-                        <td class="px-3 py-3 font-mono text-slate-700">@row.Code</td>
-                        <td class="px-3 py-3 font-medium text-slate-900">@row.Name@if (!row.IsActive) { <span class="ml-2 @Badge.Classes(BadgeTone.Neutral)">Disabled</span> }<partial name="_AuditStamp" model="row.Stamp" /></td>
-                        <td class="px-3 py-3 text-slate-700">@CatalogLabels.Category(row.Category)</td>
-                        <td class="px-3 py-3 text-slate-700">@CatalogLabels.Text(row.Brand)</td>
-                        <td class="px-3 py-3 text-slate-700">@CatalogLabels.Text(row.Unit)</td>
-                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.FormatDong(row.CostPrice)</td>
-                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.FormatDong(row.RetailPrice)</td>
-                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.FormatDong(row.DealerPrice)</td>
-                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.FormatDong(row.DistributorPrice)</td>
-                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.FormatDong(row.ProjectPrice)</td>
+                    <tr class="group border-t border-slate-100 hover:bg-slate-50">
+                        <td class="sticky left-0 z-10 bg-white px-3 py-3 font-mono text-slate-700 group-hover:bg-slate-50">@row.Code</td>
                         <td class="px-3 py-3 text-right whitespace-nowrap">
                             <a href="@Model.DetailUrl(row.Id)" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Chi tiết</a>
                             <a href="@Model.PriceUrl(row.Id)" class="ml-2 px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Sửa</a>
@@ -143,6 +121,28 @@ else
                                 </form>
                             }
                         </td>
+                        <td class="px-3 py-3">
+                            @{
+                                var imageUrl = CatalogImageStore.PublicUrl(row.ImagePath);
+                            }
+                            @if (imageUrl is null)
+                            {
+                                <span class="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-slate-400">—</span>
+                            }
+                            else
+                            {
+                                <img src="@imageUrl" alt="@row.Name" class="h-12 w-12 rounded-lg object-cover" />
+                            }
+                        </td>
+                        <td class="px-3 py-3 font-medium text-slate-900">@row.Name@if (!row.IsActive) { <span class="ml-2 @Badge.Classes(BadgeTone.Neutral)">Disabled</span> }<partial name="_AuditStamp" model="row.Stamp" /></td>
+                        <td class="px-3 py-3 text-slate-700">@CatalogLabels.Category(row.Category)</td>
+                        <td class="px-3 py-3 text-slate-700">@CatalogLabels.Text(row.Brand)</td>
+                        <td class="px-3 py-3 text-slate-700">@CatalogLabels.Text(row.Unit)</td>
+                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.FormatDong(row.CostPrice)</td>
+                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.FormatDong(row.RetailPrice)</td>
+                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.FormatDong(row.DealerPrice)</td>
+                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.FormatDong(row.DistributorPrice)</td>
+                        <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.FormatDong(row.ProjectPrice)</td>
                     </tr>
                 }
             </tbody>

@@ -57,8 +57,12 @@ else
         <table class="w-full min-w-[56rem] text-left text-sm">
             <thead class="bg-slate-50 text-xs tracking-wide text-slate-500">
                 <tr>
-                    <th class="px-3 py-3 font-semibold">Nhà cung cấp</th>
-                    <th class="px-3 py-3 font-semibold">Quốc gia</th>
+                    <th class="sticky left-0 z-10 bg-slate-50 px-3 py-3 font-semibold"><partial name="_SortHeader" model='new SortHeaderModel("Nhà cung cấp", Model.SortUrl("name"), Model.Sort.Key == "name", Model.Sort.Descending)' /> <span class="font-normal">(<partial name="_SortHeader" model='new SortHeaderModel("mã", Model.SortUrl("code"), Model.Sort.Key == "code", Model.Sort.Descending)' />)</span></th>
+                    @if (Model.CanManage)
+                    {
+                        <th class="px-3 py-3 text-right font-semibold">Thao tác</th>
+                    }
+                    <th class="px-3 py-3 font-semibold"><partial name="_SortHeader" model='new SortHeaderModel("Quốc gia", Model.SortUrl("country"), Model.Sort.Key == "country", Model.Sort.Descending)' /></th>
                     <th class="px-3 py-3 font-semibold">Liên hệ</th>
                     @if (Model.CanViewBank)
                     {
@@ -66,17 +70,13 @@ else
                     }
                     <th class="px-3 py-3 font-semibold">Đơn mua</th>
                     <th class="px-3 py-3 font-semibold">Dấu vết</th>
-                    @if (Model.CanManage)
-                    {
-                        <th class="px-3 py-3 text-right font-semibold">Thao tác</th>
-                    }
                 </tr>
             </thead>
             <tbody>
                 @foreach (var card in Model.Cards)
                 {
-                    <tr class="border-t border-slate-100 align-top hover:bg-slate-50 @(!card.IsActive ? "text-slate-500" : string.Empty)">
-                        <td class="px-3 py-3">
+                    <tr class="group border-t border-slate-100 align-top hover:bg-slate-50 @(!card.IsActive ? "text-slate-500" : string.Empty)">
+                        <td class="sticky left-0 z-10 bg-white px-3 py-3 group-hover:bg-slate-50">
                             <p class="font-bold @(!card.IsActive ? "text-slate-600" : "text-slate-900")">@card.Name</p>
                             <p class="mt-0.5 font-mono text-xs tracking-wide text-slate-500">@card.Code</p>
                             @if (!card.IsActive)
@@ -84,6 +84,38 @@ else
                                 <span class="mt-1 inline-block @Badge.Classes(BadgeTone.Neutral)">Disabled</span>
                             }
                         </td>
+                        @if (Model.CanManage)
+                        {
+                            <td class="px-3 py-3">
+                                <div class="flex items-center justify-end gap-2">
+                                    @if (!card.IsActive)
+                                    {
+                                        @if (Model.CanReactivate)
+                                        {
+                                            <form method="post" asp-page-handler="Reactivate" asp-route-id="@card.Id">
+                                                <input type="hidden" name="q" value="@Model.Search" />
+                                                <input type="hidden" name="status" value="@Model.Status" />
+                                                <input type="hidden" name="country" value="@Model.Country" />
+                                                <input type="hidden" name="page" value="@Model.CardPage.PageNumber" />
+                                                <button type="submit" class="px-3 py-1.5 text-sm font-bold rounded-lg bg-slate-100 text-slate-700">Active</button>
+                                            </form>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <a href="@Model.EditUrl(card.Id)" class="px-3 py-1.5 text-sm font-bold rounded-lg bg-slate-100 text-slate-700">Sửa</a>
+                                        @if (card.LotsNotReceived > 0)
+                                        {
+                                            <button type="button" disabled class="px-3 py-1.5 text-sm font-medium rounded-lg text-slate-400 cursor-not-allowed" title="Còn @card.LotsNotReceived lô chưa nhập kho. Nhập kho hoặc xử lý các đơn đó trước khi Disable.">Disable</button>
+                                        }
+                                        else
+                                        {
+                                            <a href="@Model.StopUrl(card.Id)" class="px-3 py-1.5 text-sm font-medium rounded-lg text-rose-700 hover:bg-rose-50">Disable</a>
+                                        }
+                                    }
+                                </div>
+                            </td>
+                        }
                         <td class="px-3 py-3"><span class="@Badge.Classes(BadgeTone.Neutral)">@card.Country</span></td>
                         <td class="px-3 py-3">
                             <p class="text-slate-800">@card.ContactName</p>
@@ -123,38 +155,6 @@ else
                             }
                         </td>
                         <td class="px-3 py-3"><partial name="_AuditStamp" model="card.Stamp" /></td>
-                        @if (Model.CanManage)
-                        {
-                            <td class="px-3 py-3">
-                                <div class="flex items-center justify-end gap-2">
-                                    @if (!card.IsActive)
-                                    {
-                                        @if (Model.CanReactivate)
-                                        {
-                                            <form method="post" asp-page-handler="Reactivate" asp-route-id="@card.Id">
-                                                <input type="hidden" name="q" value="@Model.Search" />
-                                                <input type="hidden" name="status" value="@Model.Status" />
-                                                <input type="hidden" name="country" value="@Model.Country" />
-                                                <input type="hidden" name="page" value="@Model.CardPage.PageNumber" />
-                                                <button type="submit" class="px-3 py-1.5 text-sm font-bold rounded-lg bg-slate-100 text-slate-700">Active</button>
-                                            </form>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        <a href="@Model.EditUrl(card.Id)" class="px-3 py-1.5 text-sm font-bold rounded-lg bg-slate-100 text-slate-700">Sửa</a>
-                                        @if (card.LotsNotReceived > 0)
-                                        {
-                                            <button type="button" disabled class="px-3 py-1.5 text-sm font-medium rounded-lg text-slate-400 cursor-not-allowed" title="Còn @card.LotsNotReceived lô chưa nhập kho. Nhập kho hoặc xử lý các đơn đó trước khi Disable.">Disable</button>
-                                        }
-                                        else
-                                        {
-                                            <a href="@Model.StopUrl(card.Id)" class="px-3 py-1.5 text-sm font-medium rounded-lg text-rose-700 hover:bg-rose-50">Disable</a>
-                                        }
-                                    }
-                                </div>
-                            </td>
-                        }
                     </tr>
                 }
             </tbody>

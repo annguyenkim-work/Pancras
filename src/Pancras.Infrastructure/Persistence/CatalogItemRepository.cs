@@ -18,7 +18,7 @@ public sealed class CatalogItemRepository(PancrasDbContext context) : ICatalogIt
             return new CatalogSlice([], 0, 1);
         }
 
-        var ordered = Filtered(filter).OrderBy(item => item.Name).ThenBy(item => item.Code);
+        var ordered = CatalogOrdering.Apply(Filtered(filter), filter.Order);
         var total = await ordered.CountAsync(cancellationToken);
         var size = pageSize < 1 ? CatalogPageRequest.DefaultSize : pageSize;
         var totalPages = total == 0 ? 1 : (total + size - 1) / size;

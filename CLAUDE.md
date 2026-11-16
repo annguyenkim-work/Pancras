@@ -26,6 +26,7 @@ dotnet ef migrations add <Name> --project src/Pancras.Infrastructure --startup-p
 ## Luật cứng
 
 - **Không bịa luật nghiệp vụ.** Mục "Chờ chốt" trong docs là việc của chủ dự án: hỏi, đừng đoán. Quyết định chốt thì ghi vào docs ([quy trình](docs/05-process/new-module-checklist.md), [quy tắc cho AI](docs/05-process/working-with-ai.md)).
+- **Thứ tự làm:** docs → viết test (đỏ đúng lý do) → implement → chạy test, báo cáo trong chat → sửa lỗi tối đa 3 lần rồi dừng hỏi chủ dự án ([checklist](docs/05-process/new-module-checklist.md)).
 - Phân tầng: Domain ← Application ← Infrastructure ← Web; Web không gọi Infrastructure ngoài `Program.cs`. Lỗi nghiệp vụ trả bằng `Result`, không exception ([layering](docs/02-coding-rules/layering-and-dependencies.md), [use case](docs/02-coding-rules/use-cases-and-results.md)).
 - Quyền kiểm ở cả UI (`CanX`) và handler; dữ liệu nhạy cảm không đưa vào HTML khi thiếu quyền.
 - Không để mật khẩu, chuỗi kết nối, token trong mã nguồn, docs, test hay lệnh. Không seed tài khoản.

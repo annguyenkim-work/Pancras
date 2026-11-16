@@ -49,9 +49,7 @@ public sealed class SupplierRepository(PancrasDbContext context) : ISupplierRepo
                 || EF.Functions.ILike(supplier.Country, pattern));
         }
 
-        var ordered = suppliers
-            .OrderBy(supplier => supplier.Name)
-            .ThenBy(supplier => supplier.Code);
+        var ordered = SupplierOrdering.Apply(suppliers, filter.Order);
         var total = await ordered.CountAsync(cancellationToken);
         var size = pageSize < 1 ? SupplierPageRequest.DefaultSize : pageSize;
         var totalPages = total == 0 ? 1 : (total + size - 1) / size;
