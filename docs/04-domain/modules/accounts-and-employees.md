@@ -67,7 +67,7 @@ Ghi `IAuditLog` (mã hành động dạng `nhóm.sự_kiện`, hiển thị ti�
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| `Version` | Form sửa gửi `Version`, handler từ chối bằng `EmployeeError.VersionConflict`; hai lần lưu chồng nhau thật sự hiện trang 409 chung |
+| `Version` | Form sửa gửi `Version`, handler từ chối bằng `EmployeeError.VersionConflict`; hai lần lưu chồng nhau thật sự (kể cả khi Disable/Active) cũng trả `VersionConflict` |
 
 ## Chờ chốt (chưa có hiệu lực)
 

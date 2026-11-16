@@ -49,7 +49,7 @@ Phạm vi:
 | --- | --- | --- | --- | --- |
 | Tra cứu tồn (mọi kho) | Có | Có | Có | Có (chỉ số lượng) |
 | Thấy giá vốn | Có | Không | Không | Không |
-| Xuất Excel tồn kho | Có | Kho mình | Không | Không |
+| Xuất CSV tồn kho | Có | Kho mình | Không | Không |
 | Lập phiếu đề nghị chuyển kho | Có | Kho xuất hoặc kho nhận là kho mình | Như Trưởng kho | Không |
 | Kiểm kê | Ghi thẳng | Lập, chờ duyệt (kho mình) | Lập, chờ duyệt (kho mình) | Không |
 | Lập phiếu điều chỉnh | Ghi thẳng | Lập, chờ duyệt (kho mình) | Lập, chờ duyệt (kho mình) | Không |
@@ -106,9 +106,8 @@ Khớp với `EmployeeAccess`, `SupplierAccess`, `LocationAccess`, `CatalogAcces
 
 | Mục | Hiện trạng |
 | --- | --- |
-| Nhật ký `/audit` | Menu chỉ hiện cho Admin, Giám đốc nhưng chưa có lớp `AuditAccess`; so vai trò viết tay ở `_Layout` |
 | Hồ sơ nhân viên tại kho | Việc Trưởng kho chỉ tạo Thủ kho/Sales vào kho mình đã có trong `EmployeeAccess`; cần test cho ranh giới |
-| Admin xuất Excel | `CanExport` đang cho tài chính và Trưởng kho (kho mình), khớp bảng; Thủ kho không |
+| Xuất CSV tồn kho | `CanExport` đang cho tài chính và Trưởng kho (kho mình), khớp bảng; Thủ kho không |
 
 ## Chờ chốt (chưa có hiệu lực)
 

@@ -49,7 +49,7 @@
 | --- | --- |
 | Rà phạm vi theo kho | Chưa rà từng handler xem đã kiểm Id thuộc phạm vi actor chưa (kho, phiếu, đơn); cần danh sách kiểm tra và test cho từng module |
 | Tải tệp | Giới hạn 12 MB request chưa thử bằng tệp lớn thật; tải về: kiểm lại header `Content-Disposition`; tệp mồ côi khi xóa chứng từ lỗi chưa có việc dọn định kỳ |
-| Giới hạn tốc độ | Có policy `login` (120 lượt/phút/IP) và `sensitive` (30 lượt/phút/người dùng, cấu hình `RateLimiting:SensitivePerMinute`) cho trang hồ sơ (đổi mật khẩu, 2FA). Chưa áp cho Admin đặt lại mật khẩu nhân viên |
+| Giới hạn tốc độ | Có policy `login` (120 lượt/phút/IP) và `sensitive` (30 lượt/phút/người dùng, cấu hình `RateLimiting:SensitivePerMinute`) cho trang hồ sơ (đổi mật khẩu, 2FA). Policy `sensitive-post` (cùng hạn mức) áp cho mọi yêu cầu POST ở trang Nhân viên (tạo, sửa, đặt lại mật khẩu, Disable/Active, mở khóa, reset 2FA); xem danh sách không bị giới hạn |
 
 ## Chờ chốt (chưa có hiệu lực)
 

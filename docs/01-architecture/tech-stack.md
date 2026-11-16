@@ -46,7 +46,7 @@
 
 | Thứ | Hiện trạng | Quyết định |
 | --- | --- | --- |
-| Excel | Xuất "Excel" thực ra là CSV | Giữ CSV; xem Chờ chốt |
+| Xuất file | Xuất dữ liệu là CSV, nhãn nút "Xuất CSV" | Giữ CSV, không thêm thư viện xlsx (đã chốt 2026-11-16) |
 
 ## Nợ lệch so với quy định
 

@@ -515,6 +515,9 @@ internal sealed class FakeEmployeeRepository : IEmployeeRepository
     public Task SaveChangesAsync(CancellationToken cancellationToken) =>
         Task.CompletedTask;
 
+    public Task<Pancras.Application.Common.SaveOutcome> TrySaveChangesAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(Pancras.Application.Common.SaveOutcome.Saved);
+
     public Task<T> WithinPersonnelRulesAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken) =>
         action(cancellationToken);
 }

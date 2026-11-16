@@ -48,7 +48,7 @@ public sealed class ListStockBalancesHandler(
         {
             return [];
         }
-        // Tra cứu tồn: mọi vai trò xem kho thấy mọi kho (giá vốn vẫn ẩn). Chỉ file xuất Excel giữ theo kho của mình.
+        // Tra cứu tồn: mọi vai trò xem kho thấy mọi kho (giá vốn vẫn ẩn). Chỉ file xuất CSV giữ theo kho của mình.
         var scoped = filter;
         if (limitToOwnLocation && InventoryAccess.Scope(actor) is Guid scope)
         {

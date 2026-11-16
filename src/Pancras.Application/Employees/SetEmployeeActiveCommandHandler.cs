@@ -74,7 +74,11 @@ public sealed class SetEmployeeActiveCommandHandler(
             employee.Deactivate();
         }
 
-        await repository.SaveChangesAsync(cancellationToken);
+        if (await repository.TrySaveChangesAsync(cancellationToken) == SaveOutcome.Conflict)
+        {
+            return Result<EmployeeProfile, EmployeeError>.Fail(EmployeeError.VersionConflict);
+        }
+
         logger.LogInformation("Set employee {EmployeeId} active={Active}.", employee.Id, active);
         return Result<EmployeeProfile, EmployeeError>.Ok(EmployeeMapping.ToProfile(employee));
     }

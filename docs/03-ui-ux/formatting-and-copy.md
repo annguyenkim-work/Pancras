@@ -18,7 +18,7 @@ Nguồn code: `src/Pancras.Web/Formatting/` (`VndMoney.cs`, `StockCsv.cs`, `Cata
 - Tỷ giá: `25.400 VNĐ / USD`.
 - Cột tiền trong bảng căn phải, `font-mono tabular-nums`.
 - Ô nhập tiền (`data-vnd`): nhận số thô khi sửa, hiện số nhóm khi rời ô. Server làm sạch dấu nhóm rồi đọc bằng `InvariantCulture`.
-- Xuất CSV/Excel: số thuần `InvariantCulture`, không hậu tố, không dấu nhóm.
+- Xuất CSV: số thuần `InvariantCulture`, không hậu tố, không dấu nhóm.
 
 > **Đảo quy tắc cũ (đã xác nhận):** CLAUDE.md và spec 005 ghi `đ` và cấm `VND/VNĐ`. Quy tắc mới là `VNĐ`; hàm `FormatDong`, các test liên quan và mọi chỗ đang hiện `đ` phải đổi theo (xem "Nợ lệch"). Khi viết lại CLAUDE.md và glossary, bỏ dòng cấm `VND/VNĐ`.
 

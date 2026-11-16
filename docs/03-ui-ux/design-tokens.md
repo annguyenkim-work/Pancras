@@ -14,7 +14,7 @@ Sáu họ màu Tailwind. Mỗi họ có một vai trò; không dùng màu khác 
 | --- | --- | --- |
 | slate | Nền, chữ, viền, nút phụ | nền app `bg-slate-100`, thẻ `bg-white border-slate-200`, sidebar `bg-slate-900`, chữ `text-slate-900/700/500`, nút phụ `bg-slate-100 text-slate-700` |
 | sky | Hành động chính, mục đang chọn, liên kết/nhấn | nút chính `bg-sky-600 text-white`, mục menu chọn, thẻ vai trò `bg-sky-50 text-sky-700` |
-| emerald | Thành công, hoàn tất, xuất Excel | `bg-emerald-50`, nút xác nhận `bg-emerald-600` |
+| emerald | Thành công, hoàn tất, xuất CSV | `bg-emerald-50`, nút xác nhận `bg-emerald-600` |
 | rose | Lỗi, nguy hiểm, hủy/xóa | `text-rose-700`, nút nguy hiểm `bg-rose-600`, nền lỗi `bg-rose-50` |
 | amber | Cảnh báo, chờ xử lý | `bg-amber-50`, `bg-amber-100` |
 | violet | **Phân loại đối tượng**, không phải trạng thái | Hiện dùng cho nút "Kiểm kê" (Inventory) và thẻ "Showroom" (Locations) |

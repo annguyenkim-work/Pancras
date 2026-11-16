@@ -168,7 +168,12 @@ public sealed class UpdateEmployeeCommandHandler(
             return UpdateOutcome.Fail(EmployeeError.ProfileIncomplete);
         }
 
-        await repository.SaveChangesAsync(cancellationToken);
+        if (await repository.TrySaveChangesAsync(cancellationToken) == SaveOutcome.Conflict)
+        {
+            logger.LogInformation("Concurrent edit rejected for employee {EmployeeId}.", employee.Id);
+            return UpdateOutcome.Fail(EmployeeError.VersionConflict);
+        }
+
         logger.LogInformation("Updated employee {EmployeeId} by {ActorId}.", employee.Id, actor.Id);
         var employeeId = employee.Id.ToString("D");
         var action = assignmentChanged

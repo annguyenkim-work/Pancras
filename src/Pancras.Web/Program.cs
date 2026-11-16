@@ -88,7 +88,7 @@ builder.Services.AddRateLimiter(options =>
         context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
         context.HttpContext.Response.ContentType = "text/html; charset=utf-8";
         var sensitive = context.HttpContext.GetEndpoint()?.Metadata
-            .GetMetadata<Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute>()?.PolicyName == "sensitive";
+            .GetMetadata<Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute>()?.PolicyName is "sensitive" or "sensitive-post";
         await context.HttpContext.Response.WriteAsync(
             PlainStatusPage(
                 "Thử lại sau",
@@ -107,6 +107,18 @@ builder.Services.AddRateLimiter(options =>
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0
         }));
+    // Thao tác quản trị nhân viên (tạo, sửa, đặt lại mật khẩu, mở khóa, reset 2FA): chỉ giới hạn các yêu cầu ghi, xem danh sách không bị chặn.
+    options.AddPolicy("sensitive-post", context => string.Equals(context.Request.Method, "POST", StringComparison.OrdinalIgnoreCase)
+        ? System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+            context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue("RateLimiting:SensitivePerMinute", 30),
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            })
+        : System.Threading.RateLimiting.RateLimitPartition.GetNoLimiter("read"));
     // Đổi mật khẩu, bật/tắt 2FA ở trang hồ sơ: tính theo người dùng đang đăng nhập (không có thì theo IP).
     options.AddPolicy("sensitive", context => System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
         context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value

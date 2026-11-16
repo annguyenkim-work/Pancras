@@ -31,7 +31,7 @@
 
 - **Desktop** (từ 1024px): thanh trắng `h-16 border-b border-slate-200`: bên trái breadcrumb **`PancrasERP / <Tiêu đề trang>`** (lấy từ `ViewData["Title"]`); bên phải tên nhân viên (liên kết `/profile`), thẻ vai trò `rounded-full bg-sky-50 text-sky-700`, nút **Đăng xuất** (nút phụ, cỡ nhỏ).
 - **Mobile** (dưới 1024px): thanh cố định trên cùng `h-14`: hamburger, logo + PancrasERP, liên kết **Hồ sơ**, nút **Đăng xuất**.
-- Header không chứa bộ chọn kho, Xuất Excel hay In PDF; các thao tác đó nằm trong từng trang (xem [principles.md](principles.md) về nguồn chuẩn là code hiện tại).
+- Header không chứa bộ chọn kho, Xuất CSV hay In PDF; các thao tác đó nằm trong từng trang (xem [principles.md](principles.md) về nguồn chuẩn là code hiện tại).
 - Shell (sidebar, header, thanh mobile) mang class `no-print`.
 
 ## 4. Trang chủ

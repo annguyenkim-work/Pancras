@@ -12,6 +12,7 @@ using Pancras.Web.Security;
 namespace Pancras.Web.Pages.Employees;
 
 [Authorize(Roles = EmployeeAccess.ListRoles)]
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("sensitive-post")]
 public class IndexModel(
     ListEmployeesHandler listEmployees,
     CreateEmployeeCommandHandler createEmployee,

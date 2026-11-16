@@ -84,6 +84,33 @@ public class EmployeeProfileCommandHandlerTests
     }
 
     [Fact]
+    public async Task UpdateLostToAConcurrentSave_IsReportedAsAVersionConflict()
+    {
+        var employee = Add("Nguyễn An", "an", EmployeeRole.Accountant);
+        var command = UpdateFrom(employee);
+        command.Department = "Phòng mới";
+        _repository.NextSaveOutcome = Pancras.Application.Common.SaveOutcome.Conflict;
+
+        var result = await UpdateHandler().HandleAsync(command, Admin(), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(EmployeeError.VersionConflict, result.Error);
+    }
+
+    [Fact]
+    public async Task DeactivateLostToAConcurrentSave_IsReportedAsAVersionConflict()
+    {
+        Add("Quản Trị", "admin", EmployeeRole.Admin);
+        var accountant = Add("Nguyễn Kim An", "AnNK", EmployeeRole.Accountant);
+        _repository.NextSaveOutcome = Pancras.Application.Common.SaveOutcome.Conflict;
+        var handler = new SetEmployeeActiveCommandHandler(_repository, NullLogger<SetEmployeeActiveCommandHandler>.Instance);
+
+        var result = await handler.HandleAsync(accountant.Id, false, Admin(), CancellationToken.None);
+
+        Assert.Equal(EmployeeError.VersionConflict, result.Error);
+    }
+
+    [Fact]
     public async Task CreateWithoutPassword_DoesNotInsert()
     {
         var command = CreateCommand("Nguyễn Kim An");

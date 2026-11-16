@@ -50,7 +50,7 @@ public bool CanSeeCost => InventoryAccess.CanSeeCost(Role());
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Trang 403 | Đã có trang từ chối `/access-denied` (`Pages/Account/Denied`) và handler `Forbid()` chuyển về đó; cần kiểm tra mọi trang đều đi qua đường này khi gõ URL trực tiếp, và đổi chữ cho khớp "Bạn không có quyền truy cập." |
+| Trang 403 | `/access-denied` (`Pages/Account/Denied`) trả 403 thật với chữ "Bạn không có quyền truy cập." (có test); handler `Forbid()` chuyển về đó. Chưa duyệt từng trang xem mọi đường gõ URL trực tiếp đều đi qua nó |
 
 ## Chờ chốt (chưa có hiệu lực)
 

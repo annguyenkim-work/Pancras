@@ -84,7 +84,7 @@ Dùng cho hóa đơn về muộn, tờ khai điều chỉnh:
 
 - Chứng từ đính kèm lưu ngoài database; tải xuống qua handler có kiểm quyền (xem [security-and-authorization.md](../../02-coding-rules/security-and-authorization.md) mục 4).
 - **Giá FOB, thuế, giá vốn chỉ vai quản lý thấy** (kể cả file xuất). Thủ kho và Trưởng Showroom/Kho chỉ thấy đơn đã duyệt trở đi của kho mình, không thấy giá.
-- Xuất danh sách đơn ra CSV (nút ghi "Xuất Excel" nhưng là CSV).
+- Xuất đơn ra CSV (nút ghi "Xuất CSV").
 
 ## Nợ lệch so với luật
 

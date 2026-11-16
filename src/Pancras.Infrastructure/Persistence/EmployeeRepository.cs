@@ -66,6 +66,27 @@ public sealed class EmployeeRepository(PancrasDbContext context) : IEmployeeRepo
     public Task SaveChangesAsync(CancellationToken cancellationToken) =>
         context.SaveChangesAsync(cancellationToken);
 
+    public async Task<Pancras.Application.Common.SaveOutcome> TrySaveChangesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken);
+            return Pancras.Application.Common.SaveOutcome.Saved;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            foreach (var entry in context.ChangeTracker.Entries<Employee>().ToList())
+            {
+                if (entry.State == EntityState.Modified)
+                {
+                    await entry.ReloadAsync(cancellationToken);
+                }
+            }
+
+            return Pancras.Application.Common.SaveOutcome.Conflict;
+        }
+    }
+
     public async Task<T> WithinPersonnelRulesAsync<T>(
         Func<CancellationToken, Task<T>> action,
         CancellationToken cancellationToken)

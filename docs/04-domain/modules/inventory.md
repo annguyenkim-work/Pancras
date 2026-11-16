@@ -70,7 +70,7 @@ Requested ──duyệt──▶ Approved ──xuất kho──▶ InTransit �
 ## 5. Tra cứu tồn
 
 - Mỗi dòng hiện bốn số: tồn thực, đang giữ, khả dụng, đang chuyển, và tồn từng địa điểm. Khả dụng không hiện số âm (hiện 0).
-- Lọc theo địa điểm, ngành hàng, tìm theo mã/tên/thương hiệu (live filter). Xuất Excel đúng theo bộ lọc hiện tại.
+- Lọc theo địa điểm, ngành hàng, tìm theo mã/tên/thương hiệu (live filter). Xuất CSV đúng theo bộ lọc hiện tại.
 - Giá vốn chỉ vai tài chính thấy; handler loại khỏi kết quả khi thiếu quyền ([role-based-ui.md](../../03-ui-ux/role-based-ui.md)).
 
 ## 6. Kho & Showroom (địa điểm, `/locations`)

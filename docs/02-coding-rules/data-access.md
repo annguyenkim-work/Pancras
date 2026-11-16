@@ -62,7 +62,7 @@ dotnet ef database update --project src/Pancras.Infrastructure --startup-project
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| `Version` chưa trọn vẹn | Lần ghi chồng nhau thật sự đã thành `VersionConflict` của Danh mục, Nhà cung cấp, Kho/showroom (repository trả `SaveOutcome.Conflict`). Còn trang 409 chung ở Nhân viên (lưu trực tiếp). Mua hàng và Kho gộp chung vào `SaveFailed`. `TransferSlip` chỉ dựa vào kiểm tra trạng thái (`TransferStateChanged`), form không gửi `Version` |
+| `Version` chưa trọn vẹn | Lần ghi chồng nhau thật sự đã thành `VersionConflict` của Danh mục, Nhà cung cấp, Kho/showroom (repository trả `SaveOutcome.Conflict`). Nhân viên: sửa và Disable/Active cũng trả `VersionConflict` (`TrySaveChangesAsync`); các thao tác nhân viên khác (đổi mật khẩu, 2FA, đăng nhập) vẫn lưu trực tiếp. Mua hàng và Kho gộp chung vào `SaveFailed`. `TransferSlip` chỉ dựa vào kiểm tra trạng thái (`TransferStateChanged`), form không gửi `Version` |
 | Gạch dưới tên | Bảng "đọc không tracking" (`...ReadOnlyAsync`) chưa nhất quán ở mọi repository |
 
 ## Chờ chốt (chưa có hiệu lực)
