@@ -643,8 +643,8 @@ internal sealed class NoAuditLog : Pancras.Application.Auditing.IAuditLog
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyList<Pancras.Domain.Auditing.AuditEntry>> ListAsync(string? search, int pageNumber, int pageSize, bool newestFirst, CancellationToken cancellationToken) =>
+    public Task<IReadOnlyList<Pancras.Domain.Auditing.AuditEntry>> ListAsync(Pancras.Application.Auditing.AuditQuery query, int pageNumber, int pageSize, bool newestFirst, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<Pancras.Domain.Auditing.AuditEntry>>([]);
 
-    public Task<int> CountAsync(string? search, CancellationToken cancellationToken) => Task.FromResult(0);
+    public Task<int> CountAsync(Pancras.Application.Auditing.AuditQuery query, CancellationToken cancellationToken) => Task.FromResult(0);
 }

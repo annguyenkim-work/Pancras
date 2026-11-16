@@ -70,8 +70,6 @@ Theo quy tắc ở [use-cases-and-results.md](../../02-coding-rules/use-cases-an
 | Vòng đời | Cần kiểm tra code đã làm đủ: biến mất với mọi người khi bước xong, không trùng thông báo cho cùng một bước (hiện chỉ có `Seen` theo người nhận) |
 | Thông báo mua hàng | Đã làm cho gửi duyệt, duyệt, trả về nháp (kèm lý do) và đang về, qua `PurchaseNotifier` và `INoticeStore`. Chưa làm: thông báo khi đơn đã nhận hoặc bị hủy. Người lập đơn xác định theo mã nhân viên trong sự kiện Created của đơn |
 | Kiểm kê chờ duyệt | Spec cũ có thông báo cho Trưởng kho; code mới có thông báo cho điều chỉnh và hủy, chưa cho kiểm kê |
-| Nhật ký | `AuditAccess` chưa có (menu so vai trò viết tay); danh sách 50 dòng/trang cố định, chỉ một ô tìm; chưa có bộ lọc người/hành động/đối tượng/ngày |
-| Hiển thị mã hành động | Cần một nơi duy nhất ánh xạ mã hành động sang câu tiếng Việt |
 
 ## Chờ chốt (chưa có hiệu lực)
 

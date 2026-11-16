@@ -33,10 +33,10 @@ internal sealed class MemoryAudit : IAuditLog
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyList<AuditEntry>> ListAsync(string? search, int pageNumber, int pageSize, bool newestFirst, CancellationToken cancellationToken) =>
+    public Task<IReadOnlyList<AuditEntry>> ListAsync(AuditQuery query, int pageNumber, int pageSize, bool newestFirst, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<AuditEntry>>(Entries);
 
-    public Task<int> CountAsync(string? search, CancellationToken cancellationToken) => Task.FromResult(Entries.Count);
+    public Task<int> CountAsync(AuditQuery query, CancellationToken cancellationToken) => Task.FromResult(Entries.Count);
 }
 
 public class LoginLockoutAndTwoFactorTests

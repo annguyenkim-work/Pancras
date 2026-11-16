@@ -5,6 +5,14 @@ namespace Pancras.Web.Formatting;
 /// <summary>Nơi duy nhất đổi mã hành động nhật ký (<c>nhóm.sự_kiện</c>) sang câu tiếng Việt; mã lạ giữ nguyên.</summary>
 public static class AuditLabels
 {
+    /// <summary>Mọi mã hành động kèm nhãn tiếng Việt, sắp theo nhãn, cho ô chọn lọc.</summary>
+    public static IReadOnlyList<(string Code, string Label)> Options { get; } = typeof(AuditActions).GetFields()
+        .Where(field => field.IsLiteral && field.FieldType == typeof(string))
+        .Select(field => (string)field.GetRawConstantValue()!)
+        .Select(code => (Code: code, Label: Of(code)))
+        .OrderBy(option => option.Label, StringComparer.CurrentCultureIgnoreCase)
+        .ToArray();
+
     public static string Of(string action) => action switch
     {
         AuditActions.LoginSucceeded => "Đăng nhập thành công",

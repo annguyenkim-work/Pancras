@@ -41,24 +41,52 @@ public sealed class AuditLog(PancrasDbContext context, ILogger<AuditLog> logger)
     }
 
 
-    public async Task<IReadOnlyList<AuditEntry>> ListAsync(string? search, int pageNumber, int pageSize, bool newestFirst, CancellationToken cancellationToken) =>
-        await (newestFirst ? Filter(search).OrderByDescending(entry => entry.OccurredAt) : Filter(search).OrderBy(entry => entry.OccurredAt))
+    public async Task<IReadOnlyList<AuditEntry>> ListAsync(AuditQuery filter, int pageNumber, int pageSize, bool newestFirst, CancellationToken cancellationToken) =>
+        await (newestFirst ? Filter(filter).OrderByDescending(entry => entry.OccurredAt) : Filter(filter).OrderBy(entry => entry.OccurredAt))
             .Skip((Math.Max(1, pageNumber) - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-    public Task<int> CountAsync(string? search, CancellationToken cancellationToken) =>
-        Filter(search).CountAsync(cancellationToken);
+    public Task<int> CountAsync(AuditQuery filter, CancellationToken cancellationToken) =>
+        Filter(filter).CountAsync(cancellationToken);
 
-    private IQueryable<AuditEntry> Filter(string? search)
+    private IQueryable<AuditEntry> Filter(AuditQuery filter)
     {
         var query = context.AuditEntries.AsNoTracking();
-        if (string.IsNullOrWhiteSpace(search))
+        if (!string.IsNullOrWhiteSpace(filter.Actor))
+        {
+            var actor = filter.Actor.Trim().ToLower();
+            query = query.Where(entry => entry.ActorCode.ToLower().Contains(actor));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Action))
+        {
+            var action = filter.Action.Trim();
+            query = query.Where(entry => entry.Action == action);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Target))
+        {
+            var target = filter.Target.Trim();
+            query = query.Where(entry => entry.TargetType == target);
+        }
+
+        if (filter.FromUtc is { } from)
+        {
+            query = query.Where(entry => entry.OccurredAt >= from);
+        }
+
+        if (filter.ToUtcExclusive is { } to)
+        {
+            query = query.Where(entry => entry.OccurredAt < to);
+        }
+
+        if (string.IsNullOrWhiteSpace(filter.Search))
         {
             return query;
         }
 
-        var term = search.Trim().ToLower();
+        var term = filter.Search.Trim().ToLower();
         return query.Where(entry =>
             entry.Action.ToLower().Contains(term)
             || entry.ActorCode.ToLower().Contains(term)

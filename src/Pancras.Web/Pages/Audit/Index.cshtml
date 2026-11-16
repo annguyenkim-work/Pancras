@@ -8,8 +8,18 @@
 <section class="bg-white rounded-xl border border-slate-200 p-6">
     <h1 class="font-display text-xl sm:text-2xl font-bold text-slate-900">Nhật ký hệ thống</h1>
     <p class="mt-1 text-sm text-slate-500">Đăng nhập, đổi quyền, duyệt phiếu, đổi giá. Không ghi mật khẩu hay mã xác thực.</p>
-    <form method="get" action="/audit" data-live-filter class="mt-5">
-        <input name="q" value="@Model.Search" type="search" placeholder="Tìm theo hành động, mã nhân viên, đối tượng, địa chỉ IP..." aria-label="Tìm kiếm" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+    <form method="get" action="/audit" data-live-filter class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
+        <input name="q" value="@Model.Search" type="search" placeholder="Tìm theo mã nhân viên, đối tượng, chi tiết, IP..." aria-label="Tìm kiếm" class="rounded-lg border border-slate-200 px-3 py-2 text-sm sm:col-span-2" />
+        <input name="actor" value="@Model.Actor" type="search" placeholder="Người thực hiện (mã)" aria-label="Người thực hiện" class="rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        <select name="action" aria-label="Hành động" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+            <option value="">Mọi hành động</option>
+            @foreach (var option in AuditLabels.Options)
+            {
+                <option value="@option.Code" selected="@(option.Code == Model.ActionCode)">@option.Label</option>
+            }
+        </select>
+        <input name="from" value="@Model.From?.ToString("yyyy-MM-dd")" type="date" aria-label="Từ ngày" class="rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        <input name="to" value="@Model.To?.ToString("yyyy-MM-dd")" type="date" aria-label="Đến ngày" class="rounded-lg border border-slate-200 px-3 py-2 text-sm" />
     </form>
 </section>
 
