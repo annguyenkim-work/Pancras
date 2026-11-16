@@ -59,6 +59,6 @@ Thứ tự từ trên xuống:
 
 ## Chờ chốt (chưa có hiệu lực)
 
-- Trạng thái thu gọn sidebar trên desktop (hiện luôn mở).
+- **Đã chốt 2026-11-16 (chưa làm):** sidebar desktop có nút thu gọn/mở, nhớ trạng thái theo người dùng (cục bộ trên trình duyệt). Hiện luôn mở.
 - Vị trí chính xác và hình dạng của chuông thông báo trên header (đã chốt có chuông và trang `/notifications`, xem `04-domain/modules/notifications-and-audit.md`).
-- Bộ chọn kho/showroom toàn cục trên header (demo cũ có, code hiện tại chưa): chỉ làm khi có spec.
+- **Đã chốt 2026-11-16:** chưa cần bộ chọn kho/showroom toàn cục trên header.

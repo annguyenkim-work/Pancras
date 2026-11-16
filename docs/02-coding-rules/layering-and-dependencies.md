@@ -36,6 +36,6 @@
 
 ## Chờ chốt (chưa có hiệu lực)
 
-- Có thêm test kiến trúc tự động (ví dụ NetArchTest) để cấm phụ thuộc sai chiều hay không.
+- **Đã chốt 2026-11-16 (chưa làm):** thêm test kiến trúc bằng NetArchTest để cấm phụ thuộc sai chiều giữa các tầng. Chủ dự án đã đồng ý thêm thư viện này; làm kèm test.
 - Quy tắc kích thước và chia nhỏ PageModel/`.cshtml` quá dài (Inventory/Index.cshtml hơn 1.000 dòng).
 - Quy tắc đặt thư mục trong từng project (cấu trúc theo module).

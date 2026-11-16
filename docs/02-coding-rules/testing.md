@@ -69,5 +69,5 @@ dotnet test tests/Pancras.Domain.Tests --filter "FullyQualifiedName~SomeTest"
 
 ## Chờ chốt (chưa có hiệu lực)
 
-- Ngưỡng độ phủ (coverage) tối thiểu, nếu có.
+- **Đã chốt 2026-11-16:** chưa đặt ngưỡng độ phủ tối thiểu.
 - Dữ liệu mẫu dùng chung (builder/`TestActors`) và quy ước đặt thư mục.

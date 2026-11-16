@@ -55,5 +55,5 @@ public bool CanSeeCost => InventoryAccess.CanSeeCost(Role());
 ## Chờ chốt (chưa có hiệu lực)
 
 - **Đã chốt 2026-11-16:** xuất CSV/Excel, in và thông báo theo cùng quy tắc loại dữ liệu nhạy cảm theo vai như màn hình; nhật ký hệ thống chỉ Admin và Giám đốc xem.
-- Có cần test tự động "vai X không thấy giá trong HTML trả về" cho từng trang có dữ liệu nhạy cảm hay không.
+- **Đã chốt 2026-11-16 (chưa làm đủ):** mỗi trang có dữ liệu nhạy cảm (giá, giá vốn) phải có test tự động "vai X không thấy giá trong HTML trả về"; rà từng trang rồi bổ sung.
 - Nhãn vai trò hiện trên header (tên tiếng Việt) và quy tắc đổi tên vai trò.

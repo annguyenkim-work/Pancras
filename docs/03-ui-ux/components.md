@@ -137,4 +137,4 @@ Khung chung cho badge trạng thái và badge phân loại: `rounded-full px-2 p
 
 ## Chờ chốt (chưa có hiệu lực)
 
-- Chỉ báo đang tải cho bộ lọc live (`live-filter.js`).
+- **Đã chốt 2026-11-16 (chưa làm):** bộ lọc live (`live-filter.js`) hiện chỉ báo đang tải khi đang tìm.

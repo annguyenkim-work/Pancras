@@ -65,6 +65,6 @@ Ghi chú: đổi class UI thì thêm `npm run build:css`. Chưa có CI; dự đ�
 
 ## Chờ chốt (chưa có hiệu lực)
 
-- Quy tắc PR (số người duyệt, mẫu mô tả), bảo vệ nhánh `main`.
+- **Đã chốt 2026-11-16:** chưa cần quy tắc PR bắt buộc hay bảo vệ nhánh `main`; build và test sạch là đủ.
 - Quy ước phiên bản và thẻ phát hành (tag) khi deploy.
-- Có dùng analyzer bổ sung (`Microsoft.CodeAnalysis.NetAnalyzers` mức nào) hay không.
+- **Đã chốt 2026-11-16:** chưa thêm analyzer bổ sung.
