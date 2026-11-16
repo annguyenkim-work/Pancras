@@ -55,7 +55,8 @@ public sealed record CatalogItemRow(
     int? WidthMm,
     string ImagePath,
     int Version = 0,
-    Pancras.Application.Auditing.AuditStampView? Stamp = null)
+    Pancras.Application.Auditing.AuditStampView? Stamp = null,
+    bool IsActive = true)
 {
     public static CatalogItemRow From(CatalogItem item) =>
         new(
@@ -80,7 +81,8 @@ public sealed record CatalogItemRow(
             item.WidthMm,
             item.ImagePath,
             item.Version,
-            Pancras.Application.Auditing.AuditStampView.From(item));
+            Pancras.Application.Auditing.AuditStampView.From(item),
+            item.IsActive);
 }
 
 public static class ProductCategoryToken
@@ -119,22 +121,41 @@ public static class ProductCategoryToken
     }
 }
 
-public sealed record CatalogListFilter(ProductCategory? Category, bool CategoryRejected, string? Term)
+public enum CatalogStatusFilter
 {
-    public static CatalogListFilter From(string? categoryToken, string? term)
+    Active,
+    Disabled,
+    All
+}
+
+public sealed record CatalogListFilter(
+    ProductCategory? Category,
+    bool CategoryRejected,
+    string? Term,
+    CatalogStatusFilter Status = CatalogStatusFilter.Active)
+{
+    public static CatalogStatusFilter ParseStatus(string? token) => token?.Trim().ToLowerInvariant() switch
+    {
+        "disabled" => CatalogStatusFilter.Disabled,
+        "all" => CatalogStatusFilter.All,
+        _ => CatalogStatusFilter.Active
+    };
+
+    public static CatalogListFilter From(string? categoryToken, string? term, string? statusToken = null)
     {
         var normalizedTerm = Normalize(term);
+        var status = ParseStatus(statusToken);
         if (string.IsNullOrWhiteSpace(categoryToken))
         {
-            return new CatalogListFilter(null, false, normalizedTerm);
+            return new CatalogListFilter(null, false, normalizedTerm, status);
         }
 
         if (ProductCategoryToken.TryParse(categoryToken, out var category))
         {
-            return new CatalogListFilter(category, false, normalizedTerm);
+            return new CatalogListFilter(category, false, normalizedTerm, status);
         }
 
-        return new CatalogListFilter(null, true, normalizedTerm);
+        return new CatalogListFilter(null, true, normalizedTerm, status);
     }
 
     public bool Matches(CatalogItem item)
@@ -145,6 +166,11 @@ public sealed record CatalogListFilter(ProductCategory? Category, bool CategoryR
         }
 
         if (Category is ProductCategory category && item.Category != category)
+        {
+            return false;
+        }
+
+        if ((Status == CatalogStatusFilter.Active && !item.IsActive) || (Status == CatalogStatusFilter.Disabled && item.IsActive))
         {
             return false;
         }

@@ -108,6 +108,8 @@ public static class AuditActions
     public const string AdjustmentApproved = "stock.adjustment_approved";
     public const string DisposalApproved = "stock.disposal_approved";
     public const string PricesChanged = "catalog.prices_changed";
+    public const string CatalogItemDisabled = "catalog.item_disabled";
+    public const string CatalogItemActivated = "catalog.item_activated";
     public const string PurchaseCreated = "purchase.created";
     public const string PurchaseExported = "purchase.exported";
     public const string PurchaseReceived = "purchase.received";

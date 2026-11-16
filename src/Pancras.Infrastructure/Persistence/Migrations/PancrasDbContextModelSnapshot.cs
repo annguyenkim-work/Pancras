@@ -133,6 +133,12 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(240)")
                         .HasColumnName("image_path");
 
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
                     b.Property<bool>("IsCombo")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")

@@ -21,7 +21,7 @@
             <a href="@Model.AddUrl" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Thêm sản phẩm</a>
         </div>
     </div>
-    <form method="get" action="/catalog" data-live-filter class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-[14rem_1fr] sm:items-end">
+    <form method="get" action="/catalog" data-live-filter class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-[14rem_12rem_1fr] sm:items-end">
         <div>
             <label class="block text-sm font-medium text-slate-600" for="catalog-category">Ngành</label>
             <select id="catalog-category" name="category" class="@inputClass">
@@ -57,6 +57,14 @@
                 {
                     <option value="@ProductCategoryToken.Building">Vật tư xây dựng</option>
                 }
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-600" for="catalog-status">Trạng thái</label>
+            <select id="catalog-status" name="status" class="@inputClass">
+                <option value="" selected="@(Model.StatusFilter == CatalogStatusFilter.Active)">Active</option>
+                <option value="disabled" selected="@(Model.StatusFilter == CatalogStatusFilter.Disabled)">Disabled</option>
+                <option value="all" selected="@(Model.StatusFilter == CatalogStatusFilter.All)">Tất cả</option>
             </select>
         </div>
         <div>
@@ -113,7 +121,7 @@ else
                             }
                         </td>
                         <td class="px-3 py-3 font-mono text-slate-700">@row.Code</td>
-                        <td class="px-3 py-3 font-medium text-slate-900">@row.Name<partial name="_AuditStamp" model="row.Stamp" /></td>
+                        <td class="px-3 py-3 font-medium text-slate-900">@row.Name@if (!row.IsActive) { <span class="ml-2 @Badge.Classes(BadgeTone.Neutral)">Disabled</span> }<partial name="_AuditStamp" model="row.Stamp" /></td>
                         <td class="px-3 py-3 text-slate-700">@CatalogLabels.Category(row.Category)</td>
                         <td class="px-3 py-3 text-slate-700">@CatalogLabels.Text(row.Brand)</td>
                         <td class="px-3 py-3 text-slate-700">@CatalogLabels.Text(row.Unit)</td>
@@ -125,6 +133,15 @@ else
                         <td class="px-3 py-3 text-right whitespace-nowrap">
                             <a href="@Model.DetailUrl(row.Id)" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Chi tiết</a>
                             <a href="@Model.PriceUrl(row.Id)" class="ml-2 px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Sửa</a>
+                            @if (Model.CanDisable)
+                            {
+                                <form method="post" asp-page-handler="SetActive" class="inline" data-confirm data-confirm-title="@(row.IsActive ? "Disable mặt hàng" : "Active mặt hàng")" data-confirm-message="@(row.IsActive ? "Disable mặt hàng này? Mặt hàng sẽ không còn hiện trong danh sách chọn (đơn mua, phiếu kho); lịch sử vẫn được giữ." : "Active lại mặt hàng này?")" data-confirm-label="@(row.IsActive ? "Disable" : "Active")" data-confirm-tone="@(row.IsActive ? "danger" : "")">
+                                    <input type="hidden" name="id" value="@row.Id" />
+                                    <input type="hidden" name="active" value="@(row.IsActive ? "false" : "true")" />
+                                    <input type="hidden" name="version" value="@row.Version" />
+                                    <button type="submit" class="ml-2 px-3 py-1.5 text-xs font-bold rounded-lg @(row.IsActive ? "text-rose-700 hover:bg-rose-50" : "text-emerald-700 hover:bg-emerald-50")">@(row.IsActive ? "Disable" : "Active")</button>
+                                </form>
+                            }
                         </td>
                     </tr>
                 }

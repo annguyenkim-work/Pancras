@@ -33,7 +33,7 @@ public sealed class ListInventoryDocumentsHandler(
 
     public async Task<IReadOnlyList<StockItemChoice>> ListItemsAsync(CancellationToken cancellationToken)
     {
-        var items = await repository.ListItemChoicesAsync(cancellationToken);
+        var items = (await repository.ListItemChoicesAsync(cancellationToken)).Where(item => item.IsActive);
         return items.OrderBy(item => item.Name, StringComparer.Ordinal).ThenBy(item => item.Code, StringComparer.Ordinal).ToArray();
     }
 

@@ -19,7 +19,7 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
         var items = await context.CatalogItems.AsNoTracking()
             .OrderBy(item => item.Name)
             .ThenBy(item => item.Code)
-            .Select(item => new StockItemChoice(item.Id, item.Code, item.Name, item.Unit))
+            .Select(item => new StockItemChoice(item.Id, item.Code, item.Name, item.Unit, item.IsActive))
             .ToListAsync(cancellationToken);
         return items;
     }
@@ -77,7 +77,7 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
             .ToListAsync(cancellationToken);
 
         var stocked = context.StockBalances.Select(balance => balance.CatalogItemId);
-        var missing = context.CatalogItems.AsNoTracking().Where(item => !item.IsCombo && !stocked.Contains(item.Id));
+        var missing = context.CatalogItems.AsNoTracking().Where(item => !item.IsCombo && item.IsActive && !stocked.Contains(item.Id));
         if (filter.Category is ProductCategory missingCategory)
         {
             missing = missing.Where(item => item.Category == missingCategory);

@@ -278,7 +278,7 @@ public sealed record StockItemDetail(
 
 public sealed record StockLocationChoice(Guid Id, string Name, StockLocationKind Kind);
 
-public sealed record StockItemChoice(Guid Id, string Code, string Name, string Unit = "");
+public sealed record StockItemChoice(Guid Id, string Code, string Name, string Unit = "", bool IsActive = true);
 
 public sealed record TransferLineRow(Guid CatalogItemId, string Code, string Name, int Quantity, string Unit = "", Guid LineId = default, int? ReceivedQuantity = null);
 

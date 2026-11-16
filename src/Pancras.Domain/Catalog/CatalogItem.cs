@@ -37,6 +37,9 @@ public sealed class CatalogItem : Pancras.Domain.Auditing.AuditStamped
 
     public int Version { get; private set; }
 
+    /// <summary>Đang kinh doanh. False là Disable: ẩn khỏi danh sách chọn nhưng giữ để xem lịch sử.</summary>
+    public bool IsActive { get; private set; } = true;
+
     public string Code { get; private set; }
 
     public string NormalizedCode { get; private set; }
@@ -191,6 +194,18 @@ public sealed class CatalogItem : Pancras.Domain.Auditing.AuditStamped
     }
 
     public void AdvanceVersion() => Version++;
+
+    public void Deactivate()
+    {
+        IsActive = false;
+        AdvanceVersion();
+    }
+
+    public void Reactivate()
+    {
+        IsActive = true;
+        AdvanceVersion();
+    }
 
     public void SetImage(string? imagePath) => ImagePath = OptionalText(imagePath, ImagePathMaxLength);
 

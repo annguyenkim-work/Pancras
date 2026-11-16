@@ -59,7 +59,7 @@ Năm mức: **giá vốn**, **giá lẻ (niêm yết)**, **giá đại lý**, **
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Disable | Chưa có `IsActive` trên `CatalogItem`; cần thêm cột, migration, bộ lọc "đang kinh doanh" ở danh sách chọn, nút Ngừng/Kích hoạt |
+| Pickers | Đơn mua đang sửa có mặt hàng đã Disable thì ô chọn dòng đó không còn mặt hàng (danh sách chọn chỉ có mặt hàng Active); dòng đã lưu vẫn hiện đúng tên |
 | Mã lỗi | `CatalogError`/`CatalogIssue` còn trong `Common/Result.cs`; `CatalogValidation` kiểm tra viết tay, chưa dùng FluentValidation |
 | Tài liệu cũ | Spec 004 ghi "ai sửa bảng giá" khác; docs mới thay thế |
 

@@ -68,6 +68,8 @@ public class IndexModel(ListAuditHandler list) : PageModel
         AuditActions.AdjustmentApproved => "Duyệt điều chỉnh tồn",
         AuditActions.DisposalApproved => "Duyệt phiếu hủy",
         AuditActions.PricesChanged => "Đổi giá sản phẩm",
+        AuditActions.CatalogItemDisabled => "Disable mặt hàng",
+        AuditActions.CatalogItemActivated => "Active mặt hàng",
         AuditActions.PurchaseReceived => "Nhận đơn mua vào kho",
         AuditActions.PurchaseUpdated => "Sửa đơn mua",
         AuditActions.PurchaseChargeAdded => "Thêm chi phí đơn mua",

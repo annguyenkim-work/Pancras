@@ -82,7 +82,8 @@ public enum CatalogError
     CostLocked,
     VersionConflict,
     UndecidedSalePrice,
-    MissingFilePrice
+    MissingFilePrice,
+    Forbidden
 }
 
 public enum CatalogField

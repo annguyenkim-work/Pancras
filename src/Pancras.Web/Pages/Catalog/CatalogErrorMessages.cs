@@ -16,6 +16,11 @@ public static class CatalogErrorMessages
             return ["Không tìm thấy mặt hàng này."];
         }
 
+        if (error == CatalogError.Forbidden)
+        {
+            return ["Bạn không có quyền thực hiện thao tác này."];
+        }
+
         if (error == CatalogError.CostLocked)
         {
             return ["Giá vốn không sửa được khi mặt hàng đã có tồn. Giá vốn cập nhật theo nhập kho."];

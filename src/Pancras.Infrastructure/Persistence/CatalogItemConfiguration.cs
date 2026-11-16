@@ -27,6 +27,7 @@ public sealed class CatalogItemConfiguration : IEntityTypeConfiguration<CatalogI
         builder.Property(item => item.DistributorPrice).HasPrecision(18, 0);
         builder.Property(item => item.ProjectPrice).HasPrecision(18, 0);
         builder.Property(item => item.IsCombo).IsRequired().HasDefaultValue(false);
+        builder.Property(item => item.IsActive).IsRequired().HasDefaultValue(true);
         builder.Property(item => item.Version).IsConcurrencyToken().IsRequired();
         builder.HasIndex(item => item.NormalizedCode).IsUnique();
     }

@@ -111,6 +111,12 @@ public sealed class CatalogItemRepository(PancrasDbContext context) : ICatalogIt
     private IQueryable<CatalogItem> Filtered(CatalogListFilter filter)
     {
         var query = context.CatalogItems.AsNoTracking().Where(item => !item.IsCombo);
+        query = filter.Status switch
+        {
+            CatalogStatusFilter.Disabled => query.Where(item => !item.IsActive),
+            CatalogStatusFilter.All => query,
+            _ => query.Where(item => item.IsActive)
+        };
         if (filter.Category is ProductCategory category)
         {
             query = query.Where(item => item.Category == category);
