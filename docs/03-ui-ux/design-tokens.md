@@ -61,7 +61,6 @@ Font **tự host** trong `wwwroot/fonts` (không dùng Google Fonts, xem [tech-s
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Thứ tự class | Nơi viết `px-4 py-2 ... rounded-lg`, nơi viết `rounded-lg ... px-4 py-2` |
 
 Định dạng tiền, ngày, số: xem [formatting-and-copy.md](formatting-and-copy.md).
 

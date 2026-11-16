@@ -109,4 +109,15 @@ public class UiStandardsTests
 
         Assert.Empty(offenders);
     }
+
+    [Fact]
+    public void DismissButtons_SayQuayLai_NotHuy()
+    {
+        var offenders = Views()
+            .Where(view => Regex.IsMatch(view.Text, @">Hủy( bỏ)?<"))
+            .Select(view => view.File)
+            .ToArray();
+
+        Assert.Empty(offenders);
+    }
 }

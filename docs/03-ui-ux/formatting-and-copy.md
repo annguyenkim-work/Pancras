@@ -61,4 +61,3 @@ Nguồn code: `src/Pancras.Web/Formatting/` (`VndMoney.cs`, `StockCsv.cs`, `Cata
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Giọng văn nút | `Lưu Biên Bản Kiểm Kê`, `Hủy bỏ`, `Hủy` (vừa đóng modal vừa hủy phiếu) |
