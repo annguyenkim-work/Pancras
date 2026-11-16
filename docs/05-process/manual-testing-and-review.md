@@ -40,6 +40,7 @@ Với **dữ liệu bị ẩn** (giá vốn, ngân hàng nhà cung cấp, tiền
 
 ## 5. Review mã
 
+- **Review cho mọi thay đổi** trước khi coi là xong (quyết định 2026-11-16). Agent tự review diff của mình theo danh sách kiểm bên dưới và nêu kết quả trong báo cáo; chủ dự án quyết định có cần người review thêm. Không bắt buộc PR hay bảo vệ nhánh `main`.
 - Review cho ra **bảng phát hiện tạm**: mã (A1, B2…), **mức Cao / Trung bình / Thấp**, vị trí, mô tả, lý do, gợi ý, **quyết định của chủ dự án** (đồng ý / không / điều chỉnh).
 - **Quyết định đã chốt thì ghi vào docs module** (và "Nợ lệch" nếu chưa làm); **file review không lưu lâu dài** trong repo.
 - Không có file bàn giao (handoff) trong repo. Tiến độ và việc đang làm theo dõi bằng git (commit, nhánh) và mục "Nợ lệch" trong từng file docs.

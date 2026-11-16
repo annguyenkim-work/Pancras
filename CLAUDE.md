@@ -25,6 +25,7 @@ dotnet ef migrations add <Name> --project src/Pancras.Infrastructure --startup-p
 
 ## Luật cứng
 
+- **Phạm vi:** mục tiêu là chuẩn hóa quy trình làm app với AI agent, viết spec và sửa lỗi/lệch nhỏ. **Không làm tính năng mới khi chủ dự án chưa yêu cầu rõ** ([working-with-ai.md](docs/05-process/working-with-ai.md)).
 - **Không bịa luật nghiệp vụ.** Mục "Chờ chốt" trong docs là việc của chủ dự án: hỏi, đừng đoán. Quyết định chốt thì ghi vào docs ([quy trình](docs/05-process/new-module-checklist.md), [quy tắc cho AI](docs/05-process/working-with-ai.md)).
 - **Thứ tự làm:** docs → viết test (đỏ đúng lý do) → implement → chạy test, báo cáo trong chat → sửa lỗi tối đa 3 lần rồi dừng hỏi chủ dự án ([checklist](docs/05-process/new-module-checklist.md)).
 - Phân tầng: Domain ← Application ← Infrastructure ← Web; Web không gọi Infrastructure ngoài `Program.cs`. Lỗi nghiệp vụ trả bằng `Result`, không exception ([layering](docs/02-coding-rules/layering-and-dependencies.md), [use case](docs/02-coding-rules/use-cases-and-results.md)).
