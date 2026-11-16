@@ -28,7 +28,7 @@ public sealed class ReceivePurchaseOrderCommandHandler(
         if (order is null)
         {
             // Không lộ đơn có tồn tại hay không cho người không có quyền.
-            logger.LogWarning("Receipt rejected for purchase order {PurchaseOrderId}.", command.PurchaseOrderId);
+            logger.LogInformation("Receipt rejected for purchase order {PurchaseOrderId}.", command.PurchaseOrderId);
             return Result<Guid, PurchaseError>.Fail(PurchaseAccess.CanManage(command.Actor) ? PurchaseError.InvalidOrder : PurchaseError.Forbidden);
         }
 
@@ -40,26 +40,26 @@ public sealed class ReceivePurchaseOrderCommandHandler(
 
         if (order.Status == PurchaseStatus.Received)
         {
-            logger.LogWarning("Purchase order {PurchaseOrderId} is already received.", order.Id);
+            logger.LogInformation("Purchase order {PurchaseOrderId} is already received.", order.Id);
             return Result<Guid, PurchaseError>.Fail(PurchaseError.AlreadyReceived);
         }
 
         if (!order.IsReceivable)
         {
-            logger.LogWarning("Purchase order {PurchaseOrderId} is not receivable in status {Status}.", order.Id, order.Status);
+            logger.LogInformation("Purchase order {PurchaseOrderId} is not receivable in status {Status}.", order.Id, order.Status);
             return Result<Guid, PurchaseError>.Fail(PurchaseError.NotReceivable);
         }
 
         if (order.Lines.Any(line => line.FobUsd <= 0))
         {
             // Giá FOB 0 sẽ được bình quân vào giá vốn công ty và kéo giá xuống.
-            logger.LogWarning("Purchase order {PurchaseOrderId} has a line without a price.", order.Id);
+            logger.LogInformation("Purchase order {PurchaseOrderId} has a line without a price.", order.Id);
             return Result<Guid, PurchaseError>.Fail(PurchaseError.ZeroPrice);
         }
 
         if (order.HasUngroupedCharges)
         {
-            logger.LogWarning("Purchase order {PurchaseOrderId} still has charges without a group.", order.Id);
+            logger.LogInformation("Purchase order {PurchaseOrderId} still has charges without a group.", order.Id);
             return Result<Guid, PurchaseError>.Fail(PurchaseError.UngroupedCharge);
         }
 
@@ -74,7 +74,7 @@ public sealed class ReceivePurchaseOrderCommandHandler(
             var item = await catalog.GetVisibleForUpdateAsync(line.CatalogItemId, cancellationToken);
             if (item is null)
             {
-                logger.LogWarning("Receipt rejected for catalog item {CatalogItemId}.", line.CatalogItemId);
+                logger.LogInformation("Receipt rejected for catalog item {CatalogItemId}.", line.CatalogItemId);
                 return Result<Guid, PurchaseError>.Fail(PurchaseError.InvalidOrder);
             }
 
@@ -108,7 +108,7 @@ public sealed class ReceivePurchaseOrderCommandHandler(
         var decision = order.TryRecordReceipt(actuals, command.Final, command.Note, receivedAt, request?.ActorCode, out var results, out var undo);
         if (decision != ReceiptDecision.Ok)
         {
-            logger.LogWarning("Receipt rejected for purchase order {PurchaseOrderId}: {Decision}.", order.Id, decision);
+            logger.LogInformation("Receipt rejected for purchase order {PurchaseOrderId}: {Decision}.", order.Id, decision);
             return Result<Guid, PurchaseError>.Fail(decision switch
             {
                 ReceiptDecision.NoteRequired => PurchaseError.ReceiptNoteRequired,
@@ -127,7 +127,7 @@ public sealed class ReceivePurchaseOrderCommandHandler(
                 if (!balance.TryAddOnHand(result.Quantity) || balance.InTransit != beforeTransit)
                 {
                     Restore(order, undo!, balances, previous, items, previousCosts);
-                    logger.LogWarning("Receipt rejected for purchase order {PurchaseOrderId}.", order.Id);
+                    logger.LogInformation("Receipt rejected for purchase order {PurchaseOrderId}.", order.Id);
                     return Result<Guid, PurchaseError>.Fail(PurchaseError.InvalidOrder);
                 }
 

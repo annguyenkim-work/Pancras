@@ -135,13 +135,13 @@ public sealed class CreateSupplierCommandHandler(
         var normalizedCode = Supplier.NormalizeCode(code);
         if (await repository.NormalizedCodeExistsAsync(normalizedCode, null, cancellationToken))
         {
-            logger.LogWarning("Rejected a duplicate supplier code.");
+            logger.LogInformation("Rejected a duplicate supplier code.");
             return Duplicate(SupplierIssueKind.Duplicate);
         }
 
         if (await repository.InactiveNameWithCodeAsync(normalizedCode, cancellationToken) is not null)
         {
-            logger.LogWarning("Rejected a supplier code held by an inactive supplier.");
+            logger.LogInformation("Rejected a supplier code held by an inactive supplier.");
             return Duplicate(SupplierIssueKind.DuplicateInactive);
         }
 
@@ -157,7 +157,7 @@ public sealed class CreateSupplierCommandHandler(
             command.SwiftCode ?? string.Empty);
         if (!await repository.TryAddAsync(supplier, cancellationToken))
         {
-            logger.LogWarning("Rejected a duplicate supplier code.");
+            logger.LogInformation("Rejected a duplicate supplier code.");
             return Duplicate(SupplierIssueKind.Duplicate);
         }
 

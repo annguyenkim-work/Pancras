@@ -45,7 +45,7 @@ public sealed class CreateTransferRequestCommandHandler(
         var known = (await repository.ListLocationsAsync(cancellationToken)).Select(location => location.Id).ToHashSet();
         if (slip is null || !known.Contains(slip.SourceLocationId) || !known.Contains(slip.DestinationLocationId))
         {
-            logger.LogWarning("Transfer request rejected for {StockLocationId}.", command.SourceLocationId);
+            logger.LogInformation("Transfer request rejected for {StockLocationId}.", command.SourceLocationId);
             return Result<Guid, StockError>.Fail(StockError.InvalidTransfer);
         }
 

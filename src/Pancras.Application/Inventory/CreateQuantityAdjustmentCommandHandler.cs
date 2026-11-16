@@ -45,7 +45,7 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
             out var adjustment);
         if (decision != StockDecision.Accepted || adjustment is null)
         {
-            logger.LogWarning("Quantity adjustment rejected for {CatalogItemId}.", command.CatalogItemId);
+            logger.LogInformation("Quantity adjustment rejected for {CatalogItemId}.", command.CatalogItemId);
             return Result<Guid, StockError>.Fail(StockDecisionErrors.ToError(decision));
         }
 
@@ -90,7 +90,7 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
         if (decision != StockDecision.Accepted || adjustment is null)
         {
             snapshot.Restore();
-            logger.LogWarning("Direct quantity adjustment rejected for {CatalogItemId}.", command.CatalogItemId);
+            logger.LogInformation("Direct quantity adjustment rejected for {CatalogItemId}.", command.CatalogItemId);
             return decision == StockDecision.NegativeStock
                 ? Result<Guid, StockError>.Fail(StockError.NegativeStock, StockDecisionErrors.AvailabilityDetail(balance))
                 : Result<Guid, StockError>.Fail(StockDecisionErrors.ToError(decision));

@@ -27,7 +27,7 @@ public sealed class SetCatalogItemActiveCommandHandler(
     {
         if (!CatalogAccess.CanDisable(actor.Role))
         {
-            logger.LogWarning("Rejected a catalog Disable/Active change for role {Role}.", actor.Role);
+            logger.LogInformation("Rejected a catalog Disable/Active change for role {Role}.", actor.Role);
             await audit.RecordAsync(clock ?? TimeProvider.System, request, actor.Id, null, AuditActions.AccessDenied, "catalog_item", id.ToString("D"), "Disable/Active mặt hàng", cancellationToken);
             return CatalogError.Forbidden;
         }

@@ -38,7 +38,7 @@ public sealed class ReactivateSupplierCommandHandler(
         // Trong lúc ngừng hợp tác, mã có thể đã được nhà cung cấp khác dùng.
         if (await repository.NormalizedCodeExistsAsync(supplier.NormalizedCode, supplier.Id, cancellationToken))
         {
-            logger.LogWarning("Cannot reactivate supplier {SupplierId}: code is used.", supplier.Id);
+            logger.LogInformation("Cannot reactivate supplier {SupplierId}: code is used.", supplier.Id);
             return CodeUsed();
         }
 

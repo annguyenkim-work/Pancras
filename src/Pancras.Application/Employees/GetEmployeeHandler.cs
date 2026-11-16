@@ -19,7 +19,7 @@ public sealed class GetEmployeeHandler(
         var employee = await repository.GetByIdReadOnlyAsync(id, cancellationToken);
         if (employee is null)
         {
-            logger.LogWarning("Employee {EmployeeId} was not found.", id);
+            logger.LogInformation("Employee {EmployeeId} was not found.", id);
             return Result<EmployeeProfile, EmployeeError>.Fail(EmployeeError.NotFound);
         }
 

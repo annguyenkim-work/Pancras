@@ -37,7 +37,7 @@ public sealed class DeactivateSupplierCommandHandler(
             var stats = await purchaseStats.ReadAsync([supplier.Id], cancellationToken);
             if (stats.TryGetValue(supplier.Id, out var row) && row.LotsNotReceived > 0)
             {
-                logger.LogWarning("Supplier {SupplierId} still has {OpenOrders} open purchase orders.", supplier.Id, row.LotsNotReceived);
+                logger.LogInformation("Supplier {SupplierId} still has {OpenOrders} open purchase orders.", supplier.Id, row.LotsNotReceived);
                 return Result<Guid, SupplierError>.Fail(SupplierError.HasOpenPurchases);
             }
         }

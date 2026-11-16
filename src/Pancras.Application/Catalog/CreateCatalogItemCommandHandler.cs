@@ -95,7 +95,7 @@ public sealed class CreateCatalogItemCommandHandler(
         var normalizedCode = CatalogItem.NormalizeCode(code);
         if (await repository.NormalizedCodeExistsAsync(normalizedCode, cancellationToken))
         {
-            logger.LogWarning("Rejected a duplicate catalog item.");
+            logger.LogInformation("Rejected a duplicate catalog item.");
             return Result<CreatedCatalogItem, CatalogError>.Fail(
                 CatalogError.DuplicateCode,
                 [new CatalogIssue(CatalogField.Code, CatalogIssueKind.Duplicate)]);
@@ -123,7 +123,7 @@ public sealed class CreateCatalogItemCommandHandler(
             command.ImagePath);
         if (!await repository.TryAddAsync(item, cancellationToken))
         {
-            logger.LogWarning("Rejected a duplicate catalog item.");
+            logger.LogInformation("Rejected a duplicate catalog item.");
             return Result<CreatedCatalogItem, CatalogError>.Fail(
                 CatalogError.DuplicateCode,
                 [new CatalogIssue(CatalogField.Code, CatalogIssueKind.Duplicate)]);

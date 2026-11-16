@@ -26,7 +26,7 @@ public sealed class UploadPurchaseAttachmentCommandHandler(
         var cleanName = AttachmentRules.CleanFileName(command.FileName);
         if (command.Content is null || cleanName is null || !Enum.IsDefined(command.Kind))
         {
-            logger.LogWarning("Attachment rejected for purchase order {PurchaseOrderId}: bad name or type.", command.PurchaseOrderId);
+            logger.LogInformation("Attachment rejected for purchase order {PurchaseOrderId}: bad name or type.", command.PurchaseOrderId);
             return Result<Guid, PurchaseError>.Fail(PurchaseError.AttachmentInvalid);
         }
 

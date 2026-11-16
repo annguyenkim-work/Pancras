@@ -227,14 +227,7 @@ public class IndexModel(
             {
                 // Giá quá lớn làm phép nhân tràn decimal: gán giá trị tối đa để handler từ chối bằng "vượt giới hạn" thay vì lỗi 500.
                 // Số lượng <= 0 giữ nguyên phép nhân để handler báo đúng lỗi số lượng.
-                try
-                {
-                    lines[index].FobUsd = Form.UnitPrices[index] * lines[index].Quantity;
-                }
-                catch (OverflowException)
-                {
-                    lines[index].FobUsd = decimal.MaxValue;
-                }
+                lines[index].FobUsd = Pancras.Web.Formatting.SafeMath.MultiplyOrMax(Form.UnitPrices[index], lines[index].Quantity);
             }
 
             if (index < Form.DutyPercents.Count)

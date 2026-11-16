@@ -29,7 +29,7 @@ public sealed class CreateDisposalSlipCommandHandler(
             out var slip);
         if (decision != StockDecision.Accepted || slip is null)
         {
-            logger.LogWarning("Disposal slip rejected for {CatalogItemId}.", command.CatalogItemId);
+            logger.LogInformation("Disposal slip rejected for {CatalogItemId}.", command.CatalogItemId);
             return Result<Guid, StockError>.Fail(StockDecisionErrors.ToError(decision));
         }
 
@@ -40,7 +40,7 @@ public sealed class CreateDisposalSlipCommandHandler(
             var direct = await approveHandler.ApplyAsync(slip, command.Actor, isNew: true, cancellationToken);
             if (direct.IsFailure)
             {
-                logger.LogWarning("Direct disposal for {CatalogItemId} was rejected and nothing was saved.", command.CatalogItemId);
+                logger.LogInformation("Direct disposal for {CatalogItemId} was rejected and nothing was saved.", command.CatalogItemId);
                 return Result<Guid, StockError>.Fail(direct.Error);
             }
 

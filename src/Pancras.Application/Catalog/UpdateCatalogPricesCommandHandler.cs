@@ -96,14 +96,14 @@ public sealed class UpdateCatalogPricesCommandHandler(
     {
         if (!PriceListRole.CanEdit(command.Role))
         {
-            logger.LogWarning("Rejected a price list edit.");
+            logger.LogInformation("Rejected a price list edit.");
             return Result<CatalogItemRow, CatalogError>.Fail(CatalogError.PriceListForbidden);
         }
 
         var item = await repository.GetVisibleForUpdateAsync(command.Id, cancellationToken);
         if (item is null)
         {
-            logger.LogWarning("Rejected a price list edit.");
+            logger.LogInformation("Rejected a price list edit.");
             return Result<CatalogItemRow, CatalogError>.Fail(CatalogError.NotFound);
         }
 
@@ -138,7 +138,7 @@ public sealed class UpdateCatalogPricesCommandHandler(
             if (!string.Equals(normalized, item.NormalizedCode, StringComparison.Ordinal)
                 && await repository.NormalizedCodeExistsAsync(normalized, cancellationToken))
             {
-                logger.LogWarning("Rejected a duplicate catalog item.");
+                logger.LogInformation("Rejected a duplicate catalog item.");
                 return Result<CatalogItemRow, CatalogError>.Fail(
                     CatalogError.DuplicateCode,
                     [new CatalogIssue(CatalogField.Code, CatalogIssueKind.Duplicate)]);
@@ -174,7 +174,7 @@ public sealed class UpdateCatalogPricesCommandHandler(
         item.AdvanceVersion();
         if (await repository.TrySaveAsync(cancellationToken) != SaveOutcome.Saved)
         {
-            logger.LogWarning("Rejected a price list edit for {CatalogItemId}.", item.Id);
+            logger.LogInformation("Rejected a price list edit for {CatalogItemId}.", item.Id);
             return Result<CatalogItemRow, CatalogError>.Fail(CatalogError.VersionConflict);
         }
 

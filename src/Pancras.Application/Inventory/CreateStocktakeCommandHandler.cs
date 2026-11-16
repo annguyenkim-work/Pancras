@@ -36,7 +36,7 @@ public sealed class CreateStocktakeCommandHandler(
             out var sheet);
         if (decision != StockDecision.Accepted || sheet is null)
         {
-            logger.LogWarning("Stocktake rejected for {CatalogItemId}.", command.CatalogItemId);
+            logger.LogInformation("Stocktake rejected for {CatalogItemId}.", command.CatalogItemId);
             return Result<Guid, StockError>.Fail(StockDecisionErrors.ToError(decision));
         }
 
@@ -48,7 +48,7 @@ public sealed class CreateStocktakeCommandHandler(
                 repository, sheet, (clock ?? TimeProvider.System).GetUtcNow(), cancellationToken);
             if (!applied)
             {
-                logger.LogWarning("Stocktake would drop stock below the reserved quantity for {CatalogItemId}.", command.CatalogItemId);
+                logger.LogInformation("Stocktake would drop stock below the reserved quantity for {CatalogItemId}.", command.CatalogItemId);
                 return Result<Guid, StockError>.Fail(StockError.NegativeStock);
             }
 

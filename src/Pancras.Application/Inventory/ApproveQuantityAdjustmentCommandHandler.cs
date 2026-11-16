@@ -17,7 +17,7 @@ public sealed class ApproveQuantityAdjustmentCommandHandler(
         var adjustment = await repository.FindAdjustmentForUpdateAsync(command.Id, cancellationToken);
         if (adjustment is null)
         {
-            logger.LogWarning("Quantity adjustment approval rejected for {QuantityAdjustmentId}.", command.Id);
+            logger.LogInformation("Quantity adjustment approval rejected for {QuantityAdjustmentId}.", command.Id);
             return Result<Guid, StockError>.Fail(StockError.ApprovalForbidden);
         }
 
@@ -40,7 +40,7 @@ public sealed class ApproveQuantityAdjustmentCommandHandler(
         var decision = adjustment.Approve(command.Actor.Role, balance);
         if (decision != StockDecision.Accepted)
         {
-            logger.LogWarning("Quantity adjustment approval rejected for {QuantityAdjustmentId}.", adjustment.Id);
+            logger.LogInformation("Quantity adjustment approval rejected for {QuantityAdjustmentId}.", adjustment.Id);
             return decision switch
             {
                 StockDecision.NegativeStock => Result<Guid, StockError>.Fail(StockError.NegativeStock, StockDecisionErrors.AvailabilityDetail(balance)),

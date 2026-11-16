@@ -20,7 +20,7 @@ public sealed class ApproveDisposalSlipCommandHandler(
         var slip = await repository.FindDisposalForUpdateAsync(command.Id, cancellationToken);
         if (slip is null)
         {
-            logger.LogWarning("Disposal approval rejected for {DisposalSlipId}.", command.Id);
+            logger.LogInformation("Disposal approval rejected for {DisposalSlipId}.", command.Id);
             return Result<Guid, StockError>.Fail(StockError.DisposalRejected);
         }
 
@@ -43,7 +43,7 @@ public sealed class ApproveDisposalSlipCommandHandler(
         var balance = await repository.FindBalanceForUpdateAsync(slip.CatalogItemId, slip.StockLocationId, cancellationToken);
         if (balance is null)
         {
-            logger.LogWarning("Disposal approval rejected for {DisposalSlipId}.", slip.Id);
+            logger.LogInformation("Disposal approval rejected for {DisposalSlipId}.", slip.Id);
             return slip.Approve(command.Actor.Role, StockBalance.Create(slip.CatalogItemId, slip.StockLocationId, 0, 0, 0)) == StockDecision.WrongRole
                 ? Result<Guid, StockError>.Fail(StockError.ApprovalForbidden)
                 : Result<Guid, StockError>.Fail(StockError.DisposalRejected, StockDecisionErrors.AvailabilityDetail(null));
@@ -54,7 +54,7 @@ public sealed class ApproveDisposalSlipCommandHandler(
         var decision = slip.Approve(command.Actor.Role, balance);
         if (decision != StockDecision.Accepted)
         {
-            logger.LogWarning("Disposal approval rejected for {DisposalSlipId}.", slip.Id);
+            logger.LogInformation("Disposal approval rejected for {DisposalSlipId}.", slip.Id);
             return decision switch
             {
                 StockDecision.WrongRole => Result<Guid, StockError>.Fail(StockError.ApprovalForbidden),

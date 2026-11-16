@@ -46,7 +46,7 @@ public sealed class ConfirmTransferReceiptCommandHandler(
             var destination = await repository.FindBalanceForUpdateAsync(itemId, slip.DestinationLocationId, cancellationToken);
             if (destination is null)
             {
-                logger.LogWarning("Receipt rejected for {TransferSlipId}.", slip.Id);
+                logger.LogInformation("Receipt rejected for {TransferSlipId}.", slip.Id);
                 return Result<Guid, StockError>.Fail(StockError.ReceiptRejected);
             }
 
@@ -62,7 +62,7 @@ public sealed class ConfirmTransferReceiptCommandHandler(
                 snapshot.Restore();
             }
 
-            logger.LogWarning("Receipt rejected for {TransferSlipId}.", slip.Id);
+            logger.LogInformation("Receipt rejected for {TransferSlipId}.", slip.Id);
             return Result<Guid, StockError>.Fail(StockError.ReceiptRejected);
         }
 
@@ -160,7 +160,7 @@ public sealed class ConfirmTransferReceiptCommandHandler(
 
         if (slip.Status != TransferStatus.InTransit)
         {
-            logger.LogWarning("Receipt rejected for {TransferSlipId}.", command.TransferSlipId);
+            logger.LogInformation("Receipt rejected for {TransferSlipId}.", command.TransferSlipId);
             return (null, Result<Guid, StockError>.Fail(StockError.TransferStateChanged), null);
         }
 

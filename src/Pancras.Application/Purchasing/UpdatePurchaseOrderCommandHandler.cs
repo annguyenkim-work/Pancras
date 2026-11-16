@@ -60,13 +60,13 @@ public sealed class UpdatePurchaseOrderCommandHandler(
         var order = await orders.FindForUpdateAsync(command.PurchaseOrderId, cancellationToken);
         if (order is null)
         {
-            logger.LogWarning("Purchase order update rejected for {PurchaseOrderId}.", command.PurchaseOrderId);
+            logger.LogInformation("Purchase order update rejected for {PurchaseOrderId}.", command.PurchaseOrderId);
             return Result<Guid, PurchaseError>.Fail(PurchaseError.InvalidOrder);
         }
 
         if (!order.IsEditable)
         {
-            logger.LogWarning("Purchase order {PurchaseOrderId} is already received and cannot be edited.", order.Id);
+            logger.LogInformation("Purchase order {PurchaseOrderId} is already received and cannot be edited.", order.Id);
             return Result<Guid, PurchaseError>.Fail(order.Status == PurchaseStatus.Received ? PurchaseError.AlreadyReceived : PurchaseError.NotEditable);
         }
 

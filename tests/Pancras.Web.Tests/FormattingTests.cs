@@ -28,3 +28,17 @@ public class FormattingTests
         Assert.Equal(new DateOnly(2026, 11, 17), VietnamTime.DateOf(utc));
     }
 }
+
+public class SafeMathTests
+{
+    [Theory]
+    [InlineData(10, 3, 30)]
+    [InlineData(10, 0, 0)]
+    [InlineData(0, 5, 0)]
+    public void MultiplyOrMax_MultipliesNormally(int amount, int quantity, int expected) =>
+        Assert.Equal(expected, SafeMath.MultiplyOrMax(amount, quantity));
+
+    [Fact]
+    public void MultiplyOrMax_ReturnsTheMaximumInsteadOfOverflowing() =>
+        Assert.Equal(decimal.MaxValue, SafeMath.MultiplyOrMax(decimal.MaxValue / 2, 3));
+}

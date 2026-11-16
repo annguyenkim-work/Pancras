@@ -29,7 +29,7 @@ public sealed class ChangeOwnPasswordCommandHandler(
         if (string.IsNullOrEmpty(command.CurrentPassword)
             || !passwordHasher.Verify(command.CurrentPassword, employee.PasswordHash))
         {
-            logger.LogWarning("Password change rejected for employee {EmployeeId}.", employee.Id);
+            logger.LogInformation("Password change rejected for employee {EmployeeId}.", employee.Id);
             return Result<EmployeeSession, EmployeeError>.Fail(EmployeeError.WrongPassword);
         }
 

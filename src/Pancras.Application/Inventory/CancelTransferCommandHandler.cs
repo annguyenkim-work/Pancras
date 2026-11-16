@@ -73,7 +73,7 @@ public sealed class CancelTransferCommandHandler(
                 snapshot.Restore();
             }
 
-            logger.LogWarning("Transfer cancel rejected for {TransferSlipId}.", command.TransferSlipId);
+            logger.LogInformation("Transfer cancel rejected for {TransferSlipId}.", command.TransferSlipId);
             return Result<Guid, StockError>.Fail(StockError.CancelRejected);
         }
 

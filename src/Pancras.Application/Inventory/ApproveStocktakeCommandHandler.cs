@@ -17,7 +17,7 @@ public sealed class ApproveStocktakeCommandHandler(
         var sheet = await repository.FindStocktakeForUpdateAsync(command.Id, cancellationToken);
         if (sheet is null)
         {
-            logger.LogWarning("Stocktake approval rejected for {StocktakeId}.", command.Id);
+            logger.LogInformation("Stocktake approval rejected for {StocktakeId}.", command.Id);
             return Result<Guid, StockError>.Fail(StockError.ApprovalForbidden);
         }
 
@@ -31,7 +31,7 @@ public sealed class ApproveStocktakeCommandHandler(
         var decision = sheet.Approve(command.Actor.Role);
         if (decision != StockDecision.Accepted)
         {
-            logger.LogWarning("Stocktake approval rejected for {StocktakeId}.", sheet.Id);
+            logger.LogInformation("Stocktake approval rejected for {StocktakeId}.", sheet.Id);
             return Result<Guid, StockError>.Fail(decision == StockDecision.NotPending ? StockError.TransferStateChanged : StockError.ApprovalForbidden);
         }
 
@@ -40,7 +40,7 @@ public sealed class ApproveStocktakeCommandHandler(
         if (!applied)
         {
             sheet.RestoreUncommitted(status);
-            logger.LogWarning("Stocktake approval would drop stock below the reserved quantity for {StocktakeId}.", sheet.Id);
+            logger.LogInformation("Stocktake approval would drop stock below the reserved quantity for {StocktakeId}.", sheet.Id);
             return Result<Guid, StockError>.Fail(StockError.NegativeStock);
         }
 

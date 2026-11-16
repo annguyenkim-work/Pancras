@@ -60,7 +60,7 @@ public sealed class ChangePurchaseStatusCommandHandler(
         };
         if (!moved)
         {
-            logger.LogWarning("Purchase order {PurchaseOrderId} cannot {Action} from {Status}.", order.Id, command.Action, order.Status);
+            logger.LogInformation("Purchase order {PurchaseOrderId} cannot {Action} from {Status}.", order.Id, command.Action, order.Status);
             return Result<Guid, PurchaseError>.Fail(PurchaseError.InvalidTransition);
         }
 

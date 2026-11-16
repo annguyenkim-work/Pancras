@@ -62,14 +62,14 @@ public sealed class UpdateSupplierCommandHandler(
         var normalizedCode = Supplier.NormalizeCode(code);
         if (await repository.NormalizedCodeExistsAsync(normalizedCode, supplier.Id, cancellationToken))
         {
-            logger.LogWarning("Rejected a duplicate supplier code.");
+            logger.LogInformation("Rejected a duplicate supplier code.");
             return DuplicateCode(SupplierIssueKind.Duplicate);
         }
 
         if (normalizedCode != supplier.NormalizedCode
             && await repository.InactiveNameWithCodeAsync(normalizedCode, cancellationToken) is not null)
         {
-            logger.LogWarning("Rejected a supplier code held by an inactive supplier.");
+            logger.LogInformation("Rejected a supplier code held by an inactive supplier.");
             return DuplicateCode(SupplierIssueKind.DuplicateInactive);
         }
 
@@ -103,7 +103,7 @@ public sealed class UpdateSupplierCommandHandler(
 
         if (saved != SaveOutcome.Saved)
         {
-            logger.LogWarning("Rejected a duplicate supplier code.");
+            logger.LogInformation("Rejected a duplicate supplier code.");
             return DuplicateCode(SupplierIssueKind.Duplicate);
         }
 
