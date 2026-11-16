@@ -40,7 +40,7 @@
         </div>
         @if (Model.CanCreate)
         {
-            <a href="@Model.FormUrl()" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Thêm nhân viên</a>
+            <a href="@Model.FormUrl()" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Thêm nhân viên</a>
         }
     </div>
     @if (!Model.ShowForm && !Model.ShowEdit && Model.Error != EmployeeError.None)
@@ -162,7 +162,7 @@ else
                             }
                             @if (Model.CanEdit(card))
                             {
-                                <a class="px-3 py-1.5 text-sm font-bold rounded-lg bg-slate-100 text-slate-700" href="@Model.EditUrl(card.Id)">Sửa</a>
+                                <a class="rounded-lg px-3 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60" href="@Model.EditUrl(card.Id)">Sửa</a>
                             }
                             </div>
                         </td>
@@ -266,8 +266,8 @@ else
                 <label class="text-sm sm:col-span-2">Mật khẩu<span class="text-rose-600" aria-hidden="true"> *</span> <span class="text-xs text-slate-500">(8–128 ký tự)</span><input asp-for="Command.Password" type="password" autocomplete="new-password" class="@inputClass" /></label>
             </div>
             <div class="mt-4 flex justify-end gap-2">
-                <a href="@Model.ListUrl()" class="px-4 py-2 text-sm rounded-lg bg-slate-100 text-slate-600">Hủy</a>
-                <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Lưu</button>
+                <a href="@Model.ListUrl()" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Hủy</a>
+                <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Lưu</button>
             </div>
         </form>
     </dialog>
@@ -367,14 +367,14 @@ else
                 @if (Model.CanEditPersonal || Model.CanEditAssignment || Model.CanResetPassword)
                 {
                     <div class="mt-4 flex justify-end gap-2">
-                        <a href="@Model.ListUrl()" class="px-4 py-2 text-sm rounded-lg bg-slate-100 text-slate-600">Hủy</a>
-                        <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Lưu</button>
+                        <a href="@Model.ListUrl()" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Hủy</a>
+                        <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Lưu</button>
                     </div>
                 }
                 else
                 {
                     <div class="mt-4 flex justify-end">
-                        <a href="@Model.ListUrl()" class="px-4 py-2 text-sm rounded-lg bg-slate-100 text-slate-600">Đóng</a>
+                        <a href="@Model.ListUrl()" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Đóng</a>
                     </div>
                 }
             }

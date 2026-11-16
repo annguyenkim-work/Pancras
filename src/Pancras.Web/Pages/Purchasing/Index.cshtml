@@ -16,7 +16,7 @@
         </div>
         @if (Model.CanManage)
         {
-            <a href="/purchasing?form=1" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">+ Tạo Đơn Mua Hàng &amp; Container</a>
+            <a href="/purchasing?form=1" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">+ Tạo Đơn Mua Hàng &amp; Container</a>
         }
     </div>
     @* Khi modal đang mở, lỗi hiện trong modal (bên dưới); hiện ở đây sẽ nằm sau lớp phủ và người dùng không thấy. *@
@@ -113,11 +113,11 @@ else
                         <span class="self-center rounded-full px-2 py-0.5 text-xs font-bold @Pancras.Web.Pages.Purchasing.IndexModel.StatusClass(order.Status)">@Pancras.Web.Pages.Purchasing.IndexModel.StatusLabel(order.Status)</span>
                         <form method="post" asp-page-handler="Export">
                             <input type="hidden" name="orderId" value="@order.Id" />
-                            <button type="submit" class="px-3 py-2 text-sm font-bold rounded-lg bg-slate-100 text-slate-700">Xuất CSV</button>
+                            <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Xuất CSV</button>
                         </form>
                         @if (Model.CanManage && Pancras.Web.Pages.Purchasing.IndexModel.IsEditable(order.Status))
                         {
-                            <a href="/purchasing?edit=@order.Id" class="px-3 py-2 text-sm font-bold rounded-lg bg-slate-100 text-slate-700">Sửa đơn</a>
+                            <a href="/purchasing?edit=@order.Id" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Sửa đơn</a>
                         }
                         @if (Model.CanReceiveSelected && Pancras.Web.Pages.Purchasing.IndexModel.IsReceivable(order.Status))
                         {
@@ -128,7 +128,7 @@ else
                                     <input type="checkbox" name="closeOrder" value="true" class="rounded border-slate-300" />
                                     Đóng đơn dù nhận thiếu
                                 </label>
-                                <button type="submit" class="px-3 py-2 text-sm font-bold text-white bg-emerald-600 rounded-lg">Nhập Kho &amp; Cập Nhật Giá Vốn (@order.Lines.Count món)</button>
+                                <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60">Nhập Kho &amp; Cập Nhật Giá Vốn (@order.Lines.Count món)</button>
                             </form>
                         }
                     </div>
@@ -143,7 +143,7 @@ else
                             <form method="post" asp-page-handler="ChangeStatus" data-confirm data-confirm-title="Gửi duyệt" data-confirm-message="Gửi đơn này đi duyệt?" data-confirm-label="Gửi duyệt">
                                 <input type="hidden" name="orderId" value="@order.Id" />
                                 <input type="hidden" name="action" value="@((int)Pancras.Application.Purchasing.PurchaseStatusAction.Submit)" />
-                                <button type="submit" class="rounded-lg bg-sky-600 px-3 py-2 text-sm font-bold text-white">Gửi duyệt</button>
+                                <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Gửi duyệt</button>
                             </form>
                         }
                         @if (order.Status == PurchaseStatus.PendingApproval)
@@ -151,7 +151,7 @@ else
                             <form method="post" asp-page-handler="ChangeStatus" data-confirm data-confirm-title="Duyệt đơn" data-confirm-message="Duyệt đơn này?" data-confirm-label="Duyệt đơn">
                                 <input type="hidden" name="orderId" value="@order.Id" />
                                 <input type="hidden" name="action" value="@((int)Pancras.Application.Purchasing.PurchaseStatusAction.Approve)" />
-                                <button type="submit" class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white">Duyệt đơn</button>
+                                <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60">Duyệt đơn</button>
                             </form>
                             <form method="post" asp-page-handler="ChangeStatus" data-confirm data-confirm-title="Trả về nháp" data-confirm-message="Đơn quay về nháp để sửa. Nhập lý do trả về." data-confirm-label="Trả về nháp" data-reason="required">
                                 <input type="hidden" name="orderId" value="@order.Id" />
@@ -165,7 +165,7 @@ else
                             <form method="post" asp-page-handler="ChangeStatus" data-confirm data-confirm-title="Hàng đang về" data-confirm-message="Đánh dấu hàng đang trên đường về?" data-confirm-label="Hàng đang về">
                                 <input type="hidden" name="orderId" value="@order.Id" />
                                 <input type="hidden" name="action" value="@((int)Pancras.Application.Purchasing.PurchaseStatusAction.MarkInTransit)" />
-                                <button type="submit" class="rounded-lg bg-sky-600 px-3 py-2 text-sm font-bold text-white">Hàng đang về</button>
+                                <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Hàng đang về</button>
                             </form>
                         }
                         <form method="post" asp-page-handler="ChangeStatus" data-confirm data-confirm-title="Hủy đơn" data-confirm-message="Hủy đơn này? Không hoàn tác được." data-confirm-label="Hủy đơn" data-confirm-tone="danger" data-reason="required">
@@ -269,7 +269,7 @@ else
                     <h3 id="charges" class="scroll-mt-4 text-xs font-bold tracking-wide text-slate-500">BẢNG CHI PHÍ NHẬP KHẨU &amp; PHÂN BỔ (LANDED COST BREAKDOWN)</h3>
                     @if (isOpen)
                     {
-                        <a href="/purchasing?edit=@order.Id&amp;focus=charges" class="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-sky-700">Sửa chi phí</a>
+                        <a href="/purchasing?edit=@order.Id&amp;focus=charges" class="rounded-lg px-3 py-1.5 text-xs font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Sửa chi phí</a>
                     }
                 </div>
                 <p class="mt-1 text-xs leading-5 text-slate-600">Mỗi khoản chi phí của container thuộc một nhóm. <b>Điều chỉnh trị giá hải quan</b> (cước biển, bảo hiểm) cộng vào trị giá tính thuế. <b>Logistics</b> (THC, D/O, kiểm định, kéo xe) cộng thẳng vào giá vốn. <b>Thuế không được khấu trừ</b> cộng vào giá vốn. <b>Thuế được khấu trừ</b> không vào giá vốn. Bản scan tờ khai và hóa đơn đính kèm ở mục "Chứng từ đính kèm" bên dưới.</p>
@@ -436,7 +436,7 @@ else
                                 </select>
                             </label>
                             <label class="text-sm">Lý do<input name="reason" required maxlength="500" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
-                            <div class="md:col-span-4"><button type="submit" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white">Ghi điều chỉnh</button></div>
+                            <div class="md:col-span-4"><button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Ghi điều chỉnh</button></div>
                         </form>
                     </details>
                 }
@@ -496,7 +496,7 @@ else
                         <label class="text-xs">File
                             <input type="file" name="file" required accept=".pdf,.jpg,.jpeg,.png,.xlsx,.docx" class="mt-1 block max-w-xs text-sm" />
                         </label>
-                        <button type="submit" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white">Đính kèm</button>
+                        <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Đính kèm</button>
                     </form>
                     }
                 </section>
@@ -749,8 +749,8 @@ else
             <div class="sticky -bottom-5 z-10 -mx-5 -mb-5 mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-3 sm:-mx-6 sm:px-6">
                 <p class="text-sm text-slate-600">Giá vốn hàng nhập <strong id="f-landed" class="text-base text-emerald-700">0 VNĐ</strong> <span class="mx-1 text-slate-300">|</span> Tổng thực chi <strong id="f-cash" class="text-base text-slate-900">0 VNĐ</strong></p>
                 <div class="flex gap-2">
-                    <a href="/purchasing" data-leave class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600">Hủy</a>
-                    <button type="submit" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white">@(Model.EditingId is null ? "Lưu Đơn Mua Hàng & Container" : "Lưu thay đổi")</button>
+                    <a href="/purchasing" data-leave class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Hủy</a>
+                    <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">@(Model.EditingId is null ? "Lưu Đơn Mua Hàng & Container" : "Lưu thay đổi")</button>
                 </div>
             </div>
         </form>
@@ -758,7 +758,7 @@ else
     <script src="~/js/purchasing-form.js" asp-append-version="true" defer></script>
 }
 
-<dialog id="confirm-dialog" class="m-auto w-[min(30rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50 open:flex" aria-labelledby="confirm-title">
+<dialog id="confirm-dialog" class="m-auto w-[min(28rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50 open:flex" aria-labelledby="confirm-title">
     <div class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
         <h2 id="confirm-title" class="text-base font-bold text-slate-900">Xác nhận</h2>
         <button type="button" id="confirm-close" class="grid h-8 w-8 place-items-center rounded-lg text-2xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Đóng">×</button>
@@ -773,8 +773,8 @@ else
         </div>
     </div>
     <div class="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
-        <button type="button" id="confirm-cancel" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">Quay lại</button>
-        <button type="button" id="confirm-ok" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white">Xác nhận</button>
+        <button type="button" id="confirm-cancel" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Quay lại</button>
+        <button type="button" id="confirm-ok" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Xác nhận</button>
     </div>
 </dialog>
 <script src="~/js/purchasing-page.js" asp-append-version="true" defer></script>

@@ -15,7 +15,7 @@
         </div>
         @if (Model.CanManage)
         {
-            <a href="/locations?form=1" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Thêm kho/showroom</a>
+            <a href="/locations?form=1" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Thêm kho/showroom</a>
         }
     </div>
     @if (Model.HasAny)
@@ -64,7 +64,7 @@ else
                         {
                             <td class="px-3 py-3">
                                 <div class="flex items-center justify-end gap-2">
-                                    <a href="/locations?edit=@location.Id" class="px-3 py-1.5 text-sm font-bold rounded-lg bg-slate-100 text-slate-700">Sửa</a>
+                                    <a href="/locations?edit=@location.Id" class="rounded-lg px-3 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Sửa</a>
                                     <form method="post" asp-page-handler="Disable" asp-route-id="@location.Id" data-confirm data-confirm-title="Disable kho/showroom" data-confirm-message="Disable kho/showroom này? Địa điểm sẽ bị ẩn khỏi danh sách, lịch sử vẫn được giữ." data-confirm-label="Disable" data-confirm-tone="danger">
                                         <button type="submit" class="px-3 py-1.5 text-sm font-medium rounded-lg text-rose-700 hover:bg-rose-50">Disable</button>
                                     </form>
@@ -101,8 +101,8 @@ else
                 </label>
             </div>
             <div class="mt-4 flex justify-end gap-2">
-                <a href="/locations" class="px-4 py-2 text-sm rounded-lg bg-slate-100 text-slate-600">Hủy</a>
-                <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Lưu</button>
+                <a href="/locations" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Hủy</a>
+                <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Lưu</button>
             </div>
         </form>
     </dialog>
@@ -132,8 +132,8 @@ else
                 </label>
             </div>
             <div class="mt-4 flex justify-end gap-2">
-                <a href="/locations" class="px-4 py-2 text-sm rounded-lg bg-slate-100 text-slate-600">Hủy</a>
-                <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Lưu</button>
+                <a href="/locations" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Hủy</a>
+                <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Lưu</button>
             </div>
         </form>
     </dialog>

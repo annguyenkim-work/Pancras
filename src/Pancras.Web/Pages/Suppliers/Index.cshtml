@@ -20,7 +20,7 @@
         </div>
         @if (Model.CanManage)
         {
-            <a href="@Model.AddUrl" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Thêm nhà cung cấp</a>
+            <a href="@Model.AddUrl" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Thêm nhà cung cấp</a>
         }
     </div>
     <form method="get" action="/suppliers" data-live-filter class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -98,13 +98,13 @@ else
                                                 <input type="hidden" name="country" value="@Model.Country" />
                                                 <input type="hidden" name="page" value="@Model.CardPage.PageNumber" />
                                                 <partial name="_ListState" model="(Model.RequestedSize, Model.SortToken)" />
-                                                <button type="submit" class="px-3 py-1.5 text-sm font-bold rounded-lg bg-slate-100 text-slate-700">Active</button>
+                                                <button type="submit" class="rounded-lg px-3 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Active</button>
                                             </form>
                                         }
                                     }
                                     else
                                     {
-                                        <a href="@Model.EditUrl(card.Id)" class="px-3 py-1.5 text-sm font-bold rounded-lg bg-slate-100 text-slate-700">Sửa</a>
+                                        <a href="@Model.EditUrl(card.Id)" class="rounded-lg px-3 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Sửa</a>
                                         @if (card.LotsNotReceived > 0)
                                         {
                                             <button type="button" disabled class="px-3 py-1.5 text-sm font-medium rounded-lg text-slate-400 cursor-not-allowed" title="Còn @card.LotsNotReceived lô chưa nhập kho. Nhập kho hoặc xử lý các đơn đó trước khi Disable.">Disable</button>
@@ -244,8 +244,8 @@ else
                 </div>
             </fieldset>
             <div class="flex justify-end gap-2 mt-6">
-                <a href="@Model.FilteredListUrl" class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 text-slate-600">Hủy</a>
-                <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">@(Model.IsEditing ? "Lưu thay đổi" : "Lưu nhà cung cấp")</button>
+                <a href="@Model.FilteredListUrl" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Hủy</a>
+                <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">@(Model.IsEditing ? "Lưu thay đổi" : "Lưu nhà cung cấp")</button>
             </div>
         </form>
     </dialog>
@@ -276,8 +276,8 @@ else
                 <div class="mt-4"><partial name="_ErrorNotice" /></div>
             }
             <div class="mt-6 flex justify-end gap-2">
-                <a href="@Model.FilteredListUrl" class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 text-slate-600">Hủy</a>
-                <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-rose-600 rounded-lg">Disable</button>
+                <a href="@Model.FilteredListUrl" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Hủy</a>
+                <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-60">Disable</button>
             </div>
         </form>
     </dialog>

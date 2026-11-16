@@ -46,7 +46,7 @@
         <a href="/notifications" class="relative ml-auto mr-3 p-1 text-slate-700" title="Thông báo" aria-label="@bellLabel"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>@if (unseen > 0) {<span class="absolute -right-1 -top-1 min-w-[1.1rem] rounded-full bg-rose-600 px-1 text-center text-[10px] font-bold leading-4 text-white">@(unseen > 9 ? "9+" : unseen.ToString())</span>}</a>
         <a href="/profile" class="mr-2 text-sm font-medium text-slate-800">Hồ sơ</a>
         <form method="post" asp-page="/Account/Logout">
-            <button type="submit" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Đăng xuất</button>
+            <button type="submit" class="rounded-lg px-3 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Đăng xuất</button>
         </form>
     </div>
     <div id="nav-backdrop" class="hidden fixed inset-0 z-40 bg-slate-900/50 lg:hidden" data-nav-close></div>
@@ -86,7 +86,7 @@
                 <a href="/profile" class="text-sm font-medium text-slate-800 hover:text-sky-700" title="Hồ sơ của tôi">@User.Identity?.Name</a>
                 <span class="@Pancras.Web.Formatting.Badge.Classes(Pancras.Web.Formatting.BadgeTone.Info)">@User.FindFirstValue(ClaimTypes.Role)</span>
                 <form method="post" asp-page="/Account/Logout">
-                    <button type="submit" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Đăng xuất</button>
+                    <button type="submit" class="rounded-lg px-3 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Đăng xuất</button>
                 </form>
             </div>
         </header>
