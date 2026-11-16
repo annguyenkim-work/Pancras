@@ -187,26 +187,26 @@ else
                 }
                 <div class="mt-3 max-w-full overflow-x-auto">
                     <table class="min-w-full whitespace-nowrap text-sm">
-                        <thead class="text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+                        <thead class="bg-slate-50 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
                             <tr>
-                                <th class="py-2 pr-3">Mã SKU</th>
-                                <th class="py-2 pr-3">Tên sản phẩm</th>
-                                <th class="py-2 pr-3">SL đặt</th>
-                                <th class="py-2 pr-3">SL đã nhận</th>
+                                <th class="px-3 py-2">Mã SKU</th>
+                                <th class="px-3 py-2">Tên sản phẩm</th>
+                                <th class="px-3 py-2">SL đặt</th>
+                                <th class="px-3 py-2">SL đã nhận</th>
                                 @if (Model.CanReceiveSelected && Pancras.Web.Pages.Purchasing.IndexModel.IsReceivable(order.Status))
                                 {
-                                    <th class="py-2 pr-3">SL nhận lần này</th>
+                                    <th class="px-3 py-2">SL nhận lần này</th>
                                 }
                                 @if (order.CostVisible)
                                 {
-                                    <th class="py-2 pr-3">Giá FOB (USD)</th>
-                                    <th class="py-2 pr-3">Thuế NK</th>
-                                    <th class="py-2 pr-3">Trị giá hải quan</th>
-                                    <th class="py-2 pr-3">Giá tính VAT</th>
-                                    <th class="py-2 pr-3">VAT</th>
-                                    <th class="py-2 pr-3">Chi phí phân bổ</th>
-                                    <th class="py-2 pr-3">@(estimated ? "Dự toán giá vốn dòng" : "Giá vốn dòng")</th>
-                                    <th class="py-2 pr-3">@(estimated ? "Dự toán giá vốn / đơn vị" : "Giá vốn / đơn vị")</th>
+                                    <th class="px-3 py-2">Giá FOB (USD)</th>
+                                    <th class="px-3 py-2">Thuế NK</th>
+                                    <th class="px-3 py-2">Trị giá hải quan</th>
+                                    <th class="px-3 py-2">Giá tính VAT</th>
+                                    <th class="px-3 py-2">VAT</th>
+                                    <th class="px-3 py-2">Chi phí phân bổ</th>
+                                    <th class="px-3 py-2">@(estimated ? "Dự toán giá vốn dòng" : "Giá vốn dòng")</th>
+                                    <th class="px-3 py-2">@(estimated ? "Dự toán giá vốn / đơn vị" : "Giá vốn / đơn vị")</th>
                                 }
                             </tr>
                         </thead>
@@ -214,27 +214,27 @@ else
                             @foreach (var line in order.Lines)
                             {
                                 <tr class="border-t border-slate-100 align-top">
-                                    <td class="py-2 pr-3 font-mono">@line.ItemCode</td>
-                                    <td class="py-2 pr-3">@line.ItemName</td>
-                                    <td class="py-2 pr-3 tabular-nums">@line.Quantity</td>
-                                    <td class="py-2 pr-3 tabular-nums">@line.ReceivedQuantity</td>
+                                    <td class="px-3 py-2 font-mono">@line.ItemCode</td>
+                                    <td class="px-3 py-2">@line.ItemName</td>
+                                    <td class="px-3 py-2 tabular-nums">@line.Quantity</td>
+                                    <td class="px-3 py-2 tabular-nums">@line.ReceivedQuantity</td>
                                     @if (Model.CanReceiveSelected && Pancras.Web.Pages.Purchasing.IndexModel.IsReceivable(order.Status))
                                     {
                                         var remaining = Math.Max(0, line.Quantity - line.ReceivedQuantity);
-                                        <td class="py-2 pr-3">
+                                        <td class="px-3 py-2">
                                             <input form="receive-form" type="number" name="actuals[@line.Id]" value="@remaining" min="0" data-remaining="@remaining" class="w-20 rounded-lg border border-slate-300 px-2 py-1 text-right tabular-nums" />
                                         </td>
                                     }
                                     @if (order.CostVisible)
                                     {
-                                        <td class="py-2 pr-3 tabular-nums">@VndMoney.FormatUsd(line.Quantity == 0 ? line.FobUsd : line.FobUsd / line.Quantity)</td>
-                                        <td class="py-2 pr-3 tabular-nums">@VndMoney.FormatPercent(line.DutyRate)</td>
-                                        <td class="py-2 pr-3 tabular-nums">@VndMoney.FormatDong(line.Cost.CustomsInUse)</td>
-                                        <td class="py-2 pr-3 tabular-nums">@VndMoney.FormatDong(line.Cost.VatBase)</td>
-                                        <td class="py-2 pr-3 tabular-nums">@VndMoney.FormatDong(line.Cost.VatInUse)</td>
-                                        <td class="py-2 pr-3 tabular-nums text-emerald-700">@VndMoney.FormatDong(line.Cost.LogisticsAllocated)</td>
-                                        <td class="py-2 pr-3 tabular-nums">@VndMoney.FormatDong(line.Cost.LandedCost)</td>
-                                        <td class="py-2 pr-3 tabular-nums font-bold">
+                                        <td class="px-3 py-2 tabular-nums">@VndMoney.FormatUsd(line.Quantity == 0 ? line.FobUsd : line.FobUsd / line.Quantity)</td>
+                                        <td class="px-3 py-2 tabular-nums">@VndMoney.FormatPercent(line.DutyRate)</td>
+                                        <td class="px-3 py-2 tabular-nums">@VndMoney.FormatDong(line.Cost.CustomsInUse)</td>
+                                        <td class="px-3 py-2 tabular-nums">@VndMoney.FormatDong(line.Cost.VatBase)</td>
+                                        <td class="px-3 py-2 tabular-nums">@VndMoney.FormatDong(line.Cost.VatInUse)</td>
+                                        <td class="px-3 py-2 tabular-nums text-emerald-700">@VndMoney.FormatDong(line.Cost.LogisticsAllocated)</td>
+                                        <td class="px-3 py-2 tabular-nums">@VndMoney.FormatDong(line.Cost.LandedCost)</td>
+                                        <td class="px-3 py-2 tabular-nums font-bold">
                                             <a class="text-sky-700" href="/purchasing?order=@order.Id&amp;formula=@line.Id">@VndMoney.FormatDong(line.Cost.UnitCost)</a>
                                         </td>
                                     }
@@ -333,14 +333,14 @@ else
                         <summary class="cursor-pointer text-sm font-bold text-sky-700">Bảng phân bổ chi phí cho từng mặt hàng</summary>
                         <div class="mt-3 max-w-full overflow-x-auto">
                             <table class="min-w-full whitespace-nowrap text-xs">
-                                <thead class="text-right font-bold text-slate-600">
+                                <thead class="bg-slate-50 text-right font-bold text-slate-600">
                                     <tr class="border-b border-slate-200">
-                                        <th class="py-2 pr-3 text-left">Khoản chi phí</th>
-                                        <th class="py-2 pr-3 text-left">Cách chia</th>
-                                        <th class="py-2 pr-3">Số tiền</th>
+                                        <th class="px-3 py-2 text-left">Khoản chi phí</th>
+                                        <th class="px-3 py-2 text-left">Cách chia</th>
+                                        <th class="px-3 py-2">Số tiền</th>
                                         @foreach (var column in order.Lines)
                                         {
-                                            <th class="py-2 pr-3 font-mono" title="@column.ItemName">@column.ItemCode</th>
+                                            <th class="px-3 py-2 font-mono" title="@column.ItemName">@column.ItemCode</th>
                                         }
                                     </tr>
                                 </thead>
@@ -348,23 +348,23 @@ else
                                     @foreach (var charge in order.Charges)
                                     {
                                         <tr class="border-b border-slate-100">
-                                            <td class="py-1.5 pr-3 text-left">@(string.IsNullOrWhiteSpace(charge.Label) ? "Khoản chi phí container" : charge.Label)<span class="block text-slate-500">@(charge.Group switch { ChargeGroup.Logistics => "Logistics", ChargeGroup.CustomsValueAdjustment => "Trị giá hải quan", ChargeGroup.DeductibleTax => "Thuế khấu trừ", ChargeGroup.NonDeductibleTax => "Thuế không khấu trừ", _ => "Chưa gán nhóm" })</span></td>
-                                            <td class="py-1.5 pr-3 text-left">@(charge.Method switch { ChargeSplitMethod.FobValue => "Theo trị giá FOB", ChargeSplitMethod.Quantity => "Bình quân theo số lượng", ChargeSplitMethod.Weight => "Theo khối lượng", ChargeSplitMethod.Volume => "Theo thể tích", _ => "Nhập tay" })</td>
-                                            <td class="py-1.5 pr-3 font-medium">@VndMoney.FormatDong(charge.Amount)</td>
+                                            <td class="px-3 py-1.5 text-left">@(string.IsNullOrWhiteSpace(charge.Label) ? "Khoản chi phí container" : charge.Label)<span class="block text-slate-500">@(charge.Group switch { ChargeGroup.Logistics => "Logistics", ChargeGroup.CustomsValueAdjustment => "Trị giá hải quan", ChargeGroup.DeductibleTax => "Thuế khấu trừ", ChargeGroup.NonDeductibleTax => "Thuế không khấu trừ", _ => "Chưa gán nhóm" })</span></td>
+                                            <td class="px-3 py-1.5 text-left">@(charge.Method switch { ChargeSplitMethod.FobValue => "Theo trị giá FOB", ChargeSplitMethod.Quantity => "Bình quân theo số lượng", ChargeSplitMethod.Weight => "Theo khối lượng", ChargeSplitMethod.Volume => "Theo thể tích", _ => "Nhập tay" })</td>
+                                            <td class="px-3 py-1.5 font-medium">@VndMoney.FormatDong(charge.Amount)</td>
                                             @foreach (var column in order.Lines)
                                             {
-                                                <td class="py-1.5 pr-3">@VndMoney.FormatDong(charge.Shares.Where(share => share.LineId == column.Id).Sum(share => share.Amount))</td>
+                                                <td class="px-3 py-1.5">@VndMoney.FormatDong(charge.Shares.Where(share => share.LineId == column.Id).Sum(share => share.Amount))</td>
                                             }
                                         </tr>
                                     }
                                 </tbody>
                                 <tfoot class="text-right font-bold tabular-nums">
                                     <tr class="border-t-2 border-slate-300">
-                                        <td class="py-2 pr-3 text-left" colspan="2">Tổng</td>
-                                        <td class="py-2 pr-3">@VndMoney.FormatDong(order.Charges.Sum(charge => charge.Amount))</td>
+                                        <td class="px-3 py-2 text-left" colspan="2">Tổng</td>
+                                        <td class="px-3 py-2">@VndMoney.FormatDong(order.Charges.Sum(charge => charge.Amount))</td>
                                         @foreach (var column in order.Lines)
                                         {
-                                            <td class="py-2 pr-3">@VndMoney.FormatDong(order.Charges.Sum(charge => charge.Shares.Where(share => share.LineId == column.Id).Sum(share => share.Amount)))</td>
+                                            <td class="px-3 py-2">@VndMoney.FormatDong(order.Charges.Sum(charge => charge.Shares.Where(share => share.LineId == column.Id).Sum(share => share.Amount)))</td>
                                         }
                                     </tr>
                                 </tfoot>
@@ -391,26 +391,26 @@ else
                         <h3 id="adjustments-title" class="text-xs font-bold tracking-wide text-slate-500">ĐIỀU CHỈNH CHI PHÍ SAU KHI NHẬN (@adjustments.Count)</h3>
                         <div class="mt-2 overflow-x-auto">
                             <table class="min-w-full text-sm">
-                                <thead class="text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+                                <thead class="bg-slate-50 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
                                     <tr>
-                                        <th class="py-2 pr-3">Khoản</th>
-                                        <th class="py-2 pr-3">Số tiền</th>
-                                        <th class="py-2 pr-3">Vào giá vốn hàng còn tồn</th>
-                                        <th class="py-2 pr-3">Chênh lệch (hàng đã xuất)</th>
-                                        <th class="py-2 pr-3">Lý do</th>
-                                        <th class="py-2 pr-3">Ai, lúc nào</th>
+                                        <th class="px-3 py-2">Khoản</th>
+                                        <th class="px-3 py-2">Số tiền</th>
+                                        <th class="px-3 py-2">Vào giá vốn hàng còn tồn</th>
+                                        <th class="px-3 py-2">Chênh lệch (hàng đã xuất)</th>
+                                        <th class="px-3 py-2">Lý do</th>
+                                        <th class="px-3 py-2">Ai, lúc nào</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach (var adjustment in adjustments)
                                     {
                                         <tr class="border-t border-slate-100 align-top">
-                                            <td class="py-2 pr-3">@adjustment.Label</td>
-                                            <td class="py-2 pr-3 tabular-nums">@VndMoney.FormatDong(adjustment.Amount)</td>
-                                            <td class="py-2 pr-3 tabular-nums">@VndMoney.FormatDong(adjustment.AppliedToStock)</td>
-                                            <td class="py-2 pr-3 tabular-nums">@VndMoney.FormatDong(adjustment.Variance)</td>
-                                            <td class="py-2 pr-3">@adjustment.Reason</td>
-                                            <td class="py-2 pr-3 text-xs text-slate-500">@adjustment.CreatedBy · @VietnamTime.Format(adjustment.CreatedAt)</td>
+                                            <td class="px-3 py-2">@adjustment.Label</td>
+                                            <td class="px-3 py-2 tabular-nums">@VndMoney.FormatDong(adjustment.Amount)</td>
+                                            <td class="px-3 py-2 tabular-nums">@VndMoney.FormatDong(adjustment.AppliedToStock)</td>
+                                            <td class="px-3 py-2 tabular-nums">@VndMoney.FormatDong(adjustment.Variance)</td>
+                                            <td class="px-3 py-2">@adjustment.Reason</td>
+                                            <td class="px-3 py-2 text-xs text-slate-500">@adjustment.CreatedBy · @VietnamTime.Format(adjustment.CreatedAt)</td>
                                         </tr>
                                     }
                                 </tbody>
@@ -587,14 +587,14 @@ else
             <div class="mt-3 overflow-x-auto">
                 @* Chỉ các ô nhập và một kết quả (giá vốn / đơn vị). Các bước tính trung gian nằm ở "Bảng kiểm tra tính giá vốn" bên dưới, không lặp lại ở đây. *@
                 <table class="min-w-[46rem] w-full text-sm">
-                    <thead class="text-left text-xs font-bold text-slate-500">
+                    <thead class="bg-slate-50 text-left text-xs font-bold text-slate-500">
                         <tr>
-                            <th class="py-2 pr-2">Sản phẩm / Thiết bị</th>
-                            <th class="py-2 pr-2">Số lượng</th>
-                            <th class="py-2 pr-2">Đơn giá FOB (USD)</th>
-                            <th class="py-2 pr-2">Thuế NK %</th>
-                            <th class="py-2 pr-2" title="Thuế bổ sung, tiêu thụ đặc biệt, môi trường (tổng). Không khấu trừ nên tính vào giá vốn.">Thuế khác (VNĐ)</th>
-                            <th class="py-2 pr-2 text-right">Giá vốn / đơn vị</th>
+                            <th class="px-3 py-2">Sản phẩm / Thiết bị</th>
+                            <th class="px-3 py-2">Số lượng</th>
+                            <th class="px-3 py-2">Đơn giá FOB (USD)</th>
+                            <th class="px-3 py-2">Thuế NK %</th>
+                            <th class="px-3 py-2" title="Thuế bổ sung, tiêu thụ đặc biệt, môi trường (tổng). Không khấu trừ nên tính vào giá vốn.">Thuế khác (VNĐ)</th>
+                            <th class="px-3 py-2 text-right">Giá vốn / đơn vị</th>
                             <th class="py-2"></th>
                         </tr>
                     </thead>
@@ -605,7 +605,7 @@ else
                             var unitPrice = index < Model.Form.UnitPrices.Count ? Model.Form.UnitPrices[index] : 0m;
                             var dutyPercent = index < Model.Form.DutyPercents.Count ? Model.Form.DutyPercents[index] : 0m;
                             <tr class="line-row border-t border-slate-100">
-                                <td class="py-2 pr-2">
+                                <td class="px-3 py-2">
                                     <input type="hidden" class="line-id" name="Form.Lines[@index].LineId" value="@(line.LineId?.ToString() ?? "")" />
                                     <select name="Form.Lines[@index].CatalogItemId" class="w-64 rounded-lg border border-slate-300 px-2 py-2">
                                         <option value="">Chọn mặt hàng</option>
@@ -617,11 +617,11 @@ else
                                         }
                                     </select>
                                 </td>
-                                <td class="py-2 pr-2"><input name="Form.Lines[@index].Quantity" value="@line.Quantity.ToString(CultureInfo.InvariantCulture)" class="line-qty draft w-20 rounded-lg border border-slate-300 px-2 py-2" /></td>
-                                <td class="py-2 pr-2"><input name="Form.UnitPrices[@index]" value="@unitPrice.ToString("0.####", CultureInfo.InvariantCulture)" class="line-unit draft w-24 rounded-lg border border-slate-300 px-2 py-2" /></td>
-                                <td class="py-2 pr-2"><input name="Form.DutyPercents[@index]" value="@dutyPercent.ToString("0.####", CultureInfo.InvariantCulture)" class="line-duty draft w-16 rounded-lg border border-amber-200 bg-amber-50 px-2 py-2" /></td>
-                                <td class="py-2 pr-2"><input name="Form.Lines[@index].SupplementalDuty" value="@line.SupplementalDuty.ToString("0", CultureInfo.InvariantCulture)" inputmode="numeric" class="line-other draft w-28 rounded-lg border border-slate-300 px-2 py-2" /></td>
-                                <td class="out-unit py-2 pr-2 text-right font-bold tabular-nums">0 VNĐ</td>
+                                <td class="px-3 py-2"><input name="Form.Lines[@index].Quantity" value="@line.Quantity.ToString(CultureInfo.InvariantCulture)" class="line-qty draft w-20 rounded-lg border border-slate-300 px-2 py-2" /></td>
+                                <td class="px-3 py-2"><input name="Form.UnitPrices[@index]" value="@unitPrice.ToString("0.####", CultureInfo.InvariantCulture)" class="line-unit draft w-24 rounded-lg border border-slate-300 px-2 py-2" /></td>
+                                <td class="px-3 py-2"><input name="Form.DutyPercents[@index]" value="@dutyPercent.ToString("0.####", CultureInfo.InvariantCulture)" class="line-duty draft w-16 rounded-lg border border-amber-200 bg-amber-50 px-2 py-2" /></td>
+                                <td class="px-3 py-2"><input name="Form.Lines[@index].SupplementalDuty" value="@line.SupplementalDuty.ToString("0", CultureInfo.InvariantCulture)" inputmode="numeric" class="line-other draft w-28 rounded-lg border border-slate-300 px-2 py-2" /></td>
+                                <td class="out-unit px-3 py-2 text-right font-bold tabular-nums">0 VNĐ</td>
                                 <td class="py-2 text-right">
                                     <button type="button" class="remove-line rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600" aria-label="Xóa mặt hàng" title="Xóa mặt hàng">
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -647,12 +647,12 @@ else
                 <div id="charge-area">
                 <div class="mt-3 overflow-x-auto">
                     <table class="min-w-[52rem] w-full text-sm">
-                        <thead class="text-left text-xs font-bold text-slate-600">
+                        <thead class="bg-slate-50 text-left text-xs font-bold text-slate-600">
                             <tr>
-                                <th class="py-2 pr-2">Tên khoản chi phí</th>
-                                <th class="py-2 pr-2">Số tiền (VNĐ)</th>
-                                <th class="py-2 pr-2">Nhóm</th>
-                                <th class="py-2 pr-2">Cách chia cho các mặt hàng</th>
+                                <th class="px-3 py-2">Tên khoản chi phí</th>
+                                <th class="px-3 py-2">Số tiền (VNĐ)</th>
+                                <th class="px-3 py-2">Nhóm</th>
+                                <th class="px-3 py-2">Cách chia cho các mặt hàng</th>
                                 <th class="py-2"></th>
                             </tr>
                         </thead>
@@ -664,12 +664,12 @@ else
                         </tbody>
                         <tfoot>
                             <tr class="border-t-2 border-amber-300 bg-amber-100/60 align-top">
-                                <td class="py-2 pr-2">
+                                <td class="px-3 py-2">
                                     <p class="font-medium text-slate-900">VAT hàng nhập khẩu (tự tính)</p>
                                     <p class="text-xs text-slate-600">= (trị giá hải quan + thuế NK + thuế khác) × suất VAT</p>
                                 </td>
-                                <td class="py-2 pr-2 text-right text-base font-bold tabular-nums text-slate-900"><span id="vat-amount">0 VNĐ</span></td>
-                                <td class="py-2 pr-2">
+                                <td class="px-3 py-2 text-right text-base font-bold tabular-nums text-slate-900"><span id="vat-amount">0 VNĐ</span></td>
+                                <td class="px-3 py-2">
                                     <label class="block text-xs text-slate-600">Suất VAT
                                         <span class="relative mt-1 block">
                                             <input name="Form.VatPercent" value="@Model.Form.VatPercent.ToString("0.####", CultureInfo.InvariantCulture)" id="vat-percent" inputmode="decimal" class="draft w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-9 text-sm text-slate-900" />
@@ -677,7 +677,7 @@ else
                                         </span>
                                     </label>
                                 </td>
-                                <td class="py-2 pr-2">
+                                <td class="px-3 py-2">
                                     <label class="flex items-start gap-2 text-sm text-slate-800">
                                         <input asp-for="Form.VatDeductible" id="vat-deductible" type="checkbox" class="draft mt-1" />
                                         <span>VAT đầu vào được khấu trừ <span class="block text-xs text-slate-600">Tắt (mặc định): VAT cộng vào giá vốn. Bật: VAT không vào giá vốn.</span></span>
@@ -710,19 +710,19 @@ else
                 <p class="mt-2 text-xs leading-5 text-slate-600">Từng bước tính cho mỗi mặt hàng, cập nhật ngay khi nhập. ③ = ① + ② · ④ = ③ × thuế NK % · ⑥ = ③ + ④ + ⑤ · ⑦ = ⑥ × suất VAT · ⑨ = ③ + ④ + ⑤ + ⑧ (+ ⑦ nếu VAT không khấu trừ) · ⑩ = ⑨ ÷ số lượng. Rê chuột vào tiêu đề cột để xem giải thích. Phần dư làm tròn đồng của mỗi khoản chia dồn về mặt hàng cuối.</p>
                 <div class="mt-3 overflow-x-auto">
                     <table class="min-w-[66rem] w-full text-xs">
-                        <thead class="text-right font-bold text-slate-600">
+                        <thead class="bg-slate-50 text-right font-bold text-slate-600">
                             <tr class="border-b border-slate-200">
-                                <th class="py-2 pr-2 text-left">Mặt hàng</th>
-                                <th class="py-2 pr-2">SL</th>
-                                <th class="py-2 pr-2" title="Số lượng × đơn giá USD × tỷ giá">① FOB quy đổi</th>
-                                <th class="py-2 pr-2" title="Các khoản nhóm Trị giá hải quan được chia cho mặt hàng">② Cước / bảo hiểm</th>
-                                <th class="py-2 pr-2">③ Trị giá hải quan</th>
-                                <th class="py-2 pr-2">④ Thuế NK</th>
-                                <th class="py-2 pr-2">⑤ Thuế khác</th>
-                                <th class="py-2 pr-2">⑥ Giá tính VAT</th>
-                                <th class="py-2 pr-2">⑦ VAT</th>
-                                <th class="py-2 pr-2" title="Các khoản nhóm Logistics và nhóm Thuế không khấu trừ được chia cho mặt hàng">⑧ Logistics &amp; thuế không khấu trừ</th>
-                                <th class="py-2 pr-2">⑨ Giá vốn dòng</th>
+                                <th class="px-3 py-2 text-left">Mặt hàng</th>
+                                <th class="px-3 py-2">SL</th>
+                                <th class="px-3 py-2" title="Số lượng × đơn giá USD × tỷ giá">① FOB quy đổi</th>
+                                <th class="px-3 py-2" title="Các khoản nhóm Trị giá hải quan được chia cho mặt hàng">② Cước / bảo hiểm</th>
+                                <th class="px-3 py-2">③ Trị giá hải quan</th>
+                                <th class="px-3 py-2">④ Thuế NK</th>
+                                <th class="px-3 py-2">⑤ Thuế khác</th>
+                                <th class="px-3 py-2">⑥ Giá tính VAT</th>
+                                <th class="px-3 py-2">⑦ VAT</th>
+                                <th class="px-3 py-2" title="Các khoản nhóm Logistics và nhóm Thuế không khấu trừ được chia cho mặt hàng">⑧ Logistics &amp; thuế không khấu trừ</th>
+                                <th class="px-3 py-2">⑨ Giá vốn dòng</th>
                                 <th class="py-2">⑩ Giá vốn / đơn vị</th>
                             </tr>
                         </thead>

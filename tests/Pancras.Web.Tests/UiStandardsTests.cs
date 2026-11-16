@@ -70,4 +70,43 @@ public class UiStandardsTests
 
         Assert.Empty(offenders);
     }
+
+    [Fact]
+    public void Tables_HaveAShadedHeader_AndPaddedCells()
+    {
+        var offenders = new List<string>();
+        foreach (var (file, text) in Views())
+        {
+            foreach (Match match in Regex.Matches(text, "<thead class=\"([^\"]*)\""))
+            {
+                if (!match.Groups[1].Value.Contains("bg-slate-50") && !match.Groups[1].Value.Contains('@'))
+                {
+                    offenders.Add(file + ": thead " + match.Groups[1].Value);
+                }
+            }
+
+            foreach (Match match in Regex.Matches(text, "<t[dh]\b[^>]*?\bclass=\"([^\"]*)\""))
+            {
+                var classes = match.Groups[1].Value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (classes.Contains("px-4") || (classes.Any(c => c.StartsWith("pr-", StringComparison.Ordinal)) && !classes.Any(c => c.StartsWith("px-", StringComparison.Ordinal))))
+                {
+                    offenders.Add(file + ": cell " + match.Groups[1].Value);
+                }
+            }
+        }
+
+        Assert.Empty(offenders);
+    }
+
+    [Fact]
+    public void PageTitles_UseTheStandardHeading()
+    {
+        var offenders = Views()
+            .Where(view => view.Text.Contains("<h1", StringComparison.Ordinal))
+            .Where(view => !view.Text.Contains("font-display text-xl sm:text-2xl font-bold text-slate-900", StringComparison.Ordinal))
+            .Select(view => view.File)
+            .ToArray();
+
+        Assert.Empty(offenders);
+    }
 }
