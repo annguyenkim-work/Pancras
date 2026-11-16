@@ -12,19 +12,19 @@ public sealed class ApproveQuantityAdjustmentCommandHandler(
     Pancras.Application.Auditing.IAuditLog? audit = null,
     Pancras.Application.Auditing.IRequestInfo? request = null)
 {
-    public async Task<Result<Guid>> HandleAsync(ApproveDocumentCommand command, CancellationToken cancellationToken)
+    public async Task<Result<Guid, StockError>> HandleAsync(ApproveDocumentCommand command, CancellationToken cancellationToken)
     {
         var adjustment = await repository.FindAdjustmentForUpdateAsync(command.Id, cancellationToken);
         if (adjustment is null)
         {
             logger.LogWarning("Quantity adjustment approval rejected for {QuantityAdjustmentId}.", command.Id);
-            return Result<Guid>.Fail(StockError.ApprovalForbidden);
+            return Result<Guid, StockError>.Fail(StockError.ApprovalForbidden);
         }
 
         if (!InventoryAccess.CanApproveAdjustment(command.Actor.Role))
         {
             logger.LogWarning("Quantity adjustment approval forbidden for employee {EmployeeId}.", command.Actor.Id);
-            return Result<Guid>.Fail(StockError.ApprovalForbidden);
+            return Result<Guid, StockError>.Fail(StockError.ApprovalForbidden);
         }
 
         var balance = await repository.FindBalanceForUpdateAsync(adjustment.CatalogItemId, adjustment.StockLocationId, cancellationToken);
@@ -43,9 +43,9 @@ public sealed class ApproveQuantityAdjustmentCommandHandler(
             logger.LogWarning("Quantity adjustment approval rejected for {QuantityAdjustmentId}.", adjustment.Id);
             return decision switch
             {
-                StockDecision.NegativeStock => Result<Guid>.Fail(StockError.NegativeStock, StockDecisionErrors.AvailabilityDetail(balance)),
-                StockDecision.NotPending => Result<Guid>.Fail(StockError.TransferStateChanged),
-                _ => Result<Guid>.Fail(StockError.ApprovalForbidden)
+                StockDecision.NegativeStock => Result<Guid, StockError>.Fail(StockError.NegativeStock, StockDecisionErrors.AvailabilityDetail(balance)),
+                StockDecision.NotPending => Result<Guid, StockError>.Fail(StockError.TransferStateChanged),
+                _ => Result<Guid, StockError>.Fail(StockError.ApprovalForbidden)
             };
         }
 
@@ -69,11 +69,11 @@ public sealed class ApproveQuantityAdjustmentCommandHandler(
             snapshot.Restore();
             adjustment.RestoreUncommitted(status);
             logger.LogWarning("Quantity adjustment approval commit failed for {QuantityAdjustmentId}.", adjustment.Id);
-            return Result<Guid>.Fail(StockError.NegativeStock);
+            return Result<Guid, StockError>.Fail(StockError.NegativeStock);
         }
 
         logger.LogInformation("Approved quantity adjustment {QuantityAdjustmentId}.", adjustment.Id);
         await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.AdjustmentApproved, "adjustment", adjustment.Id.ToString("D"), null, cancellationToken);
-        return Result<Guid>.Ok(adjustment.Id);
+        return Result<Guid, StockError>.Ok(adjustment.Id);
     }
 }

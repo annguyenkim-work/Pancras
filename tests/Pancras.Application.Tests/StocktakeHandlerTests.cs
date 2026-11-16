@@ -17,8 +17,8 @@ public class StocktakeHandlerTests
         var missingReason = await handler.HandleAsync(Command(store, 8, reason: " ", document: "BB-01"), CancellationToken.None);
         var missingDocument = await handler.HandleAsync(Command(store, 8, reason: "Đếm lại", document: null), CancellationToken.None);
 
-        Assert.Equal(StockError.MissingEvidence, missingReason.StockError);
-        Assert.Equal(StockError.MissingEvidence, missingDocument.StockError);
+        Assert.Equal(StockError.MissingEvidence, missingReason.Error);
+        Assert.Equal(StockError.MissingEvidence, missingDocument.Error);
         Assert.Empty(store.Stocktakes);
         Assert.Equal(10, store.Balance.OnHand);
     }
@@ -58,7 +58,7 @@ public class StocktakeHandlerTests
 
         var result = await handler.HandleAsync(new ApproveDocumentCommand(created.Value, TestActors.Sales(store.Location.Id)), CancellationToken.None);
 
-        Assert.Equal(StockError.ApprovalForbidden, result.StockError);
+        Assert.Equal(StockError.ApprovalForbidden, result.Error);
         Assert.Equal(ApprovalStatus.Pending, store.Stocktakes[0].Status);
     }
 
@@ -127,7 +127,7 @@ public class StocktakeHandlerTests
 
         var result = await CreateHandler(store).HandleAsync(Command(store, -1, "Lệch", "BB-01"), CancellationToken.None);
 
-        Assert.Equal(StockError.InvalidCount, result.StockError);
+        Assert.Equal(StockError.InvalidCount, result.Error);
         Assert.Empty(store.Stocktakes);
     }
 

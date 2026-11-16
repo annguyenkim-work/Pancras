@@ -120,11 +120,11 @@ public class StockDocumentAttachmentTests
         var fake = await Upload().HandleAsync(Command(id, TestActors.Keeper(_a.Id), "x.pdf", [1, 2, 3, 4]), CancellationToken.None);
         var exe = await Upload().HandleAsync(Command(id, TestActors.Keeper(_a.Id), "x.exe"), CancellationToken.None);
 
-        Assert.Equal(StockError.Forbidden, outsider.StockError);
-        Assert.Equal(StockError.Forbidden, sales.StockError);
-        Assert.Equal(StockError.Forbidden, unknown.StockError);
-        Assert.Equal(StockError.AttachmentInvalid, fake.StockError);
-        Assert.Equal(StockError.AttachmentInvalid, exe.StockError);
+        Assert.Equal(StockError.Forbidden, outsider.Error);
+        Assert.Equal(StockError.Forbidden, sales.Error);
+        Assert.Equal(StockError.Forbidden, unknown.Error);
+        Assert.Equal(StockError.AttachmentInvalid, fake.Error);
+        Assert.Equal(StockError.AttachmentInvalid, exe.Error);
         Assert.Empty(_attachments.Items);
         Assert.Empty(_storage.Files);
     }
@@ -140,8 +140,8 @@ public class StockDocumentAttachmentTests
         var none = UploadStockDocumentAttachmentCommandHandler.CheckFiles([]);
 
         Assert.True(ok.IsSuccess);
-        Assert.Equal(StockError.AttachmentTooLarge, tooBig.StockError);
-        Assert.Equal(StockError.AttachmentInvalid, bad.StockError);
+        Assert.Equal(StockError.AttachmentTooLarge, tooBig.Error);
+        Assert.Equal(StockError.AttachmentInvalid, bad.Error);
         Assert.True(none.IsSuccess);
     }
 

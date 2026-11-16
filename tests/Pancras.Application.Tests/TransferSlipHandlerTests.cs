@@ -37,11 +37,11 @@ internal static class TransferFlow
     public static ConfirmTransferCommand FullReceipt(FakeInventoryStore store, Guid slipId, Pancras.Domain.Employees.EmployeeActor actor) =>
         new(slipId, actor, store.Transfers.Single(slip => slip.Id == slipId).Lines.Select(line => new ReceivedLineInput(line.Id, line.Quantity)).ToArray());
 
-    public static async Task<Result<Guid>> RequestAsync(FakeInventoryStore store, CreateTransferSlipCommand command) =>
+    public static async Task<Result<Guid, StockError>> RequestAsync(FakeInventoryStore store, CreateTransferSlipCommand command) =>
         await new CreateTransferRequestCommandHandler(store, NullLogger<CreateTransferRequestCommandHandler>.Instance)
             .HandleAsync(command, CancellationToken.None);
 
-    public static async Task<Result<Guid>> ShipAsync(FakeInventoryStore store, CreateTransferSlipCommand command)
+    public static async Task<Result<Guid, StockError>> ShipAsync(FakeInventoryStore store, CreateTransferSlipCommand command)
     {
         var requested = await RequestAsync(store, command);
         if (requested.IsFailure)
@@ -108,8 +108,8 @@ public class TransferSlipHandlerTests
             .HandleAsync(new DecideTransferCommand(rejected, TestActors.Admin, false, "Không đủ"), CancellationToken.None);
         var inTransit = (await TransferFlow.ShipAsync(store.Store, Command(store.Source.Id, store.Destination.Id, store.ItemId, 1))).Value;
 
-        Assert.Equal(StockError.TransferStateChanged, (await handler.CheckAsync(cancelled, [file], TestActors.Admin, CancellationToken.None)).StockError);
-        Assert.Equal(StockError.TransferStateChanged, (await handler.CheckAsync(rejected, [file], TestActors.Admin, CancellationToken.None)).StockError);
+        Assert.Equal(StockError.TransferStateChanged, (await handler.CheckAsync(cancelled, [file], TestActors.Admin, CancellationToken.None)).Error);
+        Assert.Equal(StockError.TransferStateChanged, (await handler.CheckAsync(rejected, [file], TestActors.Admin, CancellationToken.None)).Error);
         Assert.True((await handler.CheckAsync(inTransit, [file], TestActors.Admin, CancellationToken.None)).IsSuccess);
     }
 
@@ -121,8 +121,8 @@ public class TransferSlipHandlerTests
         store.Store.Locations.Remove(store.Destination);
         var deleted = await TransferFlow.RequestAsync(store.Store, Command(store.Source.Id, store.Destination.Id, store.ItemId, 2));
 
-        Assert.Equal(StockError.InvalidTransfer, same.StockError);
-        Assert.Equal(StockError.InvalidTransfer, deleted.StockError);
+        Assert.Equal(StockError.InvalidTransfer, same.Error);
+        Assert.Equal(StockError.InvalidTransfer, deleted.Error);
         Assert.Empty(store.Store.Transfers);
     }
 
@@ -137,7 +137,7 @@ public class TransferSlipHandlerTests
         store.SourceBalance.TryAdjust(5);
         var ok = await handler.HandleAsync(new DecideTransferCommand(id, TestActors.Admin, true), CancellationToken.None);
 
-        Assert.Equal(StockError.InsufficientStock, shortage.StockError);
+        Assert.Equal(StockError.InsufficientStock, shortage.Error);
         Assert.Contains("còn 2, cần 3", shortage.Detail);
         Assert.True(ok.IsSuccess);
         Assert.Equal(TransferStatus.Approved, store.Store.Transfers[0].Status);
@@ -157,8 +157,8 @@ public class TransferSlipHandlerTests
         var otherLead = await handler.HandleAsync(new DecideTransferCommand(id, TestActors.Lead(store.Destination.Id), true), CancellationToken.None);
         var lead = await handler.HandleAsync(new DecideTransferCommand(id, TestActors.Lead(store.Source.Id), true), CancellationToken.None);
 
-        Assert.Equal(StockError.ApprovalForbidden, keeper.StockError);
-        Assert.Equal(StockError.ApprovalForbidden, otherLead.StockError);
+        Assert.Equal(StockError.ApprovalForbidden, keeper.Error);
+        Assert.Equal(StockError.ApprovalForbidden, otherLead.Error);
         Assert.True(lead.IsSuccess);
     }
 
@@ -190,9 +190,9 @@ public class TransferSlipHandlerTests
         var first = await ship.HandleAsync(new ShipTransferCommand(id, TestActors.Admin, "SEAL-9", "Chú Ba"), CancellationToken.None);
         var second = await ship.HandleAsync(new ShipTransferCommand(id, TestActors.Admin), CancellationToken.None);
 
-        Assert.Equal(StockError.TransferStateChanged, early.StockError);
+        Assert.Equal(StockError.TransferStateChanged, early.Error);
         Assert.True(first.IsSuccess);
-        Assert.Equal(StockError.TransferStateChanged, second.StockError);
+        Assert.Equal(StockError.TransferStateChanged, second.Error);
         Assert.Equal(113, store.SourceBalance.OnHand);
         Assert.Equal(0, store.SourceBalance.Reserved);
         Assert.Equal(2, store.DestinationBalance.InTransit);
@@ -211,7 +211,7 @@ public class TransferSlipHandlerTests
         var result = await new ShipTransferCommandHandler(store.Store, NullLogger<ShipTransferCommandHandler>.Instance)
             .HandleAsync(new ShipTransferCommand(id, TestActors.Keeper(store.Destination.Id)), CancellationToken.None);
 
-        Assert.Equal(StockError.Forbidden, result.StockError);
+        Assert.Equal(StockError.Forbidden, result.Error);
         Assert.Equal(115, store.SourceBalance.OnHand);
     }
 
@@ -248,8 +248,8 @@ public class TransferSlipHandlerTests
         attachments.Attach(id);
         var ok = await handler.HandleAsync(new ConfirmTransferCommand(id, TestActors.Admin, actuals, "Đếm lại"), CancellationToken.None);
 
-        Assert.Equal(StockError.ReasonRequired, noReason.StockError);
-        Assert.Equal(StockError.AttachmentRequired, noFile.StockError);
+        Assert.Equal(StockError.ReasonRequired, noReason.Error);
+        Assert.Equal(StockError.AttachmentRequired, noFile.Error);
         Assert.True(ok.IsSuccess);
         Assert.Equal(TransferStatus.ReceivedWithDiscrepancy, slip.Status);
         Assert.Equal(actual, store.DestinationBalance.OnHand);
@@ -266,7 +266,7 @@ public class TransferSlipHandlerTests
 
         var again = await Receipt(store.Store).HandleAsync(TransferFlow.FullReceipt(store.Store, id, TestActors.Admin), CancellationToken.None);
 
-        Assert.Equal(StockError.TransferStateChanged, again.StockError);
+        Assert.Equal(StockError.TransferStateChanged, again.Error);
         Assert.Equal(2, store.DestinationBalance.OnHand);
     }
 
@@ -286,8 +286,8 @@ public class TransferSlipHandlerTests
         var empty = await resolve.HandleAsync(new ResolveTransferCommand(id, TestActors.Accountant, " "), CancellationToken.None);
         var ok = await resolve.HandleAsync(new ResolveTransferCommand(id, TestActors.Accountant, "Ghi nhận hao hụt"), CancellationToken.None);
 
-        Assert.Equal(StockError.ApprovalForbidden, keeper.StockError);
-        Assert.Equal(StockError.ReasonRequired, empty.StockError);
+        Assert.Equal(StockError.ApprovalForbidden, keeper.Error);
+        Assert.Equal(StockError.ReasonRequired, empty.Error);
         Assert.True(ok.IsSuccess);
         Assert.Equal(TransferStatus.Received, store.Store.Transfers[0].Status);
         Assert.Equal("Ghi nhận hao hụt", store.Store.Transfers[0].ResolutionNote);
@@ -320,9 +320,9 @@ public class TransferSlipHandlerTests
         var afterReceipt = await Cancel(store.Store).HandleAsync(new ConfirmTransferCommand(received, TestActors.Admin, null, "Hủy"), CancellationToken.None);
         var twice = await Cancel(store.Store).HandleAsync(new ConfirmTransferCommand(requested, TestActors.Admin, null, "Hủy"), CancellationToken.None);
 
-        Assert.Equal(StockError.TransferStateChanged, whileInTransit.StockError);
-        Assert.Equal(StockError.TransferStateChanged, afterReceipt.StockError);
-        Assert.Equal(StockError.TransferStateChanged, twice.StockError);
+        Assert.Equal(StockError.TransferStateChanged, whileInTransit.Error);
+        Assert.Equal(StockError.TransferStateChanged, afterReceipt.Error);
+        Assert.Equal(StockError.TransferStateChanged, twice.Error);
         Assert.Equal(TransferStatus.InTransit, store.Store.Transfers.Single(slip => slip.Id == shipped).Status);
         Assert.Equal(4, store.DestinationBalance.InTransit);
         Assert.Equal(2, store.DestinationBalance.OnHand);
@@ -361,8 +361,8 @@ public class TransferSlipHandlerTests
         var noFile = await handler.CheckAsync(command, 0, CancellationToken.None);
         var ok = await handler.CheckAsync(command, 1, CancellationToken.None);
 
-        Assert.Equal(StockError.ReasonRequired, noReason.StockError);
-        Assert.Equal(StockError.AttachmentRequired, noFile.StockError);
+        Assert.Equal(StockError.ReasonRequired, noReason.Error);
+        Assert.Equal(StockError.AttachmentRequired, noFile.Error);
         Assert.True(ok.IsSuccess);
         Assert.Equal(TransferStatus.InTransit, slip.Status);
         Assert.Equal(0, store.DestinationBalance.OnHand);
@@ -385,9 +385,9 @@ public class TransferSlipHandlerTests
         var fakePdf = await handler.CheckAsync(id, [good, new PendingTransferFile("d.pdf", 100, [1, 2, 3, 4])], TestActors.Admin, CancellationToken.None);
 
         Assert.True(ok.IsSuccess);
-        Assert.Equal(StockError.AttachmentTooLarge, tooBig.StockError);
-        Assert.Equal(StockError.AttachmentInvalid, badType.StockError);
-        Assert.Equal(StockError.AttachmentInvalid, fakePdf.StockError);
+        Assert.Equal(StockError.AttachmentTooLarge, tooBig.Error);
+        Assert.Equal(StockError.AttachmentInvalid, badType.Error);
+        Assert.Equal(StockError.AttachmentInvalid, fakePdf.Error);
     }
 
     private static ConfirmTransferReceiptCommandHandler Receipt(FakeInventoryStore store, FakeTransferAttachments? attachments = null) =>
@@ -492,11 +492,11 @@ public class TransferRequestUpdateTests
 
         var afterApproval = await Handler(store).HandleAsync(Update(id, a.Id, b.Id, item, 3, maker), CancellationToken.None);
 
-        Assert.Equal(StockError.Forbidden, outsider.StockError);
-        Assert.Equal(StockError.InvalidTransfer, sameLocation.StockError);
-        Assert.Equal(StockError.InvalidTransfer, zero.StockError);
-        Assert.Equal(StockError.NotCreator, notCreator.StockError);
-        Assert.Equal(StockError.TransferStateChanged, afterApproval.StockError);
+        Assert.Equal(StockError.Forbidden, outsider.Error);
+        Assert.Equal(StockError.InvalidTransfer, sameLocation.Error);
+        Assert.Equal(StockError.InvalidTransfer, zero.Error);
+        Assert.Equal(StockError.NotCreator, notCreator.Error);
+        Assert.Equal(StockError.TransferStateChanged, afterApproval.Error);
         Assert.Equal(2, store.Transfers[0].Lines.Single().Quantity);
     }
 
@@ -508,7 +508,7 @@ public class TransferRequestUpdateTests
         var result = await new DecideTransferCommandHandler(store, NullLogger<DecideTransferCommandHandler>.Instance)
             .HandleAsync(new DecideTransferCommand(id, TestActors.Admin, false, "  "), CancellationToken.None);
 
-        Assert.Equal(StockError.ReasonRequired, result.StockError);
+        Assert.Equal(StockError.ReasonRequired, result.Error);
         Assert.Equal(TransferStatus.Requested, store.Transfers[0].Status);
     }
 }

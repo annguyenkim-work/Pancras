@@ -324,7 +324,7 @@ public class IndexModel(
             cancellationToken);
         if (created.IsFailure || created.Value == Guid.Empty)
         {
-            return await FailAsync(created.StockError, created.Detail, openTransfer: true, "transfers", cancellationToken);
+            return await FailAsync(created.Error, created.Detail, openTransfer: true, "transfers", cancellationToken);
         }
 
         View = "transfers";
@@ -395,7 +395,7 @@ public class IndexModel(
             cancellationToken);
         if (checkedReceipt.IsFailure)
         {
-            return await FailAsync(checkedReceipt.StockError, checkedReceipt.Detail, openTransfer: false, "transfers", cancellationToken);
+            return await FailAsync(checkedReceipt.Error, checkedReceipt.Detail, openTransfer: false, "transfers", cancellationToken);
         }
 
         if (await UploadTransferFilesAsync(files, cancellationToken) is { } uploadFailure)
@@ -437,7 +437,7 @@ public class IndexModel(
         var verdict = await uploadTransferAttachment.CheckAsync(DocumentId, pending, Actor, cancellationToken);
         if (verdict.IsFailure)
         {
-            return await FailAsync(verdict.StockError, verdict.Detail, openTransfer: false, "transfers", cancellationToken);
+            return await FailAsync(verdict.Error, verdict.Detail, openTransfer: false, "transfers", cancellationToken);
         }
 
         foreach (var file in chosen)
@@ -448,7 +448,7 @@ public class IndexModel(
                 cancellationToken);
             if (uploaded.IsFailure)
             {
-                return await FailAsync(uploaded.StockError, uploaded.Detail, openTransfer: false, "transfers", cancellationToken);
+                return await FailAsync(uploaded.Error, uploaded.Detail, openTransfer: false, "transfers", cancellationToken);
             }
         }
 
@@ -640,12 +640,12 @@ public class IndexModel(
     public string PlaceCode(Guid locationId) =>
         PlaceCodes.TryGetValue(locationId, out var code) ? code : string.Empty;
 
-    private async Task<IActionResult> SaveAsync(Task<Result<Guid>> operation, string view, CancellationToken cancellationToken)
+    private async Task<IActionResult> SaveAsync(Task<Result<Guid, StockError>> operation, string view, CancellationToken cancellationToken)
     {
         var result = await operation;
         if (result.IsFailure)
         {
-            return await FailAsync(result.StockError, result.Detail, openTransfer: false, view, cancellationToken);
+            return await FailAsync(result.Error, result.Detail, openTransfer: false, view, cancellationToken);
         }
 
         View = view;
@@ -664,7 +664,7 @@ public class IndexModel(
     /// </summary>
     private async Task<IActionResult> CreateStockDocumentAsync(
         StockDocumentKind kind,
-        Func<Task<Result<Guid>>> create,
+        Func<Task<Result<Guid, StockError>>> create,
         List<IFormFile>? files,
         CancellationToken cancellationToken)
     {
@@ -681,13 +681,13 @@ public class IndexModel(
         var verdict = UploadStockDocumentAttachmentCommandHandler.CheckFiles(pending);
         if (verdict.IsFailure)
         {
-            return await FailStockDocumentAsync(kind, verdict.StockError, verdict.Detail, cancellationToken);
+            return await FailStockDocumentAsync(kind, verdict.Error, verdict.Detail, cancellationToken);
         }
 
         var created = await create();
         if (created.IsFailure)
         {
-            return await FailStockDocumentAsync(kind, created.StockError, created.Detail, cancellationToken);
+            return await FailStockDocumentAsync(kind, created.Error, created.Detail, cancellationToken);
         }
 
         foreach (var file in chosen)
@@ -698,7 +698,7 @@ public class IndexModel(
                 cancellationToken);
             if (uploaded.IsFailure)
             {
-                return await FailStockDocumentAsync(kind, uploaded.StockError, uploaded.Detail, cancellationToken);
+                return await FailStockDocumentAsync(kind, uploaded.Error, uploaded.Detail, cancellationToken);
             }
         }
 

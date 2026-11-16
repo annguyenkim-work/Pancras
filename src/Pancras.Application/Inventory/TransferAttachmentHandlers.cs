@@ -64,27 +64,27 @@ public sealed class UploadTransferAttachmentCommandHandler(
     /// Kiểm tra cả loạt file trước khi lưu file nào (quyền, số lượng, đuôi, dung lượng, nội dung khớp đuôi),
     /// để một file sai không để lại các file đứng trước nó.
     /// </summary>
-    public async Task<Result<Guid>> CheckAsync(Guid transferSlipId, IReadOnlyList<PendingTransferFile> files, EmployeeActor actor, CancellationToken cancellationToken)
+    public async Task<Result<Guid, StockError>> CheckAsync(Guid transferSlipId, IReadOnlyList<PendingTransferFile> files, EmployeeActor actor, CancellationToken cancellationToken)
     {
         var slip = await inventory.FindTransferForUpdateAsync(transferSlipId, cancellationToken);
         if (slip is null || !TransferAccess.CanTouch(actor, slip))
         {
-            return Result<Guid>.Fail(StockError.Forbidden);
+            return Result<Guid, StockError>.Fail(StockError.Forbidden);
         }
 
         if (slip.Status is TransferStatus.Cancelled or TransferStatus.Rejected)
         {
-            return Result<Guid>.Fail(StockError.TransferStateChanged);
+            return Result<Guid, StockError>.Fail(StockError.TransferStateChanged);
         }
 
         if (files.Count == 0)
         {
-            return Result<Guid>.Ok(slip.Id);
+            return Result<Guid, StockError>.Ok(slip.Id);
         }
 
         if ((await attachments.ListAsync(slip.Id, cancellationToken)).Count + files.Count > AttachmentRules.MaxPerOrder)
         {
-            return Result<Guid>.Fail(StockError.AttachmentLimit);
+            return Result<Guid, StockError>.Fail(StockError.AttachmentLimit);
         }
 
         foreach (var file in files)
@@ -92,42 +92,42 @@ public sealed class UploadTransferAttachmentCommandHandler(
             var cleanName = AttachmentRules.CleanFileName(file.FileName);
             if (file.Length > AttachmentRules.MaxBytes)
             {
-                return Result<Guid>.Fail(StockError.AttachmentTooLarge);
+                return Result<Guid, StockError>.Fail(StockError.AttachmentTooLarge);
             }
 
             if (cleanName is null
                 || file.Length == 0
                 || !AttachmentRules.SignatureMatches(Path.GetExtension(cleanName), file.Header))
             {
-                return Result<Guid>.Fail(StockError.AttachmentInvalid);
+                return Result<Guid, StockError>.Fail(StockError.AttachmentInvalid);
             }
         }
 
-        return Result<Guid>.Ok(slip.Id);
+        return Result<Guid, StockError>.Ok(slip.Id);
     }
 
-    public async Task<Result<Guid>> HandleAsync(UploadTransferAttachmentCommand command, CancellationToken cancellationToken)
+    public async Task<Result<Guid, StockError>> HandleAsync(UploadTransferAttachmentCommand command, CancellationToken cancellationToken)
     {
         var slip = await inventory.FindTransferForUpdateAsync(command.TransferSlipId, cancellationToken);
         if (slip is null || !TransferAccess.CanTouch(command.Actor, slip))
         {
-            return Result<Guid>.Fail(StockError.Forbidden);
+            return Result<Guid, StockError>.Fail(StockError.Forbidden);
         }
 
         if (slip.Status is TransferStatus.Cancelled or TransferStatus.Rejected)
         {
-            return Result<Guid>.Fail(StockError.TransferStateChanged);
+            return Result<Guid, StockError>.Fail(StockError.TransferStateChanged);
         }
 
         var cleanName = AttachmentRules.CleanFileName(command.FileName);
         if (command.Content is null || cleanName is null)
         {
-            return Result<Guid>.Fail(StockError.AttachmentInvalid);
+            return Result<Guid, StockError>.Fail(StockError.AttachmentInvalid);
         }
 
         if ((await attachments.ListAsync(slip.Id, cancellationToken)).Count >= AttachmentRules.MaxPerOrder)
         {
-            return Result<Guid>.Fail(StockError.AttachmentLimit);
+            return Result<Guid, StockError>.Fail(StockError.AttachmentLimit);
         }
 
         var buffer = new MemoryStream();
@@ -138,7 +138,7 @@ public sealed class UploadTransferAttachmentCommandHandler(
             await buffer.WriteAsync(chunk.AsMemory(0, read), cancellationToken);
             if (buffer.Length > AttachmentRules.MaxBytes)
             {
-                return Result<Guid>.Fail(StockError.AttachmentTooLarge);
+                return Result<Guid, StockError>.Fail(StockError.AttachmentTooLarge);
             }
         }
 
@@ -146,14 +146,14 @@ public sealed class UploadTransferAttachmentCommandHandler(
         if (buffer.Length == 0 || !AttachmentRules.SignatureMatches(extension, buffer.GetBuffer().AsSpan(0, (int)Math.Min(buffer.Length, 8))))
         {
             logger.LogWarning("Transfer attachment rejected for {TransferSlipId}: empty or content does not match the extension.", slip.Id);
-            return Result<Guid>.Fail(StockError.AttachmentInvalid);
+            return Result<Guid, StockError>.Fail(StockError.AttachmentInvalid);
         }
 
         var storedName = Guid.CreateVersion7().ToString("N") + extension.ToLowerInvariant();
         var attachment = TransferAttachment.TryCreate(slip.Id, cleanName, storedName, buffer.Length, (clock ?? TimeProvider.System).GetUtcNow(), request?.ActorCode);
         if (attachment is null)
         {
-            return Result<Guid>.Fail(StockError.AttachmentInvalid);
+            return Result<Guid, StockError>.Fail(StockError.AttachmentInvalid);
         }
 
         buffer.Position = 0;
@@ -169,7 +169,7 @@ public sealed class UploadTransferAttachmentCommandHandler(
         }
 
         await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.TransferAttachmentAdded, "transfer_slip", slip.Id.ToString("D"), cleanName, cancellationToken);
-        return Result<Guid>.Ok(attachment.Id);
+        return Result<Guid, StockError>.Ok(attachment.Id);
     }
 }
 
@@ -181,22 +181,22 @@ public sealed class OpenTransferAttachmentHandler(
     IAuditLog? audit = null,
     IRequestInfo? request = null)
 {
-    public async Task<Result<AttachmentDownload>> HandleAsync(Guid attachmentId, EmployeeActor actor, CancellationToken cancellationToken)
+    public async Task<Result<AttachmentDownload, StockError>> HandleAsync(Guid attachmentId, EmployeeActor actor, CancellationToken cancellationToken)
     {
         var attachment = await attachments.FindAsync(attachmentId, cancellationToken);
         var slip = attachment is null ? null : await inventory.FindTransferForUpdateAsync(attachment.TransferSlipId, cancellationToken);
         if (attachment is null || slip is null || !TransferAccess.CanTouch(actor, slip))
         {
-            return Result<AttachmentDownload>.Fail(StockError.TransferNotFound);
+            return Result<AttachmentDownload, StockError>.Fail(StockError.TransferNotFound);
         }
 
         var content = await storage.OpenReadAsync(attachment.StoredName, cancellationToken);
         if (content is null)
         {
-            return Result<AttachmentDownload>.Fail(StockError.TransferNotFound);
+            return Result<AttachmentDownload, StockError>.Fail(StockError.TransferNotFound);
         }
 
         await audit.RecordAsync(clock ?? TimeProvider.System, request, actor.Id, null, AuditActions.TransferAttachmentDownloaded, "transfer_slip", slip.Id.ToString("D"), attachment.FileName, cancellationToken);
-        return Result<AttachmentDownload>.Ok(new AttachmentDownload(content, attachment.FileName, attachment.ContentType));
+        return Result<AttachmentDownload, StockError>.Ok(new AttachmentDownload(content, attachment.FileName, attachment.ContentType));
     }
 }

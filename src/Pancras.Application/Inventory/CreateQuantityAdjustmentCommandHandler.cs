@@ -11,18 +11,18 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
     IEmployeeRepository employees,
     ILogger<CreateQuantityAdjustmentCommandHandler> logger)
 {
-    public async Task<Result<Guid>> HandleAsync(CreateQuantityAdjustmentCommand command, CancellationToken cancellationToken)
+    public async Task<Result<Guid, StockError>> HandleAsync(CreateQuantityAdjustmentCommand command, CancellationToken cancellationToken)
     {
         if (!InventoryAccess.CanOperate(command.Actor.Role) || !InventoryAccess.CanAccessLocation(command.Actor, command.StockLocationId))
         {
             logger.LogWarning("Quantity adjustment forbidden for employee {EmployeeId}.", command.Actor.Id);
-            return Result<Guid>.Fail(StockError.Forbidden);
+            return Result<Guid, StockError>.Fail(StockError.Forbidden);
         }
 
         // Thiếu kho hoặc mặt hàng phải bị từ chối trước khi dựng dòng tồn: StockBalance.Create ném lỗi với mã rỗng.
         if (command.StockLocationId == Guid.Empty || command.CatalogItemId == Guid.Empty)
         {
-            return Result<Guid>.Fail(StockError.MissingTarget);
+            return Result<Guid, StockError>.Fail(StockError.MissingTarget);
         }
 
         if (InventoryRoles.CanPostAdjustment(command.Actor.Role))
@@ -46,7 +46,7 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
         if (decision != StockDecision.Accepted || adjustment is null)
         {
             logger.LogWarning("Quantity adjustment rejected for {CatalogItemId}.", command.CatalogItemId);
-            return Result<Guid>.Fail(StockDecisionErrors.ToError(decision));
+            return Result<Guid, StockError>.Fail(StockDecisionErrors.ToError(decision));
         }
 
         if (before is not null && (before.OnHand != onHand || before.Reserved != reserved || before.InTransit != inTransit))
@@ -59,14 +59,14 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
         if (!await repository.CommitAsync(cancellationToken))
         {
             logger.LogWarning("Quantity adjustment commit failed for {CatalogItemId}.", command.CatalogItemId);
-            return Result<Guid>.Fail(StockError.MissingEvidence);
+            return Result<Guid, StockError>.Fail(StockError.MissingEvidence);
         }
 
         logger.LogInformation("Created quantity adjustment {QuantityAdjustmentId} for {CatalogItemId}.", adjustment.Id, command.CatalogItemId);
-        return Result<Guid>.Ok(adjustment.Id);
+        return Result<Guid, StockError>.Ok(adjustment.Id);
     }
 
-    private async Task<Result<Guid>> PostDirectAsync(CreateQuantityAdjustmentCommand command, CancellationToken cancellationToken)
+    private async Task<Result<Guid, StockError>> PostDirectAsync(CreateQuantityAdjustmentCommand command, CancellationToken cancellationToken)
     {
         var balance = await repository.FindBalanceForUpdateAsync(command.CatalogItemId, command.StockLocationId, cancellationToken);
         var created = false;
@@ -92,8 +92,8 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
             snapshot.Restore();
             logger.LogWarning("Direct quantity adjustment rejected for {CatalogItemId}.", command.CatalogItemId);
             return decision == StockDecision.NegativeStock
-                ? Result<Guid>.Fail(StockError.NegativeStock, StockDecisionErrors.AvailabilityDetail(balance))
-                : Result<Guid>.Fail(StockDecisionErrors.ToError(decision));
+                ? Result<Guid, StockError>.Fail(StockError.NegativeStock, StockDecisionErrors.AvailabilityDetail(balance))
+                : Result<Guid, StockError>.Fail(StockDecisionErrors.ToError(decision));
         }
 
         await repository.AddAdjustmentAsync(adjustment, cancellationToken);
@@ -115,11 +115,11 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
         {
             snapshot.Restore();
             logger.LogWarning("Direct quantity adjustment commit failed for {CatalogItemId}.", command.CatalogItemId);
-            return Result<Guid>.Fail(StockError.NegativeStock);
+            return Result<Guid, StockError>.Fail(StockError.NegativeStock);
         }
 
         logger.LogInformation("Posted quantity adjustment {QuantityAdjustmentId}.", adjustment.Id);
-        return Result<Guid>.Ok(adjustment.Id);
+        return Result<Guid, StockError>.Ok(adjustment.Id);
     }
 
     private async Task NotifyFinanceAsync(QuantityAdjustment adjustment, CancellationToken cancellationToken)

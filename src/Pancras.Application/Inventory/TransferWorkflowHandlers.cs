@@ -27,19 +27,19 @@ public sealed class CreateTransferRequestCommandHandler(
     IRequestInfo? request = null,
     IEmployeeRepository? employees = null)
 {
-    public async Task<Result<Guid>> HandleAsync(CreateTransferSlipCommand command, CancellationToken cancellationToken)
+    public async Task<Result<Guid, StockError>> HandleAsync(CreateTransferSlipCommand command, CancellationToken cancellationToken)
     {
         if (!InventoryAccess.CanOperate(command.Actor.Role))
         {
             logger.LogWarning("Transfer request forbidden for employee {EmployeeId}.", command.Actor.Id);
-            return Result<Guid>.Fail(StockError.Forbidden);
+            return Result<Guid, StockError>.Fail(StockError.Forbidden);
         }
 
         // Chọn kho nào cũng được, miễn kho xuất hoặc kho nhận là kho của mình (xin hàng hoặc chuyển hàng đi).
         if (!(InventoryAccess.CanAccessLocation(command.Actor, command.SourceLocationId) || InventoryAccess.CanAccessLocation(command.Actor, command.DestinationLocationId)))
         {
             logger.LogWarning("Transfer request outside own location for employee {EmployeeId}.", command.Actor.Id);
-            return Result<Guid>.Fail(StockError.NotYourLocation);
+            return Result<Guid, StockError>.Fail(StockError.NotYourLocation);
         }
 
         var lines = (command.Lines ?? []).Select(line => (line.CatalogItemId, line.Quantity)).ToArray();
@@ -47,7 +47,7 @@ public sealed class CreateTransferRequestCommandHandler(
             && await repository.FindTransferIdByRequestKeyAsync(key, command.Actor.Id, cancellationToken) is Guid existing)
         {
             logger.LogInformation("Transfer request {RequestKey} was already created as {TransferSlipId}.", key, existing);
-            return Result<Guid>.Ok(existing);
+            return Result<Guid, StockError>.Ok(existing);
         }
 
         var requestKey = command.RequestKey is Guid given && given != Guid.Empty ? given : (Guid?)null;
@@ -56,7 +56,7 @@ public sealed class CreateTransferRequestCommandHandler(
         if (slip is null || !known.Contains(slip.SourceLocationId) || !known.Contains(slip.DestinationLocationId))
         {
             logger.LogWarning("Transfer request rejected for {StockLocationId}.", command.SourceLocationId);
-            return Result<Guid>.Fail(StockError.InvalidTransfer);
+            return Result<Guid, StockError>.Fail(StockError.InvalidTransfer);
         }
 
         await repository.AddTransferAsync(slip, cancellationToken);
@@ -68,15 +68,15 @@ public sealed class CreateTransferRequestCommandHandler(
             if (requestKey is Guid lostKey
                 && await repository.FindTransferIdByRequestKeyAsync(lostKey, command.Actor.Id, cancellationToken) is Guid winner)
             {
-                return Result<Guid>.Ok(winner);
+                return Result<Guid, StockError>.Ok(winner);
             }
 
-            return Result<Guid>.Fail(StockError.InvalidTransfer);
+            return Result<Guid, StockError>.Fail(StockError.InvalidTransfer);
         }
 
         logger.LogInformation("Created transfer request {TransferSlipId}.", slip.Id);
         await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.TransferRequested, "transfer_slip", slip.Id.ToString("D"), null, cancellationToken);
-        return Result<Guid>.Ok(slip.Id);
+        return Result<Guid, StockError>.Ok(slip.Id);
     }
 }
 
@@ -96,22 +96,22 @@ public sealed class DecideTransferCommandHandler(
         InventoryRoles.IsFinance(actor.Role)
         || (InventoryRoles.IsShowroomLead(actor.Role) && actor.LocationId is Guid own && own == sourceLocationId);
 
-    public async Task<Result<Guid>> HandleAsync(DecideTransferCommand command, CancellationToken cancellationToken)
+    public async Task<Result<Guid, StockError>> HandleAsync(DecideTransferCommand command, CancellationToken cancellationToken)
     {
         var slip = await repository.FindTransferForUpdateAsync(command.TransferSlipId, cancellationToken);
         if (slip is null)
         {
-            return Result<Guid>.Fail(StockError.TransferNotFound);
+            return Result<Guid, StockError>.Fail(StockError.TransferNotFound);
         }
 
         if (!CanDecide(command.Actor, slip.SourceLocationId))
         {
-            return Result<Guid>.Fail(StockError.ApprovalForbidden);
+            return Result<Guid, StockError>.Fail(StockError.ApprovalForbidden);
         }
 
         if (slip.Status != TransferStatus.Requested)
         {
-            return Result<Guid>.Fail(StockError.TransferStateChanged);
+            return Result<Guid, StockError>.Fail(StockError.TransferStateChanged);
         }
 
         var now = (clock ?? TimeProvider.System).GetUtcNow();
@@ -137,18 +137,18 @@ public sealed class DecideTransferCommandHandler(
                     snapshot.Restore();
                 }
 
-                return Result<Guid>.Fail(StockError.InsufficientStock, await TransferTrail.ShortageAsync(repository, slip, sources, false, cancellationToken));
+                return Result<Guid, StockError>.Fail(StockError.InsufficientStock, await TransferTrail.ShortageAsync(repository, slip, sources, false, cancellationToken));
             }
 
             slip.RecordStep(TransferStep.Approved, now, request?.ActorCode);
         }
         else if (string.IsNullOrWhiteSpace(command.Reason))
         {
-            return Result<Guid>.Fail(StockError.ReasonRequired);
+            return Result<Guid, StockError>.Fail(StockError.ReasonRequired);
         }
         else if (!slip.TryReject(command.Reason))
         {
-            return Result<Guid>.Fail(StockError.InvalidText);
+            return Result<Guid, StockError>.Fail(StockError.InvalidText);
         }
         else
         {
@@ -173,12 +173,12 @@ public sealed class DecideTransferCommandHandler(
             }
 
             slip.RestoreUncommitted(TransferStatus.Requested);
-            return Result<Guid>.Fail(StockError.TransferStateChanged);
+            return Result<Guid, StockError>.Fail(StockError.TransferStateChanged);
         }
 
         logger.LogInformation("Transfer {TransferSlipId} decided: approve={Approve}.", slip.Id, command.Approve);
         await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, command.Approve ? AuditActions.TransferApproved : AuditActions.TransferRejected, "transfer_slip", slip.Id.ToString("D"), null, cancellationToken);
-        return Result<Guid>.Ok(slip.Id);
+        return Result<Guid, StockError>.Ok(slip.Id);
     }
 }
 
@@ -191,28 +191,28 @@ public sealed class ShipTransferCommandHandler(
     IRequestInfo? request = null,
     IEmployeeRepository? employees = null)
 {
-    public async Task<Result<Guid>> HandleAsync(ShipTransferCommand command, CancellationToken cancellationToken)
+    public async Task<Result<Guid, StockError>> HandleAsync(ShipTransferCommand command, CancellationToken cancellationToken)
     {
         var slip = await repository.FindTransferForUpdateAsync(command.TransferSlipId, cancellationToken);
         if (slip is null)
         {
-            return Result<Guid>.Fail(StockError.TransferNotFound);
+            return Result<Guid, StockError>.Fail(StockError.TransferNotFound);
         }
 
         if (!InventoryAccess.CanOperate(command.Actor.Role) || !InventoryAccess.CanAccessLocation(command.Actor, slip.SourceLocationId))
         {
-            return Result<Guid>.Fail(StockError.Forbidden);
+            return Result<Guid, StockError>.Fail(StockError.Forbidden);
         }
 
         if (slip.Status != TransferStatus.Approved)
         {
-            return Result<Guid>.Fail(StockError.TransferStateChanged);
+            return Result<Guid, StockError>.Fail(StockError.TransferStateChanged);
         }
 
         var known = (await repository.ListLocationsAsync(cancellationToken)).Select(location => location.Id).ToHashSet();
         if (!known.Contains(slip.SourceLocationId) || !known.Contains(slip.DestinationLocationId))
         {
-            return Result<Guid>.Fail(StockError.InvalidTransfer);
+            return Result<Guid, StockError>.Fail(StockError.InvalidTransfer);
         }
 
         var sources = new Dictionary<Guid, StockBalance>();
@@ -223,7 +223,7 @@ public sealed class ShipTransferCommandHandler(
             var source = await repository.FindBalanceForUpdateAsync(itemId, slip.SourceLocationId, cancellationToken);
             if (source is null)
             {
-                return Result<Guid>.Fail(StockError.InsufficientStock, await TransferTrail.ShortageAsync(repository, slip, sources, true, cancellationToken));
+                return Result<Guid, StockError>.Fail(StockError.InsufficientStock, await TransferTrail.ShortageAsync(repository, slip, sources, true, cancellationToken));
             }
 
             sources[itemId] = source;
@@ -248,8 +248,8 @@ public sealed class ShipTransferCommandHandler(
 
             var shortage = await TransferTrail.ShortageAsync(repository, slip, sources, wasReserved, cancellationToken);
             return shortage.Length > 0
-                ? Result<Guid>.Fail(StockError.InsufficientStock, shortage)
-                : Result<Guid>.Fail(StockError.InvalidText);
+                ? Result<Guid, StockError>.Fail(StockError.InsufficientStock, shortage)
+                : Result<Guid, StockError>.Fail(StockError.InvalidText);
         }
 
         var now = (clock ?? TimeProvider.System).GetUtcNow();
@@ -278,12 +278,12 @@ public sealed class ShipTransferCommandHandler(
             slip.RestoreUncommitted(TransferStatus.Approved);
             slip.RestoreReserved(wasReserved);
             logger.LogWarning("Shipment commit failed for {TransferSlipId}.", slip.Id);
-            return Result<Guid>.Fail(StockError.TransferStateChanged);
+            return Result<Guid, StockError>.Fail(StockError.TransferStateChanged);
         }
 
         logger.LogInformation("Shipped transfer {TransferSlipId}.", slip.Id);
         await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.TransferShipped, "transfer_slip", slip.Id.ToString("D"), null, cancellationToken);
-        return Result<Guid>.Ok(slip.Id);
+        return Result<Guid, StockError>.Ok(slip.Id);
     }
 
     private static string? SealNote(TransferSlip slip) =>
@@ -299,32 +299,32 @@ public sealed class ResolveTransferDiscrepancyCommandHandler(
     IRequestInfo? request = null,
     IEmployeeRepository? employees = null)
 {
-    public async Task<Result<Guid>> HandleAsync(ResolveTransferCommand command, CancellationToken cancellationToken)
+    public async Task<Result<Guid, StockError>> HandleAsync(ResolveTransferCommand command, CancellationToken cancellationToken)
     {
         if (!InventoryRoles.IsFinance(command.Actor.Role))
         {
-            return Result<Guid>.Fail(StockError.ApprovalForbidden);
+            return Result<Guid, StockError>.Fail(StockError.ApprovalForbidden);
         }
 
         var slip = await repository.FindTransferForUpdateAsync(command.TransferSlipId, cancellationToken);
         if (slip is null)
         {
-            return Result<Guid>.Fail(StockError.TransferNotFound);
+            return Result<Guid, StockError>.Fail(StockError.TransferNotFound);
         }
 
         if (string.IsNullOrWhiteSpace(command.Resolution))
         {
-            return Result<Guid>.Fail(StockError.ReasonRequired);
+            return Result<Guid, StockError>.Fail(StockError.ReasonRequired);
         }
 
         if (slip.Status != TransferStatus.ReceivedWithDiscrepancy)
         {
-            return Result<Guid>.Fail(StockError.TransferStateChanged);
+            return Result<Guid, StockError>.Fail(StockError.TransferStateChanged);
         }
 
         if (!slip.TryResolveDiscrepancy(command.Resolution))
         {
-            return Result<Guid>.Fail(StockError.InvalidText);
+            return Result<Guid, StockError>.Fail(StockError.InvalidText);
         }
 
         slip.RecordStep(TransferStep.Resolved, (clock ?? TimeProvider.System).GetUtcNow(), request?.ActorCode);
@@ -333,12 +333,12 @@ public sealed class ResolveTransferDiscrepancyCommandHandler(
         if (!await repository.CommitAsync(cancellationToken))
         {
             slip.RestoreUncommitted(TransferStatus.ReceivedWithDiscrepancy);
-            return Result<Guid>.Fail(StockError.TransferStateChanged);
+            return Result<Guid, StockError>.Fail(StockError.TransferStateChanged);
         }
 
         logger.LogInformation("Resolved transfer discrepancy {TransferSlipId}.", slip.Id);
         await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.TransferDiscrepancyResolved, "transfer_slip", slip.Id.ToString("D"), null, cancellationToken);
-        return Result<Guid>.Ok(slip.Id);
+        return Result<Guid, StockError>.Ok(slip.Id);
     }
 }
 
@@ -354,27 +354,27 @@ public sealed class ReturnTransferCommandHandler(
     IRequestInfo? request = null,
     IEmployeeRepository? employees = null)
 {
-    public async Task<Result<Guid>> HandleAsync(ReturnTransferCommand command, CancellationToken cancellationToken)
+    public async Task<Result<Guid, StockError>> HandleAsync(ReturnTransferCommand command, CancellationToken cancellationToken)
     {
         if (!InventoryRoles.IsFinance(command.Actor.Role))
         {
-            return Result<Guid>.Fail(StockError.Forbidden);
+            return Result<Guid, StockError>.Fail(StockError.Forbidden);
         }
 
         var slip = await repository.FindTransferForUpdateAsync(command.TransferSlipId, cancellationToken);
         if (slip is null)
         {
-            return Result<Guid>.Fail(StockError.TransferNotFound);
+            return Result<Guid, StockError>.Fail(StockError.TransferNotFound);
         }
 
         if (slip.Status != TransferStatus.InTransit)
         {
-            return Result<Guid>.Fail(StockError.TransferStateChanged);
+            return Result<Guid, StockError>.Fail(StockError.TransferStateChanged);
         }
 
         if (string.IsNullOrWhiteSpace(command.Reason))
         {
-            return Result<Guid>.Fail(StockError.ReasonRequired);
+            return Result<Guid, StockError>.Fail(StockError.ReasonRequired);
         }
 
         var sources = new Dictionary<Guid, StockBalance>();
@@ -385,7 +385,7 @@ public sealed class ReturnTransferCommandHandler(
             var destination = await repository.FindBalanceForUpdateAsync(itemId, slip.DestinationLocationId, cancellationToken);
             if (destination is null)
             {
-                return Result<Guid>.Fail(StockError.ReturnRejected);
+                return Result<Guid, StockError>.Fail(StockError.ReturnRejected);
             }
 
             destinations[itemId] = destination;
@@ -407,7 +407,7 @@ public sealed class ReturnTransferCommandHandler(
                 snapshot.Restore();
             }
 
-            return Result<Guid>.Fail(StockError.ReturnRejected);
+            return Result<Guid, StockError>.Fail(StockError.ReturnRejected);
         }
 
         var now = (clock ?? TimeProvider.System).GetUtcNow();
@@ -441,12 +441,12 @@ public sealed class ReturnTransferCommandHandler(
             }
 
             slip.RestoreUncommitted(TransferStatus.InTransit);
-            return Result<Guid>.Fail(StockError.TransferStateChanged);
+            return Result<Guid, StockError>.Fail(StockError.TransferStateChanged);
         }
 
         logger.LogInformation("Returned transfer {TransferSlipId} to source.", slip.Id);
         await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.TransferReturned, "transfer_slip", slip.Id.ToString("D"), null, cancellationToken);
-        return Result<Guid>.Ok(slip.Id);
+        return Result<Guid, StockError>.Ok(slip.Id);
     }
 }
 
@@ -474,32 +474,32 @@ public sealed class UpdateTransferRequestCommandHandler(
     IRequestInfo? request = null,
     IEmployeeRepository? employees = null)
 {
-    public async Task<Result<Guid>> HandleAsync(UpdateTransferRequestCommand command, CancellationToken cancellationToken)
+    public async Task<Result<Guid, StockError>> HandleAsync(UpdateTransferRequestCommand command, CancellationToken cancellationToken)
     {
         var slip = await repository.FindTransferForUpdateAsync(command.TransferSlipId, cancellationToken);
         if (slip is null)
         {
-            return Result<Guid>.Fail(StockError.TransferNotFound);
+            return Result<Guid, StockError>.Fail(StockError.TransferNotFound);
         }
 
         if (!TransferAccess.CanTouch(command.Actor, slip))
         {
-            return Result<Guid>.Fail(StockError.Forbidden);
+            return Result<Guid, StockError>.Fail(StockError.Forbidden);
         }
 
         if (!TransferAccess.IsCreator(command.Actor, slip))
         {
-            return Result<Guid>.Fail(StockError.NotCreator);
+            return Result<Guid, StockError>.Fail(StockError.NotCreator);
         }
 
         if (slip.Status != TransferStatus.Requested)
         {
-            return Result<Guid>.Fail(StockError.TransferStateChanged);
+            return Result<Guid, StockError>.Fail(StockError.TransferStateChanged);
         }
 
         if (!(InventoryAccess.CanAccessLocation(command.Actor, command.SourceLocationId) || InventoryAccess.CanAccessLocation(command.Actor, command.DestinationLocationId)))
         {
-            return Result<Guid>.Fail(StockError.NotYourLocation);
+            return Result<Guid, StockError>.Fail(StockError.NotYourLocation);
         }
 
         var known = (await repository.ListLocationsAsync(cancellationToken)).Select(location => location.Id).ToHashSet();
@@ -508,18 +508,18 @@ public sealed class UpdateTransferRequestCommandHandler(
             || !known.Contains(command.DestinationLocationId)
             || !slip.TryUpdateRequest(command.SourceLocationId, command.DestinationLocationId, command.Note, lines))
         {
-            return Result<Guid>.Fail(StockError.InvalidTransfer);
+            return Result<Guid, StockError>.Fail(StockError.InvalidTransfer);
         }
 
         await TransferTrail.RecordAsync(repository, slip, TransferEventKind.Edited, request, clock, null, cancellationToken);
         await TransferTrail.NotifyAsync(repository, employees, slip, command.Actor.Id, StockNotice.TransferEditedStep, TransferAudience.Finance | TransferAudience.SourceLead, clock, cancellationToken);
         if (!await repository.CommitAsync(cancellationToken))
         {
-            return Result<Guid>.Fail(StockError.TransferStateChanged);
+            return Result<Guid, StockError>.Fail(StockError.TransferStateChanged);
         }
 
         logger.LogInformation("Updated transfer request {TransferSlipId}.", slip.Id);
         await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.TransferUpdated, "transfer_slip", slip.Id.ToString("D"), null, cancellationToken);
-        return Result<Guid>.Ok(slip.Id);
+        return Result<Guid, StockError>.Ok(slip.Id);
     }
 }

@@ -58,11 +58,11 @@ public sealed class UploadStockDocumentAttachmentCommandHandler(
     /// Kiểm tra cả loạt file trước khi tạo phiếu hoặc lưu file nào (số lượng, đuôi, dung lượng, nội dung khớp đuôi),
     /// để một file sai không để lại phiếu nửa vời. Không đụng tới dữ liệu.
     /// </summary>
-    public static Result<Guid> CheckFiles(IReadOnlyList<PendingTransferFile> files)
+    public static Result<Guid, StockError> CheckFiles(IReadOnlyList<PendingTransferFile> files)
     {
         if (files.Count > AttachmentRules.MaxPerOrder)
         {
-            return Result<Guid>.Fail(StockError.AttachmentLimit);
+            return Result<Guid, StockError>.Fail(StockError.AttachmentLimit);
         }
 
         foreach (var file in files)
@@ -70,35 +70,35 @@ public sealed class UploadStockDocumentAttachmentCommandHandler(
             var cleanName = AttachmentRules.CleanFileName(file.FileName);
             if (file.Length > AttachmentRules.MaxBytes)
             {
-                return Result<Guid>.Fail(StockError.AttachmentTooLarge);
+                return Result<Guid, StockError>.Fail(StockError.AttachmentTooLarge);
             }
 
             if (cleanName is null || file.Length == 0 || !AttachmentRules.SignatureMatches(Path.GetExtension(cleanName), file.Header))
             {
-                return Result<Guid>.Fail(StockError.AttachmentInvalid);
+                return Result<Guid, StockError>.Fail(StockError.AttachmentInvalid);
             }
         }
 
-        return Result<Guid>.Ok(Guid.Empty);
+        return Result<Guid, StockError>.Ok(Guid.Empty);
     }
 
-    public async Task<Result<Guid>> HandleAsync(UploadStockDocumentAttachmentCommand command, CancellationToken cancellationToken)
+    public async Task<Result<Guid, StockError>> HandleAsync(UploadStockDocumentAttachmentCommand command, CancellationToken cancellationToken)
     {
         var location = await StockDocumentLookup.LocationOfAsync(inventory, command.Kind, command.DocumentId, cancellationToken);
         if (location is not Guid place || !StockDocumentLookup.CanTouch(command.Actor, place))
         {
-            return Result<Guid>.Fail(StockError.Forbidden);
+            return Result<Guid, StockError>.Fail(StockError.Forbidden);
         }
 
         var cleanName = AttachmentRules.CleanFileName(command.FileName);
         if (command.Content is null || cleanName is null)
         {
-            return Result<Guid>.Fail(StockError.AttachmentInvalid);
+            return Result<Guid, StockError>.Fail(StockError.AttachmentInvalid);
         }
 
         if ((await attachments.ListAsync(command.Kind, command.DocumentId, cancellationToken)).Count >= AttachmentRules.MaxPerOrder)
         {
-            return Result<Guid>.Fail(StockError.AttachmentLimit);
+            return Result<Guid, StockError>.Fail(StockError.AttachmentLimit);
         }
 
         var buffer = new MemoryStream();
@@ -109,7 +109,7 @@ public sealed class UploadStockDocumentAttachmentCommandHandler(
             await buffer.WriteAsync(chunk.AsMemory(0, read), cancellationToken);
             if (buffer.Length > AttachmentRules.MaxBytes)
             {
-                return Result<Guid>.Fail(StockError.AttachmentTooLarge);
+                return Result<Guid, StockError>.Fail(StockError.AttachmentTooLarge);
             }
         }
 
@@ -117,14 +117,14 @@ public sealed class UploadStockDocumentAttachmentCommandHandler(
         if (buffer.Length == 0 || !AttachmentRules.SignatureMatches(extension, buffer.GetBuffer().AsSpan(0, (int)Math.Min(buffer.Length, 8))))
         {
             logger.LogWarning("Stock document attachment rejected for {DocumentId}: empty or content does not match the extension.", command.DocumentId);
-            return Result<Guid>.Fail(StockError.AttachmentInvalid);
+            return Result<Guid, StockError>.Fail(StockError.AttachmentInvalid);
         }
 
         var storedName = Guid.CreateVersion7().ToString("N") + extension.ToLowerInvariant();
         var attachment = StockDocumentAttachment.TryCreate(command.Kind, command.DocumentId, cleanName, storedName, buffer.Length, (clock ?? TimeProvider.System).GetUtcNow(), request?.ActorCode);
         if (attachment is null)
         {
-            return Result<Guid>.Fail(StockError.AttachmentInvalid);
+            return Result<Guid, StockError>.Fail(StockError.AttachmentInvalid);
         }
 
         buffer.Position = 0;
@@ -140,7 +140,7 @@ public sealed class UploadStockDocumentAttachmentCommandHandler(
         }
 
         await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.StockDocumentAttachmentAdded, command.Kind.ToString().ToLowerInvariant(), command.DocumentId.ToString("D"), cleanName, cancellationToken);
-        return Result<Guid>.Ok(attachment.Id);
+        return Result<Guid, StockError>.Ok(attachment.Id);
     }
 }
 
@@ -152,22 +152,22 @@ public sealed class OpenStockDocumentAttachmentHandler(
     IAuditLog? audit = null,
     IRequestInfo? request = null)
 {
-    public async Task<Result<AttachmentDownload>> HandleAsync(Guid attachmentId, EmployeeActor actor, CancellationToken cancellationToken)
+    public async Task<Result<AttachmentDownload, StockError>> HandleAsync(Guid attachmentId, EmployeeActor actor, CancellationToken cancellationToken)
     {
         var attachment = await attachments.FindAsync(attachmentId, cancellationToken);
         var location = attachment is null ? null : await StockDocumentLookup.LocationOfAsync(inventory, attachment.Kind, attachment.DocumentId, cancellationToken);
         if (attachment is null || location is not Guid place || !StockDocumentLookup.CanTouch(actor, place))
         {
-            return Result<AttachmentDownload>.Fail(StockError.TransferNotFound);
+            return Result<AttachmentDownload, StockError>.Fail(StockError.TransferNotFound);
         }
 
         var content = await storage.OpenReadAsync(attachment.StoredName, cancellationToken);
         if (content is null)
         {
-            return Result<AttachmentDownload>.Fail(StockError.TransferNotFound);
+            return Result<AttachmentDownload, StockError>.Fail(StockError.TransferNotFound);
         }
 
         await audit.RecordAsync(clock ?? TimeProvider.System, request, actor.Id, null, AuditActions.StockDocumentAttachmentDownloaded, attachment.Kind.ToString().ToLowerInvariant(), attachment.DocumentId.ToString("D"), attachment.FileName, cancellationToken);
-        return Result<AttachmentDownload>.Ok(new AttachmentDownload(content, attachment.FileName, attachment.ContentType));
+        return Result<AttachmentDownload, StockError>.Ok(new AttachmentDownload(content, attachment.FileName, attachment.ContentType));
     }
 }

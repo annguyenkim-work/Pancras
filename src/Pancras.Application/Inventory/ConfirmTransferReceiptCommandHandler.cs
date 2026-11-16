@@ -26,18 +26,18 @@ public sealed class ConfirmTransferReceiptCommandHandler(
     /// Kiểm tra trước (không ghi gì) để trang chỉ lưu file đính kèm khi phiếu nhận chắc chắn hợp lệ.
     /// <paramref name="newFileCount"/> là số file người dùng vừa chọn, chưa được lưu.
     /// </summary>
-    public async Task<Result<Guid>> CheckAsync(ConfirmTransferCommand command, int newFileCount, CancellationToken cancellationToken)
+    public async Task<Result<Guid, StockError>> CheckAsync(ConfirmTransferCommand command, int newFileCount, CancellationToken cancellationToken)
     {
         var checkedSlip = await ValidateAsync(command, newFileCount, cancellationToken);
-        return checkedSlip.Failure is { } failure ? failure : Result<Guid>.Ok(command.TransferSlipId);
+        return checkedSlip.Failure is { } failure ? failure : Result<Guid, StockError>.Ok(command.TransferSlipId);
     }
 
-    public async Task<Result<Guid>> HandleAsync(ConfirmTransferCommand command, CancellationToken cancellationToken)
+    public async Task<Result<Guid, StockError>> HandleAsync(ConfirmTransferCommand command, CancellationToken cancellationToken)
     {
         var (slip, failure, actuals) = await ValidateAsync(command, 0, cancellationToken);
         if (failure is not null || slip is null)
         {
-            return failure ?? Result<Guid>.Fail(StockError.ReceiptRejected);
+            return failure ?? Result<Guid, StockError>.Fail(StockError.ReceiptRejected);
         }
 
         var destinations = new Dictionary<Guid, StockBalance>();
@@ -47,7 +47,7 @@ public sealed class ConfirmTransferReceiptCommandHandler(
             if (destination is null)
             {
                 logger.LogWarning("Receipt rejected for {TransferSlipId}.", slip.Id);
-                return Result<Guid>.Fail(StockError.ReceiptRejected);
+                return Result<Guid, StockError>.Fail(StockError.ReceiptRejected);
             }
 
             destinations[itemId] = destination;
@@ -63,7 +63,7 @@ public sealed class ConfirmTransferReceiptCommandHandler(
             }
 
             logger.LogWarning("Receipt rejected for {TransferSlipId}.", slip.Id);
-            return Result<Guid>.Fail(StockError.ReceiptRejected);
+            return Result<Guid, StockError>.Fail(StockError.ReceiptRejected);
         }
 
         var occurredAt = (clock ?? TimeProvider.System).GetUtcNow();
@@ -109,12 +109,12 @@ public sealed class ConfirmTransferReceiptCommandHandler(
 
             slip.RestoreUncommitted(status);
             logger.LogWarning("Receipt commit failed for {TransferSlipId}.", slip.Id);
-            return Result<Guid>.Fail(StockError.ReceiptRejected);
+            return Result<Guid, StockError>.Fail(StockError.ReceiptRejected);
         }
 
         logger.LogInformation("Confirmed receipt {TransferSlipId}.", slip.Id);
         await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.TransferReceived, "transfer_slip", slip.Id.ToString("D"), slip.HasDiscrepancy ? "discrepancy" : null, cancellationToken);
-        return Result<Guid>.Ok(slip.Id);
+        return Result<Guid, StockError>.Ok(slip.Id);
     }
 
     /// <summary>
@@ -140,7 +140,7 @@ public sealed class ConfirmTransferReceiptCommandHandler(
         }
     }
 
-    private async Task<(TransferSlip? Slip, Result<Guid>? Failure, Dictionary<Guid, int>? Actuals)> ValidateAsync(
+    private async Task<(TransferSlip? Slip, Result<Guid, StockError>? Failure, Dictionary<Guid, int>? Actuals)> ValidateAsync(
         ConfirmTransferCommand command,
         int newFileCount,
         CancellationToken cancellationToken)
@@ -150,29 +150,29 @@ public sealed class ConfirmTransferReceiptCommandHandler(
             && (!InventoryAccess.CanOperate(command.Actor.Role) || !InventoryAccess.CanAccessLocation(command.Actor, slip.DestinationLocationId)))
         {
             logger.LogWarning("Receipt forbidden for employee {EmployeeId}.", command.Actor.Id);
-            return (null, Result<Guid>.Fail(StockError.Forbidden), null);
+            return (null, Result<Guid, StockError>.Fail(StockError.Forbidden), null);
         }
 
         if (slip is null)
         {
-            return (null, Result<Guid>.Fail(StockError.TransferNotFound), null);
+            return (null, Result<Guid, StockError>.Fail(StockError.TransferNotFound), null);
         }
 
         if (slip.Status != TransferStatus.InTransit)
         {
             logger.LogWarning("Receipt rejected for {TransferSlipId}.", command.TransferSlipId);
-            return (null, Result<Guid>.Fail(StockError.TransferStateChanged), null);
+            return (null, Result<Guid, StockError>.Fail(StockError.TransferStateChanged), null);
         }
 
         if (slip.Lines.Any(line => command.Actuals is null || command.Actuals.All(item => item.LineId != line.Id)))
         {
-            return (null, Result<Guid>.Fail(StockError.QuantityRequired), null);
+            return (null, Result<Guid, StockError>.Fail(StockError.QuantityRequired), null);
         }
 
         var actuals = command.Actuals?.GroupBy(item => item.LineId).ToDictionary(group => group.Key, group => group.Last().Quantity);
         if (actuals is not null && (actuals.Values.Any(value => value < 0) || actuals.Keys.Any(id => slip.Lines.All(line => line.Id != id))))
         {
-            return (null, Result<Guid>.Fail(StockError.ReceiptRejected), null);
+            return (null, Result<Guid, StockError>.Fail(StockError.ReceiptRejected), null);
         }
 
         var differs = slip.Lines.Any(line => actuals is not null && actuals.TryGetValue(line.Id, out var value) && value != line.Quantity);
@@ -180,13 +180,13 @@ public sealed class ConfirmTransferReceiptCommandHandler(
         {
             if (string.IsNullOrWhiteSpace(command.Note))
             {
-                return (null, Result<Guid>.Fail(StockError.ReasonRequired), null);
+                return (null, Result<Guid, StockError>.Fail(StockError.ReasonRequired), null);
             }
 
             var saved = attachments is null ? 0 : (await attachments.ListAsync(slip.Id, cancellationToken)).Count;
             if (saved + newFileCount == 0)
             {
-                return (null, Result<Guid>.Fail(StockError.AttachmentRequired), null);
+                return (null, Result<Guid, StockError>.Fail(StockError.AttachmentRequired), null);
             }
         }
 
