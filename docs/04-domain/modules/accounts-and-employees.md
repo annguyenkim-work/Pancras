@@ -67,7 +67,6 @@ Ghi `IAuditLog` (mã hành động dạng `nhóm.sự_kiện`, hiển thị ti�
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Danh sách | Là bảng, phân trang 20/50, sắp xếp theo tên, mã, vai trò, kho; cột đầu sticky, hành động ở cột thứ 2 |
 | `Version` | Form sửa gửi `Version`, handler từ chối bằng `EmployeeError.VersionConflict`; hai lần lưu chồng nhau thật sự hiện trang 409 chung |
 
 ## Chờ chốt (chưa có hiệu lực)

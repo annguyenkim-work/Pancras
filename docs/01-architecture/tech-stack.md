@@ -52,7 +52,6 @@
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Phông chữ | Chưa tự host; cần tải 3 phông (các độ đậm: DM Sans 400/500/700, Plus Jakarta 600/700, JetBrains Mono 500), thêm `@font-face`, bỏ link Google ở `_Head.cshtml`, sửa `font-src`/`style-src` trong `Program.cs` |
 | Gói dùng chung | `Microsoft.Extensions.Logging.Abstractions` 10.0.4 (Application) và 10.0.5 (Infrastructure.Tests, do `EntityFrameworkCore.InMemory` 10.0.5 yêu cầu); sẽ thống nhất khi nâng cả solution lên 10.0.5 |
 
 ## Chờ chốt (chưa có hiệu lực)

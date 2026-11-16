@@ -64,7 +64,6 @@ Xem [../00-overview/product.md](../00-overview/product.md).
 | Vấn đề | Hiện trạng |
 | --- | --- |
 | Trang to | Mỗi module một trang `Index` rất dài (Inventory hơn 1.000 dòng) với script inline; cần tách thành các phần/partial hoặc nhiều trang theo tab |
-| Contracts | Interface repository và DTO gom trong `<Module>Contracts.cs`; tách mỗi interface một file |
 | Domain/Application dùng chung | `Auditing` có ở cả Domain và Application nhưng `Locations` chỉ có ở Application; cân nhắc thống nhất khi làm lại module Kho & Showroom |
 
 ## Chờ chốt (chưa có hiệu lực)

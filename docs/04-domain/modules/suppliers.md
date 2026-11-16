@@ -52,7 +52,6 @@
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Phân trang, sắp xếp | Đã có 20/50 và sắp xếp theo tên, mã, quốc gia |
 | `Version` | Form sửa gửi `Version`; handler từ chối bằng `SupplierError.VersionConflict`, kể cả khi hai lần lưu chồng nhau thật sự |
 
 ## Chờ chốt (chưa có hiệu lực)
