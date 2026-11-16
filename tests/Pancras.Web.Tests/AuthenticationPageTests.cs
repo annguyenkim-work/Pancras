@@ -237,6 +237,27 @@ public class AuthenticationPageTests : IClassFixture<PancrasWebFactory>
     }
 
     [Fact]
+    public async Task ProfileRateLimit_LimitsPasswordAndTwoFactorActions()
+    {
+        using var factory = new PancrasWebFactory { SensitivePerMinute = "2" };
+        var repository = factory.Services.GetRequiredService<FakeEmployeeRepository>();
+        repository.Employees.Clear();
+        repository.Employees.Add(Employee.Create("Quản trị hệ thống", "admin", "ADMIN", factory.Services.GetRequiredService<FakePasswordHasher>().Hash("Admin@12345"), EmployeeRole.Admin));
+        using var client = factory.CreateClient(NoRedirect);
+        await SignInAsync(client, "admin", "Admin@12345");
+
+        var first = await client.GetAsync("/profile");
+        var second = await client.GetAsync("/profile");
+        var third = await client.GetAsync("/profile");
+        var html = await third.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        Assert.Equal(HttpStatusCode.TooManyRequests, third.StatusCode);
+        Assert.Contains("Bạn thao tác quá nhiều lần", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Session_EndsTwelveHoursAfterSignIn_EvenIfTheCookieSlides()
     {
         var clock = new ManualTimeProvider(new DateTimeOffset(2040, 1, 1, 0, 0, 0, TimeSpan.Zero));
@@ -380,12 +401,15 @@ public sealed class PancrasWebFactory : WebApplicationFactory<Program>
 {
     public string LoginPerMinute { get; init; } = "100000";
 
+    public string SensitivePerMinute { get; init; } = "100000";
+
     public TimeProvider? Clock { get; init; }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
         builder.UseSetting("RateLimiting:LoginPerMinute", LoginPerMinute);
+        builder.UseSetting("RateLimiting:SensitivePerMinute", SensitivePerMinute);
         builder.UseSetting(
             "ConnectionStrings:DefaultConnection",
             "Host=localhost;Port=5432;Database=pancras;Username=postgres;Password=testing");

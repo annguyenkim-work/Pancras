@@ -86,10 +86,14 @@ builder.Services.AddRateLimiter(options =>
     {
         context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
         context.HttpContext.Response.ContentType = "text/html; charset=utf-8";
+        var sensitive = context.HttpContext.GetEndpoint()?.Metadata
+            .GetMetadata<Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute>()?.PolicyName == "sensitive";
         await context.HttpContext.Response.WriteAsync(
             PlainStatusPage(
                 "Thử lại sau",
-                "Bạn thử đăng nhập quá nhiều lần. Vui lòng đợi một phút rồi thử lại."),
+                sensitive
+                    ? "Bạn thao tác quá nhiều lần. Vui lòng đợi một phút rồi thử lại."
+                    : "Bạn thử đăng nhập quá nhiều lần. Vui lòng đợi một phút rồi thử lại."),
             cancellationToken);
     };
     // RemoteIpAddress: khi đứng sau reverse proxy, bật Deployment:BehindReverseProxy và KnownProxies
@@ -99,6 +103,16 @@ builder.Services.AddRateLimiter(options =>
         _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
         {
             PermitLimit = builder.Configuration.GetValue("RateLimiting:LoginPerMinute", 120),
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+    // Đổi mật khẩu, bật/tắt 2FA ở trang hồ sơ: tính theo người dùng đang đăng nhập (không có thì theo IP).
+    options.AddPolicy("sensitive", context => System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+        context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+        {
+            PermitLimit = builder.Configuration.GetValue("RateLimiting:SensitivePerMinute", 30),
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0
         }));

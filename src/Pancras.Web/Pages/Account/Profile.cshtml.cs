@@ -10,6 +10,7 @@ using QRCoder;
 namespace Pancras.Web.Pages.Account;
 
 [Authorize]
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("sensitive")]
 public class ProfileModel(
     GetEmployeeHandler getEmployee,
     UpdateOwnProfileCommandHandler updateProfile,

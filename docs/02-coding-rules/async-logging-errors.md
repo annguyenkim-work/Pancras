@@ -43,7 +43,6 @@
 | Vấn đề | Hiện trạng |
 | --- | --- |
 | `catch` rồi `throw;` | `Upload*AttachmentCommandHandler.cs` (3 file) bắt mọi ngoại lệ để xóa tệp vừa ghi rồi ném lại; giữ vì không nuốt lỗi |
-| `.Result` | `UpdateEmployeeCommandHandler.cs:85` (`outcome.Result`) là thuộc tính của kết quả, không phải chờ task; giữ nhưng nên đổi tên cho khỏi gây nhầm |
 | Bắt `OverflowException` | `Domain/Purchasing/ChargeAllocation.cs:97` còn `try/catch`; phép nhân ở trang Mua hàng đã chuyển sang `SafeMath.MultiplyOrMax` |
 
 ## Chờ chốt (chưa có hiệu lực)

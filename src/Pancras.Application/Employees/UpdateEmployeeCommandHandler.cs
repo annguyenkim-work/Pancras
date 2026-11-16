@@ -54,7 +54,7 @@ public sealed class UpdateEmployeeCommandHandler(
                 cancellationToken);
         }
 
-        return outcome.Result;
+        return outcome.Profile;
     }
 
     private async Task<UpdateOutcome> SaveUpdateAsync(
@@ -183,7 +183,7 @@ public sealed class UpdateEmployeeCommandHandler(
     }
 
     private readonly record struct UpdateOutcome(
-        Result<EmployeeProfile, EmployeeError> Result,
+        Result<EmployeeProfile, EmployeeError> Profile,
         string? EmployeeId,
         string? AuditAction,
         string? Detail,
