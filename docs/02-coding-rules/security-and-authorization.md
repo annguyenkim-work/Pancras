@@ -54,4 +54,4 @@
 ## Chờ chốt (chưa có hiệu lực)
 
 - **Đã chốt 2026-11-16:** 2FA vẫn tùy chọn, mật khẩu tối thiểu 8 ký tự (không đổi). Ghi lại để không hỏi lại.
-- Ghi chính thức các cấu hình đang bật nhưng chưa chọn làm quy tắc: bí mật 2FA mã hóa bằng Data Protection, header bảo mật (nosniff, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy), cookie `HttpOnly`/`SameSite=Lax`/`Secure` ở production, phiên 8 giờ trượt.
+- **Chốt kỹ thuật 2026-11-16 (đề xuất của AI theo thực tế code, chủ dự án có thể đổi):** các cấu hình đang bật trở thành quy tắc chính thức, không được tắt khi chưa hỏi chủ dự án: bí mật 2FA mã hóa bằng Data Protection, header bảo mật (nosniff, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy), cookie `HttpOnly`/`SameSite=Lax`/`Secure` ở production, phiên 8 giờ trượt.

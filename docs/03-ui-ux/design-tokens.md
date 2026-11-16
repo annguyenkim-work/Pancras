@@ -66,5 +66,5 @@ Font **tự host** trong `wwwroot/fonts` (không dùng Google Fonts, xem [tech-s
 
 ## Chờ chốt (chưa có hiệu lực)
 
-- Quy tắc khoảng cách (padding thẻ, khoảng cách giữa các khối).
-- Cách dùng màu trạng thái chi tiết cho badge (vòng đời đơn, phiếu).
+- **Chốt kỹ thuật 2026-11-16 (đề xuất của AI theo thực tế code, chủ dự án có thể đổi):** dùng thang khoảng cách của Tailwind, giữ nhất quán theo mẫu thẻ/hộp thoại/bảng hiện có (đã có test `UiStandardsTests` khóa padding ô bảng, cỡ hộp thoại).
+- **Chốt kỹ thuật 2026-11-16 (đề xuất của AI theo thực tế code, chủ dự án có thể đổi):** badge lấy màu qua helper `Badge` dùng chung: xám = nháp/chưa bắt đầu, vàng = chờ duyệt, xanh dương = đang xử lý, xanh lá = hoàn tất, đỏ = hủy/từ chối/lỗi.

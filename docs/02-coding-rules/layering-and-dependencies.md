@@ -37,5 +37,5 @@
 ## Chờ chốt (chưa có hiệu lực)
 
 - **Đã chốt 2026-11-16 (chưa làm):** thêm test kiến trúc bằng NetArchTest để cấm phụ thuộc sai chiều giữa các tầng. Chủ dự án đã đồng ý thêm thư viện này; làm kèm test.
-- Quy tắc kích thước và chia nhỏ PageModel/`.cshtml` quá dài (Inventory/Index.cshtml hơn 1.000 dòng).
-- Quy tắc đặt thư mục trong từng project (cấu trúc theo module).
+- **Chốt kỹ thuật 2026-11-16 (đề xuất của AI theo thực tế code, chủ dự án có thể đổi):** trang `.cshtml` quá khoảng 500 dòng thì tách thành partial theo khối (đã làm cho Kho và Mua hàng); ngoại lệ phải có lý do. Handler dài chia theo bước, không gộp nhiều use case vào một lớp.
+- **Chốt kỹ thuật 2026-11-16 (đề xuất của AI theo thực tế code, chủ dự án có thể đổi):** mỗi project tổ chức theo module (`Catalog`, `Suppliers`, `Inventory`, `Purchasing`, `Employees`, `Notifications`, `Auditing`...), phần dùng chung ở `Common`; module mới theo mẫu của `catalog` hoặc `suppliers`.

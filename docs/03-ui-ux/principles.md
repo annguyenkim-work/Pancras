@@ -32,5 +32,5 @@
 ## Chờ chốt (chưa có hiệu lực)
 
 - **Đã chốt 2026-11-16:** chỉ dùng Tailwind (3.4) cho giao diện, không thêm thư viện CSS khác.
-- Vai trò của bộ lọc live (`data-live-filter`) và quy tắc bố cục hàng lọc/tìm/đếm.
+- **Chốt kỹ thuật 2026-11-16 (đề xuất của AI theo thực tế code, chủ dự án có thể đổi):** bộ lọc live (`data-live-filter`) dùng cho tìm/lọc nhanh trên danh sách; hàng lọc nằm phía trên bảng, theo thứ tự ô tìm, bộ lọc, đếm kết quả.
 - Còn sót gì khác: sẽ rà tiếp khi viết `components.md` và `app-shell.md`.

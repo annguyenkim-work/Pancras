@@ -67,6 +67,7 @@ dotnet ef database update --project src/Pancras.Infrastructure --startup-project
 
 ## Chờ chốt (chưa có hiệu lực)
 
-- Chiến lược chỉ mục (index) và khi nào thêm.
+- **Chốt kỹ thuật 2026-11-16 (đề xuất của AI theo thực tế code, chủ dự án có thể đổi):** thêm chỉ mục khi có truy vấn lọc/sắp xếp/khóa duy nhất thật sự cần (mã duy nhất, khóa ngoại hay lọc); mỗi chỉ mục mới đi kèm migration và lý do trong mô tả migration; không thêm "phòng xa".
+- Quy tắc sao lưu và khôi phục database: ghi ở `06-operations/deployment.md` (RPO/RTO 1 ngày, giữ 14 ngày).
 - Quy tắc sao lưu và khôi phục database — để ở `06-operations/deployment.md`.
 - **Đã chốt 2026-11-16 (chưa làm):** danh sách rất lớn (nhật ký, lịch sử tồn) đổi sang phân trang keyset (mất nhảy tới trang bất kỳ); các danh sách còn lại giữ Skip/Take 20/50.

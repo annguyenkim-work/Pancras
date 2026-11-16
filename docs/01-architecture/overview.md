@@ -68,5 +68,5 @@ Xem [../00-overview/product.md](../00-overview/product.md).
 
 ## Chờ chốt (chưa có hiệu lực)
 
-- Có tách `Application` theo module thành project riêng khi hệ thống lớn hơn hay giữ một project.
+- **Chốt kỹ thuật 2026-11-16 (đề xuất của AI theo thực tế code, chủ dự án có thể đổi):** giữ một project `Application` chia theo thư mục module; chỉ tách project khi có lý do cụ thể (thời gian build, nhóm làm riêng).
 - Giám sát, health check, và cấu trúc deployment (xem `06-operations`).

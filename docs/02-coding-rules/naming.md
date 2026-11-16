@@ -56,5 +56,5 @@
 ## Chờ chốt (chưa có hiệu lực)
 
 - Các hậu tố kết quả trong bảng trên là ghi nhận lại từ code, chưa được rà từng cái; xác nhận khi viết `04-domain/modules`.
-- Tên PageModel, handler của Razor Page (`OnPostXxxAsync`) và tên file partial (`_Xxx.cshtml`).
-- Tên test (`MethodName_State_Expected` hay tiếng Việt) — xem `testing.md`.
+- **Chốt kỹ thuật 2026-11-16 (đề xuất của AI theo thực tế code, chủ dự án có thể đổi):** PageModel tên `IndexModel` trong thư mục trang; handler Razor Page `OnGet`/`OnPost<HànhĐộng>Async`; partial `_<TênKhối>.cshtml` cùng thư mục trang (hoặc `Shared/` nếu dùng chung).
+- **Chốt kỹ thuật 2026-11-16 (đề xuất của AI theo thực tế code, chủ dự án có thể đổi):** tên test tiếng Anh dạng `<Hành động>_<Kết quả mong đợi>` (ví dụ `Create_RejectsBlankName`), như code hiện có.

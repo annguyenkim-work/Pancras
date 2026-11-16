@@ -66,5 +66,5 @@ Ghi chú: đổi class UI thì thêm `npm run build:css`. Chưa có CI; dự đ�
 ## Chờ chốt (chưa có hiệu lực)
 
 - **Đã chốt 2026-11-16:** chưa cần quy tắc PR bắt buộc hay bảo vệ nhánh `main`; build và test sạch là đủ.
-- Quy ước phiên bản và thẻ phát hành (tag) khi deploy.
+- **Chốt kỹ thuật 2026-11-16 (đề xuất của AI theo thực tế code, chủ dự án có thể đổi):** đặt tag `vYYYY.MM.DD` (thêm `-n` nếu nhiều bản trong ngày) trên commit được deploy.
 - **Đã chốt 2026-11-16:** chưa thêm analyzer bổ sung.
