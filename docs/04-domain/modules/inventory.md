@@ -90,5 +90,5 @@ Requested ──duyệt──▶ Approved ──xuất kho──▶ InTransit �
 ## Chờ chốt (chưa có hiệu lực)
 
 - Giữ chỗ cho nguồn khác ngoài phiếu chuyển (ví dụ đơn bán khi có module Bán hàng) dùng chung cột `Reserved`.
-- Duyệt theo ngưỡng giá trị/số lượng; người duyệt thay thế khi Trưởng kho vắng (hiện chỉ có tài chính thay).
+- **Đã chốt 2026-11-16:** chưa cần duyệt theo ngưỡng; người duyệt thay thế khi Trưởng kho vắng vẫn là tài chính.
 - Thông tin vận chuyển (người vận chuyển, số seal), phiếu giao in được.

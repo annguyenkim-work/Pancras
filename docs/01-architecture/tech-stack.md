@@ -56,6 +56,6 @@
 
 ## Chờ chốt (chưa có hiệu lực)
 
-- Xuất `.xlsx` thật cho kho và mua hàng (nút "Xuất Excel" hiện là CSV): cần thư viện, hỏi trước.
+- **Đã chốt 2026-11-16:** không xuất `.xlsx`; mọi nút xuất ghi nhãn `Xuất CSV` (không thêm thư viện).
 - Quét virus cho tệp tải lên (hiện không có; chỉ cho phép pdf, jpg, png, xlsx, docx, giới hạn 10 MB).
 - Giám sát lỗi và log tập trung.

@@ -19,6 +19,7 @@
 - **Tỷ giá** ghi kèm ngày và nguồn (ví dụ tờ khai hải quan); sửa tỷ giá làm tính lại chi phí.
 - `Version` là concurrency token: form đang mở bị từ chối nếu đơn đã được sửa.
 - **Thuế:** mỗi dòng một suất thuế nhập khẩu (`DutyRate`); cả đơn một suất VAT (`VatRate`). Không gộp hai thuế thành một khoản chung của container rồi chia xuống dòng.
+- **Trùng container/B-L:** sau khi lưu đơn, nếu số container hoặc B/L trùng một đơn khác chưa hủy thì hiện cảnh báo (không chặn); so khớp không phân biệt hoa thường và bỏ khoảng trắng.
 - **Tỷ giá chốt lúc lập đơn**; chỉ sửa được khi đơn còn sửa được (trước lần nhận đầu tiên).
 - **FOB phải lớn hơn 0** khi tạo, sửa và nhận hàng; số lượng mỗi dòng phải lớn hơn 0 (dòng đã chọn mặt hàng mà số lượng ≤ 0 bị từ chối, dòng trống hoàn toàn thì bỏ qua).
 - Làm tròn: USD 2 chữ số, đồng 0 chữ số (`AwayFromZero`), thuế suất 4 chữ số. Mọi số phải nằm trong giới hạn cột (`PurchaseMoney.FitsLimits`) trước khi lưu hoặc tính.
@@ -89,7 +90,6 @@ Dùng cho hóa đơn về muộn, tờ khai điều chỉnh:
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Nút xuất | Nhãn "Xuất Excel" nhưng tệp CSV; đổi nhãn hoặc xuất `.xlsx` thật |
 | Thứ tự enum | `PurchaseStatus` đánh số theo thời điểm thêm (`Received = 2`, `PendingApproval = 3`...), không theo vòng đời; chỉ đổi khi có migration |
 | Hiển thị giá vốn đơn chưa nhập | Cần phân biệt số dự toán và số đã ghi nhận |
 
@@ -98,7 +98,6 @@ Dùng cho hóa đơn về muộn, tờ khai điều chỉnh:
 Các mục từ review 14/11/2026 chưa xác minh trạng thái trong code, chờ rà khi làm lại module:
 - Bước xem trước tác động giá vốn trước khi nhận hàng; xác nhận hộp thoại khi bấm nhận.
 - Kiểm tra chứng từ bắt buộc (tờ khai, hóa đơn NCC) trước khi nhận.
-- Cảnh báo trùng số container/B-L giữa các đơn.
 - Nối đơn mua với công nợ phải trả nhà cung cấp và thanh toán.
-- Duyệt theo ngưỡng giá trị; người duyệt thay thế.
-- Phân trang, lọc theo trạng thái/kho/ngày cho danh sách đơn.
+- **Đã chốt 2026-11-16:** chưa cần duyệt theo ngưỡng giá trị hay người duyệt thay thế; giữ Admin, Giám đốc, Kế toán duyệt.
+- Lọc danh sách đơn theo trạng thái/kho/ngày (phân trang 20/50 đã có).
