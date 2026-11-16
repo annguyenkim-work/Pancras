@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Pancras.Domain.Catalog;
@@ -174,11 +175,11 @@ public sealed class DisposalSlipConfiguration : IEntityTypeConfiguration<Disposa
     }
 }
 
-public sealed class StockNoticeConfiguration : IEntityTypeConfiguration<StockNotice>
+public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notification>
 {
-    public void Configure(EntityTypeBuilder<StockNotice> builder)
+    public void Configure(EntityTypeBuilder<Notification> builder)
     {
-        builder.ToTable("stock_notice");
+        builder.ToTable("notification");
         builder.HasKey(notice => notice.Id);
         builder.Property(notice => notice.RecipientEmployeeId).IsRequired();
         builder.Property(notice => notice.StockLocationId);

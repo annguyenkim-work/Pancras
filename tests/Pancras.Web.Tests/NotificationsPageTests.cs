@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using System.Net;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -58,8 +59,8 @@ public class NotificationsPageTests : IClassFixture<PancrasWebFactory>
     public void TargetOf_OpensTheRightDocument()
     {
         var documentId = Guid.NewGuid();
-        var transfer = StockNotice.Create(Guid.NewGuid(), Guid.NewGuid(), documentId, StockNoticeKind.Transfer, StockNotice.TransferApprovedStep, DateTimeOffset.UtcNow);
-        var adjustment = StockNotice.Create(Guid.NewGuid(), Guid.NewGuid(), documentId, StockNoticeKind.AdjustmentPending, StockNotice.AdjustmentStep, DateTimeOffset.UtcNow);
+        var transfer = Notification.Create(Guid.NewGuid(), Guid.NewGuid(), documentId, NotificationKind.Transfer, Notification.TransferApprovedStep, DateTimeOffset.UtcNow);
+        var adjustment = Notification.Create(Guid.NewGuid(), Guid.NewGuid(), documentId, NotificationKind.AdjustmentPending, Notification.AdjustmentStep, DateTimeOffset.UtcNow);
 
         Assert.Equal($"/inventory?view=transfers&open={documentId:D}", IndexModel.TargetOf(transfer));
         Assert.Equal($"/inventory?view=stocktakes#document-{documentId:D}", IndexModel.TargetOf(adjustment));
@@ -69,7 +70,7 @@ public class NotificationsPageTests : IClassFixture<PancrasWebFactory>
 
 internal sealed class NoticeStoreDouble : Pancras.Application.Notifications.INoticeStore
 {
-    public Task AddAsync(StockNotice notice, CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task AddAsync(Notification notice, CancellationToken cancellationToken) => Task.CompletedTask;
 
     public Task RemoveForDocumentAsync(Guid documentId, CancellationToken cancellationToken) => Task.CompletedTask;
 }

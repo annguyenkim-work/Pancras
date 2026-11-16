@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Pancras.Application.Auditing;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Common;
@@ -100,7 +101,7 @@ public sealed class ApproveDisposalSlipCommandHandler(
         foreach (var person in people.Where(person => person.StockLocationId == stockLocationId && person.IsActive))
         {
             await repository.AddNoticeAsync(
-                StockNotice.Create(person.Id, stockLocationId, documentId, StockNoticeKind.DisposalApproved, StockNotice.DisposalStep, occurredAt),
+                Notification.Create(person.Id, stockLocationId, documentId, NotificationKind.DisposalApproved, Notification.DisposalStep, occurredAt),
                 cancellationToken);
         }
     }

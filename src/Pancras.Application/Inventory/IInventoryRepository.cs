@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Pancras.Application.Auditing;
 using Pancras.Domain.Catalog;
 using Pancras.Domain.Employees;
@@ -64,11 +65,11 @@ public interface IInventoryRepository
 
     Task<IReadOnlyList<DisposalSlip>> ListDisposalsAsync(CancellationToken cancellationToken);
 
-    Task AddNoticeAsync(StockNotice notice, CancellationToken cancellationToken);
+    Task AddNoticeAsync(Notification notice, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<StockNotice>> ListNoticesAsync(Guid recipientEmployeeId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<Notification>> ListNoticesAsync(Guid recipientEmployeeId, CancellationToken cancellationToken);
 
-    Task<StockNotice?> FindNoticeForUpdateAsync(Guid id, CancellationToken cancellationToken);
+    Task<Notification?> FindNoticeForUpdateAsync(Guid id, CancellationToken cancellationToken);
 
     Task RemoveNoticesAsync(Guid documentId, CancellationToken cancellationToken);
 

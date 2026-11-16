@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Common;
 using Pancras.Application.Employees;
@@ -129,12 +130,12 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
         foreach (var person in people.Where(person => InventoryRoles.CanPostAdjustment(person.Role)))
         {
             await repository.AddNoticeAsync(
-                StockNotice.Create(
+                Notification.Create(
                     person.Id,
                     adjustment.StockLocationId,
                     adjustment.Id,
-                    StockNoticeKind.AdjustmentPending,
-                    StockNotice.AdjustmentStep,
+                    NotificationKind.AdjustmentPending,
+                    Notification.AdjustmentStep,
                     occurredAt),
                 cancellationToken);
         }

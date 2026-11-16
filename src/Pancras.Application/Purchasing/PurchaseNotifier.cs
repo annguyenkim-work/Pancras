@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Pancras.Application.Employees;
 using Pancras.Application.Notifications;
 using Pancras.Domain.Employees;
@@ -36,10 +37,10 @@ public static class PurchaseNotifier
 
         (string Step, Func<Employee, bool> Matches, Guid? Location)? plan = action switch
         {
-            PurchaseStatusAction.Submit => (StockNotice.PurchaseSubmittedStep, person => InventoryRoles.IsFinance(person.Role), null),
-            PurchaseStatusAction.Approve => (StockNotice.PurchaseApprovedStep, person => IsCreator(person) || StaffOfReceiveLocation(person), order.ReceiveLocationId),
-            PurchaseStatusAction.ReturnToDraft => (WithReason(StockNotice.PurchaseReturnedStep, note), IsCreator, null),
-            PurchaseStatusAction.MarkInTransit => (StockNotice.PurchaseInTransitStep, StaffOfReceiveLocation, order.ReceiveLocationId),
+            PurchaseStatusAction.Submit => (Notification.PurchaseSubmittedStep, person => InventoryRoles.IsFinance(person.Role), null),
+            PurchaseStatusAction.Approve => (Notification.PurchaseApprovedStep, person => IsCreator(person) || StaffOfReceiveLocation(person), order.ReceiveLocationId),
+            PurchaseStatusAction.ReturnToDraft => (WithReason(Notification.PurchaseReturnedStep, note), IsCreator, null),
+            PurchaseStatusAction.MarkInTransit => (Notification.PurchaseInTransitStep, StaffOfReceiveLocation, order.ReceiveLocationId),
             _ => null
         };
 
@@ -53,7 +54,7 @@ public static class PurchaseNotifier
         foreach (var person in people.Where(person => person.Id != actorId && chosen.Matches(person)))
         {
             await notices.AddAsync(
-                StockNotice.Create(person.Id, chosen.Location, order.Id, StockNoticeKind.Purchase, chosen.Step, at),
+                Notification.Create(person.Id, chosen.Location, order.Id, NotificationKind.Purchase, chosen.Step, at),
                 cancellationToken);
         }
     }

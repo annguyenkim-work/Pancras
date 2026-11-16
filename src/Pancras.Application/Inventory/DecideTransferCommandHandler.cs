@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Auditing;
 using Pancras.Application.Common;
@@ -89,7 +90,7 @@ public sealed class DecideTransferCommandHandler(
             employees,
             slip,
             command.Actor.Id,
-            command.Approve ? StockNotice.TransferApprovedStep : StockNotice.TransferRejectedStep,
+            command.Approve ? Notification.TransferApprovedStep : Notification.TransferRejectedStep,
             command.Approve ? TransferAudience.Creator | TransferAudience.SourceStaff : TransferAudience.Creator,
             clock,
             cancellationToken);

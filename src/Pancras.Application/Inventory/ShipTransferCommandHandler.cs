@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Auditing;
 using Pancras.Application.Common;
@@ -93,7 +94,7 @@ public sealed class ShipTransferCommandHandler(
         }
 
         await TransferTrail.RecordAsync(repository, slip, TransferEventKind.Shipped, request, clock, SealNote(slip), cancellationToken);
-        await TransferTrail.NotifyAsync(repository, employees, slip, command.Actor.Id, StockNotice.TransferShippedStep, TransferAudience.Creator | TransferAudience.DestinationStaff, clock, cancellationToken);
+        await TransferTrail.NotifyAsync(repository, employees, slip, command.Actor.Id, Notification.TransferShippedStep, TransferAudience.Creator | TransferAudience.DestinationStaff, clock, cancellationToken);
         if (!await repository.CommitAsync(cancellationToken))
         {
             foreach (var snapshot in snapshots)

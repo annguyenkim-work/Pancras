@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Pancras.Domain.Inventory;
 
 namespace Pancras.Application.Notifications;
@@ -8,7 +9,7 @@ namespace Pancras.Application.Notifications;
 /// </summary>
 public interface INoticeStore
 {
-    Task AddAsync(StockNotice notice, CancellationToken cancellationToken);
+    Task AddAsync(Notification notice, CancellationToken cancellationToken);
 
     /// <summary>Xóa thông báo cũ của một chứng từ (bước đã qua nên thông báo lỗi thời).</summary>
     Task RemoveForDocumentAsync(Guid documentId, CancellationToken cancellationToken);

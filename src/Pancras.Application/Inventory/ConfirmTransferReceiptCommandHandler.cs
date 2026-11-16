@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Pancras.Domain.Auditing;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Auditing;
@@ -96,7 +97,7 @@ public sealed class ConfirmTransferReceiptCommandHandler(
             employees,
             slip,
             command.Actor.Id,
-            slip.HasDiscrepancy ? StockNotice.TransferDiscrepancyStep : StockNotice.TransferReceivedStep,
+            slip.HasDiscrepancy ? Notification.TransferDiscrepancyStep : Notification.TransferReceivedStep,
             slip.HasDiscrepancy ? TransferAudience.Creator | TransferAudience.Finance : TransferAudience.Creator,
             clock,
             cancellationToken);

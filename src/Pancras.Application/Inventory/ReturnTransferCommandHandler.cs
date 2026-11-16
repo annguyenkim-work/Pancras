@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Auditing;
 using Pancras.Application.Common;
@@ -95,7 +96,7 @@ public sealed class ReturnTransferCommandHandler(
             employees,
             slip,
             command.Actor.Id,
-            StockNotice.TransferReturnedStep,
+            Notification.TransferReturnedStep,
             TransferAudience.Creator | TransferAudience.SourceStaff | TransferAudience.DestinationStaff,
             clock,
             cancellationToken);

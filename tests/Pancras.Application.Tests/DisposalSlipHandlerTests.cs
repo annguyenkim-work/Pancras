@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Microsoft.Extensions.Logging.Abstractions;
 using Pancras.Application.Common;
 using Pancras.Application.Inventory;
@@ -50,9 +51,9 @@ public class DisposalSlipHandlerTests
         Assert.Equal(0, store.Balance.Reserved);
         var notice = Assert.Single(store.Notices);
         Assert.Equal(store.Location.Id, notice.StockLocationId);
-        Assert.Equal(StockNoticeKind.DisposalApproved, notice.Kind);
+        Assert.Equal(NotificationKind.DisposalApproved, notice.Kind);
         Assert.Equal(store.Keeper.Id, notice.RecipientEmployeeId);
-        Assert.Equal(StockNotice.DisposalStep, notice.Step);
+        Assert.Equal(Notification.DisposalStep, notice.Step);
     }
 
     [Fact]
@@ -179,7 +180,7 @@ public class DisposalSlipHandlerTests
         Assert.Equal(ApprovalStatus.Pending, store.Adjustments[1].Status);
         var notice = Assert.Single(store.Notices);
         Assert.Equal(accountant.Id, notice.RecipientEmployeeId);
-        Assert.Equal(StockNoticeKind.AdjustmentPending, notice.Kind);
+        Assert.Equal(NotificationKind.AdjustmentPending, notice.Kind);
     }
 
     private static Task<Result<Guid, StockError>> CreateAsync(DisposalFixture store, int quantity = 1) =>
@@ -243,6 +244,6 @@ public class DisposalSlipHandlerTests
 
         public List<DisposalSlip> Disposals => _store.Disposals;
 
-        public List<StockNotice> Notices => _store.Notices;
+        public List<Notification> Notices => _store.Notices;
     }
 }

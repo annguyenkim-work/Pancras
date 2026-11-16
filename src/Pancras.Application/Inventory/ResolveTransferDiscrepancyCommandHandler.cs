@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Auditing;
 using Pancras.Application.Common;
@@ -47,7 +48,7 @@ public sealed class ResolveTransferDiscrepancyCommandHandler(
 
         slip.RecordStep(TransferStep.Resolved, (clock ?? TimeProvider.System).GetUtcNow(), request?.ActorCode);
         await TransferTrail.RecordAsync(repository, slip, TransferEventKind.Resolved, request, clock, command.Resolution, cancellationToken);
-        await TransferTrail.NotifyAsync(repository, employees, slip, command.Actor.Id, StockNotice.TransferResolvedStep, TransferAudience.Creator | TransferAudience.DestinationStaff, clock, cancellationToken);
+        await TransferTrail.NotifyAsync(repository, employees, slip, command.Actor.Id, Notification.TransferResolvedStep, TransferAudience.Creator | TransferAudience.DestinationStaff, clock, cancellationToken);
         if (!await repository.CommitAsync(cancellationToken))
         {
             slip.RestoreUncommitted(TransferStatus.ReceivedWithDiscrepancy);

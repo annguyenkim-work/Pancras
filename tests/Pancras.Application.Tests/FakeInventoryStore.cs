@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Pancras.Application.Inventory;
 using Pancras.Domain.Catalog;
 using Pancras.Domain.Inventory;
@@ -12,7 +13,7 @@ internal sealed class FakeInventoryStore : IInventoryRepository
     private readonly List<StocktakeSheet> _stagedStocktakes = [];
     private readonly List<QuantityAdjustment> _stagedAdjustments = [];
     private readonly List<DisposalSlip> _stagedDisposals = [];
-    private readonly List<StockNotice> _stagedNotices = [];
+    private readonly List<Notification> _stagedNotices = [];
 
     public List<StockLocation> Locations { get; } = [];
 
@@ -30,7 +31,7 @@ internal sealed class FakeInventoryStore : IInventoryRepository
 
     public List<DisposalSlip> Disposals { get; } = [];
 
-    public List<StockNotice> Notices { get; } = [];
+    public List<Notification> Notices { get; } = [];
 
     public List<StockLocation> DeletedLocations { get; } = [];
 
@@ -193,16 +194,16 @@ internal sealed class FakeInventoryStore : IInventoryRepository
     public Task<IReadOnlyList<DisposalSlip>> ListDisposalsAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<DisposalSlip>>(Disposals.ToArray());
 
-    public Task AddNoticeAsync(StockNotice notice, CancellationToken cancellationToken)
+    public Task AddNoticeAsync(Notification notice, CancellationToken cancellationToken)
     {
         _stagedNotices.Add(notice);
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyList<StockNotice>> ListNoticesAsync(Guid recipientEmployeeId, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<StockNotice>>(Notices.Where(notice => notice.RecipientEmployeeId == recipientEmployeeId).ToArray());
+    public Task<IReadOnlyList<Notification>> ListNoticesAsync(Guid recipientEmployeeId, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<Notification>>(Notices.Where(notice => notice.RecipientEmployeeId == recipientEmployeeId).ToArray());
 
-    public Task<StockNotice?> FindNoticeForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
+    public Task<Notification?> FindNoticeForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         Task.FromResult(Notices.Concat(_stagedNotices).FirstOrDefault(notice => notice.Id == id));
 
     public Task RemoveNoticesAsync(Guid documentId, CancellationToken cancellationToken)

@@ -1,3 +1,5 @@
+using Pancras.Application.Notifications;
+using Pancras.Domain.Notifications;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,9 +11,9 @@ namespace Pancras.Web.Pages.Notifications;
 
 /// <summary>Chuông trên header dẫn về đây. Mỗi người chỉ thấy và mở được thông báo của mình.</summary>
 [Authorize]
-public class IndexModel(ListStockNoticesHandler handler) : PageModel
+public class IndexModel(ListNotificationsHandler handler) : PageModel
 {
-    public IReadOnlyList<StockNotice> Notices { get; private set; } = [];
+    public IReadOnlyList<Notification> Notices { get; private set; } = [];
 
     public int PageNumber { get; private set; } = 1;
 
@@ -36,7 +38,7 @@ public class IndexModel(ListStockNoticesHandler handler) : PageModel
     /// <summary>Đánh dấu đã xem rồi mở đúng chứng từ: phiếu chuyển mở đúng phiếu, kiểm kê/điều chỉnh/hủy mở tab kiểm kê.</summary>
     public async Task<IActionResult> OnPostOpenAsync(Guid noticeId, CancellationToken cancellationToken)
     {
-        StockNotice? notice = null;
+        Notification? notice = null;
         if (Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var employeeId))
         {
             notice = await handler.OpenAsync(noticeId, employeeId, cancellationToken);
@@ -45,11 +47,11 @@ public class IndexModel(ListStockNoticesHandler handler) : PageModel
         return Redirect(TargetOf(notice));
     }
 
-    public static string TargetOf(StockNotice? notice) => notice switch
+    public static string TargetOf(Notification? notice) => notice switch
     {
         null => "/notifications",
-        { Kind: StockNoticeKind.Purchase } => $"/purchasing?order={notice.DocumentId:D}",
-        { Kind: StockNoticeKind.Transfer } => $"/inventory?view=transfers&open={notice.DocumentId:D}",
+        { Kind: NotificationKind.Purchase } => $"/purchasing?order={notice.DocumentId:D}",
+        { Kind: NotificationKind.Transfer } => $"/inventory?view=transfers&open={notice.DocumentId:D}",
         _ => $"/inventory?view=stocktakes#document-{notice.DocumentId:D}"
     };
 }

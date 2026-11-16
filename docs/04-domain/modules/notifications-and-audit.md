@@ -2,7 +2,7 @@
 
 > Trạng thái: **Đã chốt** (phiên 2026-11-16). Quy tắc ghi nhật ký trong handler: [use-cases-and-results.md](../../02-coding-rules/use-cases-and-results.md). Quyền xem nhật ký: [../roles-and-permissions.md](../roles-and-permissions.md) mục 4.
 
-**Mục đích:** Hai việc khác nhau. **Thông báo** báo người liên quan có việc cần làm (bước chờ, bước tiếp theo). **Nhật ký (audit)** ghi lại ai đã làm gì để truy vết. Code: `Domain/Inventory/StockNotice.cs`, `Domain/Auditing`, `Application/Auditing`, `Web/Pages/Audit`.
+**Mục đích:** Hai việc khác nhau. **Thông báo** báo người liên quan có việc cần làm (bước chờ, bước tiếp theo). **Nhật ký (audit)** ghi lại ai đã làm gì để truy vết. Code: `Domain/Notifications/Notification.cs`, `Domain/Auditing`, `Application/Auditing`, `Web/Pages/Audit`.
 
 ## A. Thông báo
 
@@ -66,8 +66,8 @@ Theo quy tắc ở [use-cases-and-results.md](../../02-coding-rules/use-cases-an
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Thông báo dùng chung | Đã có chuông trên header (số chưa xem) và trang `/notifications`, mở đúng phiếu chuyển hoặc tab kiểm kê; banner trong `/inventory` đã bỏ. Còn lệch: thực thể vẫn tên `StockNotice` (cột kho đã cho null để dùng cho mua hàng), chưa đổi tên thành `Notification` dùng chung cho mọi module; đã phân trang 20/50 |
-| Vòng đời | Cần kiểm tra code đã làm đủ: biến mất với mọi người khi bước xong, không trùng thông báo cho cùng một bước (hiện chỉ có `Seen` theo người nhận) |
+| Thông báo dùng chung | Đã có thực thể `Notification` (bảng `notification`), chuông header, `/notifications`, mở đúng chứng từ. Cột kho `StockLocationId` có thể null; chưa đổi tên cột thành `LocationId` |
+| Vòng đời | Đã đúng trong code cho phiếu chuyển, điều chỉnh, hủy và đơn mua: mỗi bước xóa thông báo cũ của chứng từ rồi tạo thông báo mới (không trùng, biến mất khi bước xong), chỉ người nhận mở được. Chưa có test riêng cho phiếu chuyển/điều chỉnh/hủy |
 | Thông báo mua hàng | Đã làm cho gửi duyệt, duyệt, trả về nháp (kèm lý do) và đang về, qua `PurchaseNotifier` và `INoticeStore`. Chưa làm: thông báo khi đơn đã nhận hoặc bị hủy. Người lập đơn xác định theo mã nhân viên trong sự kiện Created của đơn |
 | Kiểm kê chờ duyệt | Spec cũ có thông báo cho Trưởng kho; code mới có thông báo cho điều chỉnh và hủy, chưa cho kiểm kê |
 

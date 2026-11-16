@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Inventory;
@@ -276,22 +277,22 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
     public async Task<IReadOnlyList<DisposalSlip>> ListDisposalsAsync(CancellationToken cancellationToken) =>
         await context.DisposalSlips.AsNoTracking().ToListAsync(cancellationToken);
 
-    public Task AddNoticeAsync(StockNotice notice, CancellationToken cancellationToken) =>
-        context.StockNotices.AddAsync(notice, cancellationToken).AsTask();
+    public Task AddNoticeAsync(Notification notice, CancellationToken cancellationToken) =>
+        context.Notifications.AddAsync(notice, cancellationToken).AsTask();
 
-    public async Task<IReadOnlyList<StockNotice>> ListNoticesAsync(Guid recipientEmployeeId, CancellationToken cancellationToken) =>
-        await context.StockNotices.AsNoTracking()
+    public async Task<IReadOnlyList<Notification>> ListNoticesAsync(Guid recipientEmployeeId, CancellationToken cancellationToken) =>
+        await context.Notifications.AsNoTracking()
             .Where(notice => notice.RecipientEmployeeId == recipientEmployeeId)
             .OrderByDescending(notice => notice.CreatedAt)
             .ToListAsync(cancellationToken);
 
-    public Task<StockNotice?> FindNoticeForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
-        context.StockNotices.FirstOrDefaultAsync(notice => notice.Id == id, cancellationToken);
+    public Task<Notification?> FindNoticeForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
+        context.Notifications.FirstOrDefaultAsync(notice => notice.Id == id, cancellationToken);
 
     public async Task RemoveNoticesAsync(Guid documentId, CancellationToken cancellationToken)
     {
-        var notices = await context.StockNotices.Where(notice => notice.DocumentId == documentId).ToListAsync(cancellationToken);
-        context.StockNotices.RemoveRange(notices);
+        var notices = await context.Notifications.Where(notice => notice.DocumentId == documentId).ToListAsync(cancellationToken);
+        context.Notifications.RemoveRange(notices);
     }
 
     /// <summary>Khóa dòng phiếu (SELECT ... FOR UPDATE) trong transaction giữ đến <see cref="CommitAsync"/> rồi mới đọc, để hai lần duyệt đồng thời chạy lần lượt.</summary>
@@ -344,9 +345,9 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
 
 public sealed class NoticeStore(PancrasDbContext context) : Pancras.Application.Notifications.INoticeStore
 {
-    public Task AddAsync(StockNotice notice, CancellationToken cancellationToken) =>
-        context.StockNotices.AddAsync(notice, cancellationToken).AsTask();
+    public Task AddAsync(Notification notice, CancellationToken cancellationToken) =>
+        context.Notifications.AddAsync(notice, cancellationToken).AsTask();
 
     public async Task RemoveForDocumentAsync(Guid documentId, CancellationToken cancellationToken) =>
-        context.StockNotices.RemoveRange(await context.StockNotices.Where(notice => notice.DocumentId == documentId).ToListAsync(cancellationToken));
+        context.Notifications.RemoveRange(await context.Notifications.Where(notice => notice.DocumentId == documentId).ToListAsync(cancellationToken));
 }

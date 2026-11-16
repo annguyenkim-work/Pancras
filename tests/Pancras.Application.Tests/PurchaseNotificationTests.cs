@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Microsoft.Extensions.Logging.Abstractions;
 using Pancras.Application.Notifications;
 using Pancras.Application.Purchasing;
@@ -11,9 +12,9 @@ public class PurchaseNotificationTests
 {
     private sealed class FakeNoticeStore : INoticeStore
     {
-        public List<StockNotice> Notices { get; } = [];
+        public List<Notification> Notices { get; } = [];
 
-        public Task AddAsync(StockNotice notice, CancellationToken cancellationToken)
+        public Task AddAsync(Notification notice, CancellationToken cancellationToken)
         {
             Notices.Add(notice);
             return Task.CompletedTask;
@@ -60,7 +61,7 @@ public class PurchaseNotificationTests
 
         var recipients = _notices.Notices.Select(notice => notice.RecipientEmployeeId).ToArray();
         Assert.Equal([_director.Id], recipients);
-        Assert.All(_notices.Notices, notice => Assert.Equal(StockNoticeKind.Purchase, notice.Kind));
+        Assert.All(_notices.Notices, notice => Assert.Equal(NotificationKind.Purchase, notice.Kind));
     }
 
     [Fact]
@@ -71,7 +72,7 @@ public class PurchaseNotificationTests
 
         var recipients = _notices.Notices.Select(notice => notice.RecipientEmployeeId).OrderBy(id => id).ToArray();
         Assert.Equal(new[] { _creator.Id, _keeper.Id }.OrderBy(id => id).ToArray(), recipients);
-        Assert.All(_notices.Notices, notice => Assert.Equal(StockNotice.PurchaseApprovedStep, notice.Step));
+        Assert.All(_notices.Notices, notice => Assert.Equal(Notification.PurchaseApprovedStep, notice.Step));
     }
 
     [Fact]

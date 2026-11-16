@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Auditing;
 using Pancras.Application.Common;
@@ -55,7 +56,7 @@ public sealed class UpdateTransferRequestCommandHandler(
         }
 
         await TransferTrail.RecordAsync(repository, slip, TransferEventKind.Edited, request, clock, null, cancellationToken);
-        await TransferTrail.NotifyAsync(repository, employees, slip, command.Actor.Id, StockNotice.TransferEditedStep, TransferAudience.Finance | TransferAudience.SourceLead, clock, cancellationToken);
+        await TransferTrail.NotifyAsync(repository, employees, slip, command.Actor.Id, Notification.TransferEditedStep, TransferAudience.Finance | TransferAudience.SourceLead, clock, cancellationToken);
         if (!await repository.CommitAsync(cancellationToken))
         {
             return Result<Guid, StockError>.Fail(StockError.TransferStateChanged);

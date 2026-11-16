@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -525,13 +526,13 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
     public Task<IReadOnlyList<DisposalSlip>> ListDisposalsAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<DisposalSlip>>([]);
 
-    public Task AddNoticeAsync(StockNotice notice, CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task AddNoticeAsync(Notification notice, CancellationToken cancellationToken) => Task.CompletedTask;
 
-    public Task<IReadOnlyList<StockNotice>> ListNoticesAsync(Guid recipientEmployeeId, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<StockNotice>>([]);
+    public Task<IReadOnlyList<Notification>> ListNoticesAsync(Guid recipientEmployeeId, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<Notification>>([]);
 
-    public Task<StockNotice?> FindNoticeForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult<StockNotice?>(null);
+    public Task<Notification?> FindNoticeForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
+        Task.FromResult<Notification?>(null);
 
     public Task RemoveNoticesAsync(Guid documentId, CancellationToken cancellationToken) => Task.CompletedTask;
 

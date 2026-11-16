@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Microsoft.Extensions.Logging.Abstractions;
 using Pancras.Application.Common;
 using Pancras.Application.Inventory;
@@ -222,10 +223,10 @@ public class TransferWorkflowRulesTests
         Assert.Equal(new HashSet<Guid> { lead.Id, accountant.Id, director.Id }, onRequest);
         Assert.True(approve.IsSuccess);
         var afterApproval = _store.Notices.Where(notice => notice.DocumentId == id).ToArray();
-        Assert.All(afterApproval, notice => Assert.Equal(StockNoticeKind.Transfer, notice.Kind));
-        Assert.Contains(afterApproval, notice => notice.RecipientEmployeeId == maker.Id && notice.Step == StockNotice.TransferApprovedStep);
+        Assert.All(afterApproval, notice => Assert.Equal(NotificationKind.Transfer, notice.Kind));
+        Assert.Contains(afterApproval, notice => notice.RecipientEmployeeId == maker.Id && notice.Step == Notification.TransferApprovedStep);
         Assert.DoesNotContain(afterApproval, notice => notice.RecipientEmployeeId == lead.Id);
-        Assert.DoesNotContain(afterApproval, notice => notice.Step == StockNotice.TransferRequestedStep);
+        Assert.DoesNotContain(afterApproval, notice => notice.Step == Notification.TransferRequestedStep);
     }
 
     private async Task<Guid> RequestAsync(EmployeeActor actor, int quantity)

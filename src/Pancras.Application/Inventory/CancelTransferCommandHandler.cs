@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Pancras.Application.Auditing;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Common;
@@ -83,7 +84,7 @@ public sealed class CancelTransferCommandHandler(
             employees,
             slip,
             command.Actor.Id,
-            StockNotice.TransferCancelledStep,
+            Notification.TransferCancelledStep,
             status == TransferStatus.Approved ? TransferAudience.SourceStaff : TransferAudience.SourceLead,
             clock,
             cancellationToken);

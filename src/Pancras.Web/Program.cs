@@ -1,3 +1,4 @@
+using Pancras.Application.Notifications;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
@@ -191,7 +192,7 @@ builder.Services.AddScoped<ListStockBalancesHandler>();
 builder.Services.AddScoped<GetStockItemDetailHandler>();
 builder.Services.AddScoped<ListStockHistoryHandler>();
 builder.Services.AddScoped<ListInventoryDocumentsHandler>();
-builder.Services.AddScoped<ListStockNoticesHandler>();
+builder.Services.AddScoped<ListNotificationsHandler>();
 builder.Services.AddScoped<CreateTransferRequestCommandHandler>();
 builder.Services.AddScoped<DecideTransferCommandHandler>();
 builder.Services.AddScoped<UpdateTransferRequestCommandHandler>();

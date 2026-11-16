@@ -2,6 +2,7 @@
 @model Pancras.Web.Pages.Notifications.IndexModel
 @using Pancras.Domain.Inventory
 @using Pancras.Web.Formatting
+@using Pancras.Domain.Notifications
 @{
     ViewData["Title"] = "Thông báo";
 }
@@ -20,7 +21,7 @@
             {
                 <li class="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
                     <div class="min-w-0">
-                        <p class="@(notice.Seen ? "text-slate-500" : "font-semibold text-slate-900")">@(notice.Kind == StockNoticeKind.Transfer ? StockLabels.DocumentCode("CK", notice.DocumentId) + ": " : "")@notice.Step</p>
+                        <p class="@(notice.Seen ? "text-slate-500" : "font-semibold text-slate-900")">@(notice.Kind == NotificationKind.Transfer ? StockLabels.DocumentCode("CK", notice.DocumentId) + ": " : "")@notice.Step</p>
                         <p class="text-xs text-slate-400">@VietnamTime.Format(notice.CreatedAt)@(notice.Seen ? " · đã xem" : "")</p>
                     </div>
                     <form method="post" asp-page-handler="Open">

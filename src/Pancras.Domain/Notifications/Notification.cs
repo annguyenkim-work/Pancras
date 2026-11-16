@@ -1,18 +1,18 @@
-namespace Pancras.Domain.Inventory;
+namespace Pancras.Domain.Notifications;
 
-public enum StockNoticeKind
+public enum NotificationKind
 {
     DisposalApproved = 1,
     AdjustmentPending = 2,
 
-    /// <summary>Thông báo bước của phiếu chuyển kho; nội dung cụ thể nằm ở <see cref="StockNotice.Step"/>.</summary>
+    /// <summary>Thông báo bước của phiếu chuyển kho; nội dung cụ thể nằm ở <see cref="Notification.Step"/>.</summary>
     Transfer = 3,
 
     /// <summary>Thông báo bước của đơn mua; không gắn với kho cụ thể khi gửi cho người duyệt hoặc người lập đơn.</summary>
     Purchase = 4
 }
 
-public sealed class StockNotice
+public sealed class Notification
 {
     public const string DisposalStep = "Đã duyệt hủy";
 
@@ -46,7 +46,7 @@ public sealed class StockNotice
 
     public const string PurchaseInTransitStep = "Đơn mua đang về";
 
-    private StockNotice()
+    private Notification()
     {
         Step = string.Empty;
     }
@@ -60,7 +60,7 @@ public sealed class StockNotice
 
     public Guid DocumentId { get; private set; }
 
-    public StockNoticeKind Kind { get; private set; }
+    public NotificationKind Kind { get; private set; }
 
     public string Step { get; private set; }
 
@@ -68,11 +68,11 @@ public sealed class StockNotice
 
     public DateTimeOffset CreatedAt { get; private set; }
 
-    public static StockNotice Create(
+    public static Notification Create(
         Guid recipientEmployeeId,
         Guid? stockLocationId,
         Guid documentId,
-        StockNoticeKind kind,
+        NotificationKind kind,
         string step,
         DateTimeOffset createdAt)
     {
@@ -86,7 +86,7 @@ public sealed class StockNotice
             throw new ArgumentException("Notice step is required.", nameof(step));
         }
 
-        return new StockNotice
+        return new Notification
         {
             Id = Guid.CreateVersion7(),
             RecipientEmployeeId = recipientEmployeeId,

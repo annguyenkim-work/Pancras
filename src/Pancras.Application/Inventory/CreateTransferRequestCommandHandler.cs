@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Auditing;
 using Pancras.Application.Common;
@@ -51,7 +52,7 @@ public sealed class CreateTransferRequestCommandHandler(
 
         await repository.AddTransferAsync(slip, cancellationToken);
         await TransferTrail.RecordAsync(repository, slip, TransferEventKind.Requested, request, clock, slip.Note, cancellationToken);
-        await TransferTrail.NotifyAsync(repository, employees, slip, command.Actor.Id, StockNotice.TransferRequestedStep, TransferAudience.Finance | TransferAudience.SourceLead, clock, cancellationToken);
+        await TransferTrail.NotifyAsync(repository, employees, slip, command.Actor.Id, Notification.TransferRequestedStep, TransferAudience.Finance | TransferAudience.SourceLead, clock, cancellationToken);
         if (!await repository.CommitAsync(cancellationToken))
         {
             // Hai request cùng mã chạy song song: request thua vi phạm chỉ mục duy nhất, trả lại phiếu của request thắng.
