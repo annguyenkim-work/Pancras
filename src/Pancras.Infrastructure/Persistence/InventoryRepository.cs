@@ -341,3 +341,12 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
         }
     }
 }
+
+public sealed class NoticeStore(PancrasDbContext context) : Pancras.Application.Notifications.INoticeStore
+{
+    public Task AddAsync(StockNotice notice, CancellationToken cancellationToken) =>
+        context.StockNotices.AddAsync(notice, cancellationToken).AsTask();
+
+    public async Task RemoveForDocumentAsync(Guid documentId, CancellationToken cancellationToken) =>
+        context.StockNotices.RemoveRange(await context.StockNotices.Where(notice => notice.DocumentId == documentId).ToListAsync(cancellationToken));
+}

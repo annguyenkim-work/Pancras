@@ -6,7 +6,10 @@ public enum StockNoticeKind
     AdjustmentPending = 2,
 
     /// <summary>Thông báo bước của phiếu chuyển kho; nội dung cụ thể nằm ở <see cref="StockNotice.Step"/>.</summary>
-    Transfer = 3
+    Transfer = 3,
+
+    /// <summary>Thông báo bước của đơn mua; không gắn với kho cụ thể khi gửi cho người duyệt hoặc người lập đơn.</summary>
+    Purchase = 4
 }
 
 public sealed class StockNotice
@@ -35,6 +38,14 @@ public sealed class StockNotice
 
     public const string TransferReturnedStep = "Hàng chuyển kho được trả về kho xuất";
 
+    public const string PurchaseSubmittedStep = "Đơn mua chờ duyệt";
+
+    public const string PurchaseApprovedStep = "Đơn mua đã được duyệt";
+
+    public const string PurchaseReturnedStep = "Đơn mua bị trả về nháp";
+
+    public const string PurchaseInTransitStep = "Đơn mua đang về";
+
     private StockNotice()
     {
         Step = string.Empty;
@@ -44,7 +55,8 @@ public sealed class StockNotice
 
     public Guid RecipientEmployeeId { get; private set; }
 
-    public Guid StockLocationId { get; private set; }
+    /// <summary>Kho liên quan; null khi thông báo không gắn kho (ví dụ đơn mua chờ duyệt).</summary>
+    public Guid? StockLocationId { get; private set; }
 
     public Guid DocumentId { get; private set; }
 
@@ -58,7 +70,7 @@ public sealed class StockNotice
 
     public static StockNotice Create(
         Guid recipientEmployeeId,
-        Guid stockLocationId,
+        Guid? stockLocationId,
         Guid documentId,
         StockNoticeKind kind,
         string step,

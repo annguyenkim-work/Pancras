@@ -423,6 +423,8 @@ public sealed class PancrasWebFactory : WebApplicationFactory<Program>
             services.RemoveAll<IPurchaseOrderRepository>();
             services.AddSingleton<PurchaseDirectoryDouble>();
             services.AddSingleton<IPurchaseOrderRepository>(provider => provider.GetRequiredService<PurchaseDirectoryDouble>());
+            services.RemoveAll<Pancras.Application.Notifications.INoticeStore>();
+            services.AddSingleton<Pancras.Application.Notifications.INoticeStore, NoticeStoreDouble>();
             services.RemoveAll<ISupplierPurchaseStatsReader>();
             services.AddSingleton<SupplierStatsDouble>();
             services.AddSingleton<ISupplierPurchaseStatsReader>(provider => provider.GetRequiredService<SupplierStatsDouble>());

@@ -35,6 +35,7 @@ public class IndexModel(ListStockNoticesHandler handler) : PageModel
     public static string TargetOf(StockNotice? notice) => notice switch
     {
         null => "/notifications",
+        { Kind: StockNoticeKind.Purchase } => $"/purchasing?order={notice.DocumentId:D}",
         { Kind: StockNoticeKind.Transfer } => $"/inventory?view=transfers&open={notice.DocumentId:D}",
         _ => $"/inventory?view=stocktakes#document-{notice.DocumentId:D}"
     };

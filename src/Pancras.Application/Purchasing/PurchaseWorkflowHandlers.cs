@@ -15,7 +15,9 @@ public sealed class ChangePurchaseStatusCommandHandler(
     ILogger<ChangePurchaseStatusCommandHandler> logger,
     TimeProvider? clock = null,
     IAuditLog? audit = null,
-    IRequestInfo? request = null)
+    IRequestInfo? request = null,
+    Pancras.Application.Notifications.INoticeStore? notices = null,
+    Pancras.Application.Employees.IEmployeeRepository? employees = null)
 {
     public async Task<Result<Guid>> HandleAsync(ChangePurchaseStatusCommand command, CancellationToken cancellationToken)
     {
@@ -64,6 +66,7 @@ public sealed class ChangePurchaseStatusCommandHandler(
 
         order.StampUpdated(at, by);
         order.AdvanceVersion();
+        await PurchaseNotifier.NotifyAsync(notices, employees, order, command.Action, command.Note, command.Actor.Id, at, cancellationToken);
         if (!await orders.CommitAsync(cancellationToken))
         {
             logger.LogWarning("Purchase status commit failed for {PurchaseOrderId}.", order.Id);

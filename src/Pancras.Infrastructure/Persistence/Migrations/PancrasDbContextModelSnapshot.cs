@@ -730,7 +730,7 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(120)")
                         .HasColumnName("step");
 
-                    b.Property<Guid>("StockLocationId")
+                    b.Property<Guid?>("StockLocationId")
                         .HasColumnType("uuid")
                         .HasColumnName("stock_location_id");
 
@@ -1665,7 +1665,6 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("StockLocationId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
                         .HasConstraintName("fk_stock_notice_stock_location_stock_location_id");
                 });
 

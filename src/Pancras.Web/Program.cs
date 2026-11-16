@@ -130,6 +130,7 @@ builder.Services.AddScoped<IInventoryRepository, InventoryRepository>();
 builder.Services.AddScoped<ILocationRepository, LocationRepository>();
 builder.Services.AddScoped<ILocationManagementRepository, LocationRepository>();
 builder.Services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
+builder.Services.AddScoped<Pancras.Application.Notifications.INoticeStore, NoticeStore>();
 builder.Services.AddScoped<IPurchaseAttachmentRepository, PurchaseAttachmentRepository>();
 builder.Services.AddScoped<ITransferAttachmentRepository, TransferAttachmentRepository>();
 builder.Services.AddScoped<IStockDocumentAttachmentRepository, StockDocumentAttachmentRepository>();

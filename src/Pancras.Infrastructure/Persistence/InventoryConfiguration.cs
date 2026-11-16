@@ -181,7 +181,7 @@ public sealed class StockNoticeConfiguration : IEntityTypeConfiguration<StockNot
         builder.ToTable("stock_notice");
         builder.HasKey(notice => notice.Id);
         builder.Property(notice => notice.RecipientEmployeeId).IsRequired();
-        builder.Property(notice => notice.StockLocationId).IsRequired();
+        builder.Property(notice => notice.StockLocationId);
         builder.Property(notice => notice.DocumentId).IsRequired();
         builder.Property(notice => notice.Kind).HasConversion<int>().IsRequired();
         builder.Property(notice => notice.Step).HasMaxLength(120).IsRequired();
