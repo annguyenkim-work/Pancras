@@ -31,6 +31,6 @@
 
 ## Chờ chốt (chưa có hiệu lực)
 
-- **Đã chốt 2026-11-16:** Tailwind (3.4) là nền; **không** cấm thư viện CSS khác, nhưng thêm thư viện vẫn phải hỏi chủ dự án (luật chung của repo).
+- **Đã chốt 2026-11-16:** chỉ dùng Tailwind (3.4) cho giao diện, không thêm thư viện CSS khác.
 - Vai trò của bộ lọc live (`data-live-filter`) và quy tắc bố cục hàng lọc/tìm/đếm.
 - Còn sót gì khác: sẽ rà tiếp khi viết `components.md` và `app-shell.md`.
