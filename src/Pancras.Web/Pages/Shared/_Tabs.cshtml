@@ -6,7 +6,7 @@
             @tab.Label
             @if (tab.Badge is int count and > 0)
             {
-                <span class="inline-flex min-w-5 justify-center rounded-full bg-sky-600 px-1.5 text-xs font-bold text-white" title="@tab.BadgeTitle">@count</span>
+                <span class="@Pancras.Web.Formatting.Badge.Classes(Pancras.Web.Formatting.BadgeTone.Info)" title="@tab.BadgeTitle">@count</span>
             }
         </a>
     }

@@ -42,13 +42,14 @@ Mọi nút `rounded-lg`. Hai cỡ.
 
 Mở bằng `showModal()`. Khung là cột flex, chỉ thân cuộn.
 
-Ba cỡ rộng, đều `w-[min(<rộng>,calc(100%-2rem))]`:
+Bốn cỡ rộng (S, M, L, XL), đều `w-[min(<rộng>,calc(100%-2rem))]`. Hộp thoại luôn có trong trang dùng `open:flex` thay cho `!flex` (nếu không hộp đóng cũng hiện); hộp chỉ dựng khi cần mở thì dùng `!flex`:
 
 | Cỡ | Rộng | Dùng cho |
 | --- | --- | --- |
 | S | `28rem` | Xác nhận, form 1–3 ô |
 | M | `40rem` | Form thường |
 | L | `56rem` | Form nhiều cột hoặc bảng dòng |
+| XL | `72rem` | Form lập đơn mua (bảng dòng và chi phí) |
 
 ```html
 <dialog class="m-auto !flex w-[min(40rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
@@ -126,19 +127,13 @@ Khung chung cho badge trạng thái và badge phân loại: `rounded-full px-2 p
 
 | Thành phần | Hiện trạng |
 | --- | --- |
-| Nút | 3 kiểu viết class; nút phụ 3 độ đậm chữ (medium/semibold/bold) |
-| Form | 2 bản `inputClass`; nhãn 5 kiểu; viền focus chỉ có ở 1 chỗ; 6 ô viết tay |
-| Modal | 5 độ rộng (28/30/36/40/56rem); 4 modal kiểu cũ `max-h-[90vh]`, không `flex-col`/`!flex` (Inventory chuyển kho, một số ở Catalog/Purchasing) |
-| Tiêu đề trang | 3 trang lệch (`text-lg`, `text-2xl`, `mt-6`) |
-| Bảng | `thead` lúc có `bg-slate-50`, lúc không; padding ô 3 kiểu (`py-2 pr-3`, `px-3 py-3`, `px-4 py-3`) |
 | Bảng mobile | Đã bọc `overflow-x-auto` nhưng chưa có cột đầu sticky; cột hành động đang ở cuối dòng ở hầu hết bảng, phải dời lên vị trí thứ 2 |
 | Chống bấm đúp | `form-guard.js` chưa kiểm thử trên trình duyệt thật (hộp xác nhận, form tải tệp) |
 | Tab | Đã có partial `_Tabs` (viên thuốc, `role=tablist`) dùng ở Kho; Mua hàng và Danh mục chưa có tab |
 | Phân trang | Đã có partial `_Pager` (20/50, "Hiển thị X–Y / Z", giữ bộ lọc) ở Danh mục, Nhà cung cấp, Nhân viên, Nhật ký, Thông báo. Chưa có ở Mua hàng, Kho. Nhân viên và Thông báo còn cắt trang trong bộ nhớ |
 | Sắp xếp theo cột, bảng mobile | Đã có (partial `_SortHeader`, `ListSort`, cột đầu sticky, cột Thao tác ở vị trí 2) ở Nhà cung cấp, Danh mục, Nhân viên; Nhật ký sắp theo thời điểm. `size` và `sort` được giữ sau thao tác POST (partial `_ListState`). Chưa có ở Mua hàng, Kho |
 | Toast, banner | Toast đã dùng ở Catalog, Locations, Purchasing, Suppliers, Profile; banner lỗi dùng `_Notice` ở mọi trang. Còn lại: lỗi sau thao tác ở Inventory vẫn là banner (chưa chuyển sang toast); khung cảnh báo `charge-section` (Purchasing) và mã khôi phục 2FA (Profile) viết tay |
-| Banner | ~10 kiểu: `rounded-lg`/`rounded-xl`, chữ -700/-800, nơi là khối, nơi chỉ là dòng chữ |
-| Badge | Đã dùng `Badge` ở Mua hàng, Kho, Nhân sự, Nhà cung cấp, pill vai trò. Còn chip kho trong bảng tồn (`Inventory`) và bộ đếm nền sky-600 viết tay |
+| Badge | Đã dùng `Badge` ở mọi bảng và danh sách, kể cả chip kho và bộ đếm của Kho |
 
 ## Chờ chốt (chưa có hiệu lực)
 

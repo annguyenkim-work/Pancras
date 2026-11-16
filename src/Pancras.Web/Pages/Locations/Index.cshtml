@@ -2,6 +2,7 @@
 @model Pancras.Web.Pages.Locations.IndexModel
 @using Pancras.Application.Locations
 @using Pancras.Domain.Inventory
+@using Pancras.Web.Formatting
 @{
     ViewData["Title"] = "Kho & Showroom";
     const string inputClass = Pancras.Web.Formatting.UiClasses.Input;
@@ -58,7 +59,7 @@ else
                 {
                     <tr class="border-t border-slate-100 align-top hover:bg-slate-50">
                         <td class="px-3 py-3 font-bold text-slate-900">@location.Name</td>
-                        <td class="px-3 py-3"><span class="rounded-md px-2 py-1 text-xs font-medium @(location.Kind == StockLocationKind.Showroom ? "bg-violet-50 text-violet-700" : "bg-sky-50 text-sky-700")">@IndexModel.KindLabel(location.Kind)</span></td>
+                        <td class="px-3 py-3"><span class="@Badge.Classes(location.Kind == StockLocationKind.Showroom ? BadgeTone.Category : BadgeTone.Info)">@IndexModel.KindLabel(location.Kind)</span></td>
                         <td class="px-3 py-3"><partial name="_AuditStamp" model="Pancras.Application.Auditing.AuditStampView.From(location)" /></td>
                         @if (Model.CanManage)
                         {
@@ -89,7 +90,7 @@ else
         <form method="post" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
             @if (Model.Error != LocationError.None)
             {
-                <p class="mt-3 text-sm text-rose-700" role="alert">@IndexModel.ErrorText(Model.Error)</p>
+                <div class="mt-3"><partial name="_Notice" model="new NoticeModel(IndexModel.ErrorText(Model.Error), ToastLevel.Error)" /></div>
             }
             <div class="mt-4 space-y-3">
                 <label class="block text-sm">Tên<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="Command.Name" maxlength="200" class="@inputClass" /></label>
@@ -120,7 +121,7 @@ else
             <input type="hidden" asp-for="Edit.Version" />
             @if (Model.ManageError is not null)
             {
-                <p class="mt-3 text-sm text-rose-700" role="alert">@Model.ManageError</p>
+                <div class="mt-3"><partial name="_Notice" model="new NoticeModel(Model.ManageError, ToastLevel.Error)" /></div>
             }
             <div class="mt-4 space-y-3">
                 <label class="block text-sm">Tên<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="Edit.Name" maxlength="200" class="@inputClass" /></label>

@@ -223,7 +223,7 @@ else
             <input type="hidden" name="location" value="@Model.LocationFilter" />
             @if (Model.Error != EmployeeError.None)
             {
-                <p class="mt-3 text-sm text-rose-700" role="alert">@ErrorText(Model.Error)</p>
+                <div class="mt-3"><partial name="_Notice" model="new NoticeModel(ErrorText(Model.Error), ToastLevel.Error)" /></div>
             }
             <p class="mt-3 text-xs text-slate-500"><span class="text-rose-600">*</span> Trường bắt buộc</p>
             <div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -291,14 +291,14 @@ else
             <partial name="_ListState" model="(Model.PageSize, Model.SortToken)" />
             @if (Model.Error == EmployeeError.NotFound || Model.Error == EmployeeError.Forbidden)
             {
-                <p class="mt-3 text-sm text-rose-700" role="alert">@ErrorText(Model.Error)</p>
+                <div class="mt-3"><partial name="_Notice" model="new NoticeModel(ErrorText(Model.Error), ToastLevel.Error)" /></div>
             }
             else
             {
                 <p class="mt-3 text-sm text-slate-700">Mã nhân viên: <span class="font-mono font-bold">@Model.EditCode</span></p>
                 @if (Model.Error != EmployeeError.None)
                 {
-                    <p class="mt-3 text-sm text-rose-700" role="alert">@ErrorText(Model.Error)</p>
+                    <div class="mt-3"><partial name="_Notice" model="new NoticeModel(ErrorText(Model.Error), ToastLevel.Error)" /></div>
                 }
                 @if (!Model.CanEditPersonal)
                 {
