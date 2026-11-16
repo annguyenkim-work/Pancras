@@ -31,7 +31,7 @@
             {
                 <input type="hidden" name="supplier" value="@supplierFilter" />
             }
-            <input name="q" value="@Model.Search" type="search" placeholder="Tìm theo mã đơn, nhà cung cấp, container, B/L, cảng..." aria-label="Tìm kiếm đơn mua" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+            <input name="q" value="@Model.Search" type="search" placeholder="Tìm theo mã đơn, nhà cung cấp, container, B/L, cảng..." aria-label="Tìm kiếm đơn mua" class="w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" />
         </form>
         @if (Model.SupplierFilter is not null)
         {
@@ -425,17 +425,17 @@ else
                         <p class="mt-2 text-xs leading-5 text-slate-600">Số tiền có dấu: dương làm tăng giá vốn, âm làm giảm. Khoản này được chia cho các dòng đã nhận theo cách chọn; phần ứng với hàng còn trong kho cộng vào giá vốn bình quân, phần ứng với hàng đã xuất được ghi là chênh lệch và không sửa ngược.</p>
                         <form method="post" asp-page-handler="AdjustCost" class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-4" data-confirm data-confirm-title="Ghi điều chỉnh chi phí" data-confirm-message="Giá vốn của hàng còn tồn sẽ đổi." data-confirm-label="Ghi điều chỉnh">
                             <input type="hidden" name="orderId" value="@order.Id" />
-                            <label class="text-sm">Tên khoản<input name="label" required maxlength="200" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
-                            <label class="text-sm">Số tiền (VNĐ, có dấu)<input name="amount" required inputmode="numeric" pattern="-?[0-9]+" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
+                            <label class="text-sm">Tên khoản<input name="label" required maxlength="200" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" /></label>
+                            <label class="text-sm">Số tiền (VNĐ, có dấu)<input name="amount" required inputmode="numeric" pattern="-?[0-9]+" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" /></label>
                             <label class="text-sm">Cách chia
-                                <select name="method" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                                <select name="method" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
                                     <option value="@((int)ChargeSplitMethod.FobValue)">Theo trị giá FOB</option>
                                     <option value="@((int)ChargeSplitMethod.Quantity)">Theo số lượng</option>
                                     <option value="@((int)ChargeSplitMethod.Weight)">Theo cân nặng</option>
                                     <option value="@((int)ChargeSplitMethod.Volume)">Theo thể tích</option>
                                 </select>
                             </label>
-                            <label class="text-sm">Lý do<input name="reason" required maxlength="500" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
+                            <label class="text-sm">Lý do<input name="reason" required maxlength="500" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" /></label>
                             <div class="md:col-span-4"><button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Ghi điều chỉnh</button></div>
                         </form>
                     </details>
@@ -545,9 +545,9 @@ else
                 <p class="mt-3 text-sm text-amber-800">Cần có nhà cung cấp, địa điểm kho và mặt hàng trong danh mục trước khi tạo đơn.</p>
             }
             <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-                <label class="text-sm">Mã đơn<input asp-for="Form.Code" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
+                <label class="text-sm">Mã đơn<input asp-for="Form.Code" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" /></label>
                 <label class="text-sm">Nhà cung cấp quốc tế
-                    <select asp-for="Form.SupplierId" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                    <select asp-for="Form.SupplierId" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
                         <option value="">Chọn nhà cung cấp</option>
                         @foreach (var supplier in Model.Suppliers)
                         {
@@ -556,7 +556,7 @@ else
                     </select>
                 </label>
                 <label class="text-sm">Kho tiếp nhận đích
-                    <select asp-for="Form.ReceiveLocationId" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                    <select asp-for="Form.ReceiveLocationId" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
                         <option value="">Chọn kho nhận</option>
                         @foreach (var location in Model.Locations)
                         {
@@ -571,10 +571,10 @@ else
                         <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-slate-500">VNĐ</span>
                     </span>
                 </label>
-                <label class="text-sm">Số hiệu Container<input asp-for="Form.ContainerNumber" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
-                <label class="text-sm">Số Vận đơn (Bill of Lading)<input asp-for="Form.BillOfLading" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
-                <label class="text-sm">Cảng Đến Tiếp Nhận<input asp-for="Form.Port" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
-                <label class="text-sm">Ngày Dự Kiến Cập Cảng (ETA)<input asp-for="Form.ExpectedOn" type="date" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
+                <label class="text-sm">Số hiệu Container<input asp-for="Form.ContainerNumber" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" /></label>
+                <label class="text-sm">Số Vận đơn (Bill of Lading)<input asp-for="Form.BillOfLading" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" /></label>
+                <label class="text-sm">Cảng Đến Tiếp Nhận<input asp-for="Form.Port" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" /></label>
+                <label class="text-sm">Ngày Dự Kiến Cập Cảng (ETA)<input asp-for="Form.ExpectedOn" type="date" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" /></label>
             </div>
 
             <div class="mt-6 flex flex-wrap items-end justify-between gap-3">
@@ -767,7 +767,7 @@ else
         <p id="confirm-message" class="text-sm text-slate-600"></p>
         <div id="confirm-reason-box" class="hidden">
             <label class="block text-sm font-medium text-slate-700" for="confirm-reason">Lý do
-                <textarea id="confirm-reason" rows="3" maxlength="500" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"></textarea>
+                <textarea id="confirm-reason" rows="3" maxlength="500" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none"></textarea>
             </label>
             <p id="confirm-reason-error" class="mt-1 hidden text-xs font-medium text-rose-700" role="alert">Cần nhập lý do.</p>
         </div>

@@ -4,7 +4,7 @@
 @using Pancras.Domain.Inventory
 @{
     ViewData["Title"] = "Kho & Showroom";
-    const string inputClass = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2";
+    const string inputClass = Pancras.Web.Formatting.UiClasses.Input;
 }
 
 <section class="bg-white rounded-xl border border-slate-200 p-6">
@@ -21,7 +21,7 @@
     @if (Model.HasAny)
     {
         <form method="get" action="/locations" data-live-filter class="mt-5">
-            <input name="q" value="@Model.Search" type="search" placeholder="Tìm theo tên kho hoặc showroom..." aria-label="Tìm kiếm kho hoặc showroom" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+            <input name="q" value="@Model.Search" type="search" placeholder="Tìm theo tên kho hoặc showroom..." aria-label="Tìm kiếm kho hoặc showroom" class="w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" />
         </form>
     }
 </section>

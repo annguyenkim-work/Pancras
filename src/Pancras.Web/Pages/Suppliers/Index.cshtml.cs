@@ -109,8 +109,7 @@ public class IndexModel(
 
     public string FieldClass(SupplierField field)
     {
-        var border = HasIssue(field) ? "border-rose-400" : "border-slate-200";
-        return $"mt-1.5 w-full px-3 py-2 text-sm rounded-lg border {border} bg-white outline-none focus:border-slate-900";
+        return HasIssue(field) ? Pancras.Web.Formatting.UiClasses.InputInvalid : Pancras.Web.Formatting.UiClasses.Input;
     }
 
     public IReadOnlyList<string> CountryChoices => SupplierCountries.For(Form.Country);

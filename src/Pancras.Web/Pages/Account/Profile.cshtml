@@ -4,7 +4,7 @@
 @using Pancras.Application.Common
 @{
     ViewData["Title"] = "Hồ sơ của tôi";
-    const string inputClass = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2";
+    const string inputClass = Pancras.Web.Formatting.UiClasses.Input;
     string? ErrorText(EmployeeError error) => error switch
     {
         EmployeeError.None => null,

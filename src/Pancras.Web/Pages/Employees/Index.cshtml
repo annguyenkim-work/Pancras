@@ -6,7 +6,7 @@
 @using Pancras.Domain.Employees
 @{
     ViewData["Title"] = "Nhân sự & Phân quyền";
-    const string inputClass = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2";
+    const string inputClass = Pancras.Web.Formatting.UiClasses.Input;
     const string readonlyClass = "mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-700";
     string? ErrorText(EmployeeError error) => error switch
     {
@@ -48,9 +48,9 @@
         <div class="mt-4"><partial name="_Notice" model="new NoticeModel(ErrorText(Model.Error), ToastLevel.Error)" /></div>
     }
     <form method="get" action="/employees" data-live-filter class="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
-        <input name="q" value="@Model.Search" type="search" placeholder="Tìm theo tên, mã hoặc email..." aria-label="Tìm kiếm nhân viên" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+        <input name="q" value="@Model.Search" type="search" placeholder="Tìm theo tên, mã hoặc email..." aria-label="Tìm kiếm nhân viên" class="w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" />
         <label class="block">
-            <select name="role" aria-label="Vai trò" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+            <select name="role" aria-label="Vai trò" class="w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
                 <option value="">Tất cả vai trò</option>
                 @foreach (var role in EmployeeRoles.All)
                 {
@@ -68,7 +68,7 @@
         @if (!Model.IsLead)
         {
             <label class="block">
-                <select name="location" aria-label="Kho hoặc showroom" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                <select name="location" aria-label="Kho hoặc showroom" class="w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
                     <option value="">Tất cả kho/showroom</option>
                     @foreach (var location in Model.Locations)
                     {
@@ -229,7 +229,7 @@ else
             <div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label class="text-sm sm:col-span-2">Họ tên<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="Command.FullName" id="employee-name" class="@inputClass" /></label>
                 <label class="text-sm sm:col-span-2">Mã nhân viên <span class="text-xs text-slate-500">(tự sinh từ họ tên)</span>
-                    <input id="employee-code" value="@Model.PreviewCode" readonly class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono" />
+                    <input id="employee-code" value="@Model.PreviewCode" readonly class="mt-1 w-full border bg-slate-50 px-3 py-2 font-mono rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" />
                 </label>
                 <label class="text-sm">Email<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="Command.Email" type="email" class="@inputClass" /></label>
                 <label class="text-sm">Điện thoại<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="Command.Phone" class="@inputClass" /></label>
