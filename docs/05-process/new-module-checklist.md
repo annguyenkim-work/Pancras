@@ -14,7 +14,6 @@
 
 | # | Bước | Kết quả |
 | --- | --- | --- |
-| 0 | **Phạm vi.** Chỉ làm khi chủ dự án yêu cầu rõ làm tính năng/module này ([working-with-ai.md](working-with-ai.md) mục 0). Chưa yêu cầu thì dừng ở bước 1 (viết spec) | Có yêu cầu làm |
 | 1 | **Chốt luật.** Cập nhật `04-domain/modules/<module>.md` (thực thể, vòng đời, bất biến, quy tắc dễ vi phạm) và `04-domain/roles-and-permissions.md` (ai làm gì). Chủ dự án chốt từng mục chưa rõ, theo đợt câu hỏi ([working-with-ai.md](working-with-ai.md) mục 2) | Docs module ở trạng thái "Đã chốt"; phần chưa rõ nằm trong "Chờ chốt" |
 | 2 | **Viết test** (xem [testing.md](../02-coding-rules/testing.md)): test Domain cho bất biến, test Application cho từng mã lỗi và quyền; sửa lỗi thì test tái hiện trước | Test đỏ đúng lý do |
 | 3 | **Implement theo tầng, từ trong ra ngoài:** Domain → Application (handler + validator + enum lỗi) → Infrastructure (repository, cấu hình, migration) → Web (PageModel, `.cshtml`) | Build được |

@@ -26,7 +26,6 @@
 - Chỉ chụp màn hình một màn hình mà chưa kiểm hành vi.
 - Test pass nhưng cảnh báo biên dịch còn.
 - Còn `[CHỜ CHỐT]` ảnh hưởng đến hành vi vừa làm mà chưa được hỏi chủ dự án.
-- Làm tính năng mới mà chủ dự án chưa yêu cầu ([working-with-ai.md](working-with-ai.md) mục 0).
 - Báo "xong" mà không nói rõ điều chưa xem bằng trình duyệt thật.
 
 ## Thứ tự làm

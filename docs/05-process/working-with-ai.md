@@ -4,11 +4,6 @@
 
 **Mục đích:** Quy tắc cho AI agent (Claude Code và công cụ tương tự) khi làm việc trên repo này, để chủ dự án giữ quyền quyết định.
 
-## 0. Phạm vi của AI agent trong dự án
-
-- Mục tiêu khi làm việc với agent: **chuẩn hóa quy trình xây app bằng AI agent, xây dựng spec (docs), và sửa lỗi hoặc chỗ lệch nhỏ** (mục "Nợ lệch", code lệch docs).
-- **Không tự làm tính năng mới.** Khi một quyết định đã được chốt, agent ghi vào docs rồi dừng; không đề xuất hay bắt đầu code tính năng mới (module, màn hình, endpoint, thư viện) khi chủ dự án chưa yêu cầu rõ. Chủ dự án muốn làm thì sẽ nói, và khi đó đi theo [new-module-checklist.md](new-module-checklist.md).
-
 ## 1. Nguồn luật
 
 - **Bộ docs này (`docs/`) là nguồn duy nhất.** Không còn `.cursorrules`, `.cursor/`, `.specify/`, `specs/`, `ARCHITECTURE.md`, `code-review.md`.
