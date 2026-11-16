@@ -55,7 +55,6 @@
 | Phân trang | Mới có 9 mục/trang theo spec cũ (nếu còn), chưa có chọn 20/50 và sắp xếp theo cột |
 | `Version` | Form sửa gửi `Version`, handler từ chối bằng `SupplierError.VersionConflict`; hai lần lưu chồng nhau thật sự hiện trang 409 chung |
 | Mã lỗi | `SupplierError`/`SupplierIssue` còn nằm trong `Common/Result.cs` |
-| Nhãn trạng thái | Giao diện còn dùng "Ngừng hợp tác", "Đang hợp tác", "Đã ngừng hợp tác"; đổi sang Disable / Active theo [glossary.md](../../00-overview/glossary.md) (kèm test `SupplierPageTests`) |
 
 ## Chờ chốt (chưa có hiệu lực)
 

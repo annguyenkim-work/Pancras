@@ -200,12 +200,12 @@ public class IndexModel(
         var result = await deactivateHandler.HandleAsync(StopId, Actor, cancellationToken);
         if (result.IsFailure)
         {
-            RememberFailure("Không ngừng hợp tác được", result.SupplierError, result.SupplierIssues, null);
+            RememberFailure("Không Disable được", result.SupplierError, result.SupplierIssues, null);
             await LoadAsync(SupplierPageRequest.From(PageNumber), cancellationToken);
             return Page();
         }
 
-        TempData.Toast("Đã chuyển nhà cung cấp sang trạng thái ngừng hợp tác. Xem lại ở bộ lọc \"Đã ngừng hợp tác\"; Admin có thể khôi phục.");
+        TempData.Toast("Đã chuyển nhà cung cấp sang trạng thái Disable. Xem lại ở bộ lọc \"Disabled\"; Admin có thể khôi phục.");
         return Redirect(BuildUrl(SupplierPageRequest.From(PageNumber).Number));
     }
 

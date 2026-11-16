@@ -33,8 +33,8 @@
             }
         </select>
         <select name="status" aria-label="Lọc theo trạng thái" class="w-full shrink-0 px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white outline-none focus:border-sky-500 sm:w-56">
-            <option value="" selected="@(Model.StatusFilter == SupplierStatusFilter.Active)">Đang hợp tác</option>
-            <option value="inactive" selected="@(Model.StatusFilter == SupplierStatusFilter.Inactive)">Đã ngừng hợp tác</option>
+            <option value="" selected="@(Model.StatusFilter == SupplierStatusFilter.Active)">Active</option>
+            <option value="inactive" selected="@(Model.StatusFilter == SupplierStatusFilter.Inactive)">Disabled</option>
             <option value="all" selected="@(Model.StatusFilter == SupplierStatusFilter.All)">Tất cả</option>
         </select>
     </form>
@@ -81,7 +81,7 @@ else
                             <p class="mt-0.5 font-mono text-xs tracking-wide text-slate-500">@card.Code</p>
                             @if (!card.IsActive)
                             {
-                                <span class="mt-1 inline-block @Badge.Classes(BadgeTone.Neutral)">Ngừng hợp tác</span>
+                                <span class="mt-1 inline-block @Badge.Classes(BadgeTone.Neutral)">Disabled</span>
                             }
                         </td>
                         <td class="px-3 py-3"><span class="@Badge.Classes(BadgeTone.Neutral)">@card.Country</span></td>
@@ -136,7 +136,7 @@ else
                                                 <input type="hidden" name="status" value="@Model.Status" />
                                                 <input type="hidden" name="country" value="@Model.Country" />
                                                 <input type="hidden" name="page" value="@Model.CardPage.PageNumber" />
-                                                <button type="submit" class="px-3 py-1.5 text-sm font-bold rounded-lg bg-slate-100 text-slate-700">Khôi phục</button>
+                                                <button type="submit" class="px-3 py-1.5 text-sm font-bold rounded-lg bg-slate-100 text-slate-700">Active</button>
                                             </form>
                                         }
                                     }
@@ -145,11 +145,11 @@ else
                                         <a href="@Model.EditUrl(card.Id)" class="px-3 py-1.5 text-sm font-bold rounded-lg bg-slate-100 text-slate-700">Sửa</a>
                                         @if (card.LotsNotReceived > 0)
                                         {
-                                            <button type="button" disabled class="px-3 py-1.5 text-sm font-medium rounded-lg text-slate-400 cursor-not-allowed" title="Còn @card.LotsNotReceived lô chưa nhập kho. Nhập kho hoặc xử lý các đơn đó trước khi ngừng hợp tác.">Ngừng hợp tác</button>
+                                            <button type="button" disabled class="px-3 py-1.5 text-sm font-medium rounded-lg text-slate-400 cursor-not-allowed" title="Còn @card.LotsNotReceived lô chưa nhập kho. Nhập kho hoặc xử lý các đơn đó trước khi Disable.">Disable</button>
                                         }
                                         else
                                         {
-                                            <a href="@Model.StopUrl(card.Id)" class="px-3 py-1.5 text-sm font-medium rounded-lg text-rose-700 hover:bg-rose-50">Ngừng hợp tác</a>
+                                            <a href="@Model.StopUrl(card.Id)" class="px-3 py-1.5 text-sm font-medium rounded-lg text-rose-700 hover:bg-rose-50">Disable</a>
                                         }
                                     }
                                 </div>
@@ -299,7 +299,7 @@ else
     var stop = Model.StopProfile;
     <dialog id="supplier-stop-dialog" class="m-auto !flex w-[min(28rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50" aria-labelledby="supplier-stop-title">
         <div class="flex shrink-0 items-center justify-between gap-3 px-6 pt-6">
-            <h2 id="supplier-stop-title" class="text-base font-bold text-slate-900">Ngừng hợp tác với nhà cung cấp</h2>
+            <h2 id="supplier-stop-title" class="text-base font-bold text-slate-900">Disable nhà cung cấp</h2>
             <a href="@Model.FilteredListUrl" class="text-slate-400" aria-label="Đóng">×</a>
         </div>
         <form method="post" asp-page-handler="Stop" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
@@ -311,7 +311,7 @@ else
             <p class="mt-3 text-sm text-slate-600"><span class="font-medium text-slate-900">@stop.Name</span> (@stop.Code) sẽ không còn xuất hiện khi lập đơn mua mới.</p>
             <ul class="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-600">
                 <li>Lịch sử @stop.PurchaseOrderCount đơn mua vẫn được giữ nguyên.</li>
-                <li>Hồ sơ vẫn xem lại được ở bộ lọc "Đã ngừng hợp tác"; chỉ Admin khôi phục được.</li>
+                <li>Hồ sơ vẫn xem lại được ở bộ lọc "Disabled"; chỉ Admin Active lại được.</li>
             </ul>
             @if (Model.ErrorMessages.Count > 0)
             {
@@ -319,7 +319,7 @@ else
             }
             <div class="mt-6 flex justify-end gap-2">
                 <a href="@Model.FilteredListUrl" class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 text-slate-600">Hủy</a>
-                <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-rose-600 rounded-lg">Ngừng hợp tác</button>
+                <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-rose-600 rounded-lg">Disable</button>
             </div>
         </form>
     </dialog>

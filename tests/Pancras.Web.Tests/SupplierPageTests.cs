@@ -121,8 +121,8 @@ public class SupplierPageTests : IClassFixture<PancrasWebFactory>
 
         Assert.DoesNotContain("ncc01", active, StringComparison.Ordinal);
         Assert.Contains("ncc01", inactive, StringComparison.Ordinal);
-        Assert.Contains("Ngừng hợp tác", inactive, StringComparison.Ordinal);
-        Assert.Contains("Khôi phục", inactive, StringComparison.Ordinal);
+        Assert.Contains("Disable", inactive, StringComparison.Ordinal);
+        Assert.Contains("Active", inactive, StringComparison.Ordinal);
     }
 
     [Theory]
