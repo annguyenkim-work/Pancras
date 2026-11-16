@@ -215,7 +215,7 @@ Checklist sau khi triển khai (**bắt buộc ở lần đầu**):
 
 ## Chờ chốt (chưa có hiệu lực)
 
-- Môi trường staging để thử bản mới và migration trước production.
-- Quét virus cho tệp tải lên; giám sát lỗi và cảnh báo tập trung; health check.
+- **Đã chốt 2026-11-16 (chưa làm):** thêm health check (endpoint kiểm tra app và DB) khi đưa lên VinaHost.
+- **Đã chốt 2026-11-16:** chưa cần staging và quét virus tệp tải lên. Giám sát lỗi và cảnh báo tập trung vẫn chưa chốt.
 - Thời gian lưu log trên máy chủ và xoay vòng; chính sách lưu bản sao lưu dài hạn (ngoài 14 ngày).
 - Quy trình khôi phục sự cố (RTO/RPO) và ai chịu trách nhiệm trực.

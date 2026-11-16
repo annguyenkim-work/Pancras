@@ -57,5 +57,5 @@
 ## Chờ chốt (chưa có hiệu lực)
 
 - Trường nhập khẩu giai đoạn 2: tiền tệ giao dịch mặc định, Incoterms, điều khoản thanh toán, mã số thuế, địa chỉ. Chưa làm, chờ yêu cầu nghiệp vụ.
-- Hiển thị giá trị mua, ngày mua gần nhất trên mỗi NCC.
+- **Đã chốt 2026-11-16:** chưa cần hiển thị giá trị mua và ngày mua gần nhất trên mỗi NCC.
 - Nối công nợ phải trả nhà cung cấp khi có module Công nợ (xem điều kiện Disable khi còn dư nợ).
