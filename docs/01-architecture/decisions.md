@@ -66,7 +66,7 @@
 ### ADR-12 — Cookie auth và 2FA TOTP tự cài
 - **Quyết định:** xác thực cookie; 2FA TOTP (RFC 6238) tự cài, tùy chọn cho mọi vai; 10 mã khôi phục băm SHA-256; khóa TOTP mã hóa bằng Data Protection.
 - **Lý do:** không phụ thuộc dịch vụ trả phí; đủ cho quy mô hiện tại.
-- **Hệ quả:** không có quên mật khẩu qua email; Admin đặt lại và reset 2FA.
+- **Hệ quả:** hiện chưa có quên mật khẩu qua email; Admin đặt lại và reset 2FA. **Cập nhật 2026-11-16:** chủ dự án chốt sẽ thêm quên mật khẩu qua email (chưa làm, chờ chọn dịch vụ gửi email).
 
 ### ADR-13 — Không seed tài khoản; Admin đầu bằng `create-admin`
 - **Quyết định:** không có tài khoản mẫu trong mã nguồn; Admin đầu tiên tạo bằng lệnh `create-admin` đọc mật khẩu từ biến môi trường.

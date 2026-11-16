@@ -65,6 +65,4 @@ Năm mức: **giá vốn**, **giá lẻ (niêm yết)**, **giá đại lý**, **
 ## Chờ chốt (chưa có hiệu lực)
 
 - Giá nhà phân phối và giá dự án dùng khi bán cho ai và theo quy tắc nào (chờ spec Bán hàng/Báo giá).
-- Module Combo: cấu trúc thành phần của combo (hiện chỉ có cờ `IsCombo`), cách tính tồn và giá combo.
-- Lịch sử thay đổi giá (xem ai đổi giá nào từ bao nhiêu sang bao nhiêu) ngoài nhật ký audit.
-- Nhập mặt hàng hàng loạt từ tệp (CSV/Excel).
+- **Đã chốt 2026-11-16 (chưa làm, cần spec chi tiết trước khi code):** có module Combo (bộ sản phẩm gộp thành một mã bán); có lịch sử đổi giá (ai, khi nào, từ bao nhiêu sang bao nhiêu) xem được ngoài nhật ký audit; có nhập mặt hàng hàng loạt từ CSV (không Excel). Còn chờ chốt: thành phần và cách tính tồn/giá combo, cột CSV, cách xử lý dòng lỗi/trùng mã.

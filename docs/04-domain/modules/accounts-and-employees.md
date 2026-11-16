@@ -71,6 +71,6 @@ Ghi `IAuditLog` (mã hành động dạng `nhóm.sự_kiện`, hiển thị ti�
 
 ## Chờ chốt (chưa có hiệu lực)
 
-- Quên mật khẩu qua email: hiện **không có**, Admin đặt lại.
-- Danh sách chọn cố định cho chức vụ và phòng ban.
+- **Đã chốt 2026-11-16 (chưa làm):** thêm quên mật khẩu qua email (gửi link đặt lại có hạn dùng). Đảo ngược ADR-12 và dòng "Không có quên mật khẩu qua email" ở roles-and-permissions.md; hiện vẫn Admin đặt lại. Còn chờ chọn dịch vụ gửi email (SMTP/nhà cung cấp) và nơi giữ khóa; làm kèm test và rate limit.
+- **Đã chốt 2026-11-16:** chức vụ và phòng ban giữ **văn bản tự do** (không danh sách cố định).
 - Tab ma trận quyền trên màn nhân sự (demo cũ có, đã bỏ): quyền chỉ ghi ở roles-and-permissions.md.

@@ -96,7 +96,7 @@ Dùng cho hóa đơn về muộn, tờ khai điều chỉnh:
 ## Chờ chốt (chưa có hiệu lực)
 
 Các mục từ review 14/11/2026 chưa xác minh trạng thái trong code, chờ rà khi làm lại module:
-- Bước xem trước tác động giá vốn trước khi nhận hàng; xác nhận hộp thoại khi bấm nhận.
+- **Đã chốt 2026-11-16 (chưa làm):** trước khi nhận kho hiện bản xem trước tác động giá vốn (giá vốn cũ → mới từng mặt hàng) để xác nhận; nút giữ nhãn `Nhập Kho & Cập Nhật Giá Vốn`.
 - Kiểm tra chứng từ bắt buộc (tờ khai, hóa đơn NCC) trước khi nhận.
 - Nối đơn mua với công nợ phải trả nhà cung cấp và thanh toán.
 - **Đã chốt 2026-11-16:** chưa cần duyệt theo ngưỡng giá trị hay người duyệt thay thế; giữ Admin, Giám đốc, Kế toán duyệt.
