@@ -300,6 +300,38 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         return order;
     }
 
+    [Theory]
+    [InlineData(EmployeeRole.WarehouseKeeper, false)]
+    [InlineData(EmployeeRole.ShowroomWarehouseLead, false)]
+    [InlineData(EmployeeRole.Accountant, true)]
+    [InlineData(EmployeeRole.Director, true)]
+    [InlineData(EmployeeRole.Admin, true)]
+    public async Task ExchangeRateAndFobPrice_AppearInOrderHtml_OnlyForManagingRoles(string role, bool seesCost)
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var location = Guid.CreateVersion7();
+        var order = PurchaseOrder.TryCreate(
+            "PO-GIA", Guid.CreateVersion7(), location, "CONT", "BL", "Hải Phòng", new DateOnly(2026, 11, 12),
+            31337m, 0.10m, [(Guid.CreateVersion7(), 4, 987m, 0.05m, 0m, 0m, 0m)])!;
+        Assert.True(order.TrySubmit());
+        Assert.True(order.TryApprove());
+        orders.Orders.Add(order);
+        await SignInAsync(client, role, location);
+
+        var page = await client.GetAsync("/purchasing?order=" + order.Id);
+        var text = System.Net.WebUtility.HtmlDecode(await page.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        Assert.Contains("PO-GIA", text, StringComparison.Ordinal);
+        Assert.Equal(seesCost, text.Contains("31.337", StringComparison.Ordinal));
+        if (!seesCost)
+        {
+            Assert.DoesNotContain("31337", text, StringComparison.Ordinal);
+            Assert.DoesNotContain("987 USD", text, StringComparison.Ordinal);
+        }
+    }
+
     [Fact]
     public async Task WarehouseKeeper_OpensThePage_SeesOnlyApprovedOrdersOfTheirOwnLocation_WithoutAnyPrice()
     {

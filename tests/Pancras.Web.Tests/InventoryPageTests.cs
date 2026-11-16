@@ -316,6 +316,64 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
         Assert.DoesNotContain("Giá vốn", html, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(EmployeeRole.Sales, false)]
+    [InlineData(EmployeeRole.WarehouseKeeper, false)]
+    [InlineData(EmployeeRole.ShowroomWarehouseLead, false)]
+    [InlineData(EmployeeRole.CustomerCare, false)]
+    [InlineData(EmployeeRole.Accountant, true)]
+    [InlineData(EmployeeRole.Director, true)]
+    [InlineData(EmployeeRole.Admin, true)]
+    public async Task CostValue_AppearsInPageHtml_OnlyForFinanceRoles(string role, bool seesCost)
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        inventory.Rows.Add(Row("SP01", "Vòi", ProductCategory.SanitaryEquipment, Guid.CreateVersion7()) with { CostPrice = 7654321m });
+        await SignInAsync(client, role, "roletest");
+
+        var response = await client.GetAsync("/inventory");
+        var html = Decode(await response.Content.ReadAsStringAsync());
+
+        if (response.StatusCode == HttpStatusCode.OK)
+        {
+            Assert.Equal(seesCost, html.Contains("7.654.321", StringComparison.Ordinal));
+            if (!seesCost)
+            {
+                Assert.DoesNotContain("7654321", html, StringComparison.Ordinal);
+            }
+        }
+        else
+        {
+            // Vai không được mở trang thì không có dữ liệu nào để lộ.
+            Assert.False(seesCost);
+            Assert.DoesNotContain("7.654.321", html, StringComparison.Ordinal);
+        }
+    }
+
+    [Theory]
+    [InlineData(EmployeeRole.Sales)]
+    [InlineData(EmployeeRole.WarehouseKeeper)]
+    [InlineData(EmployeeRole.Accountant)]
+    [InlineData(EmployeeRole.Admin)]
+    public async Task CsvExport_NeverCarriesTheCostValue_ForAnyRole(string role)
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        inventory.Rows.Add(Row("SP01", "Vòi", ProductCategory.SanitaryEquipment, Guid.CreateVersion7()) with { CostPrice = 7654321m });
+        await SignInAsync(client, role, "roletest");
+        var page = await client.GetAsync("/inventory");
+        var token = Regex.Match(await page.Content.ReadAsStringAsync(), "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+
+        var response = await client.PostAsync(
+            "/inventory?handler=Export",
+            new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = token }));
+        var text = Encoding.UTF8.GetString(await response.Content.ReadAsByteArrayAsync());
+
+        Assert.DoesNotContain("7654321", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("7.654.321", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Giá vốn", text, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task StocktakeForms_TakeRealFiles_InsteadOfAFreeTextImageReference()
     {
