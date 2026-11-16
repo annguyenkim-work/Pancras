@@ -39,6 +39,24 @@
 - Sửa lỗi và chỗ lệch nhỏ trong phạm vi yêu cầu, thêm test, cập nhật docs liên quan đến thay đổi vừa làm (mục "Nợ lệch", trạng thái module).
 - Thêm test bảo vệ quy tắc đã chốt (kiến trúc, UI, ẩn dữ liệu theo vai) mà không đổi hành vi của ứng dụng.
 
+## 5b. Quy trình khi chủ dự án báo lỗi (bug)
+
+Khi chủ dự án gửi một lỗi, AI **không sửa ngay**. Làm theo hai giai đoạn, giai đoạn 2 chỉ bắt đầu sau khi chủ dự án chọn hướng sửa:
+
+**Giai đoạn 1 — điều tra, chưa đổi mã:**
+1. **Tái hiện** lỗi (bằng test, lệnh hoặc xem trang); nêu rõ đã tái hiện được hay chưa và cách làm.
+2. **Xác định có phải lỗi không:** đối chiếu với docs (luật nghiệp vụ, UI) và code; có thể là đúng theo docs, hành vi đã chốt, hoặc docs/code lệch nhau.
+3. **Tìm nguyên nhân gốc** và phạm vi ảnh hưởng (chỗ khác có cùng lỗi không).
+4. **Đề xuất các hướng sửa** kèm ưu nhược điểm và khuyến nghị; nêu cả việc docs hay test case cần đổi gì.
+
+**Giai đoạn 2 — sau khi chủ dự án chọn hướng, làm theo đúng thứ tự:**
+1. **Cập nhật test case thủ công** (`docs/testing/cases/`) và docs liên quan.
+2. **Cập nhật/viết test tự động**; chạy để thấy đỏ đúng lý do.
+3. **Sửa lỗi.**
+4. **Chạy lại test** (build với `--warnaserror` và toàn bộ test), báo số đạt/đỏ trong chat; nêu mức đã kiểm chứng (docs / test tự động / xem bằng trình duyệt).
+
+Vòng sửa tối đa 3 lần như mục 6. Lỗi nhỏ, hiển nhiên (chính tả, lệch thuật ngữ so với docs đã chốt) vẫn phải nêu rõ nguyên nhân và hướng sửa trước khi làm.
+
 ## 6. Cách báo cáo
 
 - Nêu đã làm gì, test nào chạy và kết quả, điều gì **chưa** kiểm hoặc chưa làm. Không nói "xong" khi test đỏ hoặc cảnh báo còn.
