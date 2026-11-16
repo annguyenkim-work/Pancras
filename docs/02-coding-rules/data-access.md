@@ -18,7 +18,7 @@ Công nghệ: PostgreSQL qua Npgsql, EF Core 10, đặt tên `snake_case` (`EFCo
 
 - **Đọc dùng `AsNoTracking()`.** Chỉ nạp entity có tracking khi sắp ghi.
 - **Không lazy loading.** Tránh N+1: dùng `Include` hoặc `Select` có chủ đích.
-- **Phân trang và lọc chạy trong database** (`Skip`/`Take`, `Where`); không nạp cả bảng rồi cắt trong bộ nhớ.
+- **Phân trang và lọc chạy trong database** (`Skip`/`Take`, `Where`); không nạp cả bảng rồi cắt trong bộ nhớ. Ngoại lệ đã chấp nhận (2026-11-16): danh sách nhỏ theo bản chất như nhân viên, đơn mua, phiếu chuyển (xem [components.md](../03-ui-ux/components.md) mục 6).
 - Danh sách lớn dùng `Select` ra kiểu `Row`, không nạp cả đồ thị thực thể.
 - Mọi thao tác I/O là `async` có `CancellationToken`.
 

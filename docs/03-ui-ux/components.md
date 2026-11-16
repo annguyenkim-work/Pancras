@@ -84,7 +84,7 @@ Bốn cỡ rộng (S, M, L, XL), đều `w-[min(<rộng>,calc(100%-2rem))]`. H�
 
 - Mặc định 20 dòng/trang; người dùng chọn được 20 / 50.
 - Thanh dưới bảng: "Hiển thị X–Y / Z", nút Trước / Sau (nút Phụ cỡ nhỏ), số trang hiện tại; giữ nguyên bộ lọc trong query string.
-- Phân trang làm ở truy vấn (Skip/Take), không cắt trong bộ nhớ.
+- Phân trang làm ở truy vấn (Skip/Take; keyset cho danh sách rất lớn). Danh sách có thể tăng không giới hạn (nhật ký, thông báo, danh mục, nhà cung cấp, tồn kho) cắt trang ở truy vấn. Danh sách nhỏ theo bản chất mà sắp xếp, tìm hoặc tổng tính dựa vào dữ liệu tra chéo hay tính trong Domain (nhân viên, đơn mua, phiếu chuyển) được phép cắt trong bộ nhớ (chủ dự án chấp nhận 2026-11-16); chuyển xuống SQL khi một danh sách vượt vài nghìn dòng hoặc chậm thấy được.
 - Danh sách chắc chắn nhỏ (vd. 6 nhóm menu, vai trò) không cần phân trang.
 
 ## 7. Thông báo: toast và banner
@@ -130,7 +130,7 @@ Khung chung cho badge trạng thái và badge phân loại: `rounded-full px-2 p
 | Bảng mobile | Cột đầu sticky và cột Thao tác ở vị trí 2 đã có ở Nhà cung cấp, Danh mục, Nhân viên, bảng phiếu chuyển; còn các bảng chi tiết nhỏ trong thẻ (không cần) |
 | Chống bấm đúp | `form-guard.js` chưa kiểm thử trên trình duyệt thật (hộp xác nhận, form tải tệp) |
 | Tab | Đã có partial `_Tabs` (viên thuốc, `role=tablist`) dùng ở Kho; Mua hàng và Danh mục chưa có tab |
-| Phân trang | Partial `_Pager` (20/50, "Hiển thị X–Y / Z", giữ bộ lọc) ở Danh mục, Nhà cung cấp, Nhân viên, Nhật ký, Thông báo, danh sách đơn mua và phiếu chuyển. Thông báo cắt trang ở truy vấn (cả số chưa xem trên chuông). Nhân viên, đơn mua và phiếu chuyển còn cắt trang trong bộ nhớ: sắp xếp và tìm của chúng dựa vào tên tra chéo bảng khác (kho, nhà cung cấp) và tính toán trong Domain, nên chuyển xuống SQL là việc lớn hơn; dữ liệu các danh sách này nhỏ. Chờ chủ dự án quyết định có chấp nhận hay không. Lịch sử tồn của mặt hàng giữ bộ chọn cỡ trang riêng |
+| Phân trang | Partial `_Pager` (20/50, "Hiển thị X–Y / Z", giữ bộ lọc) ở Danh mục, Nhà cung cấp, Nhân viên, Nhật ký, Thông báo, danh sách đơn mua và phiếu chuyển. Thông báo cắt trang ở truy vấn (cả số chưa xem trên chuông). Nhân viên, đơn mua và phiếu chuyển cắt trang trong bộ nhớ theo ngoại lệ đã chấp nhận ở mục 6. Lịch sử tồn của mặt hàng giữ bộ chọn cỡ trang riêng |
 | Sắp xếp theo cột | Đã có (`_SortHeader`, `ListSort`) ở Nhà cung cấp, Danh mục, Nhân viên; Nhật ký sắp theo thời điểm. Chưa có ở đơn mua (thẻ), phiếu chuyển |
 | Toast, banner | Toast sau thao tác POST ở Catalog, Locations, Purchasing, Suppliers, Profile; lỗi cần giữ form dùng `_Notice` ở mọi trang (kể cả Kho). Chưa chuyển lỗi của Kho sang toast vì lỗi đi cùng hộp thoại đang mở |
 | Badge | Đã dùng `Badge` ở mọi bảng và danh sách, kể cả chip kho và bộ đếm của Kho |
