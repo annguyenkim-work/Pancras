@@ -588,8 +588,10 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
 
     public Task AddNoticeAsync(Notification notice, CancellationToken cancellationToken) => Task.CompletedTask;
 
-    public Task<IReadOnlyList<Notification>> ListNoticesAsync(Guid recipientEmployeeId, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<Notification>>([]);
+    public Task<NoticePage> ListNoticesPageAsync(Guid recipientEmployeeId, int pageNumber, int pageSize, CancellationToken cancellationToken) =>
+        Task.FromResult(new NoticePage([], 0));
+
+    public Task<int> CountUnseenNoticesAsync(Guid recipientEmployeeId, CancellationToken cancellationToken) => Task.FromResult(0);
 
     public Task<Notification?> FindNoticeForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         Task.FromResult<Notification?>(null);

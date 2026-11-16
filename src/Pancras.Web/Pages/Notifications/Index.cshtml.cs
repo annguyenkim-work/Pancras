@@ -26,13 +26,15 @@ public class IndexModel(ListNotificationsHandler handler) : PageModel
     public async Task OnGetAsync(int pageNumber = 1, CancellationToken cancellationToken = default)
     {
         PageSize = Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
-        var all = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var employeeId)
-            ? (await handler.HandleAsync(employeeId, cancellationToken)).OrderBy(notice => notice.Seen).ThenByDescending(notice => notice.CreatedAt).ToArray()
-            : [];
-        Total = all.Length;
-        var pages = Math.Max(1, (Total + PageSize - 1) / PageSize);
-        PageNumber = Math.Clamp(pageNumber, 1, pages);
-        Notices = all.Skip((PageNumber - 1) * PageSize).Take(PageSize).ToArray();
+        if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var employeeId))
+        {
+            return;
+        }
+
+        var page = await handler.HandleAsync(employeeId, pageNumber, PageSize, cancellationToken);
+        Notices = page.Items;
+        Total = page.Total;
+        PageNumber = page.PageNumber;
     }
 
     /// <summary>Đánh dấu đã xem rồi mở đúng chứng từ: phiếu chuyển mở đúng phiếu, kiểm kê/điều chỉnh/hủy mở tab kiểm kê.</summary>

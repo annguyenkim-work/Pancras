@@ -21,6 +21,9 @@ public sealed record StockBalanceRow(
     string Origin = "",
     decimal CostPrice = 0);
 
+/// <summary>Một trang thông báo cùng tổng số thông báo của người nhận.</summary>
+public sealed record NoticePage(IReadOnlyList<Pancras.Domain.Notifications.Notification> Items, int Total);
+
 public sealed record StockItemProfile(
     Guid Id,
     string Code,

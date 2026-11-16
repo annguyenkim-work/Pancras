@@ -200,8 +200,15 @@ internal sealed class FakeInventoryStore : IInventoryRepository
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyList<Notification>> ListNoticesAsync(Guid recipientEmployeeId, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<Notification>>(Notices.Where(notice => notice.RecipientEmployeeId == recipientEmployeeId).ToArray());
+    public Task<NoticePage> ListNoticesPageAsync(Guid recipientEmployeeId, int pageNumber, int pageSize, CancellationToken cancellationToken)
+    {
+        var mine = Notices.Where(notice => notice.RecipientEmployeeId == recipientEmployeeId)
+            .OrderBy(notice => notice.Seen).ThenByDescending(notice => notice.CreatedAt).ToArray();
+        return Task.FromResult(new NoticePage(mine.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToArray(), mine.Length));
+    }
+
+    public Task<int> CountUnseenNoticesAsync(Guid recipientEmployeeId, CancellationToken cancellationToken) =>
+        Task.FromResult(Notices.Count(notice => notice.RecipientEmployeeId == recipientEmployeeId && !notice.Seen));
 
     public Task<Notification?> FindNoticeForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         Task.FromResult(Notices.Concat(_stagedNotices).FirstOrDefault(notice => notice.Id == id));

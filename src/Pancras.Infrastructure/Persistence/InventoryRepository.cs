@@ -280,11 +280,24 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
     public Task AddNoticeAsync(Notification notice, CancellationToken cancellationToken) =>
         context.Notifications.AddAsync(notice, cancellationToken).AsTask();
 
-    public async Task<IReadOnlyList<Notification>> ListNoticesAsync(Guid recipientEmployeeId, CancellationToken cancellationToken) =>
-        await context.Notifications.AsNoTracking()
-            .Where(notice => notice.RecipientEmployeeId == recipientEmployeeId)
-            .OrderByDescending(notice => notice.CreatedAt)
+    public async Task<NoticePage> ListNoticesPageAsync(Guid recipientEmployeeId, int pageNumber, int pageSize, CancellationToken cancellationToken)
+    {
+        var mine = context.Notifications.AsNoTracking().Where(notice => notice.RecipientEmployeeId == recipientEmployeeId);
+        var total = await mine.CountAsync(cancellationToken);
+        var size = Math.Max(1, pageSize);
+        var items = await mine
+            .OrderBy(notice => notice.Seen)
+            .ThenByDescending(notice => notice.CreatedAt)
+            .ThenBy(notice => notice.Id)
+            .Skip((Math.Max(1, pageNumber) - 1) * size)
+            .Take(size)
             .ToListAsync(cancellationToken);
+        return new NoticePage(items, total);
+    }
+
+    public Task<int> CountUnseenNoticesAsync(Guid recipientEmployeeId, CancellationToken cancellationToken) =>
+        context.Notifications.AsNoTracking()
+            .CountAsync(notice => notice.RecipientEmployeeId == recipientEmployeeId && !notice.Seen, cancellationToken);
 
     public Task<Notification?> FindNoticeForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         context.Notifications.FirstOrDefaultAsync(notice => notice.Id == id, cancellationToken);
