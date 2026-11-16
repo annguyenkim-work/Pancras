@@ -215,7 +215,7 @@ Checklist sau khi triển khai (**bắt buộc ở lần đầu**):
 
 ## Chờ chốt (chưa có hiệu lực)
 
-- **Đã chốt 2026-11-16 (chưa làm):** thêm health check (endpoint kiểm tra app và DB) khi đưa lên VinaHost.
+- **Đã chốt và làm 2026-11-16:** `/health/live` (app còn chạy) và `/health` (kèm kết nối DB, 503 khi lỗi); công khai, chỉ trả `Healthy`/`Unhealthy`, không chi tiết. Cấu hình giám sát gọi các địa chỉ này trên VinaHost chưa làm.
 - **Đã chốt 2026-11-16:** chưa cần staging và quét virus tệp tải lên. Giám sát lỗi và cảnh báo tập trung vẫn chưa chốt.
 - **Đã chốt 2026-11-16:** log trên máy chủ giữ 30 ngày, xoay vòng; bản sao lưu giữ 14 ngày, không lưu dài hạn thêm. (Cấu hình xoay vòng log trên VinaHost chưa làm.)
 - **Đã chốt 2026-11-16:** chấp nhận mất tối đa 1 ngày dữ liệu (RPO) và khôi phục trong 1 ngày (RTO), khớp sao lưu hằng ngày. Người chịu trách nhiệm trực chưa chốt.

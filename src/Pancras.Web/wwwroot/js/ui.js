@@ -4,6 +4,7 @@
 //   data-auto-submit         đổi giá trị thì gửi form
 //   data-autoshow            hộp thoại tự mở khi tải trang; data-cancel-url: Esc thì chuyển tới địa chỉ đó
 //   data-nav-toggle / data-nav-close  mở/đóng menu trên điện thoại
+//   data-sidebar-toggle      thu gọn/mở sidebar trên desktop (nhớ trong localStorage)
 (function () {
     document.addEventListener('click', function (event) {
         var opener = event.target.closest('[data-open-dialog]');
@@ -34,6 +35,52 @@
             backdrop.classList.add('hidden');
         }
     });
+
+    // Thu gọn/mở sidebar trên desktop (data-sidebar-toggle); nhớ lựa chọn cục bộ, lỗi lưu trữ thì bỏ qua.
+    var sidebarKey = 'pancras.sidebar.collapsed';
+
+    function applySidebar(collapsed) {
+        ['app-sidebar', 'app-content'].forEach(function (id) {
+            var element = document.getElementById(id);
+            if (!element) {
+                return;
+            }
+
+            var expanded = element.dataset.expandedClass;
+            var collapsedClass = element.dataset.collapsedClass;
+            element.classList.toggle(expanded, !collapsed);
+            element.classList.toggle(collapsedClass, collapsed);
+        });
+        document.querySelectorAll('[data-sidebar-toggle]').forEach(function (button) {
+            button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        });
+    }
+
+    function readSidebar() {
+        try {
+            return window.localStorage.getItem(sidebarKey) === '1';
+        } catch (error) {
+            return false;
+        }
+    }
+
+    document.addEventListener('click', function (event) {
+        if (!event.target.closest('[data-sidebar-toggle]')) {
+            return;
+        }
+
+        var collapsed = !readSidebar();
+        applySidebar(collapsed);
+        try {
+            window.localStorage.setItem(sidebarKey, collapsed ? '1' : '0');
+        } catch (error) {
+            // Không lưu được thì chỉ mất ghi nhớ, giao diện vẫn đổi.
+        }
+    });
+
+    if (readSidebar()) {
+        applySidebar(true);
+    }
 
     document.addEventListener('change', function (event) {
         var field = event.target.closest('[data-auto-submit]');

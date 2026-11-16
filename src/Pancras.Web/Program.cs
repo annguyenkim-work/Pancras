@@ -137,6 +137,7 @@ builder.Services.AddScoped<AuditStampInterceptor>();
 builder.Services.AddDbContext<PancrasDbContext>((provider, options) =>
     options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention()
         .AddInterceptors(provider.GetRequiredService<AuditStampInterceptor>()));
+builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);
 builder.Services.AddScoped<IPasswordHasher, Pbkdf2PasswordHasher>();
 builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
 builder.Services.AddScoped<ISupplierRepository, SupplierRepository>();
@@ -377,6 +378,13 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapRazorPages();
+// Giám sát: /health/live chỉ cho biết ứng dụng còn chạy; /health kiểm cả cơ sở dữ liệu. Chỉ trả "Healthy"/"Unhealthy", không chi tiết.
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions { Predicate = _ => false })
+    .AllowAnonymous();
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = registration => registration.Tags.Contains("ready")
+}).AllowAnonymous();
 
 if (args.Length > 0 && string.Equals(args[0], AdminBootstrap.Command, StringComparison.Ordinal))
 {
@@ -397,3 +405,23 @@ static string PlainStatusPage(string title, string message) =>
     + "</div></main></body></html>";
 
 public partial class Program;
+
+/// <summary>Kiểm tra kết nối được tới PostgreSQL; không trả chi tiết lỗi ra ngoài (chuỗi kết nối nằm trong lỗi).</summary>
+internal sealed class DatabaseHealthCheck(PancrasDbContext db) : Microsoft.Extensions.Diagnostics.HealthChecks.IHealthCheck
+{
+    public async Task<Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult> CheckHealthAsync(
+        Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckContext context,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await db.Database.CanConnectAsync(cancellationToken)
+                ? Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy()
+                : Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Unhealthy("Không kết nối được cơ sở dữ liệu.");
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Unhealthy("Không kết nối được cơ sở dữ liệu.");
+        }
+    }
+}
