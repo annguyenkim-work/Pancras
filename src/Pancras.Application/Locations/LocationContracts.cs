@@ -126,12 +126,16 @@ public enum LocationManageError
     HasStock,
     HasActiveEmployees,
     HasOpenDocuments,
-    SaveFailed
+    SaveFailed,
+    VersionConflict
 }
 
 public sealed class UpdateLocationCommand
 {
     public Guid Id { get; set; }
+
+    /// <summary>Phiên bản lúc mở form; khác phiên bản hiện tại nghĩa là có người sửa trước.</summary>
+    public int Version { get; set; }
 
     public string? Name { get; set; }
 
@@ -173,6 +177,12 @@ public sealed class UpdateLocationCommandHandler(
         if (location is null)
         {
             return LocationManageError.NotFound;
+        }
+
+        if (command.Version != location.Version)
+        {
+            logger.LogInformation("Rejected a stale location edit for {LocationId}.", location.Id);
+            return LocationManageError.VersionConflict;
         }
 
         if (await repository.NameExistsAsync(name, command.Id, cancellationToken))

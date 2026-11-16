@@ -26,7 +26,8 @@ public enum EmployeeError
     WrongPassword,
     InvalidCode,
     TwoFactorAlreadyEnabled,
-    TwoFactorNotEnabled
+    TwoFactorNotEnabled,
+    VersionConflict
 }
 
 public enum SupplierError
@@ -40,7 +41,8 @@ public enum SupplierError
     NotFound,
     HasOpenPurchases,
     InvalidSwift,
-    Forbidden
+    Forbidden,
+    VersionConflict
 }
 
 public enum SupplierField

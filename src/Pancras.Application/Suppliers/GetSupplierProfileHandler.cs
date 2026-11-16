@@ -49,6 +49,7 @@ public sealed class GetSupplierProfileHandler(
             supplier.Account,
             supplier.SwiftCode,
             orders,
-            open));
+            open,
+            supplier.Version));
     }
 }

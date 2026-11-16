@@ -22,6 +22,19 @@ public class UpdateSupplierCommandHandlerTests
     }
 
     [Fact]
+    public async Task StaleVersion_IsRejected_AndChangesNothing()
+    {
+        var supplier = AddSample();
+        var command = Edit(supplier.Id, name: "Tên mới");
+        command.Version = supplier.Version + 1;
+
+        var result = await Handler().HandleAsync(command, CancellationToken.None);
+
+        Assert.Equal(SupplierError.VersionConflict, result.SupplierError);
+        Assert.Equal("Kim An", supplier.Name);
+    }
+
+    [Fact]
     public async Task SameCode_IsAllowed()
     {
         var supplier = AddSample();

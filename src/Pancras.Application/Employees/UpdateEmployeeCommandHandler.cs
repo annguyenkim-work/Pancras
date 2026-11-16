@@ -112,6 +112,12 @@ public sealed class UpdateEmployeeCommandHandler(
             return Forbidden(actor, employee.Id);
         }
 
+        if (command.Version != employee.Version)
+        {
+            logger.LogInformation("Rejected a stale employee edit for {EmployeeId}.", employee.Id);
+            return UpdateOutcome.Fail(EmployeeError.VersionConflict);
+        }
+
         var personalChanged =
             !Same(command.FullName, employee.FullName)
             || !Same(command.Email, employee.Email)
@@ -242,7 +248,8 @@ internal static class EmployeeMapping
             employee.IsActive,
             employee.TwoFactorEnabled,
             employee.LockedUntil,
-            employee.RecoveryCodesLeft);
+            employee.RecoveryCodesLeft,
+            employee.Version);
 }
 
 public sealed class GetEmployeeHandler(

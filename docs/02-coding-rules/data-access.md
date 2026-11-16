@@ -64,7 +64,7 @@ dotnet ef database update --project src/Pancras.Infrastructure --startup-project
 | --- | --- |
 | Xóa mềm | `Location` dùng `IsDeleted` + `HasQueryFilter` (`InventoryConfiguration.cs`); cần đổi sang `IsActive`, kèm migration và sửa truy vấn |
 | Cờ trạng thái Supplier | `Supplier.IsInactive` (phủ định) còn `Employee.IsActive`; thống nhất `IsActive` khi chạm tới |
-| `Version` chưa trọn vẹn | `Employee`, `Supplier`, `StockLocation`, `TransferSlip` đã có `Version` (interceptor tự tăng), nhưng form chưa gửi `Version` để handler so sánh, và `DbUpdateConcurrencyException` chưa chuyển thành `Conflict` ở repository (hiện trang 409 chung trong `Program.cs` bắt lỗi). `DisposalSlip` đã có; rà các thực thể còn lại |
+| `Version` chưa trọn vẹn | Lần ghi chồng nhau thật sự (hai người lưu cùng tích tắc) vẫn hiện trang 409 chung trong `Program.cs`, chưa là `Conflict` của từng module. `TransferSlip` chỉ dựa vào kiểm tra trạng thái (`TransferStateChanged`), form không gửi `Version`. Rà các thực thể còn lại |
 | Conflict | Mới `CatalogItemRepository` bắt `DbUpdateConcurrencyException`; cần thống nhất mã lỗi Conflict ở mọi module |
 | Gạch dưới tên | Bảng "đọc không tracking" (`...ReadOnlyAsync`) chưa nhất quán ở mọi repository |
 

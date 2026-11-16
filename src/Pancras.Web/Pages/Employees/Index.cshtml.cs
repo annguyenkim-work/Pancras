@@ -230,6 +230,7 @@ public class IndexModel(
         EditCommand = new UpdateEmployeeCommand
         {
             Id = result.Value.Id,
+            Version = result.Value.Version,
             FullName = result.Value.FullName,
             Role = result.Value.Role,
             Email = result.Value.Email,

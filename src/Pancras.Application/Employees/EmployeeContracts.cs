@@ -67,7 +67,8 @@ public sealed record EmployeeProfile(
     bool IsActive,
     bool TwoFactorEnabled = false,
     DateTimeOffset? LockedUntil = null,
-    int RecoveryCodesLeft = 0);
+    int RecoveryCodesLeft = 0,
+    int Version = 0);
 
 public sealed class LoginEmployeeCommand
 {
@@ -100,6 +101,9 @@ public sealed class CreateEmployeeCommand
 public sealed class UpdateEmployeeCommand
 {
     public Guid Id { get; set; }
+
+    /// <summary>Phiên bản hồ sơ lúc mở form; khác phiên bản hiện tại nghĩa là có người sửa trước.</summary>
+    public int Version { get; set; }
 
     public string? FullName { get; set; }
 

@@ -100,6 +100,15 @@ public class LocationManagementTests
     private static DeleteLocationCommandHandler Delete(FakeManagement repo) => new(repo, NullLogger<DeleteLocationCommandHandler>.Instance);
 
     [Fact]
+    public async Task Update_WithAStaleVersion_IsRejected_AndChangesNothing()
+    {
+        var (repo, location) = Setup();
+        var error = await Update(repo).HandleAsync(new UpdateLocationCommand { Id = location.Id, Version = location.Version + 1, Name = "Tên mới", Kind = StockLocationKind.Showroom }, Admin, CancellationToken.None);
+        Assert.Equal(LocationManageError.VersionConflict, error);
+        Assert.NotEqual("Tên mới", location.Name);
+    }
+
+    [Fact]
     public async Task Update_RenamesAndChangesKind()
     {
         var (repo, location) = Setup();

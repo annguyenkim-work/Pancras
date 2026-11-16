@@ -50,7 +50,7 @@ public class IndexModel(
             if (target is not null)
             {
                 EditId = editId;
-                Edit = new UpdateLocationCommand { Id = editId, Name = target.Name, Kind = target.Kind };
+                Edit = new UpdateLocationCommand { Id = editId, Version = target.Version, Name = target.Name, Kind = target.Kind };
             }
         }
 
@@ -126,6 +126,7 @@ public class IndexModel(
     {
         LocationManageError.Forbidden => "Bạn không có quyền thực hiện thao tác này.",
         LocationManageError.NotFound => "Không tìm thấy kho/showroom.",
+        LocationManageError.VersionConflict => "Kho/showroom vừa được người khác cập nhật. Đóng form, tải lại trang rồi sửa lại.",
         LocationManageError.NameMissing => "Cần nhập tên.",
         LocationManageError.NameTooLong => "Tên quá dài (tối đa 200 ký tự).",
         LocationManageError.InvalidKind => "Loại không hợp lệ.",

@@ -16,6 +16,11 @@ public static class SupplierErrorMessages
             return ["Bạn không có quyền thực hiện thao tác này."];
         }
 
+        if (error == SupplierError.VersionConflict)
+        {
+            return ["Nhà cung cấp vừa được người khác cập nhật. Đóng form, tải lại trang rồi sửa lại."];
+        }
+
         var messages = issues.Select(issue => Sentence(issue, code)).ToArray();
         if (messages.Length > 0)
         {

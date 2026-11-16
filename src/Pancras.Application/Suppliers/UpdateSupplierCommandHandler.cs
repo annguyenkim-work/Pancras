@@ -52,6 +52,12 @@ public sealed class UpdateSupplierCommandHandler(
             return Result<SupplierProfile>.Fail(SupplierError.NotFound);
         }
 
+        if (command.Version != supplier.Version)
+        {
+            logger.LogInformation("Rejected a stale supplier edit for {SupplierId}.", supplier.Id);
+            return Result<SupplierProfile>.Fail(SupplierError.VersionConflict);
+        }
+
         var code = command.Code!.Trim();
         var normalizedCode = Supplier.NormalizeCode(code);
         if (await repository.NormalizedCodeExistsAsync(normalizedCode, supplier.Id, cancellationToken))
@@ -115,7 +121,8 @@ public sealed class UpdateSupplierCommandHandler(
             supplier.Email,
             supplier.BankName,
             supplier.Account,
-            supplier.SwiftCode));
+            supplier.SwiftCode,
+            Version: supplier.Version));
     }
 
     private static Result<SupplierProfile> DuplicateCode(SupplierIssueKind kind) =>

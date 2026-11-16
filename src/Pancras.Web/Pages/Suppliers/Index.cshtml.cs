@@ -169,6 +169,7 @@ public class IndexModel(
         Form = new UpdateSupplierCommand
         {
             Id = profile.Value!.Id,
+            Version = profile.Value.Version,
             Code = profile.Value.Code,
             Name = profile.Value.Name,
             Country = profile.Value.Country,

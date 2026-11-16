@@ -128,11 +128,15 @@ public sealed record SupplierProfile(
     string Account,
     string SwiftCode,
     int PurchaseOrderCount = 0,
-    int LotsNotReceived = 0);
+    int LotsNotReceived = 0,
+    int Version = 0);
 
 public sealed class UpdateSupplierCommand
 {
     public Guid Id { get; set; }
+
+    /// <summary>Phiên bản hồ sơ lúc mở form; khác phiên bản hiện tại nghĩa là có người sửa trước.</summary>
+    public int Version { get; set; }
 
     public string? Code { get; set; }
 

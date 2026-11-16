@@ -21,6 +21,7 @@
         EmployeeError.LocationRequired => "Vai trò này cần gắn với một kho hoặc showroom.",
         EmployeeError.LocationNotFound => "Kho hoặc showroom không tồn tại.",
         EmployeeError.LeadExists => "Kho hoặc showroom này đã có Trưởng đang hoạt động.",
+        EmployeeError.VersionConflict => "Hồ sơ vừa được người khác cập nhật. Đóng form, tải lại trang rồi sửa lại.",
         EmployeeError.LastAdmin => "Hệ thống phải còn ít nhất một Admin đang hoạt động.",
         EmployeeError.WeakPassword => "Mật khẩu cần từ 8 đến 128 ký tự.",
         EmployeeError.WrongPassword => "Mật khẩu hiện tại không đúng.",
@@ -297,6 +298,7 @@ else
         </div>
         <form method="post" asp-page-handler="Update" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
             <input type="hidden" asp-for="EditCommand.Id" />
+            <input type="hidden" asp-for="EditCommand.Version" />
             <input type="hidden" name="q" value="@Model.Search" />
             <input type="hidden" name="role" value="@Model.Role" />
             <input type="hidden" name="location" value="@Model.LocationFilter" />

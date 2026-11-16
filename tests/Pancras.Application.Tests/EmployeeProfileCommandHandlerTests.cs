@@ -70,6 +70,20 @@ public class EmployeeProfileCommandHandlerTests
         };
 
     [Fact]
+    public async Task UpdateWithAStaleVersion_IsRejected_AndChangesNothing()
+    {
+        var employee = Add("Nguyễn An", "an", EmployeeRole.Accountant);
+        var command = UpdateFrom(employee);
+        command.Version = employee.Version + 1;
+        command.FullName = "Tên khác";
+
+        var result = await UpdateHandler().HandleAsync(command, Admin(), CancellationToken.None);
+
+        Assert.Equal(EmployeeError.VersionConflict, result.EmployeeError);
+        Assert.Equal("Nguyễn An", employee.FullName);
+    }
+
+    [Fact]
     public async Task CreateWithoutPassword_DoesNotInsert()
     {
         var command = CreateCommand("Nguyễn Kim An");
