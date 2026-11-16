@@ -54,11 +54,11 @@ public sealed class UploadPurchaseAttachmentCommandHandler(
     IAuditLog? audit = null,
     IRequestInfo? request = null)
 {
-    public async Task<Result<Guid>> HandleAsync(UploadPurchaseAttachmentCommand command, CancellationToken cancellationToken)
+    public async Task<Result<Guid, PurchaseError>> HandleAsync(UploadPurchaseAttachmentCommand command, CancellationToken cancellationToken)
     {
         if (!PurchaseAccess.CanManage(command.Actor))
         {
-            return Result<Guid>.Fail(PurchaseError.Forbidden);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.Forbidden);
         }
 
         var now = (clock ?? TimeProvider.System).GetUtcNow();
@@ -66,23 +66,23 @@ public sealed class UploadPurchaseAttachmentCommandHandler(
         if (command.Content is null || cleanName is null || !Enum.IsDefined(command.Kind))
         {
             logger.LogWarning("Attachment rejected for purchase order {PurchaseOrderId}: bad name or type.", command.PurchaseOrderId);
-            return Result<Guid>.Fail(PurchaseError.AttachmentInvalid);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.AttachmentInvalid);
         }
 
         var order = await orders.FindReadOnlyAsync(command.PurchaseOrderId, cancellationToken);
         if (order is null)
         {
-            return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.InvalidOrder);
         }
 
         if (order.Status == PurchaseStatus.Cancelled)
         {
-            return Result<Guid>.Fail(PurchaseError.OrderCancelled);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.OrderCancelled);
         }
 
         if ((await attachments.ListAsync(command.PurchaseOrderId, cancellationToken)).Count >= AttachmentRules.MaxPerOrder)
         {
-            return Result<Guid>.Fail(PurchaseError.AttachmentLimit);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.AttachmentLimit);
         }
 
         // Đọc tối đa MaxBytes + 1 byte: không tin kích thước do trình duyệt khai báo.
@@ -94,13 +94,13 @@ public sealed class UploadPurchaseAttachmentCommandHandler(
             await buffer.WriteAsync(chunk.AsMemory(0, read), cancellationToken);
             if (buffer.Length > AttachmentRules.MaxBytes)
             {
-                return Result<Guid>.Fail(PurchaseError.AttachmentTooLarge);
+                return Result<Guid, PurchaseError>.Fail(PurchaseError.AttachmentTooLarge);
             }
         }
 
         if (buffer.Length == 0)
         {
-            return Result<Guid>.Fail(PurchaseError.AttachmentInvalid);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.AttachmentInvalid);
         }
 
         var extension = Path.GetExtension(cleanName);
@@ -108,14 +108,14 @@ public sealed class UploadPurchaseAttachmentCommandHandler(
         if (!AttachmentRules.SignatureMatches(extension, header))
         {
             logger.LogWarning("Attachment rejected for purchase order {PurchaseOrderId}: content does not match the extension.", command.PurchaseOrderId);
-            return Result<Guid>.Fail(PurchaseError.AttachmentInvalid);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.AttachmentInvalid);
         }
 
         var storedName = Guid.CreateVersion7().ToString("N") + extension.ToLowerInvariant();
         var attachment = PurchaseAttachment.TryCreate(command.PurchaseOrderId, command.Kind, cleanName, storedName, buffer.Length, now, request?.ActorCode);
         if (attachment is null)
         {
-            return Result<Guid>.Fail(PurchaseError.AttachmentInvalid);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.AttachmentInvalid);
         }
 
         buffer.Position = 0;
@@ -132,7 +132,7 @@ public sealed class UploadPurchaseAttachmentCommandHandler(
 
         logger.LogInformation("Attached {AttachmentId} to purchase order {PurchaseOrderId}.", attachment.Id, command.PurchaseOrderId);
         await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, AuditActions.PurchaseAttachmentAdded, "purchase_order", command.PurchaseOrderId.ToString("D"), cleanName, cancellationToken);
-        return Result<Guid>.Ok(attachment.Id);
+        return Result<Guid, PurchaseError>.Ok(attachment.Id);
     }
 }
 
@@ -155,17 +155,17 @@ public sealed class OpenPurchaseAttachmentHandler(
     IAuditLog? audit = null,
     IRequestInfo? request = null)
 {
-    public async Task<Result<AttachmentDownload>> HandleAsync(Guid attachmentId, Pancras.Domain.Employees.EmployeeActor actor, CancellationToken cancellationToken)
+    public async Task<Result<AttachmentDownload, PurchaseError>> HandleAsync(Guid attachmentId, Pancras.Domain.Employees.EmployeeActor actor, CancellationToken cancellationToken)
     {
         if (!PurchaseAccess.CanManage(actor) && !PurchaseAccess.IsWarehouseStaff(actor))
         {
-            return Result<AttachmentDownload>.Fail(PurchaseError.Forbidden);
+            return Result<AttachmentDownload, PurchaseError>.Fail(PurchaseError.Forbidden);
         }
 
         var attachment = await attachments.FindAsync(attachmentId, cancellationToken);
         if (attachment is null)
         {
-            return Result<AttachmentDownload>.Fail(PurchaseError.AttachmentNotFound);
+            return Result<AttachmentDownload, PurchaseError>.Fail(PurchaseError.AttachmentNotFound);
         }
 
         if (!PurchaseAccess.CanManage(actor))
@@ -174,7 +174,7 @@ public sealed class OpenPurchaseAttachmentHandler(
             var order = await orders.FindReadOnlyAsync(attachment.PurchaseOrderId, cancellationToken);
             if (order is null || !PurchaseAccess.CanView(actor, order.ReceiveLocationId, order.Status))
             {
-                return Result<AttachmentDownload>.Fail(PurchaseError.AttachmentNotFound);
+                return Result<AttachmentDownload, PurchaseError>.Fail(PurchaseError.AttachmentNotFound);
             }
         }
 
@@ -182,11 +182,11 @@ public sealed class OpenPurchaseAttachmentHandler(
         if (content is null)
         {
             logger.LogError("Attachment {AttachmentId} has a record but no stored file.", attachment.Id);
-            return Result<AttachmentDownload>.Fail(PurchaseError.AttachmentNotFound);
+            return Result<AttachmentDownload, PurchaseError>.Fail(PurchaseError.AttachmentNotFound);
         }
 
         await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, AuditActions.PurchaseAttachmentDownloaded, "purchase_order", attachment.PurchaseOrderId.ToString("D"), attachment.FileName, cancellationToken);
-        return Result<AttachmentDownload>.Ok(new AttachmentDownload(content, attachment.FileName, attachment.ContentType));
+        return Result<AttachmentDownload, PurchaseError>.Ok(new AttachmentDownload(content, attachment.FileName, attachment.ContentType));
     }
 }
 
@@ -199,24 +199,24 @@ public sealed class DeletePurchaseAttachmentCommandHandler(
     IAuditLog? audit = null,
     IRequestInfo? request = null)
 {
-    public async Task<Result<Guid>> HandleAsync(Guid attachmentId, Pancras.Domain.Employees.EmployeeActor actor, CancellationToken cancellationToken)
+    public async Task<Result<Guid, PurchaseError>> HandleAsync(Guid attachmentId, Pancras.Domain.Employees.EmployeeActor actor, CancellationToken cancellationToken)
     {
         if (!PurchaseAccess.CanManage(actor))
         {
-            return Result<Guid>.Fail(PurchaseError.Forbidden);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.Forbidden);
         }
 
         var attachment = await attachments.FindAsync(attachmentId, cancellationToken);
         if (attachment is null)
         {
-            return Result<Guid>.Fail(PurchaseError.AttachmentNotFound);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.AttachmentNotFound);
         }
 
         // Chứng từ của đơn đã nhập kho là chứng cứ kế toán: không xóa.
         var order = await orders.FindReadOnlyAsync(attachment.PurchaseOrderId, cancellationToken);
         if (order is null || !order.IsEditable)
         {
-            return Result<Guid>.Fail(PurchaseError.AlreadyReceived);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.AlreadyReceived);
         }
 
         await attachments.RemoveAsync(attachment.Id, cancellationToken);
@@ -232,6 +232,6 @@ public sealed class DeletePurchaseAttachmentCommandHandler(
 
         logger.LogInformation("Removed attachment {AttachmentId} from purchase order {PurchaseOrderId}.", attachment.Id, order.Id);
         await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, AuditActions.PurchaseAttachmentDeleted, "purchase_order", order.Id.ToString("D"), attachment.FileName, cancellationToken);
-        return Result<Guid>.Ok(attachment.Id);
+        return Result<Guid, PurchaseError>.Ok(attachment.Id);
     }
 }

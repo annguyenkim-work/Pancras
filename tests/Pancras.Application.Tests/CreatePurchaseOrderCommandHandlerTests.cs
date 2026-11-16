@@ -22,7 +22,7 @@ public class CreatePurchaseOrderCommandHandlerTests
 
         var result = await fixture.Create.HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(PurchaseError.Forbidden, result.PurchaseError);
+        Assert.Equal(PurchaseError.Forbidden, result.Error);
         Assert.Empty(fixture.Orders.Orders);
     }
 
@@ -55,7 +55,7 @@ public class CreatePurchaseOrderCommandHandlerTests
 
         var result = await fixture.Create.HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(PurchaseError.InvalidOrder, result.PurchaseError);
+        Assert.Equal(PurchaseError.InvalidOrder, result.Error);
         Assert.Empty(fixture.Orders.Orders);
     }
 
@@ -68,7 +68,7 @@ public class CreatePurchaseOrderCommandHandlerTests
 
         var result = await fixture.Create.HandleAsync(Command(fixture, item.Id, item.Id, 0.1m, 0.1m, firstFob: 0m), CancellationToken.None);
 
-        Assert.Equal(PurchaseError.ZeroPrice, result.PurchaseError);
+        Assert.Equal(PurchaseError.ZeroPrice, result.Error);
         Assert.Empty(fixture.Orders.Orders);
     }
 
@@ -107,7 +107,7 @@ public class CreatePurchaseOrderCommandHandlerTests
 
         var result = await fixture.Create.HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(PurchaseError.MissingMeasure, result.PurchaseError);
+        Assert.Equal(PurchaseError.MissingMeasure, result.Error);
         Assert.Empty(fixture.Orders.Orders);
     }
 
@@ -122,7 +122,7 @@ public class CreatePurchaseOrderCommandHandlerTests
 
         var result = await fixture.Create.HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(PurchaseError.ChargeFailed, result.PurchaseError);
+        Assert.Equal(PurchaseError.ChargeFailed, result.Error);
         Assert.Empty(fixture.Orders.Orders);
     }
 
@@ -137,7 +137,7 @@ public class CreatePurchaseOrderCommandHandlerTests
 
         var result = await fixture.Create.HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(PurchaseError.InvalidQuantity, result.PurchaseError);
+        Assert.Equal(PurchaseError.InvalidQuantity, result.Error);
         Assert.Empty(fixture.Orders.Orders);
     }
 
@@ -152,7 +152,7 @@ public class CreatePurchaseOrderCommandHandlerTests
 
         var result = await fixture.Create.HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(PurchaseError.InvalidQuantity, result.PurchaseError);
+        Assert.Equal(PurchaseError.InvalidQuantity, result.Error);
         Assert.Empty(fixture.Orders.Orders);
     }
 
@@ -188,7 +188,7 @@ public class CreatePurchaseOrderCommandHandlerTests
 
         var result = await fixture.Create.HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(PurchaseError.MissingMeasure, result.PurchaseError);
+        Assert.Equal(PurchaseError.MissingMeasure, result.Error);
         Assert.Empty(fixture.Orders.Orders);
     }
 

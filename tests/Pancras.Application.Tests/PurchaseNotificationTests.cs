@@ -47,7 +47,7 @@ public class PurchaseNotificationTests
     private static Employee Make(string code, string role, Guid? location) =>
         Employee.Create(code, code, code.ToUpperInvariant(), "hash", role, stockLocationId: location);
 
-    private Task<Pancras.Application.Common.Result<Guid>> Run(PurchaseStatusAction action, EmployeeActor actor, string? note = null) =>
+    private Task<Pancras.Application.Common.Result<Guid, Pancras.Application.Common.PurchaseError>> Run(PurchaseStatusAction action, EmployeeActor actor, string? note = null) =>
         new ChangePurchaseStatusCommandHandler(_orders, NullLogger<ChangePurchaseStatusCommandHandler>.Instance, notices: _notices, employees: _employees)
             .HandleAsync(new ChangePurchaseStatusCommand(_order.Id, actor, action, note), CancellationToken.None);
 

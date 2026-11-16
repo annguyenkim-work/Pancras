@@ -52,7 +52,7 @@ public class ReceivePurchaseOrderCommandHandlerTests
 
         var second = await handler.HandleAsync(new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant), CancellationToken.None);
 
-        Assert.Equal(PurchaseError.AlreadyReceived, second.PurchaseError);
+        Assert.Equal(PurchaseError.AlreadyReceived, second.Error);
         Assert.Equal(7, here.OnHand);
         Assert.Equal(8m, item.CostPrice);
         Assert.Equal(1m, stored.ExchangeRate);
@@ -78,7 +78,7 @@ public class ReceivePurchaseOrderCommandHandlerTests
         Assert.True(order.TryAssignGroup(chargeId, ChargeGroup.Logistics, false));
         var received = await receive.HandleAsync(new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant), CancellationToken.None);
 
-        Assert.Equal(PurchaseError.UngroupedCharge, blocked.PurchaseError);
+        Assert.Equal(PurchaseError.UngroupedCharge, blocked.Error);
         Assert.True(received.IsSuccess);
         Assert.Equal(35m, item.CostPrice);
         Assert.Equal(ChargeGroup.Logistics, order.Charges[0].Group);
@@ -101,7 +101,7 @@ public class ReceivePurchaseOrderCommandHandlerTests
         var result = await new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance)
             .HandleAsync(new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant), CancellationToken.None);
 
-        Assert.Equal(PurchaseError.ZeroPrice, result.PurchaseError);
+        Assert.Equal(PurchaseError.ZeroPrice, result.Error);
         Assert.Equal(PurchaseStatus.Approved, order.Status);
         Assert.Equal(500m, item.CostPrice);
     }
@@ -154,7 +154,7 @@ public class ReceivePurchaseOrderCommandHandlerTests
         var shortWithoutReason = await handler.HandleAsync(
             new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant, new Dictionary<Guid, int> { [lineId] = 6 }, true),
             CancellationToken.None);
-        Assert.Equal(PurchaseError.ReceiptNoteRequired, shortWithoutReason.PurchaseError);
+        Assert.Equal(PurchaseError.ReceiptNoteRequired, shortWithoutReason.Error);
         Assert.Equal(PurchaseStatus.Approved, order.Status);
 
         var partial = await handler.HandleAsync(

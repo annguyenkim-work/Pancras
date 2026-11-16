@@ -275,7 +275,7 @@ public class IndexModel(
             ShowForm = true;
             NeedMeasures = true;
             EditingId = orderId;
-            ErrorMessage = PurchaseErrorMessages.For(result.PurchaseError, PurchaseErrorMessages.UpdateFailed);
+            ErrorMessage = PurchaseErrorMessages.For(result.Error, PurchaseErrorMessages.UpdateFailed);
             KeepDraftLines();
             await LoadAsync(orderId, null);
             return Page();
@@ -296,7 +296,7 @@ public class IndexModel(
             new UploadPurchaseAttachmentCommand { Actor = Actor, PurchaseOrderId = orderId, Kind = kind, FileName = file.FileName, Content = content },
             HttpContext.RequestAborted);
         return result.IsFailure
-            ? Redirect($"/purchasing?order={orderId}&error={result.PurchaseError}")
+            ? Redirect($"/purchasing?order={orderId}&error={result.Error}")
             : Redirect($"/purchasing?order={orderId}&notice=attachment-added");
     }
 
@@ -318,7 +318,7 @@ public class IndexModel(
     {
         var result = await deleteAttachment.HandleAsync(attachmentId, Actor, HttpContext.RequestAborted);
         return result.IsFailure
-            ? Redirect($"/purchasing?order={orderId}&error={result.PurchaseError}")
+            ? Redirect($"/purchasing?order={orderId}&error={result.Error}")
             : Redirect($"/purchasing?order={orderId}&notice=attachment-deleted");
     }
 
@@ -348,7 +348,7 @@ public class IndexModel(
         {
             ShowForm = true;
             NeedMeasures = true;
-            ErrorMessage = PurchaseErrorMessages.For(result.PurchaseError, PurchaseErrorMessages.CreateFailed);
+            ErrorMessage = PurchaseErrorMessages.For(result.Error, PurchaseErrorMessages.CreateFailed);
             KeepDraftLines();
             await LoadAsync(null, null);
             return Page();
@@ -375,7 +375,7 @@ public class IndexModel(
             HttpContext.RequestAborted);
         if (result.IsFailure)
         {
-            return Redirect($"/purchasing?order={orderId}&error={result.PurchaseError}");
+            return Redirect($"/purchasing?order={orderId}&error={result.Error}");
         }
 
         return Redirect($"/purchasing?order={orderId}&notice=received");
@@ -387,7 +387,7 @@ public class IndexModel(
         var result = await changeStatus.HandleAsync(new ChangePurchaseStatusCommand(orderId, Actor, action, note), HttpContext.RequestAborted);
         if (result.IsFailure)
         {
-            return Redirect($"/purchasing?order={orderId}&error={result.PurchaseError}");
+            return Redirect($"/purchasing?order={orderId}&error={result.Error}");
         }
 
         var notice = action switch
@@ -408,7 +408,7 @@ public class IndexModel(
             new AdjustPurchaseCostCommand { Actor = Actor, PurchaseOrderId = orderId, Label = label, Amount = amount, Method = method, Reason = reason },
             HttpContext.RequestAborted);
         return result.IsFailure
-            ? Redirect($"/purchasing?order={orderId}&error={result.PurchaseError}")
+            ? Redirect($"/purchasing?order={orderId}&error={result.Error}")
             : Redirect($"/purchasing?order={orderId}&notice=cost-adjusted");
     }
 
@@ -422,7 +422,7 @@ public class IndexModel(
         var result = await exportOrder.HandleAsync(orderId, Actor, HttpContext.RequestAborted);
         if (result.IsFailure)
         {
-            return Redirect($"/purchasing?error={result.PurchaseError}");
+            return Redirect($"/purchasing?error={result.Error}");
         }
 
         var export = result.Value!;

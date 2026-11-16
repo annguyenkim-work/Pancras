@@ -19,18 +19,18 @@ public sealed class ChangePurchaseStatusCommandHandler(
     Pancras.Application.Notifications.INoticeStore? notices = null,
     Pancras.Application.Employees.IEmployeeRepository? employees = null)
 {
-    public async Task<Result<Guid>> HandleAsync(ChangePurchaseStatusCommand command, CancellationToken cancellationToken)
+    public async Task<Result<Guid, PurchaseError>> HandleAsync(ChangePurchaseStatusCommand command, CancellationToken cancellationToken)
     {
         if (!PurchaseAccess.CanManage(command.Actor))
         {
             logger.LogWarning("Purchase status change forbidden for role {Role}.", command.Actor.Role);
-            return Result<Guid>.Fail(PurchaseError.Forbidden);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.Forbidden);
         }
 
         var order = await orders.FindForUpdateAsync(command.PurchaseOrderId, cancellationToken);
         if (order is null)
         {
-            return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.InvalidOrder);
         }
 
         if (command.Action is PurchaseStatusAction.Cancel or PurchaseStatusAction.ReturnToDraft)
@@ -38,12 +38,12 @@ public sealed class ChangePurchaseStatusCommandHandler(
             var note = command.Note?.Trim() ?? string.Empty;
             if (note.Length == 0)
             {
-                return Result<Guid>.Fail(PurchaseError.ReasonRequired);
+                return Result<Guid, PurchaseError>.Fail(PurchaseError.ReasonRequired);
             }
 
             if (note.Length > PurchaseOrder.ReasonMaxLength)
             {
-                return Result<Guid>.Fail(PurchaseError.ReasonTooLong);
+                return Result<Guid, PurchaseError>.Fail(PurchaseError.ReasonTooLong);
             }
         }
 
@@ -61,7 +61,7 @@ public sealed class ChangePurchaseStatusCommandHandler(
         if (!moved)
         {
             logger.LogWarning("Purchase order {PurchaseOrderId} cannot {Action} from {Status}.", order.Id, command.Action, order.Status);
-            return Result<Guid>.Fail(PurchaseError.InvalidTransition);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.InvalidTransition);
         }
 
         order.StampUpdated(at, by);
@@ -70,12 +70,12 @@ public sealed class ChangePurchaseStatusCommandHandler(
         if (!await orders.CommitAsync(cancellationToken))
         {
             logger.LogWarning("Purchase status commit failed for {PurchaseOrderId}.", order.Id);
-            return Result<Guid>.Fail(PurchaseError.SaveFailed);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.SaveFailed);
         }
 
         logger.LogInformation("Purchase order {PurchaseOrderId} moved to {Status}.", order.Id, order.Status);
         await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.PurchaseStatusChanged, "purchase_order", order.Id.ToString("D"), command.Action.ToString(), cancellationToken);
-        return Result<Guid>.Ok(order.Id);
+        return Result<Guid, PurchaseError>.Ok(order.Id);
     }
 }
 
@@ -93,42 +93,42 @@ public sealed class AdjustPurchaseCostCommandHandler(
     IAuditLog? audit = null,
     IRequestInfo? request = null)
 {
-    public async Task<Result<Guid>> HandleAsync(AdjustPurchaseCostCommand command, CancellationToken cancellationToken)
+    public async Task<Result<Guid, PurchaseError>> HandleAsync(AdjustPurchaseCostCommand command, CancellationToken cancellationToken)
     {
         if (!PurchaseAccess.CanManage(command.Actor))
         {
             logger.LogWarning("Purchase cost adjustment forbidden for role {Role}.", command.Actor.Role);
-            return Result<Guid>.Fail(PurchaseError.Forbidden);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.Forbidden);
         }
 
         var order = await orders.FindForUpdateAsync(command.PurchaseOrderId, cancellationToken);
         if (order is null)
         {
-            return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.InvalidOrder);
         }
 
         var amount = PurchaseMoney.RoundDong(command.Amount);
         if (decimal.Abs(amount) > PurchaseMoney.MaxDong)
         {
-            return Result<Guid>.Fail(PurchaseError.AmountTooLarge);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.AmountTooLarge);
         }
 
         var received = order.Lines.Where(line => line.ReceivedQuantity > 0).ToArray();
         if (order.Status != PurchaseStatus.Received || amount == 0 || received.Length == 0)
         {
-            return Result<Guid>.Fail(PurchaseError.AdjustmentInvalid);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.AdjustmentInvalid);
         }
 
         var basis = await ChargeBasis.ComputeAsync(order, command.Method, null, measures, cancellationToken);
         if (basis is null || command.Method == ChargeSplitMethod.Manual)
         {
-            return Result<Guid>.Fail(command.Method == ChargeSplitMethod.Manual ? PurchaseError.AdjustmentInvalid : PurchaseError.MissingMeasure);
+            return Result<Guid, PurchaseError>.Fail(command.Method == ChargeSplitMethod.Manual ? PurchaseError.AdjustmentInvalid : PurchaseError.MissingMeasure);
         }
 
         // Chia trị tuyệt đối rồi trả lại dấu: cách chia (cắt phần lẻ, dư về dòng cuối) chỉ định nghĩa cho số không âm.
         if (!ChargeAllocation.TrySplit(Math.Abs(amount), received.Select(line => basis[line.Id]).ToArray(), out var shares))
         {
-            return Result<Guid>.Fail(PurchaseError.MissingMeasure);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.MissingMeasure);
         }
 
         var sign = Math.Sign(amount);
@@ -146,7 +146,7 @@ public sealed class AdjustPurchaseCostCommandHandler(
                 if (item is null)
                 {
                     Restore(items, previousCosts);
-                    return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+                    return Result<Guid, PurchaseError>.Fail(PurchaseError.InvalidOrder);
                 }
 
                 items[line.CatalogItemId] = item;
@@ -171,7 +171,7 @@ public sealed class AdjustPurchaseCostCommandHandler(
         if (adjustment is null)
         {
             Restore(items, previousCosts);
-            return Result<Guid>.Fail(PurchaseError.AdjustmentInvalid);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.AdjustmentInvalid);
         }
 
         order.AdvanceVersion();
@@ -179,12 +179,12 @@ public sealed class AdjustPurchaseCostCommandHandler(
         {
             Restore(items, previousCosts);
             logger.LogWarning("Purchase cost adjustment commit failed for {PurchaseOrderId}.", order.Id);
-            return Result<Guid>.Fail(PurchaseError.SaveFailed);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.SaveFailed);
         }
 
         logger.LogInformation("Adjusted cost of purchase order {PurchaseOrderId}.", order.Id);
         await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.PurchaseCostAdjusted, "purchase_order", order.Id.ToString("D"), adjustment.Label, cancellationToken);
-        return Result<Guid>.Ok(adjustment.Id);
+        return Result<Guid, PurchaseError>.Ok(adjustment.Id);
     }
 
     private static void Restore(Dictionary<Guid, CatalogItem> items, Dictionary<Guid, decimal> previousCosts)

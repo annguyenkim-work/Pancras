@@ -18,23 +18,23 @@ public sealed class ExportPurchaseOrderHandler(
     IAuditLog? audit = null,
     IRequestInfo? request = null)
 {
-    public async Task<Result<PurchaseExport>> HandleAsync(Guid purchaseOrderId, EmployeeActor actor, CancellationToken cancellationToken)
+    public async Task<Result<PurchaseExport, PurchaseError>> HandleAsync(Guid purchaseOrderId, EmployeeActor actor, CancellationToken cancellationToken)
     {
         if (!PurchaseAccess.CanManage(actor) && !PurchaseAccess.IsWarehouseStaff(actor))
         {
             logger.LogWarning("Purchase export forbidden for role {Role}.", actor.Role);
-            return Result<PurchaseExport>.Fail(PurchaseError.Forbidden);
+            return Result<PurchaseExport, PurchaseError>.Fail(PurchaseError.Forbidden);
         }
 
         var detail = await getOrder.HandleAsync(purchaseOrderId, actor, cancellationToken);
         if (detail is null)
         {
-            return Result<PurchaseExport>.Fail(PurchaseError.InvalidOrder);
+            return Result<PurchaseExport, PurchaseError>.Fail(PurchaseError.InvalidOrder);
         }
 
         var includeCost = detail.CostVisible;
         await audit.RecordAsync(clock ?? TimeProvider.System, request, actor.Id, null, AuditActions.PurchaseExported, "purchase_order", detail.Id.ToString("D"), includeCost ? "có giá vốn" : "không có giá vốn", cancellationToken);
         logger.LogInformation("Exported purchase order {PurchaseOrderId}.", detail.Id);
-        return Result<PurchaseExport>.Ok(new PurchaseExport(detail, includeCost));
+        return Result<PurchaseExport, PurchaseError>.Ok(new PurchaseExport(detail, includeCost));
     }
 }

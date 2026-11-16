@@ -21,12 +21,12 @@ public sealed class UpdatePurchaseOrderCommandHandler(
     IAuditLog? audit = null,
     IRequestInfo? request = null)
 {
-    public async Task<Result<Guid>> HandleAsync(UpdatePurchaseOrderCommand command, CancellationToken cancellationToken)
+    public async Task<Result<Guid, PurchaseError>> HandleAsync(UpdatePurchaseOrderCommand command, CancellationToken cancellationToken)
     {
         if (!PurchaseAccess.CanManage(command.Actor))
         {
             logger.LogWarning("Purchase order update forbidden for role {Role}.", command.Actor.Role);
-            return Result<Guid>.Fail(PurchaseError.Forbidden);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.Forbidden);
         }
 
         // Dòng trống hoàn toàn (chưa chọn mặt hàng, số lượng 0) bị bỏ qua. Dòng đã chọn mặt hàng mà số lượng <= 0 là lỗi:
@@ -34,18 +34,18 @@ public sealed class UpdatePurchaseOrderCommandHandler(
         var submitted = command.Lines ?? [];
         if (submitted.Any(line => line.Quantity <= 0 && line.CatalogItemId != Guid.Empty))
         {
-            return Result<Guid>.Fail(PurchaseError.InvalidQuantity);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.InvalidQuantity);
         }
 
         var lines = submitted.Where(line => line.Quantity > 0).ToArray();
         if (command.ExchangeRate < 0 || command.VatRate < 0 || lines.Any(HasNegativeMoney))
         {
-            return Result<Guid>.Fail(PurchaseError.NegativeMoney);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.NegativeMoney);
         }
 
         if (lines.Any(line => line.FobUsd <= 0))
         {
-            return Result<Guid>.Fail(PurchaseError.ZeroPrice);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.ZeroPrice);
         }
 
         if (!PurchaseMoney.FitsLimits(
@@ -54,47 +54,47 @@ public sealed class UpdatePurchaseOrderCommandHandler(
                 lines.Select(line => (line.FobUsd, line.DutyRate, line.SupplementalDuty, line.SpecialConsumptionTax, line.EnvironmentTax)),
                 (command.Charges ?? []).Select(charge => charge.Amount)))
         {
-            return Result<Guid>.Fail(PurchaseError.AmountTooLarge);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.AmountTooLarge);
         }
 
         var order = await orders.FindForUpdateAsync(command.PurchaseOrderId, cancellationToken);
         if (order is null)
         {
             logger.LogWarning("Purchase order update rejected for {PurchaseOrderId}.", command.PurchaseOrderId);
-            return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.InvalidOrder);
         }
 
         if (!order.IsEditable)
         {
             logger.LogWarning("Purchase order {PurchaseOrderId} is already received and cannot be edited.", order.Id);
-            return Result<Guid>.Fail(order.Status == PurchaseStatus.Received ? PurchaseError.AlreadyReceived : PurchaseError.NotEditable);
+            return Result<Guid, PurchaseError>.Fail(order.Status == PurchaseStatus.Received ? PurchaseError.AlreadyReceived : PurchaseError.NotEditable);
         }
 
         if (command.Version != order.Version)
         {
             logger.LogInformation("Rejected a stale purchase edit for {PurchaseOrderId}.", order.Id);
-            return Result<Guid>.Fail(PurchaseError.VersionConflict);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.VersionConflict);
         }
 
         var supplier = await suppliers.GetActiveReadOnlyAsync(command.SupplierId, cancellationToken);
         var locations = await inventory.ListLocationsAsync(cancellationToken);
         if (supplier is null || locations.All(location => location.Id != command.ReceiveLocationId) || lines.Length == 0)
         {
-            return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.InvalidOrder);
         }
 
         foreach (var line in lines)
         {
             if (await catalog.GetByIdReadOnlyAsync(line.CatalogItemId, cancellationToken) is null)
             {
-                return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+                return Result<Guid, PurchaseError>.Fail(PurchaseError.InvalidOrder);
             }
         }
 
         var normalized = (command.Code ?? string.Empty).Trim().ToUpperInvariant();
         if (normalized != order.NormalizedCode && await orders.NormalizedCodeExistsAsync(normalized, cancellationToken))
         {
-            return Result<Guid>.Fail(PurchaseError.DuplicateCode);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.DuplicateCode);
         }
 
         // Xác định trước khoản nào bị xóa: khoản đã có mà không còn trong danh sách gửi lên, hoặc (khoản không phải chia tay)
@@ -105,13 +105,13 @@ public sealed class UpdatePurchaseOrderCommandHandler(
         {
             if (submittedCharges.Any(charge => charge.Amount < 0))
             {
-                return Result<Guid>.Fail(PurchaseError.NegativeMoney);
+                return Result<Guid, PurchaseError>.Fail(PurchaseError.NegativeMoney);
             }
 
             if (submittedCharges.Any(charge => !Enum.IsDefined(charge.Group) || !Enum.IsDefined(charge.Method)
                 || (charge.ChargeId is null && charge.Method == ChargeSplitMethod.Manual)))
             {
-                return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+                return Result<Guid, PurchaseError>.Fail(PurchaseError.InvalidOrder);
             }
 
             var sentIds = submittedCharges.Where(charge => charge.ChargeId is not null).Select(charge => charge.ChargeId!.Value).ToHashSet();
@@ -131,7 +131,7 @@ public sealed class UpdatePurchaseOrderCommandHandler(
             || order.Lines.Any(item => !keptIds.Contains(item.Id));
         if (setChanges && order.Charges.Any(charge => charge.Method == ChargeSplitMethod.Manual && !chargeIdsToDrop.Contains(charge.Id)))
         {
-            return Result<Guid>.Fail(PurchaseError.ManualChargeLocked);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.ManualChargeLocked);
         }
 
         var rateBefore = order.ExchangeRate;
@@ -153,7 +153,7 @@ public sealed class UpdatePurchaseOrderCommandHandler(
                 lines.Select(line => (line.LineId, line.CatalogItemId, line.Quantity, line.FobUsd, line.DutyRate, line.SupplementalDuty, line.SpecialConsumptionTax, line.EnvironmentTax)).ToArray(),
                 out _))
         {
-            return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.InvalidOrder);
         }
 
         // Giữ nguyên tên nhà cung cấp đã chụp lúc lập đơn; chỉ chụp lại khi đổi sang nhà cung cấp khác (hoặc đơn cũ chưa có bản chụp).
@@ -178,12 +178,12 @@ public sealed class UpdatePurchaseOrderCommandHandler(
                         || (existing.Method != ChargeSplitMethod.Manual && !order.TryUpdateCharge(existingId, charge.Amount, charge.Method, charge.Label))
                         || !order.TryAssignGroup(existingId, charge.Group, retainCurrent: false))
                     {
-                        return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+                        return Result<Guid, PurchaseError>.Fail(PurchaseError.InvalidOrder);
                     }
                 }
                 else if (!await ChargeBasis.TryAddSplitAsync(order, charge.Amount, charge.Label, charge.Group, charge.Method, measures, cancellationToken))
                 {
-                    return Result<Guid>.Fail(PurchaseError.MissingMeasure);
+                    return Result<Guid, PurchaseError>.Fail(PurchaseError.MissingMeasure);
                 }
             }
         }
@@ -194,12 +194,12 @@ public sealed class UpdatePurchaseOrderCommandHandler(
             var basis = await ChargeBasis.ComputeAsync(order, charge.Method, null, measures, cancellationToken);
             if (basis is null)
             {
-                return Result<Guid>.Fail(PurchaseError.MissingMeasure);
+                return Result<Guid, PurchaseError>.Fail(PurchaseError.MissingMeasure);
             }
 
             if (!order.TryAllocate(charge.Id, basis, false))
             {
-                return Result<Guid>.Fail(PurchaseError.MissingMeasure);
+                return Result<Guid, PurchaseError>.Fail(PurchaseError.MissingMeasure);
             }
         }
 
@@ -208,12 +208,12 @@ public sealed class UpdatePurchaseOrderCommandHandler(
         if (!await orders.CommitAsync(cancellationToken))
         {
             logger.LogWarning("Purchase order update commit failed for {PurchaseOrderId}.", order.Id);
-            return Result<Guid>.Fail(PurchaseError.SaveFailed);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.SaveFailed);
         }
 
         logger.LogInformation("Updated purchase order {PurchaseOrderId}.", order.Id);
         await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, AuditActions.PurchaseUpdated, "purchase_order", order.Id.ToString("D"), rateBefore == order.ExchangeRate ? null : $"exchange_rate {rateBefore:0} -> {order.ExchangeRate:0}", cancellationToken);
-        return Result<Guid>.Ok(order.Id);
+        return Result<Guid, PurchaseError>.Ok(order.Id);
     }
 
     private static bool HasNegativeMoney(CreatePurchaseLineInput line) =>
