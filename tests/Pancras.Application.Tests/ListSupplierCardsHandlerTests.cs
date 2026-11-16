@@ -140,7 +140,7 @@ public class ListSupplierCardsHandlerTests
         var keeper = await handler.HandleAsync(supplier.Id, SupplierActors.Keeper, CancellationToken.None);
         var admin = await handler.HandleAsync(supplier.Id, SupplierActors.Admin, CancellationToken.None);
 
-        Assert.Equal(Pancras.Application.Common.SupplierError.Forbidden, keeper.SupplierError);
+        Assert.Equal(Pancras.Application.Common.SupplierError.Forbidden, keeper.Error);
         Assert.Equal("123456", admin.Value!.Account);
         Assert.Equal("Bank of China", admin.Value.BankName);
         Assert.Equal("BKCHCNBJ", admin.Value.SwiftCode);

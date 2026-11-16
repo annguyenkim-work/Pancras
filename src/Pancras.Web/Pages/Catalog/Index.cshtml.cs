@@ -168,7 +168,7 @@ public class IndexModel(
         if (result.IsFailure)
         {
             images.Delete(command.ImagePath);
-            RememberFailure("Không thêm được mặt hàng", result.CatalogError, result.CatalogIssues, Form.Code);
+            RememberFailure("Không thêm được mặt hàng", result.Error, result.IssuesOf<CatalogIssue>(), Form.Code);
             ShowForm = true;
             ItemPage = await listHandler.HandleAsync(CurrentFilter(), CatalogPageRequest.From(PageNumber, RequestedSize), cancellationToken);
             return Page();
@@ -226,7 +226,7 @@ public class IndexModel(
         {
             images.Delete(command.ImagePath);
             CurrentImagePath = previousImage;
-            RememberFailure("Không lưu được sản phẩm", result.CatalogError, result.CatalogIssues, Prices.Code);
+            RememberFailure("Không lưu được sản phẩm", result.Error, result.IssuesOf<CatalogIssue>(), Prices.Code);
             await RefreshCostLockAsync(Prices.Id, cancellationToken);
             ShowPriceForm = true;
             ItemPage = await listHandler.HandleAsync(CurrentFilter(), CatalogPageRequest.From(PageNumber, RequestedSize), cancellationToken);
@@ -247,7 +247,7 @@ public class IndexModel(
         var result = await itemHandler.HandleAsync(id, cancellationToken);
         if (result.IsFailure)
         {
-            RememberFailure("Không mở được mặt hàng", result.CatalogError, result.CatalogIssues, null);
+            RememberFailure("Không mở được mặt hàng", result.Error, result.IssuesOf<CatalogIssue>(), null);
             return Page();
         }
 
@@ -261,7 +261,7 @@ public class IndexModel(
         var result = await itemHandler.HandleAsync(id, cancellationToken);
         if (result.IsFailure)
         {
-            RememberFailure("Không mở được bảng giá", result.CatalogError, result.CatalogIssues, null);
+            RememberFailure("Không mở được bảng giá", result.Error, result.IssuesOf<CatalogIssue>(), null);
             return Page();
         }
 

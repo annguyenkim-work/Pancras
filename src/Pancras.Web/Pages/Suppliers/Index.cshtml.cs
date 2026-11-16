@@ -134,7 +134,7 @@ public class IndexModel(
             var existing = await profileHandler.HandleAsync(stopId, Actor, cancellationToken);
             if (existing.IsFailure)
             {
-                RememberFailure("Không mở được nhà cung cấp", existing.SupplierError, existing.SupplierIssues, null);
+                RememberFailure("Không mở được nhà cung cấp", existing.Error, existing.IssuesOf<SupplierIssue>(), null);
                 return Page();
             }
 
@@ -158,7 +158,7 @@ public class IndexModel(
         var profile = await profileHandler.HandleAsync(id, Actor, cancellationToken);
         if (profile.IsFailure)
         {
-            RememberFailure("Không mở được nhà cung cấp", profile.SupplierError, profile.SupplierIssues, null);
+            RememberFailure("Không mở được nhà cung cấp", profile.Error, profile.IssuesOf<SupplierIssue>(), null);
             return Page();
         }
 
@@ -196,7 +196,7 @@ public class IndexModel(
         var result = await deactivateHandler.HandleAsync(StopId, Actor, cancellationToken);
         if (result.IsFailure)
         {
-            RememberFailure("Không Disable được", result.SupplierError, result.SupplierIssues, null);
+            RememberFailure("Không Disable được", result.Error, result.IssuesOf<SupplierIssue>(), null);
             await LoadAsync(SupplierPageRequest.From(PageNumber, RequestedSize), cancellationToken);
             return Page();
         }
@@ -211,7 +211,7 @@ public class IndexModel(
         var result = await reactivateHandler.HandleAsync(id, Actor, cancellationToken);
         if (result.IsFailure)
         {
-            RememberFailure("Không khôi phục được nhà cung cấp", result.SupplierError, result.SupplierIssues, null);
+            RememberFailure("Không khôi phục được nhà cung cấp", result.Error, result.IssuesOf<SupplierIssue>(), null);
             await LoadAsync(SupplierPageRequest.From(PageNumber, RequestedSize), cancellationToken);
             return Page();
         }
@@ -244,7 +244,7 @@ public class IndexModel(
             cancellationToken);
         if (result.IsFailure)
         {
-            RememberFailure("Không thêm được nhà cung cấp", result.SupplierError, result.SupplierIssues, Form.Code);
+            RememberFailure("Không thêm được nhà cung cấp", result.Error, result.IssuesOf<SupplierIssue>(), Form.Code);
             ShowForm = true;
             await LoadAsync(SupplierPageRequest.From(PageNumber, RequestedSize), cancellationToken);
             return Page();
@@ -269,7 +269,7 @@ public class IndexModel(
         var result = await updateHandler.HandleAsync(Form, cancellationToken);
         if (result.IsFailure)
         {
-            RememberFailure("Không sửa được nhà cung cấp", result.SupplierError, result.SupplierIssues, Form.Code);
+            RememberFailure("Không sửa được nhà cung cấp", result.Error, result.IssuesOf<SupplierIssue>(), Form.Code);
             ShowForm = true;
             await LoadAsync(SupplierPageRequest.From(PageNumber, RequestedSize), cancellationToken);
             return Page();

@@ -37,7 +37,7 @@ public class ResolveSalePriceHandlerTests
         var result = await handler.HandleAsync(new ResolveSalePriceCommand(item.Id, customer, false, null), CancellationToken.None);
 
         Assert.True(result.IsFailure);
-        Assert.Equal(CatalogError.UndecidedSalePrice, result.CatalogError);
+        Assert.Equal(CatalogError.UndecidedSalePrice, result.Error);
         Assert.Equal(0m, result.Value);
     }
 }

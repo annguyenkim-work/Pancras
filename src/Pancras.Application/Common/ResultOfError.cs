@@ -29,6 +29,8 @@ public sealed class Result<T, TError>
 
     public IReadOnlyList<object> Issues { get; }
 
+    public IReadOnlyList<TIssue> IssuesOf<TIssue>() => Issues.OfType<TIssue>().ToArray();
+
     public static Result<T, TError> Ok(T value) => new(true, value, default, null, null);
 
     public static Result<T, TError> Fail(TError error) => new(false, default, error, null, null);

@@ -15,19 +15,19 @@ public sealed class DeactivateSupplierCommandHandler(
     IRequestInfo? request = null,
     IAuditLog? audit = null)
 {
-    public async Task<Result<Guid>> HandleAsync(Guid id, EmployeeActor actor, CancellationToken cancellationToken)
+    public async Task<Result<Guid, SupplierError>> HandleAsync(Guid id, EmployeeActor actor, CancellationToken cancellationToken)
     {
         if (!SupplierAccess.CanManage(actor.Role))
         {
             logger.LogWarning("Supplier deactivation forbidden for role {Role}.", actor.Role);
-            return Result<Guid>.Fail(SupplierError.Forbidden);
+            return Result<Guid, SupplierError>.Fail(SupplierError.Forbidden);
         }
 
         var supplier = await repository.GetActiveForUpdateAsync(id, cancellationToken);
         if (supplier is null)
         {
             logger.LogInformation("Supplier profile was not found.");
-            return Result<Guid>.Fail(SupplierError.NotFound);
+            return Result<Guid, SupplierError>.Fail(SupplierError.NotFound);
         }
 
         // Còn đơn mua chưa nhập kho thì chưa được ngừng hợp tác, vì đơn đó vẫn cần nhà cung cấp.
@@ -37,7 +37,7 @@ public sealed class DeactivateSupplierCommandHandler(
             if (stats.TryGetValue(supplier.Id, out var row) && row.LotsNotReceived > 0)
             {
                 logger.LogWarning("Supplier {SupplierId} still has {OpenOrders} open purchase orders.", supplier.Id, row.LotsNotReceived);
-                return Result<Guid>.Fail(SupplierError.HasOpenPurchases);
+                return Result<Guid, SupplierError>.Fail(SupplierError.HasOpenPurchases);
             }
         }
 
@@ -45,12 +45,12 @@ public sealed class DeactivateSupplierCommandHandler(
         if (!await repository.TrySaveAsync(cancellationToken))
         {
             logger.LogWarning("Could not save a supplier deactivation for {SupplierId}.", supplier.Id);
-            return Result<Guid>.Fail(SupplierError.NotFound);
+            return Result<Guid, SupplierError>.Fail(SupplierError.NotFound);
         }
 
         logger.LogInformation("Deactivated supplier {SupplierId}.", supplier.Id);
         await audit.RecordAsync(clock ?? TimeProvider.System, request, actor.Id, null, AuditActions.SupplierDeactivated, "supplier", supplier.Id.ToString("D"), supplier.Code, cancellationToken);
-        return Result<Guid>.Ok(supplier.Id);
+        return Result<Guid, SupplierError>.Ok(supplier.Id);
     }
 }
 
@@ -62,24 +62,24 @@ public sealed class ReactivateSupplierCommandHandler(
     IRequestInfo? request = null,
     IAuditLog? audit = null)
 {
-    public async Task<Result<Guid>> HandleAsync(Guid id, EmployeeActor actor, CancellationToken cancellationToken)
+    public async Task<Result<Guid, SupplierError>> HandleAsync(Guid id, EmployeeActor actor, CancellationToken cancellationToken)
     {
         if (!SupplierAccess.CanReactivate(actor.Role))
         {
             logger.LogWarning("Supplier reactivation forbidden for role {Role}.", actor.Role);
-            return Result<Guid>.Fail(SupplierError.Forbidden);
+            return Result<Guid, SupplierError>.Fail(SupplierError.Forbidden);
         }
 
         var supplier = await repository.GetAnyForUpdateAsync(id, cancellationToken);
         if (supplier is null)
         {
             logger.LogInformation("Supplier profile was not found.");
-            return Result<Guid>.Fail(SupplierError.NotFound);
+            return Result<Guid, SupplierError>.Fail(SupplierError.NotFound);
         }
 
         if (supplier.IsActive)
         {
-            return Result<Guid>.Ok(supplier.Id);
+            return Result<Guid, SupplierError>.Ok(supplier.Id);
         }
 
         // Trong lúc ngừng hợp tác, mã có thể đã được nhà cung cấp khác dùng.
@@ -97,9 +97,9 @@ public sealed class ReactivateSupplierCommandHandler(
 
         logger.LogInformation("Reactivated supplier {SupplierId}.", supplier.Id);
         await audit.RecordAsync(clock ?? TimeProvider.System, request, actor.Id, null, AuditActions.SupplierReactivated, "supplier", supplier.Id.ToString("D"), supplier.Code, cancellationToken);
-        return Result<Guid>.Ok(supplier.Id);
+        return Result<Guid, SupplierError>.Ok(supplier.Id);
     }
 
-    private static Result<Guid> CodeUsed() =>
-        Result<Guid>.Fail(SupplierError.DuplicateCode, [new SupplierIssue(SupplierField.Code, SupplierIssueKind.Duplicate)]);
+    private static Result<Guid, SupplierError> CodeUsed() =>
+        Result<Guid, SupplierError>.Fail(SupplierError.DuplicateCode, [new SupplierIssue(SupplierField.Code, SupplierIssueKind.Duplicate)]);
 }

@@ -16,14 +16,14 @@ public sealed class UpdateSupplierCommandHandler(
 {
     private readonly CreateSupplierCommandValidator _validator = new();
 
-    public async Task<Result<SupplierProfile>> HandleAsync(
+    public async Task<Result<SupplierProfile, SupplierError>> HandleAsync(
         UpdateSupplierCommand command,
         CancellationToken cancellationToken)
     {
         if (!SupplierAccess.CanManage(command.Actor.Role))
         {
             logger.LogWarning("Supplier update forbidden for role {Role}.", command.Actor.Role);
-            return Result<SupplierProfile>.Fail(SupplierError.Forbidden);
+            return Result<SupplierProfile, SupplierError>.Fail(SupplierError.Forbidden);
         }
 
         var validation = _validator.Validate(new CreateSupplierCommand
@@ -42,20 +42,20 @@ public sealed class UpdateSupplierCommandHandler(
         {
             var issues = CreateSupplierCommandValidator.IssuesFrom(validation);
             logger.LogInformation("Rejected a supplier update with {IssueCount} problems.", issues.Count);
-            return Result<SupplierProfile>.Fail(CreateSupplierCommandValidator.Primary(issues), issues);
+            return Result<SupplierProfile, SupplierError>.Fail(CreateSupplierCommandValidator.Primary(issues), issues);
         }
 
         var supplier = await repository.GetActiveForUpdateAsync(command.Id, cancellationToken);
         if (supplier is null)
         {
             logger.LogInformation("Supplier profile was not found.");
-            return Result<SupplierProfile>.Fail(SupplierError.NotFound);
+            return Result<SupplierProfile, SupplierError>.Fail(SupplierError.NotFound);
         }
 
         if (command.Version != supplier.Version)
         {
             logger.LogInformation("Rejected a stale supplier edit for {SupplierId}.", supplier.Id);
-            return Result<SupplierProfile>.Fail(SupplierError.VersionConflict);
+            return Result<SupplierProfile, SupplierError>.Fail(SupplierError.VersionConflict);
         }
 
         var code = command.Code!.Trim();
@@ -111,7 +111,7 @@ public sealed class UpdateSupplierCommandHandler(
             supplier.Id.ToString("D"),
             changes.Count == 0 ? "không đổi" : string.Join("; ", changes),
             cancellationToken);
-        return Result<SupplierProfile>.Ok(new SupplierProfile(
+        return Result<SupplierProfile, SupplierError>.Ok(new SupplierProfile(
             supplier.Id,
             supplier.Code,
             supplier.Name,
@@ -125,8 +125,8 @@ public sealed class UpdateSupplierCommandHandler(
             Version: supplier.Version));
     }
 
-    private static Result<SupplierProfile> DuplicateCode(SupplierIssueKind kind) =>
-        Result<SupplierProfile>.Fail(SupplierError.DuplicateCode, [new SupplierIssue(SupplierField.Code, kind)]);
+    private static Result<SupplierProfile, SupplierError> DuplicateCode(SupplierIssueKind kind) =>
+        Result<SupplierProfile, SupplierError>.Fail(SupplierError.DuplicateCode, [new SupplierIssue(SupplierField.Code, kind)]);
 
     /// <summary>Ghi trường nào đổi từ gì sang gì. Số tài khoản chỉ ghi dạng che để nhật ký không lộ số đầy đủ.</summary>
     private static void Track(List<string> changes, string label, string before, string after, bool mask)

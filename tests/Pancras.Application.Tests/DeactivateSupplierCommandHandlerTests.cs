@@ -37,8 +37,8 @@ public class DeactivateSupplierCommandHandlerTests
         var keeper = await Deactivate().HandleAsync(supplier.Id, SupplierActors.Keeper, CancellationToken.None);
         var sales = await Deactivate().HandleAsync(supplier.Id, SupplierActors.Sales, CancellationToken.None);
 
-        Assert.Equal(SupplierError.Forbidden, keeper.SupplierError);
-        Assert.Equal(SupplierError.Forbidden, sales.SupplierError);
+        Assert.Equal(SupplierError.Forbidden, keeper.Error);
+        Assert.Equal(SupplierError.Forbidden, sales.Error);
         Assert.True(supplier.IsActive);
     }
 
@@ -71,8 +71,8 @@ public class DeactivateSupplierCommandHandlerTests
                 ContactName = "Nguyễn An"
             }, CancellationToken.None);
 
-        Assert.Equal(SupplierError.DuplicateCode, result.SupplierError);
-        Assert.Contains(result.SupplierIssues, issue => issue.Field == SupplierField.Code && issue.Kind == SupplierIssueKind.DuplicateInactive);
+        Assert.Equal(SupplierError.DuplicateCode, result.Error);
+        Assert.Contains(result.IssuesOf<SupplierIssue>(), issue => issue.Field == SupplierField.Code && issue.Kind == SupplierIssueKind.DuplicateInactive);
         Assert.Single(_repository.Suppliers);
     }
 
@@ -85,7 +85,7 @@ public class DeactivateSupplierCommandHandlerTests
 
         var result = await Deactivate(stats).HandleAsync(supplier.Id, SupplierActors.Admin, CancellationToken.None);
 
-        Assert.Equal(SupplierError.HasOpenPurchases, result.SupplierError);
+        Assert.Equal(SupplierError.HasOpenPurchases, result.Error);
         Assert.True(supplier.IsActive);
     }
 
@@ -117,7 +117,7 @@ public class DeactivateSupplierCommandHandlerTests
     {
         var result = await Deactivate().HandleAsync(Guid.CreateVersion7(), SupplierActors.Admin, CancellationToken.None);
 
-        Assert.Equal(SupplierError.NotFound, result.SupplierError);
+        Assert.Equal(SupplierError.NotFound, result.Error);
     }
 
     [Fact]
@@ -128,8 +128,8 @@ public class DeactivateSupplierCommandHandlerTests
 
         var accountant = await Reactivate().HandleAsync(supplier.Id, SupplierActors.Accountant, CancellationToken.None);
         var director = await Reactivate().HandleAsync(supplier.Id, SupplierActors.Director, CancellationToken.None);
-        Assert.Equal(SupplierError.Forbidden, accountant.SupplierError);
-        Assert.Equal(SupplierError.Forbidden, director.SupplierError);
+        Assert.Equal(SupplierError.Forbidden, accountant.Error);
+        Assert.Equal(SupplierError.Forbidden, director.Error);
         Assert.False(supplier.IsActive);
 
         var admin = await Reactivate().HandleAsync(supplier.Id, SupplierActors.Admin, CancellationToken.None);
@@ -147,7 +147,7 @@ public class DeactivateSupplierCommandHandlerTests
 
         var result = await Reactivate().HandleAsync(supplier.Id, SupplierActors.Admin, CancellationToken.None);
 
-        Assert.Equal(SupplierError.DuplicateCode, result.SupplierError);
+        Assert.Equal(SupplierError.DuplicateCode, result.Error);
         Assert.False(supplier.IsActive);
     }
 

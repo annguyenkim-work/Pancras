@@ -10,19 +10,19 @@ public sealed class GetSupplierProfileHandler(
     ILogger<GetSupplierProfileHandler> logger,
     ISupplierPurchaseStatsReader? purchaseStats = null)
 {
-    public async Task<Result<SupplierProfile>> HandleAsync(Guid id, EmployeeActor actor, CancellationToken cancellationToken)
+    public async Task<Result<SupplierProfile, SupplierError>> HandleAsync(Guid id, EmployeeActor actor, CancellationToken cancellationToken)
     {
         if (!SupplierAccess.CanManage(actor.Role))
         {
             logger.LogWarning("Supplier profile forbidden for role {Role}.", actor.Role);
-            return Result<SupplierProfile>.Fail(SupplierError.Forbidden);
+            return Result<SupplierProfile, SupplierError>.Fail(SupplierError.Forbidden);
         }
 
         var supplier = await repository.GetAnyReadOnlyAsync(id, cancellationToken);
         if (supplier is null)
         {
             logger.LogInformation("Supplier profile was not found.");
-            return Result<SupplierProfile>.Fail(SupplierError.NotFound);
+            return Result<SupplierProfile, SupplierError>.Fail(SupplierError.NotFound);
         }
 
         var orders = 0;
@@ -37,7 +37,7 @@ public sealed class GetSupplierProfileHandler(
             }
         }
 
-        return Result<SupplierProfile>.Ok(new SupplierProfile(
+        return Result<SupplierProfile, SupplierError>.Ok(new SupplierProfile(
             supplier.Id,
             supplier.Code,
             supplier.Name,

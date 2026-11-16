@@ -52,7 +52,7 @@ public class CreateCatalogItemCommandHandlerTests
 
         var result = await Handler(repository).HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(CatalogError.Negative, result.CatalogError);
+        Assert.Equal(CatalogError.Negative, result.Error);
         Assert.Empty(repository.Items);
     }
 
@@ -65,7 +65,7 @@ public class CreateCatalogItemCommandHandlerTests
 
         var result = await handler.HandleAsync(Command("SP01", "Vòi khác"), CancellationToken.None);
 
-        Assert.Equal(CatalogError.DuplicateCode, result.CatalogError);
+        Assert.Equal(CatalogError.DuplicateCode, result.Error);
         Assert.Single(repository.Items);
     }
 
@@ -75,7 +75,7 @@ public class CreateCatalogItemCommandHandlerTests
         var repository = new FakeCatalogRepository();
         var result = await Handler(repository).HandleAsync(Command("SP02", " "), CancellationToken.None);
 
-        Assert.Equal(CatalogError.Incomplete, result.CatalogError);
+        Assert.Equal(CatalogError.Incomplete, result.Error);
         Assert.Empty(repository.Items);
     }
 
@@ -88,7 +88,7 @@ public class CreateCatalogItemCommandHandlerTests
 
         var result = await Handler(repository).HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(CatalogError.Incomplete, result.CatalogError);
+        Assert.Equal(CatalogError.Incomplete, result.Error);
         Assert.Empty(repository.Items);
     }
 
@@ -101,7 +101,7 @@ public class CreateCatalogItemCommandHandlerTests
 
         var result = await Handler(repository).HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(CatalogError.Negative, result.CatalogError);
+        Assert.Equal(CatalogError.Negative, result.Error);
         Assert.Empty(repository.Items);
     }
 
@@ -114,8 +114,8 @@ public class CreateCatalogItemCommandHandlerTests
 
         var result = await Handler(repository).HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(CatalogError.Incomplete, result.CatalogError);
-        Assert.Contains(result.CatalogIssues, issue => issue.Field == CatalogField.Unit && issue.Kind == CatalogIssueKind.Missing);
+        Assert.Equal(CatalogError.Incomplete, result.Error);
+        Assert.Contains(result.IssuesOf<CatalogIssue>(), issue => issue.Field == CatalogField.Unit && issue.Kind == CatalogIssueKind.Missing);
         Assert.Empty(repository.Items);
     }
 
@@ -128,8 +128,8 @@ public class CreateCatalogItemCommandHandlerTests
 
         var result = await Handler(repository).HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(CatalogError.TooLarge, result.CatalogError);
-        Assert.Contains(result.CatalogIssues, issue => issue.Field == CatalogField.RetailPrice && issue.Kind == CatalogIssueKind.TooLarge);
+        Assert.Equal(CatalogError.TooLarge, result.Error);
+        Assert.Contains(result.IssuesOf<CatalogIssue>(), issue => issue.Field == CatalogField.RetailPrice && issue.Kind == CatalogIssueKind.TooLarge);
         Assert.Empty(repository.Items);
     }
 
