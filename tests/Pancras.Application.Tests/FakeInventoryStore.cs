@@ -203,7 +203,7 @@ internal sealed class FakeInventoryStore : IInventoryRepository
     public Task<NoticePage> ListNoticesPageAsync(Guid recipientEmployeeId, int pageNumber, int pageSize, CancellationToken cancellationToken)
     {
         var mine = Notices.Where(notice => notice.RecipientEmployeeId == recipientEmployeeId)
-            .OrderBy(notice => notice.Seen).ThenByDescending(notice => notice.CreatedAt).ToArray();
+            .OrderByDescending(notice => notice.CreatedAt).ToArray();
         return Task.FromResult(new NoticePage(mine.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToArray(), mine.Length));
     }
 

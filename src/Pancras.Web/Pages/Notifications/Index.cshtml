@@ -19,10 +19,21 @@
         <ul class="mt-5 divide-y divide-slate-100">
             @foreach (var notice in Model.Notices)
             {
-                <li class="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
+                var code = IndexModel.NoticeCode(notice);
+                <li class="flex flex-wrap items-center justify-between gap-2 px-3 py-3 text-sm @(notice.Seen ? "" : "border-l-4 border-sky-500 bg-sky-50")">
                     <div class="min-w-0">
-                        <p class="@(notice.Seen ? "text-slate-500" : "font-semibold text-slate-900")">@(notice.Kind == NotificationKind.Transfer ? StockLabels.DocumentCode("CK", notice.DocumentId) + ": " : "")@notice.Step</p>
-                        <p class="text-xs text-slate-400">@VietnamTime.Format(notice.CreatedAt)@(notice.Seen ? " · đã xem" : "")</p>
+                        <p class="@(notice.Seen ? "text-slate-500" : "font-semibold text-slate-900")">
+                            @if (!notice.Seen)
+                            {
+                                <span class="@Badge.Classes(BadgeTone.Info)">Mới</span>
+                            }
+                            else
+                            {
+                                <span class="@Badge.Classes(BadgeTone.Neutral)">Đã xem</span>
+                            }
+                            @(code is null ? "" : code + ": ")@notice.Step
+                        </p>
+                        <p class="text-xs text-slate-400">@VietnamTime.Format(notice.CreatedAt)</p>
                     </div>
                     <form method="post" asp-page-handler="Open">
                         <input type="hidden" name="noticeId" value="@notice.Id" />

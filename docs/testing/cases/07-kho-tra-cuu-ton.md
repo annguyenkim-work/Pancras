@@ -41,6 +41,10 @@ Thành phần tab Tra cứu tồn kho:
 | NOTI-03 | P1 | Người thao tác | **Không** nhận thông báo về việc chính mình vừa làm | ☐ |
 | NOTI-04 | P1 | Ép request `OpenNotice` với id thông báo của người khác | Không mở, không đánh dấu của người khác | ☐ |
 | NOTI-05 | P2 | Thông báo trỏ tới phiếu đã bị hủy | Mở được phiếu ở trạng thái Đã hủy, không lỗi | ☐ |
+| NOTI-06 | P1 | Mở `/notifications` có cả thông báo mới và đã xem | Sắp theo thời điểm tạo, mới nhất ở trên; thông báo chưa xem có nhãn "Mới", nền xanh nhạt; thông báo đã xem chữ xám, nhãn "Đã xem" | ☐ |
+| NOTI-07 | P1 | Bấm "Mở" một thông báo rồi quay lại `/notifications` | Thông báo đó chuyển sang "Đã xem" **nhưng giữ nguyên vị trí** (không nhảy xuống cuối); số chuông giảm 1 | ☐ |
+| NOTI-08 | P2 | Nhiều thông báo cùng loại (vd. 4 phiếu điều chỉnh chờ duyệt) | Mỗi dòng có mã phiếu riêng (`DC-…`); mã khớp mã trên thẻ phiếu ở tab Kiểm kê và điều chỉnh | ☐ |
+| NOTI-09 | P2 | Thông báo phiếu kiểm kê, điều chỉnh, hủy: bấm "Mở" khi phiếu nằm ở trang 2+ của tab | Nhảy đúng trang chứa phiếu | ☐ |
 
 ---
 

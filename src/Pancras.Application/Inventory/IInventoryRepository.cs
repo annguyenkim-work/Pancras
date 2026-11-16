@@ -67,7 +67,7 @@ public interface IInventoryRepository
 
     Task AddNoticeAsync(Notification notice, CancellationToken cancellationToken);
 
-    /// <summary>Một trang thông báo của người nhận, cắt ở truy vấn: chưa xem trước, rồi mới nhất trước. <c>pageNumber</c> bắt đầu từ 1.</summary>
+    /// <summary>Một trang thông báo của người nhận, cắt ở truy vấn: mới nhất trước (theo thời điểm tạo), không phụ thuộc đã xem hay chưa. <c>pageNumber</c> bắt đầu từ 1.</summary>
     Task<NoticePage> ListNoticesPageAsync(Guid recipientEmployeeId, int pageNumber, int pageSize, CancellationToken cancellationToken);
 
     Task<int> CountUnseenNoticesAsync(Guid recipientEmployeeId, CancellationToken cancellationToken);

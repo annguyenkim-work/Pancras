@@ -49,6 +49,16 @@ public class IndexModel(ListNotificationsHandler handler) : PageModel
         return Redirect(TargetOf(notice));
     }
 
+    /// <summary>Mã phiếu hiện cạnh thông báo, cùng mã với thẻ phiếu ở màn Kho; đơn mua chưa có mã (chỉ có Id chứng từ).</summary>
+    public static string? NoticeCode(Notification notice) => notice.Kind switch
+    {
+        NotificationKind.Transfer => StockDocumentCode.Of(StockDocumentCode.Transfer, notice.DocumentId),
+        NotificationKind.StocktakePending => StockDocumentCode.Of(StockDocumentCode.Stocktake, notice.DocumentId),
+        NotificationKind.AdjustmentPending => StockDocumentCode.Of(StockDocumentCode.Adjustment, notice.DocumentId),
+        NotificationKind.DisposalApproved => StockDocumentCode.Of(StockDocumentCode.Disposal, notice.DocumentId),
+        _ => null
+    };
+
     public static string TargetOf(Notification? notice) => notice switch
     {
         null => "/notifications",

@@ -21,6 +21,11 @@
 4. Chỉ người nhận mới mở được thông báo của mình.
 5. Bước cuối của luồng không báo "cần bước tiếp".
 
+**Trang `/notifications` (đã chốt 2026-11-16):**
+- Sắp theo **thời điểm tạo, mới nhất trước**, không phụ thuộc đã xem hay chưa (thông báo không nhảy vị trí sau khi mở).
+- Thông báo **chưa xem** nổi bật: nền xanh nhạt, viền trái xanh, nhãn "Mới". Thông báo **đã xem**: chữ xám, nhãn "Đã xem".
+- Thông báo của phiếu chuyển kho, kiểm kê, điều chỉnh, hủy hiện kèm **mã phiếu** (`CK-`, `KK-`, `DC-`, `HY-` + 8 ký tự cuối của Id), cùng mã hiện ở thẻ phiếu trong màn Kho để đối chiếu. Thông báo đơn mua chưa kèm mã (chỉ có Id chứng từ).
+
 ### A3. Ai nhận thông báo gì
 
 **Chuyển kho** (đã có trong code):

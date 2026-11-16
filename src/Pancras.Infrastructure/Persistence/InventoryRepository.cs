@@ -286,9 +286,8 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
         var total = await mine.CountAsync(cancellationToken);
         var size = Math.Max(1, pageSize);
         var items = await mine
-            .OrderBy(notice => notice.Seen)
-            .ThenByDescending(notice => notice.CreatedAt)
-            .ThenBy(notice => notice.Id)
+            .OrderByDescending(notice => notice.CreatedAt)
+            .ThenByDescending(notice => notice.Id)
             .Skip((Math.Max(1, pageNumber) - 1) * size)
             .Take(size)
             .ToListAsync(cancellationToken);
