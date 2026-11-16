@@ -41,14 +41,45 @@ public sealed class AuditLog(PancrasDbContext context, ILogger<AuditLog> logger)
     }
 
 
-    public async Task<IReadOnlyList<AuditEntry>> ListAsync(AuditQuery filter, int pageNumber, int pageSize, bool newestFirst, CancellationToken cancellationToken) =>
-        await (newestFirst ? Filter(filter).OrderByDescending(entry => entry.OccurredAt) : Filter(filter).OrderBy(entry => entry.OccurredAt))
-            .Skip((Math.Max(1, pageNumber) - 1) * pageSize)
-            .Take(pageSize)
+    public async Task<IReadOnlyList<AuditEntry>> ListPageAsync(
+        AuditQuery filter,
+        AuditCursor? cursor,
+        bool backward,
+        int limit,
+        bool newestFirst,
+        CancellationToken cancellationToken)
+    {
+        var rows = await ApplyCursor(Filter(filter), cursor, backward, newestFirst)
+            .Take(Math.Max(1, limit))
             .ToListAsync(cancellationToken);
+        if (backward)
+        {
+            rows.Reverse();
+        }
 
-    public Task<int> CountAsync(AuditQuery filter, CancellationToken cancellationToken) =>
-        Filter(filter).CountAsync(cancellationToken);
+        return rows;
+    }
+
+    /// <summary>
+    /// Keyset theo (giờ ghi, mã): cùng một giờ vẫn có thứ tự cố định nên không sót hay lặp dòng.
+    /// Đi lùi thì đảo chiều sắp xếp để lấy các dòng sát dấu trang, rồi người gọi đảo lại.
+    /// </summary>
+    public static IQueryable<AuditEntry> ApplyCursor(IQueryable<AuditEntry> query, AuditCursor? cursor, bool backward, bool newestFirst)
+    {
+        var descending = newestFirst != backward;
+        if (cursor is { } at)
+        {
+            var time = at.At;
+            var id = at.Id;
+            query = descending
+                ? query.Where(entry => entry.OccurredAt < time || (entry.OccurredAt == time && entry.Id.CompareTo(id) < 0))
+                : query.Where(entry => entry.OccurredAt > time || (entry.OccurredAt == time && entry.Id.CompareTo(id) > 0));
+        }
+
+        return descending
+            ? query.OrderByDescending(entry => entry.OccurredAt).ThenByDescending(entry => entry.Id)
+            : query.OrderBy(entry => entry.OccurredAt).ThenBy(entry => entry.Id);
+    }
 
     private IQueryable<AuditEntry> Filter(AuditQuery filter)
     {

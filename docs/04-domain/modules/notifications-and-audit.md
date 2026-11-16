@@ -64,7 +64,7 @@ Theo quy tắc ở [use-cases-and-results.md](../../02-coding-rules/use-cases-an
 
 - **Chỉ Admin và Giám đốc xem** (`/audit`).
 - **Chỉ thêm, không sửa hoặc xóa qua ứng dụng; lưu vô thời hạn.**
-- Danh sách **phân trang chuẩn 20/50**, sắp theo thời gian mới nhất; **lọc theo người, hành động, đối tượng, khoảng ngày**, kèm ô tìm tự do.
+- Danh sách **phân trang keyset 20/50** (chỉ Trước/Sau, không đánh số trang, không đếm tổng; dấu trang là cặp giờ ghi + mã), sắp theo thời gian mới nhất; **lọc theo người, hành động, đối tượng, khoảng ngày**, kèm ô tìm tự do.
 
 ## Nợ lệch so với luật
 

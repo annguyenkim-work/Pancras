@@ -12,17 +12,23 @@ public class IndexModel(ListAuditHandler list) : PageModel
 {
     public IReadOnlyList<AuditEntry> Entries { get; private set; } = [];
 
-    public int Total { get; private set; }
+    private string? _next;
 
-    public int PageNumber { get; private set; } = 1;
+    private string? _previous;
 
     public Pancras.Application.Common.ListSort Sort => Pancras.Web.Formatting.PagerModel.TokenFrom(Request, "sort") is { } token ? Pancras.Application.Common.ListSort.Parse(token, ["time"], "time") : new("time", true);
 
-    public string SortUrl() => PageUrl(1, PageSize, Sort.Toggle("time").Token);
+    public string SortUrl() => PageUrl(null, false, PageSize, Sort.Toggle("time").Token);
 
     public int PageSize { get; private set; } = Pancras.Application.Common.PageSizes.Default;
 
-    public Pancras.Web.Formatting.PagerModel Pager => new(PageNumber, PageSize, Total, (page, size) => PageUrl(page, size));
+    /// <summary>Nhật ký rất lớn nên chuyển trang kiểu keyset: chỉ Trước/Sau, không đánh số trang và không đếm tổng.</summary>
+    public Pancras.Web.Formatting.KeysetPagerModel Pager => new(
+        Entries.Count,
+        PageSize,
+        _previous is null ? null : PageUrl(_previous, true, PageSize),
+        _next is null ? null : PageUrl(_next, false, PageSize),
+        size => PageUrl(null, false, size));
 
     [BindProperty(SupportsGet = true, Name = "q")]
     public string? Search { get; set; }
@@ -44,16 +50,17 @@ public class IndexModel(ListAuditHandler list) : PageModel
 
     private AuditQuery Query => new(Search, Actor, ActionCode, Target, From, To);
 
-    public async Task OnGetAsync(int pageNumber = 1, CancellationToken cancellationToken = default)
+    public async Task OnGetAsync(string? after = null, string? before = null, CancellationToken cancellationToken = default)
     {
-        PageNumber = pageNumber < 1 ? 1 : pageNumber;
         PageSize = Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
-        var result = await list.HandleAsync(Query, PageNumber, PageSize, Sort.Descending, cancellationToken);
+        var backward = string.IsNullOrEmpty(after) && !string.IsNullOrEmpty(before);
+        var result = await list.HandleAsync(Query, backward ? before : after, backward, PageSize, Sort.Descending, cancellationToken);
         Entries = result.Entries;
-        Total = result.Total;
+        _next = result.Next;
+        _previous = result.Previous;
     }
 
-    public string PageUrl(int page, int size, string? sort = null)
+    private string PageUrl(string? cursor, bool backward, int size, string? sort = null)
     {
         var parts = new List<string>();
         var order = sort ?? Sort.Token;
@@ -73,8 +80,12 @@ public class IndexModel(ListAuditHandler list) : PageModel
             parts.Add("size=" + size);
         }
 
-        parts.Add("pageNumber=" + page);
-        return "/audit?" + string.Join('&', parts);
+        if (cursor is not null)
+        {
+            parts.Add((backward ? "before=" : "after=") + cursor);
+        }
+
+        return parts.Count == 0 ? "/audit" : "/audit?" + string.Join('&', parts);
     }
 
     private static void Add(List<string> parts, string name, string? value)

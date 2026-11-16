@@ -34,14 +34,14 @@ public class AuditFilteringTests
         await using var context = new PancrasDbContext(_options);
         var log = Log(context);
 
-        var byActor = await log.ListAsync(new AuditQuery(Actor: "an"), 1, 20, true, default);
-        var byAction = await log.ListAsync(new AuditQuery(Action: AuditActions.PricesChanged), 1, 20, true, default);
-        var byTarget = await log.CountAsync(new AuditQuery(Target: "catalog_item"), default);
-        var onTheSixteenth = await log.ListAsync(new AuditQuery(From: new DateOnly(2026, 11, 16), To: new DateOnly(2026, 11, 16)), 1, 20, false, default);
+        var byActor = await log.ListPageAsync(new AuditQuery(Actor: "an"), null, false, 20, true, default);
+        var byAction = await log.ListPageAsync(new AuditQuery(Action: AuditActions.PricesChanged), null, false, 20, true, default);
+        var byTarget = await log.ListPageAsync(new AuditQuery(Target: "catalog_item"), null, false, 20, true, default);
+        var onTheSixteenth = await log.ListPageAsync(new AuditQuery(From: new DateOnly(2026, 11, 16), To: new DateOnly(2026, 11, 16)), null, false, 20, false, default);
 
         Assert.Equal(2, byActor.Count);
         Assert.Equal(2, byAction.Count);
-        Assert.Equal(2, byTarget);
+        Assert.Equal(2, byTarget.Count);
         Assert.Equal(["an", "binh"], onTheSixteenth.Select(entry => entry.ActorCode));
     }
 
@@ -51,8 +51,8 @@ public class AuditFilteringTests
         await SeedAsync();
         await using var context = new PancrasDbContext(_options);
 
-        var count = await Log(context).CountAsync(new AuditQuery(Search: "catalog", Actor: "an"), default);
+        var found = await Log(context).ListPageAsync(new AuditQuery(Search: "catalog", Actor: "an"), null, false, 20, true, default);
 
-        Assert.Equal(1, count);
+        Assert.Single(found);
     }
 }
