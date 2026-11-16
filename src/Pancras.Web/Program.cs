@@ -155,7 +155,7 @@ builder.Services.AddScoped<ChangeOwnPasswordCommandHandler>();
 builder.Services.AddScoped<ListLocationsHandler>();
 builder.Services.AddScoped<CreateLocationCommandHandler>();
 builder.Services.AddScoped<UpdateLocationCommandHandler>();
-builder.Services.AddScoped<DeleteLocationCommandHandler>();
+builder.Services.AddScoped<DisableLocationCommandHandler>();
 builder.Services.AddScoped<ListSupplierCardsHandler>();
 builder.Services.AddScoped<CreateSupplierCommandHandler>();
 builder.Services.AddScoped<ListSuppliersForPurchaseHandler>();

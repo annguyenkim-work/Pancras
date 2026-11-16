@@ -606,9 +606,11 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<bool>("IsDeleted")
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
-                        .HasColumnName("is_deleted");
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
 
                     b.Property<int>("Kind")
                         .HasColumnType("integer")
@@ -1516,11 +1518,11 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(254)")
                         .HasColumnName("email");
 
-                    b.Property<bool>("IsInactive")
+                    b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_inactive");
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -1569,7 +1571,7 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                     b.HasIndex("NormalizedCode")
                         .IsUnique()
                         .HasDatabaseName("ix_supplier_normalized_code")
-                        .HasFilter("is_inactive = false");
+                        .HasFilter("is_active = true");
 
                     b.ToTable("supplier", (string)null);
                 });

@@ -53,7 +53,6 @@
 | Vấn đề | Hiện trạng |
 | --- | --- |
 | Phân trang | Mới có 9 mục/trang theo spec cũ (nếu còn), chưa có chọn 20/50 và sắp xếp theo cột |
-| Tên cờ trạng thái | `Supplier.IsInactive` (đã đổi từ `is_deleted`), trong khi `Employee.IsActive`; cần thống nhất một kiểu (xem [data-access.md](../../02-coding-rules/data-access.md) mục 5) |
 | `Version` | Form sửa gửi `Version`, handler từ chối bằng `SupplierError.VersionConflict`; hai lần lưu chồng nhau thật sự hiện trang 409 chung |
 | Mã lỗi | `SupplierError`/`SupplierIssue` còn nằm trong `Common/Result.cs` |
 | Menu | Đã bỏ nhãn "Sắp có" cho `/suppliers`; kiểm lại khi menu chuyển thành danh sách dữ liệu |

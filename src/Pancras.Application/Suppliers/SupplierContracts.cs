@@ -109,7 +109,7 @@ public sealed record SupplierCard(
     string AccountMask,
     int PurchaseOrderCount,
     int LotsNotReceived,
-    bool IsInactive = false,
+    bool IsActive = true,
     Pancras.Application.Auditing.AuditStampView? Stamp = null);
 
 public sealed record SupplierPurchaseOption(Guid Id, string Code, string Name);

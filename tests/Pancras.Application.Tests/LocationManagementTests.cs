@@ -20,10 +20,10 @@ public class LocationManagementTests
         public int Saves { get; private set; }
 
         public Task<StockLocation?> GetForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
-            Task.FromResult(Locations.FirstOrDefault(l => l.Id == id && !l.IsDeleted));
+            Task.FromResult(Locations.FirstOrDefault(l => l.Id == id && l.IsActive));
 
         public Task<bool> NameExistsAsync(string name, Guid excludingId, CancellationToken cancellationToken) =>
-            Task.FromResult(Locations.Any(l => !l.IsDeleted && l.Id != excludingId && string.Equals(l.Name, name, StringComparison.OrdinalIgnoreCase)));
+            Task.FromResult(Locations.Any(l => l.IsActive && l.Id != excludingId && string.Equals(l.Name, name, StringComparison.OrdinalIgnoreCase)));
 
         public Task<bool> HasStockAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(Stock);
 
@@ -61,7 +61,7 @@ public class LocationManagementTests
 
         Assert.Equal(LocationManageError.HasOpenDocuments, blocked);
         Assert.Equal(LocationManageError.None, allowed);
-        Assert.True(location.IsDeleted);
+        Assert.False(location.IsActive);
     }
 
     [Theory]
@@ -85,19 +85,19 @@ public class LocationManagementTests
     {
         var (repo, location) = Setup();
         var audit = new MemoryAudit();
-        var handler = new DeleteLocationCommandHandler(repo, NullLogger<DeleteLocationCommandHandler>.Instance, audit: audit);
+        var handler = new DisableLocationCommandHandler(repo, NullLogger<DisableLocationCommandHandler>.Instance, audit: audit);
 
         var result = await handler.HandleAsync(location.Id, new EmployeeActor(Guid.NewGuid(), EmployeeRole.Sales, null), CancellationToken.None);
 
         Assert.Equal(LocationManageError.Forbidden, result);
-        Assert.False(location.IsDeleted);
+        Assert.True(location.IsActive);
         var entry = Assert.Single(audit.Entries);
         Assert.Equal(Pancras.Domain.Auditing.AuditActions.AccessDenied, entry.Action);
     }
 
     private static UpdateLocationCommandHandler Update(FakeManagement repo) => new(repo, NullLogger<UpdateLocationCommandHandler>.Instance);
 
-    private static DeleteLocationCommandHandler Delete(FakeManagement repo) => new(repo, NullLogger<DeleteLocationCommandHandler>.Instance);
+    private static DisableLocationCommandHandler Delete(FakeManagement repo) => new(repo, NullLogger<DisableLocationCommandHandler>.Instance);
 
     [Fact]
     public async Task Update_WithAStaleVersion_IsRejected_AndChangesNothing()
@@ -133,7 +133,7 @@ public class LocationManagementTests
     {
         var (repo, location) = Setup();
         Assert.Equal(LocationManageError.None, await Delete(repo).HandleAsync(location.Id, Admin, CancellationToken.None));
-        Assert.True(location.IsDeleted);
+        Assert.False(location.IsActive);
         Assert.Contains(location, repo.Locations);
     }
 
@@ -146,6 +146,6 @@ public class LocationManagementTests
         repo.Stock = false;
         repo.ActiveEmployees = true;
         Assert.Equal(LocationManageError.HasActiveEmployees, await Delete(repo).HandleAsync(location.Id, Admin, CancellationToken.None));
-        Assert.False(location.IsDeleted);
+        Assert.True(location.IsActive);
     }
 }

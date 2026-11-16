@@ -21,9 +21,9 @@ public sealed class SupplierConfiguration : IEntityTypeConfiguration<Supplier>
         builder.Property(supplier => supplier.BankName).HasMaxLength(Supplier.BankNameMaxLength).IsRequired().HasDefaultValue(string.Empty);
         builder.Property(supplier => supplier.Account).HasMaxLength(Supplier.AccountMaxLength).IsRequired();
         builder.Property(supplier => supplier.SwiftCode).HasMaxLength(Supplier.SwiftMaxLength).IsRequired().HasDefaultValue(string.Empty);
-        builder.Property(supplier => supplier.IsInactive).IsRequired().HasDefaultValue(false);
+        builder.Property(supplier => supplier.IsActive).IsRequired().HasDefaultValue(true);
         builder.HasIndex(supplier => supplier.NormalizedCode)
             .IsUnique()
-            .HasFilter("is_inactive = false");
+            .HasFilter("is_active = true");
     }
 }

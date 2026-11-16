@@ -21,7 +21,8 @@ public sealed class StockLocation : Pancras.Domain.Auditing.VersionedAuditStampe
 
     public StockLocationKind Kind { get; private set; }
 
-    public bool IsDeleted { get; private set; }
+    /// <summary>Đang hoạt động. False là Disable: ẩn khỏi danh sách, giữ nguyên lịch sử.</summary>
+    public bool IsActive { get; private set; } = true;
 
     public void Update(string name, StockLocationKind kind)
     {
@@ -40,7 +41,7 @@ public sealed class StockLocation : Pancras.Domain.Auditing.VersionedAuditStampe
         Kind = kind;
     }
 
-    public void MarkDeleted() => IsDeleted = true;
+    public void Deactivate() => IsActive = false;
 
     public static StockLocation Create(string name, StockLocationKind kind)
     {

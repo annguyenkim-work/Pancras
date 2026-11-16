@@ -77,7 +77,7 @@ public sealed class ReactivateSupplierCommandHandler(
             return Result<Guid>.Fail(SupplierError.NotFound);
         }
 
-        if (!supplier.IsInactive)
+        if (supplier.IsActive)
         {
             return Result<Guid>.Ok(supplier.Id);
         }

@@ -28,7 +28,7 @@ public class ListSupplierCardsHandlerTests
         Assert.Equal("a@b.co", card.Email);
         Assert.Equal(2, card.PurchaseOrderCount);
         Assert.Equal(1, card.LotsNotReceived);
-        Assert.False(card.IsInactive);
+        Assert.True(card.IsActive);
     }
 
     [Fact]

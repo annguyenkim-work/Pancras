@@ -14,7 +14,7 @@ public class IndexModel(
     ListLocationsHandler list,
     CreateLocationCommandHandler create,
     UpdateLocationCommandHandler update,
-    DeleteLocationCommandHandler delete) : PageModel
+    DisableLocationCommandHandler disable) : PageModel
 {
     public IReadOnlyList<StockLocation> Locations { get; private set; } = [];
 
@@ -87,12 +87,12 @@ public class IndexModel(
         return RedirectToPage();
     }
 
-    public async Task<IActionResult> OnPostDeleteAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> OnPostDisableAsync(Guid id, CancellationToken cancellationToken)
     {
-        var error = await delete.HandleAsync(id, User.ToActor(), cancellationToken);
+        var error = await disable.HandleAsync(id, User.ToActor(), cancellationToken);
         if (error == LocationManageError.None)
         {
-            TempData.Toast("Đã xóa kho/showroom.");
+            TempData.Toast("Đã Disable kho/showroom.");
         }
         else
         {

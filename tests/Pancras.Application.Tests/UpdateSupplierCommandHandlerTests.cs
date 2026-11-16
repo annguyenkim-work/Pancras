@@ -76,7 +76,7 @@ public class UpdateSupplierCommandHandlerTests
         var result = await Handler().HandleAsync(Edit(supplier.Id, name: "Tên mới"), CancellationToken.None);
 
         Assert.Equal(SupplierError.NotFound, result.SupplierError);
-        Assert.True(supplier.IsInactive);
+        Assert.False(supplier.IsActive);
         Assert.Equal("Kim An", supplier.Name);
     }
 

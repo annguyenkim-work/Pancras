@@ -75,11 +75,11 @@ else
             <tbody>
                 @foreach (var card in Model.Cards)
                 {
-                    <tr class="border-t border-slate-100 align-top hover:bg-slate-50 @(card.IsInactive ? "text-slate-500" : string.Empty)">
+                    <tr class="border-t border-slate-100 align-top hover:bg-slate-50 @(!card.IsActive ? "text-slate-500" : string.Empty)">
                         <td class="px-3 py-3">
-                            <p class="font-bold @(card.IsInactive ? "text-slate-600" : "text-slate-900")">@card.Name</p>
+                            <p class="font-bold @(!card.IsActive ? "text-slate-600" : "text-slate-900")">@card.Name</p>
                             <p class="mt-0.5 font-mono text-xs tracking-wide text-slate-500">@card.Code</p>
-                            @if (card.IsInactive)
+                            @if (!card.IsActive)
                             {
                                 <span class="mt-1 inline-block @Badge.Classes(BadgeTone.Neutral)">Ngừng hợp tác</span>
                             }
@@ -127,7 +127,7 @@ else
                         {
                             <td class="px-3 py-3">
                                 <div class="flex items-center justify-end gap-2">
-                                    @if (card.IsInactive)
+                                    @if (!card.IsActive)
                                     {
                                         @if (Model.CanReactivate)
                                         {

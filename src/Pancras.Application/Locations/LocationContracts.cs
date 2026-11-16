@@ -202,10 +202,10 @@ public sealed class UpdateLocationCommandHandler(
     }
 }
 
-/// <summary>Xóa mềm: ẩn khỏi danh sách, giữ nguyên lịch sử. Không xóa khi còn tồn kho, nhân viên đang hoạt động, đơn mua hoặc phiếu chuyển chưa đóng liên quan đến kho.</summary>
-public sealed class DeleteLocationCommandHandler(
+/// <summary>Disable (thay cho xóa): ẩn khỏi danh sách, giữ nguyên lịch sử. Không Disable khi còn tồn kho, nhân viên đang hoạt động, đơn mua hoặc phiếu chuyển chưa đóng liên quan đến kho.</summary>
+public sealed class DisableLocationCommandHandler(
     ILocationManagementRepository repository,
-    ILogger<DeleteLocationCommandHandler> logger,
+    ILogger<DisableLocationCommandHandler> logger,
     TimeProvider? clock = null,
     IAuditLog? audit = null,
     IRequestInfo? request = null)
@@ -239,7 +239,7 @@ public sealed class DeleteLocationCommandHandler(
             return LocationManageError.HasOpenDocuments;
         }
 
-        location.MarkDeleted();
+        location.Deactivate();
         if (!await repository.TrySaveAsync(cancellationToken))
         {
             return LocationManageError.SaveFailed;

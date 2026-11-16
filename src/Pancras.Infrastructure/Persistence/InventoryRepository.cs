@@ -12,7 +12,7 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
         await context.StockLocations.AsNoTracking().OrderBy(location => location.Name).ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<StockLocation>> ListDeletedLocationsAsync(CancellationToken cancellationToken) =>
-        await context.StockLocations.IgnoreQueryFilters().AsNoTracking().Where(location => location.IsDeleted).ToListAsync(cancellationToken);
+        await context.StockLocations.IgnoreQueryFilters().AsNoTracking().Where(location => !location.IsActive).ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<StockItemChoice>> ListItemChoicesAsync(CancellationToken cancellationToken)
     {

@@ -10,7 +10,7 @@ public sealed class SupplierRepository(PancrasDbContext context) : ISupplierRepo
     public async Task<IReadOnlyList<Supplier>> ListAsync(CancellationToken cancellationToken)
     {
         var suppliers = await context.Suppliers.AsNoTracking()
-            .Where(supplier => !supplier.IsInactive)
+            .Where(supplier => supplier.IsActive)
             .OrderBy(supplier => supplier.Name)
             .ThenBy(supplier => supplier.Code)
             .ToListAsync(cancellationToken);
@@ -26,9 +26,9 @@ public sealed class SupplierRepository(PancrasDbContext context) : ISupplierRepo
         IQueryable<Supplier> suppliers = context.Suppliers.AsNoTracking();
         suppliers = filter.Status switch
         {
-            SupplierStatusFilter.Inactive => suppliers.Where(supplier => supplier.IsInactive),
+            SupplierStatusFilter.Inactive => suppliers.Where(supplier => !supplier.IsActive),
             SupplierStatusFilter.All => suppliers,
-            _ => suppliers.Where(supplier => !supplier.IsInactive)
+            _ => suppliers.Where(supplier => supplier.IsActive)
         };
 
         if (filter.Country is not null)
@@ -72,7 +72,7 @@ public sealed class SupplierRepository(PancrasDbContext context) : ISupplierRepo
 
     public Task<int> CountActiveBeforeAsync(string name, string code, CancellationToken cancellationToken) =>
         context.Suppliers.AsNoTracking().CountAsync(
-            supplier => !supplier.IsInactive
+            supplier => supplier.IsActive
                 && (supplier.Name.CompareTo(name) < 0
                     || (supplier.Name == name && supplier.Code.CompareTo(code) < 0)),
             cancellationToken);
@@ -87,13 +87,13 @@ public sealed class SupplierRepository(PancrasDbContext context) : ISupplierRepo
 
     public Task<Supplier?> GetActiveReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
         context.Suppliers.AsNoTracking()
-            .FirstOrDefaultAsync(supplier => supplier.Id == id && !supplier.IsInactive, cancellationToken);
+            .FirstOrDefaultAsync(supplier => supplier.Id == id && supplier.IsActive, cancellationToken);
 
     public Task<Supplier?> GetAnyReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
         context.Suppliers.AsNoTracking().FirstOrDefaultAsync(supplier => supplier.Id == id, cancellationToken);
 
     public Task<Supplier?> GetActiveForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
-        context.Suppliers.FirstOrDefaultAsync(supplier => supplier.Id == id && !supplier.IsInactive, cancellationToken);
+        context.Suppliers.FirstOrDefaultAsync(supplier => supplier.Id == id && supplier.IsActive, cancellationToken);
 
     public Task<Supplier?> GetAnyForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         context.Suppliers.FirstOrDefaultAsync(supplier => supplier.Id == id, cancellationToken);
@@ -103,7 +103,7 @@ public sealed class SupplierRepository(PancrasDbContext context) : ISupplierRepo
         Guid? excludingId,
         CancellationToken cancellationToken)
     {
-        var active = context.Suppliers.AsNoTracking().Where(supplier => !supplier.IsInactive && supplier.NormalizedCode == normalizedCode);
+        var active = context.Suppliers.AsNoTracking().Where(supplier => supplier.IsActive && supplier.NormalizedCode == normalizedCode);
         if (excludingId is Guid id)
         {
             active = active.Where(supplier => supplier.Id != id);
@@ -114,7 +114,7 @@ public sealed class SupplierRepository(PancrasDbContext context) : ISupplierRepo
 
     public Task<string?> InactiveNameWithCodeAsync(string normalizedCode, CancellationToken cancellationToken) =>
         context.Suppliers.AsNoTracking()
-            .Where(supplier => supplier.IsInactive && supplier.NormalizedCode == normalizedCode)
+            .Where(supplier => !supplier.IsActive && supplier.NormalizedCode == normalizedCode)
             .Select(supplier => (string?)supplier.Name)
             .FirstOrDefaultAsync(cancellationToken);
 

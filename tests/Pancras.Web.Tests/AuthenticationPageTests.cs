@@ -521,7 +521,7 @@ internal sealed class SupplierDirectoryDouble : ISupplierRepository
         Task.FromResult<IReadOnlyList<string>>(Suppliers.Select(supplier => supplier.Country).Distinct().Order().ToList());
 
     public Task<Supplier?> GetActiveReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult(Suppliers.FirstOrDefault(supplier => supplier.Id == id && !supplier.IsInactive));
+        Task.FromResult(Suppliers.FirstOrDefault(supplier => supplier.Id == id && supplier.IsActive));
 
     public Task<Supplier?> GetAnyReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
         Task.FromResult(Suppliers.FirstOrDefault(supplier => supplier.Id == id));
@@ -538,14 +538,14 @@ internal sealed class SupplierDirectoryDouble : ISupplierRepository
 
     public Task<bool> NormalizedCodeExistsAsync(string normalizedCode, Guid? excludingId, CancellationToken cancellationToken) =>
         Task.FromResult(Suppliers.Any(supplier =>
-            !supplier.IsInactive && supplier.NormalizedCode == normalizedCode && supplier.Id != excludingId));
+            supplier.IsActive && supplier.NormalizedCode == normalizedCode && supplier.Id != excludingId));
 
     public Task<string?> InactiveNameWithCodeAsync(string normalizedCode, CancellationToken cancellationToken) =>
-        Task.FromResult(Suppliers.FirstOrDefault(supplier => supplier.IsInactive && supplier.NormalizedCode == normalizedCode)?.Name);
+        Task.FromResult(Suppliers.FirstOrDefault(supplier => !supplier.IsActive && supplier.NormalizedCode == normalizedCode)?.Name);
 
     public Task<int> CountActiveBeforeAsync(string name, string code, CancellationToken cancellationToken) =>
         Task.FromResult(Suppliers.Count(supplier =>
-            !supplier.IsInactive
+            supplier.IsActive
             && (string.CompareOrdinal(supplier.Name, name) < 0
                 || (supplier.Name == name && string.CompareOrdinal(supplier.Code, code) < 0))));
 
@@ -561,9 +561,9 @@ internal sealed class SupplierDirectoryDouble : ISupplierRepository
     {
         IEnumerable<Supplier> suppliers = filter.Status switch
         {
-            SupplierStatusFilter.Inactive => Suppliers.Where(supplier => supplier.IsInactive),
+            SupplierStatusFilter.Inactive => Suppliers.Where(supplier => !supplier.IsActive),
             SupplierStatusFilter.All => Suppliers,
-            _ => Suppliers.Where(supplier => !supplier.IsInactive)
+            _ => Suppliers.Where(supplier => supplier.IsActive)
         };
         if (filter.Country is not null)
         {

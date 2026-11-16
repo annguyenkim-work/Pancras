@@ -42,7 +42,7 @@ public sealed class ListSupplierCardsHandler(
                 showBank ? SupplierBankMask.Of(supplier.Account) : string.Empty,
                 row?.PurchaseOrderCount ?? 0,
                 row?.LotsNotReceived ?? 0,
-                supplier.IsInactive,
+                supplier.IsActive,
                 Pancras.Application.Auditing.AuditStampView.From(supplier));
         }).ToArray();
 

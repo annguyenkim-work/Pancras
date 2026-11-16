@@ -61,8 +61,8 @@ public sealed class Supplier : Pancras.Domain.Auditing.VersionedAuditStamped
     /// <summary>Mã SWIFT/BIC (chữ hoa). Tùy chọn.</summary>
     public string SwiftCode { get; private set; }
 
-    /// <summary>Ngừng hợp tác: ẩn khỏi danh sách chọn khi lập đơn mua nhưng vẫn giữ để xem lại lịch sử.</summary>
-    public bool IsInactive { get; private set; }
+    /// <summary>Đang hoạt động. False là Disable: ẩn khỏi danh sách chọn khi lập đơn mua nhưng vẫn giữ để xem lại lịch sử.</summary>
+    public bool IsActive { get; private set; } = true;
 
     public static string NormalizeCode(string code) => code.Trim().ToUpperInvariant();
 
@@ -95,9 +95,9 @@ public sealed class Supplier : Pancras.Domain.Auditing.VersionedAuditStamped
         string swiftCode = "") =>
         Apply(ReadProfile(code, name, country, contactName, phone, email, account, bankName, swiftCode));
 
-    public void Deactivate() => IsInactive = true;
+    public void Deactivate() => IsActive = false;
 
-    public void Reactivate() => IsInactive = false;
+    public void Reactivate() => IsActive = true;
 
     private void Apply(Profile profile)
     {

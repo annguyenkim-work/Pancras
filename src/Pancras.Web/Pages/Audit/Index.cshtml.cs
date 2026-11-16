@@ -53,7 +53,7 @@ public class IndexModel(ListAuditHandler list) : PageModel
         AuditActions.AccessDenied => "Bị từ chối do thiếu quyền",
         AuditActions.LocationCreated => "Thêm kho/showroom",
         AuditActions.LocationUpdated => "Sửa kho/showroom",
-        AuditActions.LocationDeleted => "Xóa kho/showroom",
+        AuditActions.LocationDeleted => "Disable kho/showroom",
         AuditActions.TransferRequested => "Đề nghị chuyển kho",
         AuditActions.TransferUpdated => "Sửa phiếu đề nghị chuyển kho",
         AuditActions.TransferApproved => "Duyệt phiếu chuyển kho",
