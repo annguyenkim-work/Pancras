@@ -1,3 +1,4 @@
+using Pancras.Domain.Suppliers;
 using Pancras.Domain.Auditing;
 using Pancras.Domain.Catalog;
 using Pancras.Domain.Employees;

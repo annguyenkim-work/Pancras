@@ -1,3 +1,4 @@
+using Pancras.Domain.Suppliers;
 using Microsoft.Extensions.Logging;
 using Pancras.Domain.Employees;
 

@@ -46,7 +46,7 @@ public sealed class UpdateEmployeeCommandHandler(
 {
     private readonly UpdateEmployeeCommandValidator _validator = new();
 
-    public async Task<Result<EmployeeProfile>> HandleAsync(
+    public async Task<Result<EmployeeProfile, EmployeeError>> HandleAsync(
         UpdateEmployeeCommand command,
         EmployeeActor actor,
         CancellationToken cancellationToken)
@@ -203,7 +203,7 @@ public sealed class UpdateEmployeeCommandHandler(
             ? Pancras.Domain.Auditing.AuditActions.EmployeeRoleChanged
             : Pancras.Domain.Auditing.AuditActions.EmployeeUpdated;
         return new UpdateOutcome(
-            Result<EmployeeProfile>.Ok(EmployeeMapping.ToProfile(employee)),
+            Result<EmployeeProfile, EmployeeError>.Ok(EmployeeMapping.ToProfile(employee)),
             employeeId,
             action,
             assignmentChanged ? "role/assignment changed" : null,
@@ -211,14 +211,14 @@ public sealed class UpdateEmployeeCommandHandler(
     }
 
     private readonly record struct UpdateOutcome(
-        Result<EmployeeProfile> Result,
+        Result<EmployeeProfile, EmployeeError> Result,
         string? EmployeeId,
         string? AuditAction,
         string? Detail,
         bool PasswordReset)
     {
         public static UpdateOutcome Fail(EmployeeError error) =>
-            new(Result<EmployeeProfile>.Fail(error), null, null, null, false);
+            new(Result<EmployeeProfile, EmployeeError>.Fail(error), null, null, null, false);
     }
 
     private UpdateOutcome Forbidden(EmployeeActor actor, Guid targetId)
@@ -256,7 +256,7 @@ public sealed class GetEmployeeHandler(
     IEmployeeRepository repository,
     ILogger<GetEmployeeHandler> logger)
 {
-    public async Task<Result<EmployeeProfile>> HandleAsync(
+    public async Task<Result<EmployeeProfile, EmployeeError>> HandleAsync(
         Guid id,
         EmployeeActor actor,
         CancellationToken cancellationToken)
@@ -265,15 +265,15 @@ public sealed class GetEmployeeHandler(
         if (employee is null)
         {
             logger.LogWarning("Employee {EmployeeId} was not found.", id);
-            return Result<EmployeeProfile>.Fail(EmployeeError.NotFound);
+            return Result<EmployeeProfile, EmployeeError>.Fail(EmployeeError.NotFound);
         }
 
         if (!EmployeeAccess.CanView(actor, employee.Id, employee.StockLocationId))
         {
-            return Result<EmployeeProfile>.Fail(EmployeeError.Forbidden);
+            return Result<EmployeeProfile, EmployeeError>.Fail(EmployeeError.Forbidden);
         }
 
-        return Result<EmployeeProfile>.Ok(EmployeeMapping.ToProfile(employee));
+        return Result<EmployeeProfile, EmployeeError>.Ok(EmployeeMapping.ToProfile(employee));
     }
 }
 
@@ -284,7 +284,7 @@ public sealed class SetEmployeeActiveCommandHandler(
     Pancras.Application.Auditing.IAuditLog? audit = null,
     Pancras.Application.Auditing.IRequestInfo? request = null)
 {
-    public async Task<Result<EmployeeProfile>> HandleAsync(
+    public async Task<Result<EmployeeProfile, EmployeeError>> HandleAsync(
         Guid id,
         bool active,
         EmployeeActor actor,
@@ -293,13 +293,13 @@ public sealed class SetEmployeeActiveCommandHandler(
         var employee = await repository.GetByIdAsync(id, cancellationToken);
         if (employee is null)
         {
-            return Result<EmployeeProfile>.Fail(EmployeeError.NotFound);
+            return Result<EmployeeProfile, EmployeeError>.Fail(EmployeeError.NotFound);
         }
 
         if (!EmployeeAccess.CanSetActive(actor, employee.Id, employee.Role))
         {
             logger.LogWarning("Employee status change forbidden for {ActorId} on {EmployeeId}.", actor.Id, employee.Id);
-            return Result<EmployeeProfile>.Fail(EmployeeError.Forbidden);
+            return Result<EmployeeProfile, EmployeeError>.Fail(EmployeeError.Forbidden);
         }
 
         var result = await repository.WithinPersonnelRulesAsync(
@@ -316,7 +316,7 @@ public sealed class SetEmployeeActiveCommandHandler(
         return result;
     }
 
-    private async Task<Result<EmployeeProfile>> ApplyActiveChangeAsync(
+    private async Task<Result<EmployeeProfile, EmployeeError>> ApplyActiveChangeAsync(
         Employee employee,
         bool active,
         CancellationToken cancellationToken)
@@ -324,7 +324,7 @@ public sealed class SetEmployeeActiveCommandHandler(
         if (!active && employee.IsActive && employee.Role == EmployeeRole.Admin
             && await repository.CountActiveAdminsAsync(cancellationToken) <= 1)
         {
-            return Result<EmployeeProfile>.Fail(EmployeeError.LastAdmin);
+            return Result<EmployeeProfile, EmployeeError>.Fail(EmployeeError.LastAdmin);
         }
 
         if (active && !employee.IsActive
@@ -332,7 +332,7 @@ public sealed class SetEmployeeActiveCommandHandler(
             && employee.StockLocationId is Guid locationId
             && await repository.ActiveLeadExistsAsync(locationId, employee.Id, cancellationToken))
         {
-            return Result<EmployeeProfile>.Fail(EmployeeError.LeadExists);
+            return Result<EmployeeProfile, EmployeeError>.Fail(EmployeeError.LeadExists);
         }
 
         if (active)
@@ -346,7 +346,7 @@ public sealed class SetEmployeeActiveCommandHandler(
 
         await repository.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Set employee {EmployeeId} active={Active}.", employee.Id, active);
-        return Result<EmployeeProfile>.Ok(EmployeeMapping.ToProfile(employee));
+        return Result<EmployeeProfile, EmployeeError>.Ok(EmployeeMapping.ToProfile(employee));
     }
 }
 
@@ -354,7 +354,7 @@ public sealed class UpdateOwnProfileCommandHandler(
     IEmployeeRepository repository,
     ILogger<UpdateOwnProfileCommandHandler> logger)
 {
-    public async Task<Result<EmployeeSession>> HandleAsync(
+    public async Task<Result<EmployeeSession, EmployeeError>> HandleAsync(
         UpdateOwnProfileCommand command,
         EmployeeActor actor,
         CancellationToken cancellationToken)
@@ -364,24 +364,24 @@ public sealed class UpdateOwnProfileCommandHandler(
             || !EmployeeRules.Present(command.Phone, 30)
             || !EmployeeRules.Fits(command.Address, 300))
         {
-            return Result<EmployeeSession>.Fail(EmployeeError.ProfileIncomplete);
+            return Result<EmployeeSession, EmployeeError>.Fail(EmployeeError.ProfileIncomplete);
         }
 
         var employee = await repository.GetByIdAsync(actor.Id, cancellationToken);
         if (employee is null)
         {
-            return Result<EmployeeSession>.Fail(EmployeeError.NotFound);
+            return Result<EmployeeSession, EmployeeError>.Fail(EmployeeError.NotFound);
         }
 
         if (!employee.Rename(command.FullName!))
         {
-            return Result<EmployeeSession>.Fail(EmployeeError.ProfileIncomplete);
+            return Result<EmployeeSession, EmployeeError>.Fail(EmployeeError.ProfileIncomplete);
         }
 
         employee.ReplaceContact(command.Email, command.Phone, command.Address);
         await repository.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Employee {EmployeeId} updated their own profile.", employee.Id);
-        return Result<EmployeeSession>.Ok(
+        return Result<EmployeeSession, EmployeeError>.Ok(
             new EmployeeSession(employee.Id, employee.FullName, employee.Code, employee.Role, employee.StockLocationId, employee.SecurityStamp));
     }
 }
@@ -394,7 +394,7 @@ public sealed class ChangeOwnPasswordCommandHandler(
     Pancras.Application.Auditing.IAuditLog? audit = null,
     Pancras.Application.Auditing.IRequestInfo? request = null)
 {
-    public async Task<Result<EmployeeSession>> HandleAsync(
+    public async Task<Result<EmployeeSession, EmployeeError>> HandleAsync(
         ChangeOwnPasswordCommand command,
         EmployeeActor actor,
         CancellationToken cancellationToken)
@@ -402,26 +402,26 @@ public sealed class ChangeOwnPasswordCommandHandler(
         var employee = await repository.GetByIdAsync(actor.Id, cancellationToken);
         if (employee is null)
         {
-            return Result<EmployeeSession>.Fail(EmployeeError.NotFound);
+            return Result<EmployeeSession, EmployeeError>.Fail(EmployeeError.NotFound);
         }
 
         if (string.IsNullOrEmpty(command.CurrentPassword)
             || !passwordHasher.Verify(command.CurrentPassword, employee.PasswordHash))
         {
             logger.LogWarning("Password change rejected for employee {EmployeeId}.", employee.Id);
-            return Result<EmployeeSession>.Fail(EmployeeError.WrongPassword);
+            return Result<EmployeeSession, EmployeeError>.Fail(EmployeeError.WrongPassword);
         }
 
         if (!PasswordPolicy.IsAcceptable(command.NewPassword))
         {
-            return Result<EmployeeSession>.Fail(EmployeeError.WeakPassword);
+            return Result<EmployeeSession, EmployeeError>.Fail(EmployeeError.WeakPassword);
         }
 
         employee.ReplacePassword(passwordHasher.Hash(command.NewPassword!));
         await repository.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Employee {EmployeeId} changed their password.", employee.Id);
         await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.PasswordChanged, "employee", employee.Id.ToString("D"), null, cancellationToken);
-        return Result<EmployeeSession>.Ok(
+        return Result<EmployeeSession, EmployeeError>.Ok(
             new EmployeeSession(employee.Id, employee.FullName, employee.Code, employee.Role, employee.StockLocationId, employee.SecurityStamp));
     }
 }

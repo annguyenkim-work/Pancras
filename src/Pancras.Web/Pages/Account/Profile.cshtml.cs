@@ -64,7 +64,7 @@ public class ProfileModel(
         var result = await updateProfile.HandleAsync(Profile, User.ToActor(), cancellationToken);
         if (result.IsFailure)
         {
-            Error = result.EmployeeError;
+            Error = result.Error;
             await LoadAsync(cancellationToken, loadForm: false);
             return Page();
         }
@@ -79,7 +79,7 @@ public class ProfileModel(
         var result = await changePassword.HandleAsync(Password, User.ToActor(), cancellationToken);
         if (result.IsFailure)
         {
-            Error = result.EmployeeError;
+            Error = result.Error;
             Password = new ChangeOwnPasswordCommand();
             await LoadAsync(cancellationToken, loadForm: true);
             return Page();
@@ -96,7 +96,7 @@ public class ProfileModel(
         await LoadAsync(cancellationToken, loadForm: true);
         if (begin.IsFailure)
         {
-            Error = begin.EmployeeError;
+            Error = begin.Error;
             return Page();
         }
 
@@ -110,7 +110,7 @@ public class ProfileModel(
         await LoadAsync(cancellationToken, loadForm: true);
         if (result.IsFailure)
         {
-            Error = result.EmployeeError;
+            Error = result.Error;
             if (!string.IsNullOrEmpty(ConfirmCode.ProtectedSecret) && !string.IsNullOrEmpty(SetupSecretText))
             {
                 ShowSetup(new TwoFactorSetup(SetupSecretText, ConfirmCode.ProtectedSecret, Pancras.Domain.Employees.Totp.BuildUri(BeginTwoFactorSetupHandler.Issuer, Code, SetupSecretText)));
@@ -131,7 +131,7 @@ public class ProfileModel(
         var result = await disableTwoFactor.HandleAsync(DisableCode, User.ToActor(), cancellationToken);
         if (result.IsFailure)
         {
-            Error = result.EmployeeError;
+            Error = result.Error;
             await LoadAsync(cancellationToken, loadForm: true);
             return Page();
         }

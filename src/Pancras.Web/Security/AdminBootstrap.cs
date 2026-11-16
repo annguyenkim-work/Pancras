@@ -48,7 +48,7 @@ public static class AdminBootstrap
             CancellationToken.None);
         if (result.IsFailure)
         {
-            Console.Error.WriteLine("Không tạo được Admin: " + result.EmployeeError + (result.EmployeeError == EmployeeError.WeakPassword ? " (mật khẩu cần từ 8 đến 128 ký tự)" : string.Empty));
+            Console.Error.WriteLine("Không tạo được Admin: " + result.Error + (result.Error == EmployeeError.WeakPassword ? " (mật khẩu cần từ 8 đến 128 ký tự)" : string.Empty));
             return 1;
         }
 

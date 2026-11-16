@@ -37,9 +37,9 @@ public class VerifyTwoFactorModel(VerifyTwoFactorCommandHandler verify, Employee
             HttpContext.RequestAborted);
         if (result.IsFailure)
         {
-            Error = result.LoginError;
+            Error = result.Error;
             Code = null;
-            if (result.LoginError == LoginError.InvalidCredentials)
+            if (result.Error == LoginError.InvalidCredentials)
             {
                 await HttpContext.SignOutAsync(PendingTwoFactor.Scheme);
                 return RedirectToPage("/Account/Login");

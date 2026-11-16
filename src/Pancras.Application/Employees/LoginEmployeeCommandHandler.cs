@@ -29,14 +29,14 @@ public sealed class LoginEmployeeCommandHandler(
     private readonly LoginEmployeeCommandValidator _validator = new();
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
 
-    public async Task<Result<EmployeeSession>> HandleAsync(
+    public async Task<Result<EmployeeSession, LoginError>> HandleAsync(
         LoginEmployeeCommand command,
         CancellationToken cancellationToken)
     {
         if (!_validator.Validate(command).IsValid)
         {
             logger.LogInformation("Login rejected because a field was empty.");
-            return Result<EmployeeSession>.Fail(LoginError.MissingCredentials);
+            return Result<EmployeeSession, LoginError>.Fail(LoginError.MissingCredentials);
         }
 
         var now = _clock.GetUtcNow();
@@ -48,7 +48,7 @@ public sealed class LoginEmployeeCommandHandler(
             _ = passwordHasher.Hash(command.Password!);
             logger.LogInformation("Login rejected.");
             await Log(employee, AuditActions.LoginFailed, employee is null ? "unknown account" : employee.IsActive ? "locked" : "inactive", cancellationToken);
-            return Result<EmployeeSession>.Fail(LoginError.InvalidCredentials);
+            return Result<EmployeeSession, LoginError>.Fail(LoginError.InvalidCredentials);
         }
 
         if (!passwordHasher.Verify(command.Password!, employee.PasswordHash))
@@ -57,19 +57,19 @@ public sealed class LoginEmployeeCommandHandler(
             await repository.SaveChangesAsync(cancellationToken);
             logger.LogInformation("Login rejected because the credentials did not match.");
             await Log(employee, locked ? AuditActions.LoginLockedOut : AuditActions.LoginFailed, "wrong password", cancellationToken);
-            return Result<EmployeeSession>.Fail(LoginError.InvalidCredentials);
+            return Result<EmployeeSession, LoginError>.Fail(LoginError.InvalidCredentials);
         }
 
         if (employee.TwoFactorEnabled)
         {
-            return Result<EmployeeSession>.Ok(ToSession(employee, requiresTwoFactor: true));
+            return Result<EmployeeSession, LoginError>.Ok(ToSession(employee, requiresTwoFactor: true));
         }
 
         employee.RegisterSuccessfulLogin();
         await repository.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Login succeeded for employee {EmployeeId}.", employee.Id);
         await Log(employee, AuditActions.LoginSucceeded, null, cancellationToken);
-        return Result<EmployeeSession>.Ok(ToSession(employee, requiresTwoFactor: false));
+        return Result<EmployeeSession, LoginError>.Ok(ToSession(employee, requiresTwoFactor: false));
     }
 
     internal static EmployeeSession ToSession(Employee employee, bool requiresTwoFactor) =>
@@ -89,18 +89,18 @@ public sealed class VerifyTwoFactorCommandHandler(
 {
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
 
-    public async Task<Result<EmployeeSession>> HandleAsync(VerifyTwoFactorCommand command, CancellationToken cancellationToken)
+    public async Task<Result<EmployeeSession, LoginError>> HandleAsync(VerifyTwoFactorCommand command, CancellationToken cancellationToken)
     {
         var now = _clock.GetUtcNow();
         var employee = await repository.GetByIdAsync(command.EmployeeId, cancellationToken);
         if (employee is null || !employee.IsActive || !employee.TwoFactorEnabled || employee.IsLockedOut(now))
         {
-            return Result<EmployeeSession>.Fail(LoginError.InvalidCredentials);
+            return Result<EmployeeSession, LoginError>.Fail(LoginError.InvalidCredentials);
         }
 
         if (string.IsNullOrWhiteSpace(command.Code))
         {
-            return Result<EmployeeSession>.Fail(LoginError.InvalidCode);
+            return Result<EmployeeSession, LoginError>.Fail(LoginError.InvalidCode);
         }
 
         var usedRecovery = false;
@@ -124,7 +124,7 @@ public sealed class VerifyTwoFactorCommandHandler(
             await repository.SaveChangesAsync(cancellationToken);
             logger.LogInformation("Two-factor code rejected for employee {EmployeeId}.", employee.Id);
             await audit.RecordAsync(_clock, request, employee.Id, employee.Code, locked ? AuditActions.LoginLockedOut : AuditActions.TwoFactorFailed, "employee", employee.Id.ToString("D"), null, cancellationToken);
-            return Result<EmployeeSession>.Fail(LoginError.InvalidCode);
+            return Result<EmployeeSession, LoginError>.Fail(LoginError.InvalidCode);
         }
 
         employee.RegisterSuccessfulLogin();
@@ -136,6 +136,6 @@ public sealed class VerifyTwoFactorCommandHandler(
         }
 
         await audit.RecordAsync(_clock, request, employee.Id, employee.Code, AuditActions.LoginSucceeded, "employee", employee.Id.ToString("D"), "2fa", cancellationToken);
-        return Result<EmployeeSession>.Ok(LoginEmployeeCommandHandler.ToSession(employee, requiresTwoFactor: false));
+        return Result<EmployeeSession, LoginError>.Ok(LoginEmployeeCommandHandler.ToSession(employee, requiresTwoFactor: false));
     }
 }

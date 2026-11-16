@@ -117,7 +117,7 @@ public class IndexModel(
         if (result.IsFailure)
         {
             ShowForm = true;
-            Error = result.EmployeeError;
+            Error = result.Error;
             await LoadAsync(q, role, location, 1, cancellationToken);
             return Page();
         }
@@ -134,7 +134,7 @@ public class IndexModel(
         if (existing.IsFailure)
         {
             ShowEdit = true;
-            Error = existing.EmployeeError;
+            Error = existing.Error;
             return Page();
         }
 
@@ -142,7 +142,7 @@ public class IndexModel(
         if (result.IsFailure)
         {
             ShowEdit = true;
-            Error = result.EmployeeError;
+            Error = result.Error;
             return Page();
         }
 
@@ -154,7 +154,7 @@ public class IndexModel(
         var result = await setActive.HandleAsync(id, active, Actor, cancellationToken);
         if (result.IsFailure)
         {
-            Error = result.EmployeeError;
+            Error = result.Error;
             await LoadAsync(q, role, location, pageNumber, cancellationToken);
             return Page();
         }
@@ -173,7 +173,7 @@ public class IndexModel(
         AdminActionAsync(resetTwoFactor.HandleAsync(id, Actor, cancellationToken), q, role, location, pageNumber, cancellationToken);
 
     private async Task<IActionResult> AdminActionAsync(
-        Task<Result<EmployeeProfile>> action,
+        Task<Result<EmployeeProfile, EmployeeError>> action,
         string? q,
         string? role,
         Guid? location,
@@ -187,7 +187,7 @@ public class IndexModel(
         PageNumber = pageNumber;
         if (result.IsFailure)
         {
-            Error = result.EmployeeError;
+            Error = result.Error;
             await LoadAsync(q, role, location, pageNumber, cancellationToken);
             return Page();
         }
@@ -247,7 +247,7 @@ public class IndexModel(
         ShowEdit = true;
         if (result.IsFailure)
         {
-            Error = result.EmployeeError;
+            Error = result.Error;
             return;
         }
 
