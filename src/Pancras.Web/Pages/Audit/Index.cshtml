@@ -38,7 +38,7 @@ else
                     <tr class="border-t border-slate-100 align-top">
                         <td class="px-4 py-2 whitespace-nowrap tabular-nums text-slate-700">@VietnamTime.Format(entry.OccurredAt, "dd/MM/yyyy HH:mm:ss")</td>
                         <td class="px-4 py-2 font-mono text-xs text-slate-800">@(string.IsNullOrEmpty(entry.ActorCode) ? "—" : entry.ActorCode)</td>
-                        <td class="px-4 py-2 text-slate-900">@Pancras.Web.Pages.Audit.IndexModel.Label(entry.Action)<span class="block font-mono text-[11px] text-slate-500">@entry.Action</span></td>
+                        <td class="px-4 py-2 text-slate-900">@AuditLabels.Of(entry.Action)<span class="block font-mono text-[11px] text-slate-500">@entry.Action</span></td>
                         <td class="px-4 py-2 text-slate-700">@entry.TargetType <span class="font-mono text-[11px] text-slate-500">@entry.TargetId</span></td>
                         <td class="px-4 py-2 text-slate-700">@entry.Detail</td>
                         <td class="px-4 py-2 font-mono text-xs text-slate-600">@entry.IpAddress</td>
