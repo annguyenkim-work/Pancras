@@ -65,9 +65,12 @@ dotnet ef database update --project src/Pancras.Infrastructure --startup-project
 | `Version` chưa trọn vẹn | Lần ghi chồng nhau thật sự đã thành `VersionConflict` của Danh mục, Nhà cung cấp, Kho/showroom (repository trả `SaveOutcome.Conflict`). Nhân viên: sửa và Disable/Active cũng trả `VersionConflict` (`TrySaveChangesAsync`); các thao tác nhân viên khác (đổi mật khẩu, 2FA, đăng nhập) vẫn lưu trực tiếp. Mua hàng và Kho gộp chung vào `SaveFailed`. `TransferSlip` chỉ dựa vào kiểm tra trạng thái (`TransferStateChanged`), form không gửi `Version` |
 | Gạch dưới tên | Bảng "đọc không tracking" (`...ReadOnlyAsync`) chưa nhất quán ở mọi repository |
 
+## Quyết định đã chốt (2026-11-16)
+
+- [Đã làm] Danh sách rất lớn dùng phân trang keyset (mất nhảy tới trang bất kỳ và tổng số dòng); các danh sách còn lại giữ Skip/Take 20/50. Hiện đã áp cho nhật ký hệ thống (`AuditCursor`, `_KeysetPager`). "Lịch sử tồn" hiện chưa có danh sách phân trang riêng; khi làm thì dùng keyset theo mẫu này.
+- [Đề xuất của AI, chủ dự án đã duyệt] Thêm chỉ mục khi có truy vấn lọc/sắp xếp/khóa duy nhất thật sự cần (mã duy nhất, khóa ngoại hay lọc); mỗi chỉ mục mới đi kèm migration và lý do trong mô tả migration; không thêm "phòng xa".
+
 ## Chờ chốt (chưa có hiệu lực)
 
-- **Chốt kỹ thuật 2026-11-16 (đề xuất của AI theo thực tế code, chủ dự án có thể đổi):** thêm chỉ mục khi có truy vấn lọc/sắp xếp/khóa duy nhất thật sự cần (mã duy nhất, khóa ngoại hay lọc); mỗi chỉ mục mới đi kèm migration và lý do trong mô tả migration; không thêm "phòng xa".
 - Quy tắc sao lưu và khôi phục database: ghi ở `06-operations/deployment.md` (RPO/RTO 1 ngày, giữ 14 ngày).
 - Quy tắc sao lưu và khôi phục database — để ở `06-operations/deployment.md`.
-- **Đã chốt và làm 2026-11-16:** danh sách rất lớn dùng phân trang keyset (mất nhảy tới trang bất kỳ và tổng số dòng); các danh sách còn lại giữ Skip/Take 20/50. Hiện đã áp cho nhật ký hệ thống (`AuditCursor`, `_KeysetPager`). "Lịch sử tồn" hiện chưa có danh sách phân trang riêng; khi làm thì dùng keyset theo mẫu này.

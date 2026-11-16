@@ -56,7 +56,10 @@ dotnet test Pancras.slnx --warnaserror --nologo                 # một dự án
 - Test thủ công dùng dữ liệu có tiền tố `ZZ Test`/`ZZT-`, seed bằng chương trình tạm ngoài repo; mật khẩu test ở user-secrets `ManualTest:Password` ([manual-testing-and-review.md](../05-process/manual-testing-and-review.md)).
 - DB local có thể giữ dữ liệu test (không bắt buộc dọn); sao lưu trước khi seed lớn (`App_Data/backups/`).
 
+## Quyết định đã chốt (2026-11-16)
+
+- Chưa cần Docker Compose cho PostgreSQL và chưa cần tập lệnh khởi tạo một lần; giữ cách cài trực tiếp theo hướng dẫn.
+
 ## Chờ chốt (chưa có hiệu lực)
 
-- **Đã chốt 2026-11-16:** chưa cần Docker Compose cho PostgreSQL và chưa cần tập lệnh khởi tạo một lần; giữ cách cài trực tiếp theo hướng dẫn.
 - Kiểm tra đường dẫn mặc định của `Storage:AttachmentsPath` khi thiếu cấu hình và ghi vào đây.

@@ -54,8 +54,11 @@
 | --- | --- |
 | Gói dùng chung | `Microsoft.Extensions.Logging.Abstractions` 10.0.4 (Application) và 10.0.5 (Infrastructure.Tests, do `EntityFrameworkCore.InMemory` 10.0.5 yêu cầu); sẽ thống nhất khi nâng cả solution lên 10.0.5 |
 
+## Quyết định đã chốt (2026-11-16)
+
+- Không xuất `.xlsx`; mọi nút xuất ghi nhãn `Xuất CSV` (không thêm thư viện).
+
 ## Chờ chốt (chưa có hiệu lực)
 
-- **Đã chốt 2026-11-16:** không xuất `.xlsx`; mọi nút xuất ghi nhãn `Xuất CSV` (không thêm thư viện).
 - Quét virus cho tệp tải lên (hiện không có; chỉ cho phép pdf, jpg, png, xlsx, docx, giới hạn 10 MB).
 - Giám sát lỗi và log tập trung.

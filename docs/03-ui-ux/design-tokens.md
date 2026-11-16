@@ -64,7 +64,12 @@ Font **tự host** trong `wwwroot/fonts` (không dùng Google Fonts, xem [tech-s
 
 Định dạng tiền, ngày, số: xem [formatting-and-copy.md](formatting-and-copy.md).
 
+## Quyết định đã chốt (2026-11-16)
+
+- [Đề xuất của AI, chủ dự án đã duyệt] Dùng thang khoảng cách của Tailwind, giữ nhất quán theo mẫu thẻ/hộp thoại/bảng hiện có (đã có test `UiStandardsTests` khóa padding ô bảng, cỡ hộp thoại).
+- [Đề xuất của AI, chủ dự án đã duyệt] Badge lấy màu qua helper `Badge` dùng chung: xám = nháp/chưa bắt đầu, vàng = chờ duyệt, xanh dương = đang xử lý, xanh lá = hoàn tất, đỏ = hủy/từ chối/lỗi.
+
 ## Chờ chốt (chưa có hiệu lực)
 
-- **Chốt kỹ thuật 2026-11-16 (đề xuất của AI theo thực tế code, chủ dự án có thể đổi):** dùng thang khoảng cách của Tailwind, giữ nhất quán theo mẫu thẻ/hộp thoại/bảng hiện có (đã có test `UiStandardsTests` khóa padding ô bảng, cỡ hộp thoại).
-- **Chốt kỹ thuật 2026-11-16 (đề xuất của AI theo thực tế code, chủ dự án có thể đổi):** badge lấy màu qua helper `Badge` dùng chung: xám = nháp/chưa bắt đầu, vàng = chờ duyệt, xanh dương = đang xử lý, xanh lá = hoàn tất, đỏ = hủy/từ chối/lỗi.
+Không còn mục chờ chốt.
+

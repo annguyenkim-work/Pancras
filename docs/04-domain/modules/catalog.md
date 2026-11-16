@@ -72,7 +72,10 @@ Năm mức: **giá vốn**, **giá lẻ (niêm yết)**, **giá đại lý**, **
 | Pickers | Đơn mua đang sửa có mặt hàng đã Disable thì ô chọn dòng đó không còn mặt hàng (danh sách chọn chỉ có mặt hàng Active); dòng đã lưu vẫn hiện đúng tên |
 | Tài liệu cũ | Spec 004 ghi "ai sửa bảng giá" khác; docs mới thay thế |
 
+## Quyết định đã chốt (2026-11-16)
+
+- [Chưa làm] Có lịch sử đổi giá (ai, khi nào, từ bao nhiêu sang bao nhiêu) xem được ngoài nhật ký audit; có nhập mặt hàng hàng loạt từ CSV (không Excel). Còn chờ chốt: cột CSV, cách xử lý dòng lỗi/trùng mã. Combo: xem mục "Combo (spec đã chốt, chưa làm)" bên dưới.
+
 ## Chờ chốt (chưa có hiệu lực)
 
 - Giá nhà phân phối và giá dự án dùng khi bán cho ai và theo quy tắc nào (chờ spec Bán hàng/Báo giá).
-- **Đã chốt 2026-11-16 (chưa làm):** có lịch sử đổi giá (ai, khi nào, từ bao nhiêu sang bao nhiêu) xem được ngoài nhật ký audit; có nhập mặt hàng hàng loạt từ CSV (không Excel). Còn chờ chốt: cột CSV, cách xử lý dòng lỗi/trùng mã. Combo: xem mục "Combo (spec đã chốt, chưa làm)" bên dưới.

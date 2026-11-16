@@ -63,8 +63,13 @@ Ghi chú: đổi class UI thì thêm `npm run build:css`. Chưa có CI; dự đ�
 | Tên nhánh | Nhánh hiện tại `dev/annk/feature/Sprint1/Login&Warehouse` có ký tự `&` và cấp con `Sprint1`; đổi tên khi tiện |
 | CI | Chưa có |
 
+## Quyết định đã chốt (2026-11-16)
+
+- Chưa cần quy tắc PR bắt buộc hay bảo vệ nhánh `main`; build và test sạch là đủ.
+- Chưa thêm analyzer bổ sung.
+- [Đề xuất của AI, chủ dự án đã duyệt] Đặt tag `vYYYY.MM.DD` (thêm `-n` nếu nhiều bản trong ngày) trên commit được deploy.
+
 ## Chờ chốt (chưa có hiệu lực)
 
-- **Đã chốt 2026-11-16:** chưa cần quy tắc PR bắt buộc hay bảo vệ nhánh `main`; build và test sạch là đủ.
-- **Chốt kỹ thuật 2026-11-16 (đề xuất của AI theo thực tế code, chủ dự án có thể đổi):** đặt tag `vYYYY.MM.DD` (thêm `-n` nếu nhiều bản trong ngày) trên commit được deploy.
-- **Đã chốt 2026-11-16:** chưa thêm analyzer bổ sung.
+Không còn mục chờ chốt.
+

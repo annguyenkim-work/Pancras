@@ -54,8 +54,11 @@
 | --- | --- |
 | `Version` | Form sửa gửi `Version`; handler từ chối bằng `SupplierError.VersionConflict`, kể cả khi hai lần lưu chồng nhau thật sự |
 
+## Quyết định đã chốt (2026-11-16)
+
+- Chưa cần hiển thị giá trị mua và ngày mua gần nhất trên mỗi NCC.
+
 ## Chờ chốt (chưa có hiệu lực)
 
 - Trường nhập khẩu giai đoạn 2: tiền tệ giao dịch mặc định, Incoterms, điều khoản thanh toán, mã số thuế, địa chỉ. Chưa làm, chờ yêu cầu nghiệp vụ.
-- **Đã chốt 2026-11-16:** chưa cần hiển thị giá trị mua và ngày mua gần nhất trên mỗi NCC.
 - Nối công nợ phải trả nhà cung cấp khi có module Công nợ (xem điều kiện Disable khi còn dư nợ).

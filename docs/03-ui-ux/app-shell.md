@@ -57,8 +57,11 @@ Thứ tự từ trên xuống:
 | Tiêu đề trang | Hai chuẩn `h1` lệch (xem components.md); cần thống nhất theo mục 5 |
 | Breadcrumb | Chỉ một cấp; chưa có quy tắc cho trang con nếu sau này tách trang chi tiết |
 
+## Quyết định đã chốt (2026-11-16)
+
+- [Đã làm] Nút thu gọn/mở sidebar ở header desktop (`data-sidebar-toggle`, xử lý trong `ui.js`), nhớ lựa chọn cục bộ trên trình duyệt (localStorage). Chưa xem thử bằng trình duyệt khi đăng nhập.
+- Chưa cần bộ chọn kho/showroom toàn cục trên header.
+
 ## Chờ chốt (chưa có hiệu lực)
 
-- **Đã chốt và làm 2026-11-16:** nút thu gọn/mở sidebar ở header desktop (`data-sidebar-toggle`, xử lý trong `ui.js`), nhớ lựa chọn cục bộ trên trình duyệt (localStorage). Chưa xem thử bằng trình duyệt khi đăng nhập.
 - Vị trí chính xác và hình dạng của chuông thông báo trên header (đã chốt có chuông và trang `/notifications`, xem `04-domain/modules/notifications-and-audit.md`).
-- **Đã chốt 2026-11-16:** chưa cần bộ chọn kho/showroom toàn cục trên header.

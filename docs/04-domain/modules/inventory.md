@@ -87,8 +87,13 @@ Requested ──duyệt──▶ Approved ──xuất kho──▶ InTransit �
 | --- | --- |
 | `StockMovement` đủ chứng từ | Cần rà từng chứng từ (kiểm kê, điều chỉnh, hủy, nhận lệch, trả hàng) đều ghi dòng `StockMovement` đúng loại; hiện chỉ có 4 loại `Receipt/Issue/Transfer/Adjustment` |
 
+## Quyết định đã chốt (2026-11-16)
+
+- Giữ chỗ cho nguồn khác (ví dụ đơn bán khi có module Bán hàng) dùng chung cột `Reserved` với phiếu chuyển; khả dụng = tồn − giữ chỗ.
+- Chưa cần duyệt theo ngưỡng; người duyệt thay thế khi Trưởng kho vắng vẫn là tài chính.
+- Chưa cần thông tin vận chuyển (người vận chuyển, số seal) và phiếu giao in được.
+
 ## Chờ chốt (chưa có hiệu lực)
 
-- **Đã chốt 2026-11-16:** giữ chỗ cho nguồn khác (ví dụ đơn bán khi có module Bán hàng) dùng chung cột `Reserved` với phiếu chuyển; khả dụng = tồn − giữ chỗ.
-- **Đã chốt 2026-11-16:** chưa cần duyệt theo ngưỡng; người duyệt thay thế khi Trưởng kho vắng vẫn là tài chính.
-- **Đã chốt 2026-11-16:** chưa cần thông tin vận chuyển (người vận chuyển, số seal) và phiếu giao in được.
+Không còn mục chờ chốt.
+

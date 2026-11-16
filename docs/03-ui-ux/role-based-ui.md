@@ -52,8 +52,13 @@ public bool CanSeeCost => InventoryAccess.CanSeeCost(Role());
 | --- | --- |
 | Trang 403 | `/access-denied` (`Pages/Account/Denied`) trả 403 thật với chữ "Bạn không có quyền truy cập." (có test); handler `Forbid()` chuyển về đó. Chưa duyệt từng trang xem mọi đường gõ URL trực tiếp đều đi qua nó |
 
+## Quyết định đã chốt (2026-11-16)
+
+- Xuất CSV/Excel, in và thông báo theo cùng quy tắc loại dữ liệu nhạy cảm theo vai như màn hình; nhật ký hệ thống chỉ Admin và Giám đốc xem.
+- Mỗi trang có dữ liệu nhạy cảm (giá, giá vốn) phải có test tự động "vai X không thấy giá trong HTML trả về" (kiểm bằng giá trị thật, không chỉ nhãn). Đã có: Kho (giá vốn theo từng vai; CSV không vai nào có giá vốn), Mua hàng (tỷ giá/FOB theo vai), Danh mục (giá bán), Nhà cung cấp (ngân hàng). Trang mới có dữ liệu nhạy cảm phải thêm test cùng kiểu.
+- Giữ tên vai trò tiếng Việt hiện tại; đổi tên chỉ qua sửa mã và docs, không có màn hình đổi tên.
+
 ## Chờ chốt (chưa có hiệu lực)
 
-- **Đã chốt 2026-11-16:** xuất CSV/Excel, in và thông báo theo cùng quy tắc loại dữ liệu nhạy cảm theo vai như màn hình; nhật ký hệ thống chỉ Admin và Giám đốc xem.
-- **Đã chốt 2026-11-16:** mỗi trang có dữ liệu nhạy cảm (giá, giá vốn) phải có test tự động "vai X không thấy giá trong HTML trả về" (kiểm bằng giá trị thật, không chỉ nhãn). Đã có: Kho (giá vốn theo từng vai; CSV không vai nào có giá vốn), Mua hàng (tỷ giá/FOB theo vai), Danh mục (giá bán), Nhà cung cấp (ngân hàng). Trang mới có dữ liệu nhạy cảm phải thêm test cùng kiểu.
-- **Đã chốt 2026-11-16:** giữ tên vai trò tiếng Việt hiện tại; đổi tên chỉ qua sửa mã và docs, không có màn hình đổi tên.
+Không còn mục chờ chốt.
+

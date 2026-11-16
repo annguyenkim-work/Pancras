@@ -52,8 +52,11 @@ Với **dữ liệu bị ẩn** (giá vốn, ngân hàng nhà cung cấp, tiền
 | Test case chưa rà theo docs mới | 11 file ở `docs/testing/cases/` viết theo bản 14/11/2026; còn chữ `đ` thay `VNĐ`, "Xuất CSV/Excel", thuật ngữ cũ ("Ngừng hợp tác", "Xóa"), banner thay vì toast, danh sách thẻ... Cần rà từng file theo docs mới khi làm lại từng module |
 | Bộ test case trỏ file đã xóa | `KE-HOACH-CHAY-TEST.md` và thư mục `ket-qua/` đã xóa theo quyết định dọn docs; các quy ước dữ liệu test nay nằm ở mục 2 trên |
 
+## Quyết định đã chốt (2026-11-16)
+
+- Chưa cần tự động hóa test thủ công bằng Playwright.
+
 ## Chờ chốt (chưa có hiệu lực)
 
 - Mẫu bảng review chính thức (cột, thang mức độ) nếu muốn cố định ngoài mô tả trên.
-- **Đã chốt 2026-11-16:** chưa cần tự động hóa test thủ công bằng Playwright.
 - Nơi lưu kết quả các đợt chạy (ngoài git) nếu cần đối chiếu lâu dài.

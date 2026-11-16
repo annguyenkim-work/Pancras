@@ -51,7 +51,12 @@
 | Tải tệp | Giới hạn 12 MB request chưa thử bằng tệp lớn thật; tải về: kiểm lại header `Content-Disposition`; tệp mồ côi khi xóa chứng từ lỗi chưa có việc dọn định kỳ |
 | Giới hạn tốc độ | Có policy `login` (120 lượt/phút/IP) và `sensitive` (30 lượt/phút/người dùng, cấu hình `RateLimiting:SensitivePerMinute`) cho trang hồ sơ (đổi mật khẩu, 2FA). Policy `sensitive-post` (cùng hạn mức) áp cho mọi yêu cầu POST ở trang Nhân viên (tạo, sửa, đặt lại mật khẩu, Disable/Active, mở khóa, reset 2FA); xem danh sách không bị giới hạn |
 
+## Quyết định đã chốt (2026-11-16)
+
+- 2FA vẫn tùy chọn, mật khẩu tối thiểu 8 ký tự (không đổi). Ghi lại để không hỏi lại.
+- [Đề xuất của AI, chủ dự án đã duyệt] Các cấu hình đang bật trở thành quy tắc chính thức, không được tắt khi chưa hỏi chủ dự án: bí mật 2FA mã hóa bằng Data Protection, header bảo mật (nosniff, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy), cookie `HttpOnly`/`SameSite=Lax`/`Secure` ở production, phiên 8 giờ trượt.
+
 ## Chờ chốt (chưa có hiệu lực)
 
-- **Đã chốt 2026-11-16:** 2FA vẫn tùy chọn, mật khẩu tối thiểu 8 ký tự (không đổi). Ghi lại để không hỏi lại.
-- **Chốt kỹ thuật 2026-11-16 (đề xuất của AI theo thực tế code, chủ dự án có thể đổi):** các cấu hình đang bật trở thành quy tắc chính thức, không được tắt khi chưa hỏi chủ dự án: bí mật 2FA mã hóa bằng Data Protection, header bảo mật (nosniff, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy), cookie `HttpOnly`/`SameSite=Lax`/`Secure` ở production, phiên 8 giờ trượt.
+Không còn mục chờ chốt.
+

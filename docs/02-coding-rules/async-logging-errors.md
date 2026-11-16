@@ -45,7 +45,10 @@
 | `catch` rồi `throw;` | `Upload*AttachmentCommandHandler.cs` (3 file) bắt mọi ngoại lệ để xóa tệp vừa ghi rồi ném lại; giữ vì không nuốt lỗi |
 | Bắt `OverflowException` | `Domain/Purchasing/ChargeAllocation.cs:97` còn `try/catch`; phép nhân ở trang Mua hàng đã chuyển sang `SafeMath.MultiplyOrMax` |
 
+## Quyết định đã chốt (2026-11-16)
+
+- Log giữ 30 ngày, xoay vòng (chi tiết ở `06-operations/deployment.md`).
+
 ## Chờ chốt (chưa có hiệu lực)
 
-- **Đã chốt 2026-11-16:** log giữ 30 ngày, xoay vòng (chi tiết ở `06-operations/deployment.md`).
 - Kiểm tra sức khỏe (health check) và giám sát lỗi (cảnh báo khi Error tăng).

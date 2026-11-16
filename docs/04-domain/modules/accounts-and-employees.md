@@ -69,8 +69,13 @@ Ghi `IAuditLog` (mã hành động dạng `nhóm.sự_kiện`, hiển thị ti�
 | --- | --- |
 | `Version` | Form sửa gửi `Version`, handler từ chối bằng `EmployeeError.VersionConflict`; hai lần lưu chồng nhau thật sự (kể cả khi Disable/Active) cũng trả `VersionConflict` |
 
+## Quyết định đã chốt (2026-11-16)
+
+- [Chưa làm] Thêm quên mật khẩu qua email (gửi link đặt lại có hạn dùng). Đảo ngược ADR-12 và dòng "Không có quên mật khẩu qua email" ở roles-and-permissions.md; hiện vẫn Admin đặt lại. Dịch vụ gửi: SMTP của VinaHost qua thư viện có sẵn của .NET (không MailKit); thông tin SMTP ở user-secrets/biến môi trường, không ghi vào mã nguồn. Còn chờ chủ dự án tạo hộp thư gửi đi và cấu hình; làm kèm test và rate limit.
+- Chức vụ và phòng ban giữ **văn bản tự do** (không danh sách cố định).
+- [Đề xuất của AI, chủ dự án đã duyệt] Không có tab ma trận quyền trên màn nhân sự; quyền chỉ ghi ở roles-and-permissions.md.
+
 ## Chờ chốt (chưa có hiệu lực)
 
-- **Đã chốt 2026-11-16 (chưa làm):** thêm quên mật khẩu qua email (gửi link đặt lại có hạn dùng). Đảo ngược ADR-12 và dòng "Không có quên mật khẩu qua email" ở roles-and-permissions.md; hiện vẫn Admin đặt lại. Dịch vụ gửi: SMTP của VinaHost qua thư viện có sẵn của .NET (không MailKit); thông tin SMTP ở user-secrets/biến môi trường, không ghi vào mã nguồn. Còn chờ chủ dự án tạo hộp thư gửi đi và cấu hình; làm kèm test và rate limit.
-- **Đã chốt 2026-11-16:** chức vụ và phòng ban giữ **văn bản tự do** (không danh sách cố định).
-- **Chốt kỹ thuật 2026-11-16 (đề xuất của AI theo thực tế code, chủ dự án có thể đổi):** không có tab ma trận quyền trên màn nhân sự; quyền chỉ ghi ở roles-and-permissions.md.
+Không còn mục chờ chốt.
+

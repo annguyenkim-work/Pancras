@@ -66,7 +66,10 @@ Xem [../00-overview/product.md](../00-overview/product.md).
 | Trang to | `Pages/Inventory` và `Pages/Purchasing` đã tách thành partial (`_Balances`, `_Transfers`, `_Stocktakes`, `_Dialogs`, `_ItemDetail`; `_OrderDetail`, `_OrderForm`); Catalog, Suppliers, Employees còn một file mỗi trang |
 | Domain/Application dùng chung | `Auditing` có ở cả Domain và Application nhưng `Locations` chỉ có ở Application; cân nhắc thống nhất khi làm lại module Kho & Showroom |
 
+## Quyết định đã chốt (2026-11-16)
+
+- [Đề xuất của AI, chủ dự án đã duyệt] Giữ một project `Application` chia theo thư mục module; chỉ tách project khi có lý do cụ thể (thời gian build, nhóm làm riêng).
+
 ## Chờ chốt (chưa có hiệu lực)
 
-- **Chốt kỹ thuật 2026-11-16 (đề xuất của AI theo thực tế code, chủ dự án có thể đổi):** giữ một project `Application` chia theo thư mục module; chỉ tách project khi có lý do cụ thể (thời gian build, nhóm làm riêng).
 - Giám sát, health check, và cấu trúc deployment (xem `06-operations`).

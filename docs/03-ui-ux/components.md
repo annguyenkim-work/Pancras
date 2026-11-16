@@ -135,6 +135,11 @@ Khung chung cho badge trạng thái và badge phân loại: `rounded-full px-2 p
 | Toast, banner | Toast sau thao tác POST ở Catalog, Locations, Purchasing, Suppliers, Profile; lỗi cần giữ form dùng `_Notice` ở mọi trang (kể cả Kho). Chưa chuyển lỗi của Kho sang toast vì lỗi đi cùng hộp thoại đang mở |
 | Badge | Đã dùng `Badge` ở mọi bảng và danh sách, kể cả chip kho và bộ đếm của Kho |
 
+## Quyết định đã chốt (2026-11-16)
+
+- [Đã làm] Khi đang tìm, vùng kết quả của bộ lọc live mờ đi, `aria-busy` và con trỏ chờ.
+
 ## Chờ chốt (chưa có hiệu lực)
 
-- **Đã chốt và làm 2026-11-16:** khi đang tìm, vùng kết quả của bộ lọc live mờ đi, `aria-busy` và con trỏ chờ.
+Không còn mục chờ chốt.
+

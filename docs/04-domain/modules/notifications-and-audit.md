@@ -73,6 +73,11 @@ Theo quy tắc ở [use-cases-and-results.md](../../02-coding-rules/use-cases-an
 | Thông báo dùng chung | Đã có thực thể `Notification` (bảng `notification`), chuông header, `/notifications`, mở đúng chứng từ. Cột kho `StockLocationId` có thể null; chưa đổi tên cột thành `LocationId` |
 | Vòng đời | Đã đúng trong code cho phiếu chuyển, điều chỉnh, hủy và đơn mua: mỗi bước xóa thông báo cũ của chứng từ rồi tạo thông báo mới (không trùng, biến mất khi bước xong), chỉ người nhận mở được. Chưa có test riêng cho phiếu chuyển/điều chỉnh/hủy |
 
+## Quyết định đã chốt (2026-11-16)
+
+- [Chưa làm] Thêm kênh email cho thông báo (không Zalo, không push); hiện vẫn chỉ trong phần mềm. Dùng chung dịch vụ email với quên mật khẩu (SMTP VinaHost, xem accounts-and-employees.md); còn chờ chốt loại thông báo nào gửi email và cho ai.
+
 ## Chờ chốt (chưa có hiệu lực)
 
-- **Đã chốt 2026-11-16 (chưa làm):** thêm kênh email cho thông báo (không Zalo, không push); hiện vẫn chỉ trong phần mềm. Dùng chung dịch vụ email với quên mật khẩu (SMTP VinaHost, xem accounts-and-employees.md); còn chờ chốt loại thông báo nào gửi email và cho ai.
+Không còn mục chờ chốt.
+

@@ -38,6 +38,10 @@ Sự kiện nào gửi thông báo cho ai; mã hành động audit (`nhóm.sự_
 | --- | --- |
 | | |
 
+## Quyết định đã chốt
+
+- Quyết định của chủ dự án kèm ngày; liên quan code thì đánh dấu `[Đã làm]` hoặc `[Chưa làm]`. Xóa khỏi "Chờ chốt" khi đã chốt.
+
 ## Chờ chốt (chưa có hiệu lực)
 
 - Việc chưa được chủ dự án quyết; **không đoán**, hỏi chủ dự án.

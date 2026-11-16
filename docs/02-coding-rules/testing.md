@@ -67,7 +67,12 @@ dotnet test tests/Pancras.Domain.Tests --filter "FullyQualifiedName~SomeTest"
 | Tên test hồi quy | `ManualRetestRegressionTests` đặt theo đợt test thủ công, không theo handler; chuyển test về file của handler khi chạm tới |
 | Đủ mã lỗi | Chưa rà từng enum lỗi xem handler nào chưa có test cho mã lỗi nào |
 
+## Quyết định đã chốt (2026-11-16)
+
+- Chưa đặt ngưỡng độ phủ tối thiểu.
+- [Đề xuất của AI, chủ dự án đã duyệt] Dùng chung `TestActors` và các test double có sẵn trong từng project test; thư mục test phản chiếu thư mục module của code (`Catalog`, `Purchasing`...).
+
 ## Chờ chốt (chưa có hiệu lực)
 
-- **Đã chốt 2026-11-16:** chưa đặt ngưỡng độ phủ tối thiểu.
-- **Chốt kỹ thuật 2026-11-16 (đề xuất của AI theo thực tế code, chủ dự án có thể đổi):** dùng chung `TestActors` và các test double có sẵn trong từng project test; thư mục test phản chiếu thư mục module của code (`Catalog`, `Purchasing`...).
+Không còn mục chờ chốt.
+

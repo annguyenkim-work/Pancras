@@ -49,7 +49,12 @@ Sáu nhóm menu cố định (xem [../03-ui-ux/app-shell.md](../03-ui-ux/app-she
 
 Các nhóm sau **chưa làm, chưa quyết định phạm vi**, không đoán; sẽ có docs khi chủ dự án chốt: kế toán sổ sách và xuất hóa đơn điện tử, thanh toán và công nợ phải trả nhà cung cấp, khách hàng/bán hàng/báo giá/combo/công nợ phải thu/bảo hành (đã có chỗ trong menu).
 
+## Quyết định đã chốt (2026-11-16)
+
+- Chưa cần ghi thông tin quy mô doanh nghiệp vào docs.
+- Thứ tự làm module "Sắp có": Khách hàng → Bán hàng → Công nợ phải thu; sau đó Báo giá, Combo, Bảo hành (thứ tự ba mục sau chưa chốt).
+
 ## Chờ chốt (chưa có hiệu lực)
 
-- **Đã chốt 2026-11-16:** chưa cần ghi thông tin quy mô doanh nghiệp vào docs.
-- **Đã chốt 2026-11-16:** thứ tự làm module "Sắp có": Khách hàng → Bán hàng → Công nợ phải thu; sau đó Báo giá, Combo, Bảo hành (thứ tự ba mục sau chưa chốt).
+Không còn mục chờ chốt.
+

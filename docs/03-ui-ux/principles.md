@@ -29,8 +29,11 @@
 | --- | --- | --- |
 | 12 (toast) | Toast cho kết quả sau POST; lỗi của Kho là `_Notice` trong trang vì phải giữ hộp thoại và dữ liệu đã nhập | Giữ nguyên trừ khi chủ dự án muốn đổi |
 
+## Quyết định đã chốt (2026-11-16)
+
+- Chỉ dùng Tailwind (3.4) cho giao diện, không thêm thư viện CSS khác.
+- [Đề xuất của AI, chủ dự án đã duyệt] Bộ lọc live (`data-live-filter`) dùng cho tìm/lọc nhanh trên danh sách; hàng lọc nằm phía trên bảng, theo thứ tự ô tìm, bộ lọc, đếm kết quả.
+
 ## Chờ chốt (chưa có hiệu lực)
 
-- **Đã chốt 2026-11-16:** chỉ dùng Tailwind (3.4) cho giao diện, không thêm thư viện CSS khác.
-- **Chốt kỹ thuật 2026-11-16 (đề xuất của AI theo thực tế code, chủ dự án có thể đổi):** bộ lọc live (`data-live-filter`) dùng cho tìm/lọc nhanh trên danh sách; hàng lọc nằm phía trên bảng, theo thứ tự ô tìm, bộ lọc, đếm kết quả.
 - Còn sót gì khác: sẽ rà tiếp khi viết `components.md` và `app-shell.md`.

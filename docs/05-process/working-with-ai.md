@@ -14,7 +14,7 @@
 
 - **Không bịa luật nghiệp vụ.** Mục `[CHỜ CHỐT]` hoặc "Chờ chốt" là **việc của chủ dự án**; AI nêu lựa chọn kèm khuyến nghị và **hỏi**, không tự chọn.
 - Chủ dự án quyết định cái gì được ghi vào docs. AI đề xuất nội dung, không tự ghi quyết định mới.
-- **Chốt các mục "Chờ chốt" theo đợt:** AI gom tối đa vài câu hỏi một đợt, mỗi câu nêu lựa chọn kèm khuyến nghị; chủ dự án trả lời; AI ghi **đúng câu trả lời** vào docs kèm ngày (`**Đã chốt YYYY-MM-DD:**`) và nói rõ `(chưa làm)` nếu chưa có code. Câu trả lời mơ hồ hoặc tự mâu thuẫn thì hỏi lại, không đoán; ghi xong báo lại bằng lời mình hiểu để chủ dự án sửa nếu sai.
+- **Chốt các mục "Chờ chốt" theo đợt:** AI gom tối đa vài câu hỏi một đợt, mỗi câu nêu lựa chọn kèm khuyến nghị; chủ dự án trả lời; AI ghi **đúng câu trả lời** vào mục **"Quyết định đã chốt"** của docs đó kèm ngày, đánh dấu `[Đã làm]` hoặc `[Chưa làm]` nếu liên quan code, và xóa mục đó khỏi "Chờ chốt" (mục "Chờ chốt" chỉ giữ việc chưa được quyết). Câu trả lời mơ hồ hoặc tự mâu thuẫn thì hỏi lại, không đoán; ghi xong báo lại bằng lời mình hiểu để chủ dự án sửa nếu sai.
 - **Quy ước kỹ thuật nhỏ** (đặt tên, thư mục, chỉ mục...) chủ dự án có thể giao AI chốt: AI đề xuất theo cách code đang làm, ghi với nhãn `Chốt kỹ thuật (đề xuất của AI, chủ dự án có thể đổi)` để chủ dự án duyệt.
 - Khi code và docs mâu thuẫn: **báo cho chủ dự án**, không âm thầm sửa bên nào.
 - Khi yêu cầu mơ hồ ở điểm quyết định (quyền, giá, trạng thái, xóa dữ liệu): hỏi trước, đừng đoán.
@@ -53,7 +53,6 @@
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Mục "Chờ chốt" lẫn dòng đã chốt | Nhiều file docs còn các dòng `Đã chốt YYYY-MM-DD` nằm trong mục "Chờ chốt". Quy ước đúng: quyết định đã chốt **chuyển vào thân docs** (đúng mục của nó) rồi xóa khỏi "Chờ chốt"; việc chưa làm ghi ở "Nợ lệch". Cần dọn dần khi sửa từng file |
 
 ## Chờ chốt (chưa có hiệu lực)
 
