@@ -9,7 +9,7 @@ public sealed class ListStockBalancesHandler(
     ILogger<ListStockBalancesHandler> logger)
 {
     public async Task<IReadOnlyList<StockBalanceRow>> HandleAsync(
-        StockListFilter filter,
+        ListStockBalancesQuery filter,
         EmployeeActor actor,
         CancellationToken cancellationToken)
     {
@@ -19,7 +19,7 @@ public sealed class ListStockBalancesHandler(
     }
 
     public async Task<IReadOnlyList<StockBalanceRow>> ExportAsync(
-        StockListFilter filter,
+        ListStockBalancesQuery filter,
         EmployeeActor actor,
         CancellationToken cancellationToken)
     {
@@ -35,7 +35,7 @@ public sealed class ListStockBalancesHandler(
     }
 
     private async Task<IReadOnlyList<StockBalanceRow>> LoadAsync(
-        StockListFilter filter,
+        ListStockBalancesQuery filter,
         EmployeeActor actor,
         bool limitToOwnLocation,
         CancellationToken cancellationToken)

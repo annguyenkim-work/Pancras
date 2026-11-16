@@ -748,7 +748,7 @@ public class IndexModel(
         var filter = CurrentFilter();
         var filtered = await listHandler.HandleAsync(filter, Actor, cancellationToken);
         var badges = await listHandler.HandleAsync(
-            new StockListFilter(null, filter.LocationRejected, filter.Category, filter.CategoryRejected, filter.Term),
+            new ListStockBalancesQuery(null, filter.LocationRejected, filter.Category, filter.CategoryRejected, filter.Term),
             Actor,
             cancellationToken);
         Locations = await documentsHandler.ListLocationsAsync(Actor, cancellationToken);
@@ -860,7 +860,7 @@ public class IndexModel(
         return map;
     }
 
-    private StockListFilter CurrentFilter() => StockListFilter.From(Location, Category, Search);
+    private ListStockBalancesQuery CurrentFilter() => ListStockBalancesQuery.From(Location, Category, Search);
 
     private string? Role() => User.FindFirstValue(ClaimTypes.Role);
 

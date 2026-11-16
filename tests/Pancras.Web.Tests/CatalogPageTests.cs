@@ -333,17 +333,17 @@ internal sealed class CatalogDirectoryDouble : ICatalogItemRepository
 {
     public List<CatalogItem> Items { get; } = [];
 
-    public Task<CatalogSlice> ListAsync(CatalogListFilter filter, int pageNumber, int pageSize, CancellationToken cancellationToken)
+    public Task<CatalogSlice> ListAsync(ListCatalogItemsQuery filter, int pageNumber, int pageSize, CancellationToken cancellationToken)
     {
         var ordered = Matching(filter);
-        var size = pageSize < 1 ? CatalogPageRequest.DefaultSize : pageSize;
+        var size = pageSize < 1 ? Pancras.Application.Common.PageSizes.Default : pageSize;
         var totalPages = ordered.Count == 0 ? 1 : (ordered.Count + size - 1) / size;
         var number = Math.Clamp(pageNumber < 1 ? 1 : pageNumber, 1, totalPages);
         IReadOnlyList<CatalogItem> page = ordered.Skip((number - 1) * size).Take(size).ToList();
         return Task.FromResult(new CatalogSlice(page, ordered.Count, number));
     }
 
-    public Task<IReadOnlyList<CatalogItem>> ListMatchingAsync(CatalogListFilter filter, CancellationToken cancellationToken) =>
+    public Task<IReadOnlyList<CatalogItem>> ListMatchingAsync(ListCatalogItemsQuery filter, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<CatalogItem>>(Matching(filter));
 
     public Task<CatalogItem?> GetVisibleReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
@@ -376,6 +376,6 @@ internal sealed class CatalogDirectoryDouble : ICatalogItemRepository
         return Task.FromResult(rows);
     }
 
-    private List<CatalogItem> Matching(CatalogListFilter filter) =>
+    private List<CatalogItem> Matching(ListCatalogItemsQuery filter) =>
         Items.Where(filter.Matches).OrderBy(item => item.Name).ThenBy(item => item.Code).ToList();
 }

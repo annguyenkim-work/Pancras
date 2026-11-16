@@ -39,9 +39,9 @@ public sealed record StockItemProfile(
     decimal DistributorPrice,
     decimal ProjectPrice);
 
-public sealed record StockListFilter(Guid? LocationId, bool LocationRejected, ProductCategory? Category, bool CategoryRejected, string? Term)
+public sealed record ListStockBalancesQuery(Guid? LocationId, bool LocationRejected, ProductCategory? Category, bool CategoryRejected, string? Term)
 {
-    public static StockListFilter From(string? location, string? categoryToken, string? term)
+    public static ListStockBalancesQuery From(string? location, string? categoryToken, string? term)
     {
         var normalizedTerm = Normalize(term);
         Guid? locationId = null;
@@ -60,15 +60,15 @@ public sealed record StockListFilter(Guid? LocationId, bool LocationRejected, Pr
 
         if (string.IsNullOrWhiteSpace(categoryToken))
         {
-            return new StockListFilter(locationId, locationRejected, null, false, normalizedTerm);
+            return new ListStockBalancesQuery(locationId, locationRejected, null, false, normalizedTerm);
         }
 
         if (Catalog.ProductCategoryToken.TryParse(categoryToken, out var category))
         {
-            return new StockListFilter(locationId, locationRejected, category, false, normalizedTerm);
+            return new ListStockBalancesQuery(locationId, locationRejected, category, false, normalizedTerm);
         }
 
-        return new StockListFilter(locationId, locationRejected, null, true, normalizedTerm);
+        return new ListStockBalancesQuery(locationId, locationRejected, null, true, normalizedTerm);
     }
 
     public bool Matches(StockBalanceRow row)

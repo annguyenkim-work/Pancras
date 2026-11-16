@@ -19,7 +19,7 @@ public class IndexModel(
     DeactivateSupplierCommandHandler deactivateHandler,
     ReactivateSupplierCommandHandler reactivateHandler) : PageModel
 {
-    public SupplierCardPage CardPage { get; private set; } = new([], 1, SupplierPageRequest.DefaultSize, 0);
+    public SupplierCardPage CardPage { get; private set; } = new([], 1, Pancras.Application.Common.PageSizes.Default, 0);
 
     public IReadOnlyList<SupplierCard> Cards => CardPage.Cards;
 
@@ -80,7 +80,7 @@ public class IndexModel(
 
     public bool HasSearch => Filter.HasCriteria;
 
-    private SupplierListFilter Filter => SupplierListFilter.From(Search, StatusFilter, Country, SortToken);
+    private ListSuppliersQuery Filter => ListSuppliersQuery.From(Search, StatusFilter, Country, SortToken);
 
     public string FilteredListUrl => BuildUrl(CardPage.PageNumber);
 
@@ -118,9 +118,9 @@ public class IndexModel(
     public async Task<IActionResult> OnGetAsync(Guid? edit, Guid? stop, bool add, CancellationToken cancellationToken)
     {
         ReadPage();
-        var requested = SupplierPageRequest.From(PageNumber, RequestedSize);
+        var requested = Filter.WithPage(PageNumber, RequestedSize);
         await LoadAsync(requested, cancellationToken);
-        if (requested.Number != CardPage.PageNumber)
+        if (requested.PageNumber != CardPage.PageNumber)
         {
             return Redirect(BuildUrl(CardPage.PageNumber, edit, stop, add));
         }
@@ -198,12 +198,12 @@ public class IndexModel(
         if (result.IsFailure)
         {
             RememberFailure("Không Disable được", result.Error, result.IssuesOf<SupplierIssue>(), null);
-            await LoadAsync(SupplierPageRequest.From(PageNumber, RequestedSize), cancellationToken);
+            await LoadAsync(Filter.WithPage(PageNumber, RequestedSize), cancellationToken);
             return Page();
         }
 
         TempData.Toast("Đã chuyển nhà cung cấp sang trạng thái Disable. Xem lại ở bộ lọc \"Disabled\"; Admin có thể khôi phục.");
-        return Redirect(BuildUrl(SupplierPageRequest.From(PageNumber, RequestedSize).Number));
+        return Redirect(BuildUrl(Filter.WithPage(PageNumber, RequestedSize).PageNumber));
     }
 
     public async Task<IActionResult> OnPostReactivateAsync(Guid id, CancellationToken cancellationToken)
@@ -213,12 +213,12 @@ public class IndexModel(
         if (result.IsFailure)
         {
             RememberFailure("Không khôi phục được nhà cung cấp", result.Error, result.IssuesOf<SupplierIssue>(), null);
-            await LoadAsync(SupplierPageRequest.From(PageNumber, RequestedSize), cancellationToken);
+            await LoadAsync(Filter.WithPage(PageNumber, RequestedSize), cancellationToken);
             return Page();
         }
 
         TempData.Toast("Đã khôi phục nhà cung cấp. Nhà cung cấp lại xuất hiện khi lập đơn mua.");
-        return Redirect(BuildUrl(SupplierPageRequest.From(PageNumber, RequestedSize).Number));
+        return Redirect(BuildUrl(Filter.WithPage(PageNumber, RequestedSize).PageNumber));
     }
 
     private async Task<IActionResult> SaveNewAsync(CancellationToken cancellationToken)
@@ -247,7 +247,7 @@ public class IndexModel(
         {
             RememberFailure("Không thêm được nhà cung cấp", result.Error, result.IssuesOf<SupplierIssue>(), Form.Code);
             ShowForm = true;
-            await LoadAsync(SupplierPageRequest.From(PageNumber, RequestedSize), cancellationToken);
+            await LoadAsync(Filter.WithPage(PageNumber, RequestedSize), cancellationToken);
             return Page();
         }
 
@@ -272,11 +272,11 @@ public class IndexModel(
         {
             RememberFailure("Không sửa được nhà cung cấp", result.Error, result.IssuesOf<SupplierIssue>(), Form.Code);
             ShowForm = true;
-            await LoadAsync(SupplierPageRequest.From(PageNumber, RequestedSize), cancellationToken);
+            await LoadAsync(Filter.WithPage(PageNumber, RequestedSize), cancellationToken);
             return Page();
         }
 
-        var cards = await listHandler.HandleAsync(Filter, SupplierPageRequest.From(PageNumber, RequestedSize), Actor, cancellationToken);
+        var cards = await listHandler.HandleAsync(Filter.WithPage(PageNumber, RequestedSize), Actor, cancellationToken);
         var visible = cards.Cards.Any(card => card.Id == result.Value!.Id);
         TempData.Toast(visible
             ? $"Đã lưu nhà cung cấp {result.Value!.Name}."
@@ -314,9 +314,9 @@ public class IndexModel(
         ErrorMessages = SupplierErrorMessages.Describe(error, issues, code);
     }
 
-    private async Task LoadAsync(SupplierPageRequest page, CancellationToken cancellationToken)
+    private async Task LoadAsync(ListSuppliersQuery query, CancellationToken cancellationToken)
     {
-        CardPage = await listHandler.HandleAsync(Filter, page, Actor, cancellationToken);
+        CardPage = await listHandler.HandleAsync(query, Actor, cancellationToken);
         Countries = await listHandler.ListCountriesAsync(Actor, cancellationToken);
     }
 

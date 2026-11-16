@@ -63,7 +63,7 @@ public class DeactivateSupplierCommandHandlerTests
         supplier.Deactivate();
 
         var cards = await new ListSupplierCardsHandler(_repository, new FakeSupplierPurchaseStatsReader(), NullLogger<ListSupplierCardsHandler>.Instance)
-            .HandleAsync(SupplierListFilter.From(null, SupplierStatusFilter.Inactive), SupplierPageRequest.First, SupplierActors.Admin, CancellationToken.None);
+            .HandleAsync(ListSuppliersQuery.From(null, SupplierStatusFilter.Inactive), SupplierActors.Admin, CancellationToken.None);
 
         var card = Assert.Single(cards.Cards);
         Assert.False(card.IsActive);

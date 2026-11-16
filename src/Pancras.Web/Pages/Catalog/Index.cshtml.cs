@@ -24,7 +24,7 @@ public class IndexModel(
     CatalogImageStore images,
     IInventoryRepository stock) : PageModel
 {
-    public CatalogItemPage ItemPage { get; private set; } = new([], 1, CatalogPageRequest.DefaultSize, 0);
+    public CatalogItemPage ItemPage { get; private set; } = new([], 1, Pancras.Application.Common.PageSizes.Default, 0);
 
     public IReadOnlyList<CatalogItemRow> Rows => ItemPage.Rows;
 
@@ -65,7 +65,7 @@ public class IndexModel(
     [BindProperty(SupportsGet = true, Name = "status")]
     public string? StatusToken { get; set; }
 
-    public CatalogStatusFilter StatusFilter => CatalogListFilter.ParseStatus(StatusToken);
+    public CatalogStatusFilter StatusFilter => ListCatalogItemsQuery.ParseStatus(StatusToken);
 
     public bool CanDisable => CatalogAccess.CanDisable(User.FindFirstValue(ClaimTypes.Role));
 
@@ -113,9 +113,9 @@ public class IndexModel(
     public async Task<IActionResult> OnGetAsync(Guid? detail, Guid? prices, bool add, CancellationToken cancellationToken)
     {
         ReadPage();
-        var requested = CatalogPageRequest.From(PageNumber, RequestedSize);
-        ItemPage = await listHandler.HandleAsync(CurrentFilter(), requested, cancellationToken);
-        if (requested.Number != ItemPage.PageNumber)
+        var requested = CurrentFilter().WithPage(PageNumber, RequestedSize);
+        ItemPage = await listHandler.HandleAsync(requested, cancellationToken);
+        if (requested.PageNumber != ItemPage.PageNumber)
         {
             return Redirect(BuildUrl(ItemPage.PageNumber, detail, prices, add));
         }
@@ -155,7 +155,7 @@ public class IndexModel(
         {
             RememberCombined("Không thêm được mặt hàng", image, parsed, parseIssues, Form.Code);
             ShowForm = true;
-            ItemPage = await listHandler.HandleAsync(CurrentFilter(), CatalogPageRequest.From(PageNumber, RequestedSize), cancellationToken);
+            ItemPage = await listHandler.HandleAsync(CurrentFilter().WithPage(PageNumber, RequestedSize), cancellationToken);
             return Page();
         }
 
@@ -170,7 +170,7 @@ public class IndexModel(
             images.Delete(command.ImagePath);
             RememberFailure("Không thêm được mặt hàng", result.Error, result.IssuesOf<CatalogIssue>(), Form.Code);
             ShowForm = true;
-            ItemPage = await listHandler.HandleAsync(CurrentFilter(), CatalogPageRequest.From(PageNumber, RequestedSize), cancellationToken);
+            ItemPage = await listHandler.HandleAsync(CurrentFilter().WithPage(PageNumber, RequestedSize), cancellationToken);
             return Page();
         }
 
@@ -210,7 +210,7 @@ public class IndexModel(
             RememberCombined("Không lưu được sản phẩm", image, parsed, parseIssues, Prices.Code);
             await RefreshCostLockAsync(Prices.Id, cancellationToken);
             ShowPriceForm = true;
-            ItemPage = await listHandler.HandleAsync(CurrentFilter(), CatalogPageRequest.From(PageNumber, RequestedSize), cancellationToken);
+            ItemPage = await listHandler.HandleAsync(CurrentFilter().WithPage(PageNumber, RequestedSize), cancellationToken);
             return Page();
         }
 
@@ -229,7 +229,7 @@ public class IndexModel(
             RememberFailure("Không lưu được sản phẩm", result.Error, result.IssuesOf<CatalogIssue>(), Prices.Code);
             await RefreshCostLockAsync(Prices.Id, cancellationToken);
             ShowPriceForm = true;
-            ItemPage = await listHandler.HandleAsync(CurrentFilter(), CatalogPageRequest.From(PageNumber, RequestedSize), cancellationToken);
+            ItemPage = await listHandler.HandleAsync(CurrentFilter().WithPage(PageNumber, RequestedSize), cancellationToken);
             return Page();
         }
 
@@ -239,7 +239,7 @@ public class IndexModel(
         }
 
         TempData.Toast("Đã lưu sản phẩm.");
-        return Redirect(BuildUrl(CatalogPageRequest.From(PageNumber, RequestedSize).Number));
+        return Redirect(BuildUrl(CurrentFilter().WithPage(PageNumber, RequestedSize).PageNumber));
     }
 
     private async Task<IActionResult> OpenDetailAsync(Guid id, CancellationToken cancellationToken)
@@ -351,7 +351,7 @@ public class IndexModel(
         ErrorMessages = messages;
     }
 
-    private CatalogListFilter CurrentFilter() => CatalogListFilter.From(CategoryToken, Search, StatusToken, SortToken);
+    private ListCatalogItemsQuery CurrentFilter() => ListCatalogItemsQuery.From(CategoryToken, Search, StatusToken, SortToken);
 
     private void ReadPage()
     {

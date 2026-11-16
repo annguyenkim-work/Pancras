@@ -27,16 +27,16 @@ internal sealed class FakeSupplierRepository : ISupplierRepository
     public SaveOutcome? NextOutcome { get; set; }
 
     public Task<IReadOnlyList<Supplier>> ListAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<Supplier>>(Filtered(SupplierListFilter.From(null)));
+        Task.FromResult<IReadOnlyList<Supplier>>(Filtered(ListSuppliersQuery.From(null)));
 
     public Task<SupplierSlice> ListFilteredAsync(
-        SupplierListFilter filter,
+        ListSuppliersQuery filter,
         int pageNumber,
         int pageSize,
         CancellationToken cancellationToken)
     {
         var ordered = SupplierOrdering.Apply(Filtered(filter).AsQueryable(), filter.Order).ToList();
-        var size = pageSize < 1 ? SupplierPageRequest.DefaultSize : pageSize;
+        var size = pageSize < 1 ? Pancras.Application.Common.PageSizes.Default : pageSize;
         var totalPages = ordered.Count == 0 ? 1 : (ordered.Count + size - 1) / size;
         var number = Math.Clamp(pageNumber < 1 ? 1 : pageNumber, 1, totalPages);
         IReadOnlyList<Supplier> items = ordered.Skip((number - 1) * size).Take(size).ToList();
@@ -46,7 +46,7 @@ internal sealed class FakeSupplierRepository : ISupplierRepository
     public Task<IReadOnlyList<string>> ListCountriesAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<string>>(Suppliers.Select(supplier => supplier.Country).Distinct().Order().ToList());
 
-    private List<Supplier> Filtered(SupplierListFilter filter)
+    private List<Supplier> Filtered(ListSuppliersQuery filter)
     {
         IEnumerable<Supplier> suppliers = filter.Status switch
         {

@@ -29,7 +29,7 @@ public class InventoryScopeTests
 
     private ListStockBalancesHandler List() => new(_store, NullLogger<ListStockBalancesHandler>.Instance);
 
-    private static StockListFilter All() => StockListFilter.From(null, null, null);
+    private static ListStockBalancesQuery All() => ListStockBalancesQuery.From(null, null, null);
 
     [Fact]
     public async Task KeeperSeesStockOfEveryLocation()
@@ -44,7 +44,7 @@ public class InventoryScopeTests
     [Fact]
     public async Task KeeperAskingForAnotherLocation_SeesItsStock_WithoutCost()
     {
-        var rows = await List().HandleAsync(StockListFilter.From(_b.Id.ToString("D"), null, null), TestActors.Keeper(_a.Id), CancellationToken.None);
+        var rows = await List().HandleAsync(ListStockBalancesQuery.From(_b.Id.ToString("D"), null, null), TestActors.Keeper(_a.Id), CancellationToken.None);
 
         var row = Assert.Single(rows);
         Assert.Equal(_b.Id, row.StockLocationId);

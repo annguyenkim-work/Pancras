@@ -6,12 +6,12 @@ namespace Pancras.Application.Catalog;
 public interface ICatalogItemRepository
 {
     Task<CatalogSlice> ListAsync(
-        CatalogListFilter filter,
+        ListCatalogItemsQuery filter,
         int pageNumber,
         int pageSize,
         CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<CatalogItem>> ListMatchingAsync(CatalogListFilter filter, CancellationToken cancellationToken);
+    Task<IReadOnlyList<CatalogItem>> ListMatchingAsync(ListCatalogItemsQuery filter, CancellationToken cancellationToken);
 
     Task<CatalogItem?> GetVisibleReadOnlyAsync(Guid id, CancellationToken cancellationToken);
 

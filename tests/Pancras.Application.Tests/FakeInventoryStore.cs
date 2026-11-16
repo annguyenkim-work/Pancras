@@ -43,7 +43,7 @@ internal sealed class FakeInventoryStore : IInventoryRepository
     public Task<IReadOnlyList<StockItemChoice>> ListItemChoicesAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<StockItemChoice>>(Items.Select(item => new StockItemChoice(item.Id, item.Code, item.Name)).ToArray());
 
-    public Task<IReadOnlyList<StockBalanceRow>> ListBalancesAsync(StockListFilter filter, CancellationToken cancellationToken)
+    public Task<IReadOnlyList<StockBalanceRow>> ListBalancesAsync(ListStockBalancesQuery filter, CancellationToken cancellationToken)
     {
         var rows = new List<StockBalanceRow>();
         foreach (var balance in Balances)
@@ -123,7 +123,7 @@ internal sealed class FakeInventoryStore : IInventoryRepository
         Task.FromResult<StockItemProfile?>(null);
 
     public Task<IReadOnlyList<StockBalanceRow>> ListItemBalancesAsync(Guid catalogItemId, CancellationToken cancellationToken) =>
-        ListBalancesAsync(new StockListFilter(null, false, null, false, null), cancellationToken)
+        ListBalancesAsync(new ListStockBalancesQuery(null, false, null, false, null), cancellationToken)
             .ContinueWith(
                 task => (IReadOnlyList<StockBalanceRow>)task.Result.Where(row => row.CatalogItemId == catalogItemId).ToArray(),
                 cancellationToken,

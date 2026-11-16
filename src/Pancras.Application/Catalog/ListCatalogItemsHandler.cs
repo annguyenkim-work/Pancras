@@ -7,19 +7,18 @@ public sealed class ListCatalogItemsHandler(
     ILogger<ListCatalogItemsHandler> logger)
 {
     public async Task<CatalogItemPage> HandleAsync(
-        CatalogListFilter filter,
-        CatalogPageRequest page,
+        ListCatalogItemsQuery query,
         CancellationToken cancellationToken)
     {
-        if (filter.CategoryRejected)
+        if (query.CategoryRejected)
         {
             logger.LogInformation("Listed {CatalogItemCount} catalog items.", 0);
-            return new CatalogItemPage([], 1, page.Size, 0);
+            return new CatalogItemPage([], 1, query.PageSize, 0);
         }
 
-        var slice = await repository.ListAsync(filter, page.Number, page.Size, cancellationToken);
+        var slice = await repository.ListAsync(query, query.PageNumber, query.PageSize, cancellationToken);
         logger.LogInformation("Listed {CatalogItemCount} catalog items.", slice.Items.Count);
         var rows = slice.Items.Select(CatalogItemRow.From).ToArray();
-        return new CatalogItemPage(rows, slice.PageNumber, page.Size, slice.TotalCount);
+        return new CatalogItemPage(rows, slice.PageNumber, query.PageSize, slice.TotalCount);
     }
 }

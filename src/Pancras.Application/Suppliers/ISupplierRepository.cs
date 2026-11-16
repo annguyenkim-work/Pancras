@@ -9,7 +9,7 @@ public interface ISupplierRepository
     /// <summary>Nhà cung cấp đang hợp tác, để chọn khi lập đơn mua.</summary>
     Task<IReadOnlyList<Supplier>> ListAsync(CancellationToken cancellationToken);
 
-    Task<SupplierSlice> ListFilteredAsync(SupplierListFilter filter, int pageNumber, int pageSize, CancellationToken cancellationToken);
+    Task<SupplierSlice> ListFilteredAsync(ListSuppliersQuery filter, int pageNumber, int pageSize, CancellationToken cancellationToken);
 
     /// <summary>Các quốc gia đang có trong danh bạ (mọi trạng thái), để lọc.</summary>
     Task<IReadOnlyList<string>> ListCountriesAsync(CancellationToken cancellationToken);

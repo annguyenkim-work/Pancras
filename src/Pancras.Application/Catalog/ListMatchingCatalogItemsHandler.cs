@@ -7,7 +7,7 @@ public sealed class ListMatchingCatalogItemsHandler(
     ILogger<ListMatchingCatalogItemsHandler> logger)
 {
     public async Task<IReadOnlyList<CatalogItemRow>> HandleAsync(
-        CatalogListFilter filter,
+        ListCatalogItemsQuery filter,
         CancellationToken cancellationToken)
     {
         if (filter.CategoryRejected)

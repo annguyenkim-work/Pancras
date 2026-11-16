@@ -16,8 +16,7 @@ public class ListCatalogItemsHandlerTests
         var handler = new ListCatalogItemsHandler(repository, NullLogger<ListCatalogItemsHandler>.Instance);
 
         var page = await handler.HandleAsync(
-            CatalogListFilter.From(ProductCategoryToken.Sanitary, null),
-            CatalogPageRequest.First,
+            ListCatalogItemsQuery.From(ProductCategoryToken.Sanitary, null),
             CancellationToken.None);
 
         var row = Assert.Single(page.Rows);
@@ -34,8 +33,8 @@ public class ListCatalogItemsHandlerTests
         repository.Items.Add(Item("SP02", "Bồn cầu", ProductCategory.SanitaryEquipment, "Inax"));
         var handler = new ListCatalogItemsHandler(repository, NullLogger<ListCatalogItemsHandler>.Instance);
 
-        var byName = await handler.HandleAsync(CatalogListFilter.From(null, "lav"), CatalogPageRequest.First, CancellationToken.None);
-        var byBrand = await handler.HandleAsync(CatalogListFilter.From(null, "ina"), CatalogPageRequest.First, CancellationToken.None);
+        var byName = await handler.HandleAsync(ListCatalogItemsQuery.From(null, "lav"), CancellationToken.None);
+        var byBrand = await handler.HandleAsync(ListCatalogItemsQuery.From(null, "ina"), CancellationToken.None);
 
         Assert.Equal("SP01", Assert.Single(byName.Rows).Code);
         Assert.Equal("SP02", Assert.Single(byBrand.Rows).Code);
@@ -51,7 +50,7 @@ public class ListCatalogItemsHandlerTests
         }
 
         var handler = new ListCatalogItemsHandler(repository, NullLogger<ListCatalogItemsHandler>.Instance);
-        var page = await handler.HandleAsync(CatalogListFilter.From(null, null), CatalogPageRequest.First, CancellationToken.None);
+        var page = await handler.HandleAsync(ListCatalogItemsQuery.From(null, null), CancellationToken.None);
 
         Assert.Equal(20, page.Rows.Count);
         Assert.Equal(21, page.TotalCount);

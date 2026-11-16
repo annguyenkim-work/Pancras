@@ -101,13 +101,19 @@ public enum CatalogStatusFilter
     All
 }
 
-public sealed record CatalogListFilter(
+public sealed record ListCatalogItemsQuery(
     ProductCategory? Category,
     bool CategoryRejected,
     string? Term,
     CatalogStatusFilter Status = CatalogStatusFilter.Active,
-    Pancras.Application.Common.ListSort? Sort = null)
+    Pancras.Application.Common.ListSort? Sort = null,
+    int PageNumber = 1,
+    int PageSize = Pancras.Application.Common.PageSizes.Default)
 {
+    /// <summary>Cùng bộ lọc, đổi trang và cỡ trang (số trang < 1 về 1, cỡ trang < 1 về mặc định).</summary>
+    public ListCatalogItemsQuery WithPage(int? number, int? size) =>
+        this with { PageNumber = number is > 0 ? number.Value : 1, PageSize = size is > 0 ? size.Value : Pancras.Application.Common.PageSizes.Default };
+
     public Pancras.Application.Common.ListSort Order => Sort ?? CatalogOrdering.Parse(null);
 
     public static CatalogStatusFilter ParseStatus(string? token) => token?.Trim().ToLowerInvariant() switch
@@ -117,22 +123,22 @@ public sealed record CatalogListFilter(
         _ => CatalogStatusFilter.Active
     };
 
-    public static CatalogListFilter From(string? categoryToken, string? term, string? statusToken = null, string? sortToken = null)
+    public static ListCatalogItemsQuery From(string? categoryToken, string? term, string? statusToken = null, string? sortToken = null)
     {
         var normalizedTerm = Normalize(term);
         var status = ParseStatus(statusToken);
         var sort = CatalogOrdering.Parse(sortToken);
         if (string.IsNullOrWhiteSpace(categoryToken))
         {
-            return new CatalogListFilter(null, false, normalizedTerm, status, sort);
+            return new ListCatalogItemsQuery(null, false, normalizedTerm, status, sort);
         }
 
         if (ProductCategoryToken.TryParse(categoryToken, out var category))
         {
-            return new CatalogListFilter(category, false, normalizedTerm, status, sort);
+            return new ListCatalogItemsQuery(category, false, normalizedTerm, status, sort);
         }
 
-        return new CatalogListFilter(null, true, normalizedTerm, status, sort);
+        return new ListCatalogItemsQuery(null, true, normalizedTerm, status, sort);
     }
 
     public bool Matches(CatalogItem item)
@@ -172,16 +178,6 @@ public sealed record CatalogListFilter(
         var trimmed = value.Trim();
         return trimmed.Length == 0 ? null : trimmed;
     }
-}
-
-public sealed record CatalogPageRequest(int Number, int Size)
-{
-    public const int DefaultSize = 20;
-
-    public static CatalogPageRequest First { get; } = new(1, DefaultSize);
-
-    public static CatalogPageRequest From(int? page, int? size = null) =>
-        new(page is > 0 ? page.Value : 1, Pancras.Application.Common.PageSizes.Normalize(size));
 }
 
 public sealed record CatalogItemPage(

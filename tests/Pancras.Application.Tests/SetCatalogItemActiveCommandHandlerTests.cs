@@ -68,9 +68,9 @@ public class SetCatalogItemActiveCommandHandlerTests
         item.Deactivate();
         var list = new ListMatchingCatalogItemsHandler(_repository, NullLogger<ListMatchingCatalogItemsHandler>.Instance);
 
-        var active = await list.HandleAsync(CatalogListFilter.From(null, null), CancellationToken.None);
-        var disabled = await list.HandleAsync(CatalogListFilter.From(null, null, "disabled"), CancellationToken.None);
-        var all = await list.HandleAsync(CatalogListFilter.From(null, null, "all"), CancellationToken.None);
+        var active = await list.HandleAsync(ListCatalogItemsQuery.From(null, null), CancellationToken.None);
+        var disabled = await list.HandleAsync(ListCatalogItemsQuery.From(null, null, "disabled"), CancellationToken.None);
+        var all = await list.HandleAsync(ListCatalogItemsQuery.From(null, null, "all"), CancellationToken.None);
 
         Assert.Empty(active);
         Assert.Single(disabled);

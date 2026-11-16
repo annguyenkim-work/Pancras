@@ -15,7 +15,7 @@ public class CreateCatalogItemCommandHandlerTests
 
         var result = await handler.HandleAsync(Command("SP09", "Sen tắm"), CancellationToken.None);
         var page = await new ListCatalogItemsHandler(repository, NullLogger<ListCatalogItemsHandler>.Instance)
-            .HandleAsync(CatalogListFilter.From(ProductCategoryToken.Sanitary, "SP09"), CatalogPageRequest.First, CancellationToken.None);
+            .HandleAsync(ListCatalogItemsQuery.From(ProductCategoryToken.Sanitary, "SP09"), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal("SP09", Assert.Single(page.Rows).Code);

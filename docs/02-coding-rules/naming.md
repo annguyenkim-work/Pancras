@@ -51,7 +51,6 @@
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Truy vấn không có `Query` | Đang dùng `CatalogListFilter`, `StockListFilter`, `SupplierListFilter`, `CatalogPageRequest`, `SupplierPageRequest`; handler đọc nhận tham số rời — đổi thành `<Verb><Entity>Query` khi chạm tới |
 | Hậu tố khác | `*Input` ngoài dòng con (`ReceivedLineInput`...), `CreatedCatalogItem`, `*Result` (`TwoFactorEnabledResult`) cần rà lại tên |
 
 ## Chờ chốt (chưa có hiệu lực)

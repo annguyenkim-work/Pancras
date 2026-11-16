@@ -19,7 +19,7 @@ public sealed class SupplierRepository(PancrasDbContext context) : ISupplierRepo
     }
 
     public async Task<SupplierSlice> ListFilteredAsync(
-        SupplierListFilter filter,
+        ListSuppliersQuery filter,
         int pageNumber,
         int pageSize,
         CancellationToken cancellationToken)
@@ -52,7 +52,7 @@ public sealed class SupplierRepository(PancrasDbContext context) : ISupplierRepo
 
         var ordered = SupplierOrdering.Apply(suppliers, filter.Order);
         var total = await ordered.CountAsync(cancellationToken);
-        var size = pageSize < 1 ? SupplierPageRequest.DefaultSize : pageSize;
+        var size = pageSize < 1 ? Pancras.Application.Common.PageSizes.Default : pageSize;
         var totalPages = total == 0 ? 1 : (total + size - 1) / size;
         var number = Math.Clamp(pageNumber < 1 ? 1 : pageNumber, 1, totalPages);
         var items = await ordered

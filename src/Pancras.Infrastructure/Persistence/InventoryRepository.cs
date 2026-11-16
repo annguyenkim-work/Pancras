@@ -24,7 +24,7 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
         return items;
     }
 
-    public async Task<IReadOnlyList<StockBalanceRow>> ListBalancesAsync(StockListFilter filter, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<StockBalanceRow>> ListBalancesAsync(ListStockBalancesQuery filter, CancellationToken cancellationToken)
     {
         if (filter.LocationRejected || filter.CategoryRejected)
         {

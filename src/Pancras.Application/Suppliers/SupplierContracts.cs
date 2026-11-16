@@ -10,11 +10,15 @@ public enum SupplierStatusFilter
     All = 2
 }
 
-public sealed record SupplierListFilter(string? Term, SupplierStatusFilter Status = SupplierStatusFilter.Active, string? Country = null, Pancras.Application.Common.ListSort? Sort = null)
+public sealed record ListSuppliersQuery(string? Term, SupplierStatusFilter Status = SupplierStatusFilter.Active, string? Country = null, Pancras.Application.Common.ListSort? Sort = null, int PageNumber = 1, int PageSize = Pancras.Application.Common.PageSizes.Default)
 {
+    /// <summary>Cùng bộ lọc, đổi trang và cỡ trang (số trang < 1 về 1, cỡ trang < 1 về mặc định).</summary>
+    public ListSuppliersQuery WithPage(int? number, int? size) =>
+        this with { PageNumber = number is > 0 ? number.Value : 1, PageSize = size is > 0 ? size.Value : Pancras.Application.Common.PageSizes.Default };
+
     public Pancras.Application.Common.ListSort Order => Sort ?? SupplierOrdering.Parse(null);
 
-    public static SupplierListFilter From(string? term, SupplierStatusFilter status = SupplierStatusFilter.Active, string? country = null, string? sort = null) =>
+    public static ListSuppliersQuery From(string? term, SupplierStatusFilter status = SupplierStatusFilter.Active, string? country = null, string? sort = null) =>
         new(Normalize(term), Enum.IsDefined(status) ? status : SupplierStatusFilter.Active, Normalize(country), SupplierOrdering.Parse(sort));
 
     public bool HasCriteria => Term is not null || Status != SupplierStatusFilter.Active || Country is not null;
@@ -28,16 +32,6 @@ public sealed record SupplierListFilter(string? Term, SupplierStatusFilter Statu
 
         return value.Trim();
     }
-}
-
-public sealed record SupplierPageRequest(int Number, int Size)
-{
-    public const int DefaultSize = 20;
-
-    public static SupplierPageRequest First { get; } = new(1, DefaultSize);
-
-    public static SupplierPageRequest From(int? page, int? size = null) =>
-        new(page is > 0 ? page.Value : 1, Pancras.Application.Common.PageSizes.Normalize(size));
 }
 
 public sealed record SupplierSlice(IReadOnlyList<Supplier> Items, int TotalCount, int PageNumber);

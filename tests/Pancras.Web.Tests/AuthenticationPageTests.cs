@@ -532,12 +532,12 @@ internal sealed class SupplierDirectoryDouble : ISupplierRepository
     public List<Supplier> Suppliers { get; } = [];
 
     public Task<IReadOnlyList<Supplier>> ListAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<Supplier>>(Filtered(SupplierListFilter.From(null)));
+        Task.FromResult<IReadOnlyList<Supplier>>(Filtered(ListSuppliersQuery.From(null)));
 
-    public Task<SupplierSlice> ListFilteredAsync(SupplierListFilter filter, int pageNumber, int pageSize, CancellationToken cancellationToken)
+    public Task<SupplierSlice> ListFilteredAsync(ListSuppliersQuery filter, int pageNumber, int pageSize, CancellationToken cancellationToken)
     {
         var ordered = Filtered(filter);
-        var size = pageSize < 1 ? SupplierPageRequest.DefaultSize : pageSize;
+        var size = pageSize < 1 ? Pancras.Application.Common.PageSizes.Default : pageSize;
         var totalPages = ordered.Count == 0 ? 1 : (ordered.Count + size - 1) / size;
         var number = Math.Clamp(pageNumber < 1 ? 1 : pageNumber, 1, totalPages);
         IReadOnlyList<Supplier> items = ordered.Skip((number - 1) * size).Take(size).ToList();
@@ -584,7 +584,7 @@ internal sealed class SupplierDirectoryDouble : ISupplierRepository
 
     public Task<Pancras.Application.Common.SaveOutcome> TrySaveAsync(CancellationToken cancellationToken) => Task.FromResult(Pancras.Application.Common.SaveOutcome.Saved);
 
-    private List<Supplier> Filtered(SupplierListFilter filter)
+    private List<Supplier> Filtered(ListSuppliersQuery filter)
     {
         IEnumerable<Supplier> suppliers = filter.Status switch
         {
