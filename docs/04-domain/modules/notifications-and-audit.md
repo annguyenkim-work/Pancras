@@ -66,9 +66,9 @@ Theo quy tắc ở [use-cases-and-results.md](../../02-coding-rules/use-cases-an
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Thông báo dùng chung | Chưa có `Notification`, chuông header, `/notifications`; `StockNotice` chỉ hiện trong `/inventory`, mở thông báo luôn về tab kiểm kê (`?view=stocktakes`) dù là phiếu chuyển |
+| Thông báo dùng chung | Đã có chuông trên header (số chưa xem) và trang `/notifications`, mở đúng phiếu chuyển hoặc tab kiểm kê; banner trong `/inventory` đã bỏ. Còn lệch: thực thể vẫn là `StockNotice` (chỉ kho, khóa theo kho), chưa đổi thành `Notification` dùng chung cho mọi module; chưa phân trang |
 | Vòng đời | Cần kiểm tra code đã làm đủ: biến mất với mọi người khi bước xong, không trùng thông báo cho cùng một bước (hiện chỉ có `Seen` theo người nhận) |
-| Thông báo mua hàng | Chưa có |
+| Thông báo mua hàng | Chưa có; cần `Notification` dùng chung trước (một thông báo không bắt buộc có kho) |
 | Kiểm kê chờ duyệt | Spec cũ có thông báo cho Trưởng kho; code mới có thông báo cho điều chỉnh và hủy, chưa cho kiểm kê |
 | Nhật ký | `AuditAccess` chưa có (menu so vai trò viết tay); danh sách 50 dòng/trang cố định, chỉ một ô tìm; chưa có bộ lọc người/hành động/đối tượng/ngày |
 | Hiển thị mã hành động | Cần một nơi duy nhất ánh xạ mã hành động sang câu tiếng Việt |
