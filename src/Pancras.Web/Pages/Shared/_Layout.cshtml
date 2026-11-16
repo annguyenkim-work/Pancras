@@ -1,8 +1,13 @@
 @using System.Security.Claims
 @using Pancras.Web.Navigation
+@inject Pancras.Application.Inventory.ListStockNoticesHandler Notices
 @{
     var roleName = User.FindFirstValue(ClaimTypes.Role);
     var currentPath = Context.Request.Path.Value ?? "/";
+    var unseen = User.Identity?.IsAuthenticated == true && Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var meId)
+        ? await Notices.CountUnseenAsync(meId, Context.RequestAborted)
+        : 0;
+    var bellLabel = unseen > 0 ? $"Thông báo, {unseen} chưa xem" : "Thông báo";
     bool IsSoon(string path) => NavigationMenu.IsComingSoon(path);
     string ItemClass(string path)
     {
@@ -38,7 +43,8 @@
             <img src="~/images/logo-pancras.png" asp-append-version="true" alt="" class="h-10 w-10 rounded-md shrink-0" />
             <span class="font-display font-bold truncate">PancrasERP</span>
         </a>
-        <a href="/profile" class="ml-auto mr-2 text-sm font-medium text-slate-800">Hồ sơ</a>
+        <a href="/notifications" class="relative ml-auto mr-3 p-1 text-slate-700" title="Thông báo" aria-label="@bellLabel"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>@if (unseen > 0) {<span class="absolute -right-1 -top-1 min-w-[1.1rem] rounded-full bg-rose-600 px-1 text-center text-[10px] font-bold leading-4 text-white">@(unseen > 9 ? "9+" : unseen.ToString())</span>}</a>
+        <a href="/profile" class="mr-2 text-sm font-medium text-slate-800">Hồ sơ</a>
         <form method="post" asp-page="/Account/Logout">
             <button type="submit" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Đăng xuất</button>
         </form>
@@ -76,6 +82,7 @@
         <header class="no-print hidden lg:flex items-center justify-between h-16 px-6 bg-white border-b border-slate-200">
             <div class="text-sm text-slate-500">PancrasERP / @ViewData["Title"]</div>
             <div class="flex items-center gap-3">
+                <a href="/notifications" class="relative p-1 text-slate-600 hover:text-sky-700" title="Thông báo" aria-label="@bellLabel"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>@if (unseen > 0) {<span class="absolute -right-1 -top-1 min-w-[1.1rem] rounded-full bg-rose-600 px-1 text-center text-[10px] font-bold leading-4 text-white">@(unseen > 9 ? "9+" : unseen.ToString())</span>}</a>
                 <a href="/profile" class="text-sm font-medium text-slate-800 hover:text-sky-700" title="Hồ sơ của tôi">@User.Identity?.Name</a>
                 <span class="@Pancras.Web.Formatting.Badge.Classes(Pancras.Web.Formatting.BadgeTone.Info)">@User.FindFirstValue(ClaimTypes.Role)</span>
                 <form method="post" asp-page="/Account/Logout">

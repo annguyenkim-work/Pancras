@@ -37,25 +37,6 @@
             }
         </div>
     </section>
-    @if (Model.Notices.Count > 0)
-    {
-        <section class="rounded-2xl border border-sky-200 bg-sky-50 p-4">
-            <h2 class="text-sm font-bold text-slate-900">Thông báo kho</h2>
-            <ul class="mt-2 space-y-2 text-sm">
-                @foreach (var notice in Model.Notices)
-                {
-                    <li class="flex flex-wrap items-center justify-between gap-2">
-                        <span class="@(notice.Seen ? "text-slate-500" : "font-semibold text-slate-900")">@(notice.Kind == StockNoticeKind.Transfer ? StockLabels.DocumentCode("CK", notice.DocumentId) + ": " : "")@notice.Step @(notice.Seen ? "(đã xem)" : "")</span>
-                        <form method="post" asp-antiforgery="true" action="/inventory?handler=OpenNotice">
-                            <input type="hidden" name="noticeId" value="@notice.Id" />
-                            <button type="submit" class="font-bold text-sky-700">Mở phiếu</button>
-                        </form>
-                    </li>
-                }
-            </ul>
-        </section>
-    }
-
     @if (Model.ActiveView == "balances")
     {
         <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5">

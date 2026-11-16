@@ -33,7 +33,6 @@ public class IndexModel(
     ApproveQuantityAdjustmentCommandHandler approveAdjustmentHandler,
     CreateDisposalSlipCommandHandler createDisposalHandler,
     ApproveDisposalSlipCommandHandler approveDisposalHandler,
-    ListStockNoticesHandler noticesHandler,
     UploadStockDocumentAttachmentCommandHandler uploadStockDocumentFile,
     OpenStockDocumentAttachmentHandler openStockDocumentFile) : PageModel
 {
@@ -54,8 +53,6 @@ public class IndexModel(
     public IReadOnlyList<AdjustmentRow> Adjustments { get; private set; } = [];
 
     public IReadOnlyList<DisposalRow> Disposals { get; private set; } = [];
-
-    public IReadOnlyList<StockNotice> Notices { get; private set; } = [];
 
     public Pancras.Domain.Employees.EmployeeActor Actor => User.ToActor();
 
@@ -544,24 +541,6 @@ public class IndexModel(
             files,
             cancellationToken);
 
-    public async Task<IActionResult> OnPostOpenNoticeAsync(Guid noticeId, CancellationToken cancellationToken)
-    {
-        StockNotice? notice = null;
-        if (Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var employeeId))
-        {
-            notice = await noticesHandler.OpenAsync(noticeId, employeeId, cancellationToken);
-        }
-
-        var target = notice switch
-        {
-            null => "/inventory?view=transfers",
-            { Kind: StockNoticeKind.Transfer } => $"/inventory?view=transfers&open={notice.DocumentId:D}",
-            _ => $"/inventory?view=stocktakes#document-{notice.DocumentId:D}"
-        };
-
-        return Redirect(target);
-    }
-
     public Task<IActionResult> OnPostApproveDisposalAsync(CancellationToken cancellationToken) =>
         CanApproveAnything
             ? SaveAsync(approveDisposalHandler.HandleAsync(new ApproveDocumentCommand(DocumentId, Actor), cancellationToken), "stocktakes", cancellationToken)
@@ -779,10 +758,6 @@ public class IndexModel(
         Adjustments = await documentsHandler.ListAdjustmentsAsync(Actor, cancellationToken);
         Disposals = await documentsHandler.ListDisposalsAsync(Actor, cancellationToken);
         OpenTransferId = OpenTransfer;
-        // Chưa xem lên trước, mới nhất trước; chỉ hiện một số thông báo để banner không dài vô hạn.
-        Notices = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var employeeId)
-            ? (await noticesHandler.HandleAsync(employeeId, cancellationToken)).OrderBy(notice => notice.Seen).ThenByDescending(notice => notice.CreatedAt).Take(8).ToArray()
-            : [];
         PlaceCodes = BuildPlaceCodes(AllLocations);
         Groups = BuildGroups(filtered, badges);
         BalanceJson = JsonSerializer.Serialize(
