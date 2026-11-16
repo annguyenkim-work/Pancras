@@ -58,6 +58,5 @@ dotnet test Pancras.slnx --warnaserror --nologo                 # một dự án
 
 ## Chờ chốt (chưa có hiệu lực)
 
-- Tập lệnh khởi tạo một lần (tạo DB, đặt user-secrets, áp migration, tạo Admin) để máy mới chạy trong vài bước.
-- Dùng Docker/Compose cho PostgreSQL local thay vì cài trực tiếp.
+- **Đã chốt 2026-11-16:** chưa cần Docker Compose cho PostgreSQL và chưa cần tập lệnh khởi tạo một lần; giữ cách cài trực tiếp theo hướng dẫn.
 - Kiểm tra đường dẫn mặc định của `Storage:AttachmentsPath` khi thiếu cấu hình và ghi vào đây.

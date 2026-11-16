@@ -218,4 +218,4 @@ Checklist sau khi triển khai (**bắt buộc ở lần đầu**):
 - **Đã chốt 2026-11-16 (chưa làm):** thêm health check (endpoint kiểm tra app và DB) khi đưa lên VinaHost.
 - **Đã chốt 2026-11-16:** chưa cần staging và quét virus tệp tải lên. Giám sát lỗi và cảnh báo tập trung vẫn chưa chốt.
 - **Đã chốt 2026-11-16:** log trên máy chủ giữ 30 ngày, xoay vòng; bản sao lưu giữ 14 ngày, không lưu dài hạn thêm. (Cấu hình xoay vòng log trên VinaHost chưa làm.)
-- Quy trình khôi phục sự cố (RTO/RPO) và ai chịu trách nhiệm trực.
+- **Đã chốt 2026-11-16:** chấp nhận mất tối đa 1 ngày dữ liệu (RPO) và khôi phục trong 1 ngày (RTO), khớp sao lưu hằng ngày. Người chịu trách nhiệm trực chưa chốt.
