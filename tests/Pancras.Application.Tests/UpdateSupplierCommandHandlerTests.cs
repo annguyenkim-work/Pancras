@@ -7,6 +7,17 @@ namespace Pancras.Application.Tests;
 
 public class UpdateSupplierCommandHandlerTests
 {
+    [Fact]
+    public async Task ConcurrentSave_IsAVersionConflict_NotADuplicateCode()
+    {
+        var supplier = AddSample();
+        _repository.NextOutcome = SaveOutcome.Conflict;
+
+        var result = await Handler().HandleAsync(Edit(supplier.Id, name: "Tên mới"), CancellationToken.None);
+
+        Assert.Equal(SupplierError.VersionConflict, result.Error);
+    }
+
     private readonly FakeSupplierRepository _repository = new();
 
     [Fact]

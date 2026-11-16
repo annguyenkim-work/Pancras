@@ -1,3 +1,4 @@
+using Pancras.Application.Common;
 using Pancras.Application.Catalog;
 using Pancras.Domain.Catalog;
 
@@ -51,10 +52,12 @@ internal sealed class FakeCatalogRepository : ICatalogItemRepository
         return Task.FromResult(true);
     }
 
-    public Task<bool> TrySaveAsync(CancellationToken cancellationToken)
+    public SaveOutcome NextOutcome { get; set; } = SaveOutcome.Saved;
+
+    public Task<SaveOutcome> TrySaveAsync(CancellationToken cancellationToken)
     {
         SaveCount++;
-        return Task.FromResult(true);
+        return Task.FromResult(NextOutcome);
     }
 
     public Task<IReadOnlyDictionary<Guid, CatalogItemMeasure>> ListMeasuresAsync(

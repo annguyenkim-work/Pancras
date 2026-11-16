@@ -1,3 +1,4 @@
+using Pancras.Application.Common;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Pancras.Application.Catalog;
@@ -71,12 +72,12 @@ public sealed class CatalogItemRepository(PancrasDbContext context) : ICatalogIt
         }
     }
 
-    public async Task<bool> TrySaveAsync(CancellationToken cancellationToken)
+    public async Task<SaveOutcome> TrySaveAsync(CancellationToken cancellationToken)
     {
         try
         {
             await context.SaveChangesAsync(cancellationToken);
-            return true;
+            return SaveOutcome.Saved;
         }
         catch (DbUpdateException exception) when (IsUniqueViolation(exception) || exception is DbUpdateConcurrencyException)
         {
@@ -88,7 +89,7 @@ public sealed class CatalogItemRepository(PancrasDbContext context) : ICatalogIt
                 }
             }
 
-            return false;
+            return exception is DbUpdateConcurrencyException ? SaveOutcome.Conflict : SaveOutcome.Duplicate;
         }
     }
 

@@ -557,7 +557,7 @@ internal sealed class SupplierDirectoryDouble : ISupplierRepository
         return Task.FromResult(true);
     }
 
-    public Task<bool> TrySaveAsync(CancellationToken cancellationToken) => Task.FromResult(true);
+    public Task<Pancras.Application.Common.SaveOutcome> TrySaveAsync(CancellationToken cancellationToken) => Task.FromResult(Pancras.Application.Common.SaveOutcome.Saved);
 
     private List<Supplier> Filtered(SupplierListFilter filter)
     {

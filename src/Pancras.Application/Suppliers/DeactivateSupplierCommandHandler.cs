@@ -43,10 +43,11 @@ public sealed class DeactivateSupplierCommandHandler(
         }
 
         supplier.Deactivate();
-        if (!await repository.TrySaveAsync(cancellationToken))
+        var saved = await repository.TrySaveAsync(cancellationToken);
+        if (saved != SaveOutcome.Saved)
         {
             logger.LogWarning("Could not save a supplier deactivation for {SupplierId}.", supplier.Id);
-            return Result<Guid, SupplierError>.Fail(SupplierError.NotFound);
+            return Result<Guid, SupplierError>.Fail(saved == SaveOutcome.Conflict ? SupplierError.VersionConflict : SupplierError.NotFound);
         }
 
         logger.LogInformation("Deactivated supplier {SupplierId}.", supplier.Id);

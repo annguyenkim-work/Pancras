@@ -59,7 +59,7 @@ public sealed class SetCatalogItemActiveCommandHandler(
             item.Deactivate();
         }
 
-        if (!await repository.TrySaveAsync(cancellationToken))
+        if (await repository.TrySaveAsync(cancellationToken) != SaveOutcome.Saved)
         {
             return CatalogError.VersionConflict;
         }

@@ -43,7 +43,13 @@ public sealed class ReactivateSupplierCommandHandler(
         }
 
         supplier.Reactivate();
-        if (!await repository.TrySaveAsync(cancellationToken))
+        var saved = await repository.TrySaveAsync(cancellationToken);
+        if (saved == SaveOutcome.Conflict)
+        {
+            return Result<Guid, SupplierError>.Fail(SupplierError.VersionConflict);
+        }
+
+        if (saved != SaveOutcome.Saved)
         {
             return CodeUsed();
         }

@@ -364,7 +364,7 @@ internal sealed class CatalogDirectoryDouble : ICatalogItemRepository
         return Task.FromResult(true);
     }
 
-    public Task<bool> TrySaveAsync(CancellationToken cancellationToken) => Task.FromResult(true);
+    public Task<Pancras.Application.Common.SaveOutcome> TrySaveAsync(CancellationToken cancellationToken) => Task.FromResult(Pancras.Application.Common.SaveOutcome.Saved);
 
     public Task<IReadOnlyDictionary<Guid, CatalogItemMeasure>> ListMeasuresAsync(
         IReadOnlyCollection<Guid> ids,

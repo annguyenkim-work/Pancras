@@ -1,3 +1,4 @@
+using Pancras.Application.Common;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Pancras.Application.Suppliers;
@@ -131,14 +132,14 @@ public sealed class SupplierRepository(PancrasDbContext context) : ISupplierRepo
         }
     }
 
-    public async Task<bool> TrySaveAsync(CancellationToken cancellationToken)
+    public async Task<SaveOutcome> TrySaveAsync(CancellationToken cancellationToken)
     {
         try
         {
             await context.SaveChangesAsync(cancellationToken);
-            return true;
+            return SaveOutcome.Saved;
         }
-        catch (DbUpdateException exception) when (IsUniqueViolation(exception))
+        catch (DbUpdateException exception) when (IsUniqueViolation(exception) || exception is DbUpdateConcurrencyException)
         {
             foreach (var entry in context.ChangeTracker.Entries<Supplier>().ToList())
             {
@@ -148,7 +149,7 @@ public sealed class SupplierRepository(PancrasDbContext context) : ISupplierRepo
                 }
             }
 
-            return false;
+            return exception is DbUpdateConcurrencyException ? SaveOutcome.Conflict : SaveOutcome.Duplicate;
         }
     }
 

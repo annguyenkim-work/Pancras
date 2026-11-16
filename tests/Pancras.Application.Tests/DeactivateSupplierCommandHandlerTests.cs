@@ -8,6 +8,20 @@ namespace Pancras.Application.Tests;
 
 public class DeactivateSupplierCommandHandlerTests
 {
+    [Fact]
+    public async Task ConcurrentSave_IsAVersionConflict_ForDeactivateAndReactivate()
+    {
+        var supplier = AddSample();
+        _repository.NextOutcome = SaveOutcome.Conflict;
+        var deactivate = await Deactivate().HandleAsync(supplier.Id, SupplierActors.Admin, CancellationToken.None);
+        supplier.Deactivate();
+        _repository.NextOutcome = SaveOutcome.Conflict;
+        var reactivate = await Reactivate().HandleAsync(supplier.Id, SupplierActors.Admin, CancellationToken.None);
+
+        Assert.Equal(SupplierError.VersionConflict, deactivate.Error);
+        Assert.Equal(SupplierError.VersionConflict, reactivate.Error);
+    }
+
     private readonly FakeSupplierRepository _repository = new();
     private readonly MemoryAudit _audit = new();
 

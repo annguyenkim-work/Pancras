@@ -1,3 +1,4 @@
+using Pancras.Application.Common;
 using Pancras.Application.Auditing;
 using Microsoft.Extensions.Logging;
 using Pancras.Domain.Employees;
@@ -54,9 +55,10 @@ public sealed class UpdateLocationCommandHandler(
         }
 
         location.Update(name, kind);
-        if (!await repository.TrySaveAsync(cancellationToken))
+        var saved = await repository.TrySaveAsync(cancellationToken);
+        if (saved != SaveOutcome.Saved)
         {
-            return LocationManageError.SaveFailed;
+            return saved == SaveOutcome.Conflict ? LocationManageError.VersionConflict : LocationManageError.SaveFailed;
         }
 
         logger.LogInformation("Updated stock location {LocationId}.", location.Id);

@@ -172,7 +172,7 @@ public sealed class UpdateCatalogPricesCommandHandler(
             command.DistributorPrice!.Value,
             command.ProjectPrice!.Value);
         item.AdvanceVersion();
-        if (!await repository.TrySaveAsync(cancellationToken))
+        if (await repository.TrySaveAsync(cancellationToken) != SaveOutcome.Saved)
         {
             logger.LogWarning("Rejected a price list edit for {CatalogItemId}.", item.Id);
             return Result<CatalogItemRow, CatalogError>.Fail(CatalogError.VersionConflict);

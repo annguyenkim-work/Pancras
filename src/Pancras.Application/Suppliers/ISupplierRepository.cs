@@ -1,3 +1,4 @@
+using Pancras.Application.Common;
 using Pancras.Domain.Employees;
 using Pancras.Domain.Suppliers;
 
@@ -35,5 +36,5 @@ public interface ISupplierRepository
 
     Task<bool> TryAddAsync(Supplier supplier, CancellationToken cancellationToken);
 
-    Task<bool> TrySaveAsync(CancellationToken cancellationToken);
+    Task<SaveOutcome> TrySaveAsync(CancellationToken cancellationToken);
 }

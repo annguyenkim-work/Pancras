@@ -94,7 +94,14 @@ public sealed class UpdateSupplierCommandHandler(
         Track(changes, "SWIFT", supplier.SwiftCode, swift, mask: false);
 
         supplier.Update(code, name, country, contact, phone, email, account, bank, swift);
-        if (!await repository.TrySaveAsync(cancellationToken))
+        var saved = await repository.TrySaveAsync(cancellationToken);
+        if (saved == SaveOutcome.Conflict)
+        {
+            logger.LogInformation("Rejected a concurrent supplier edit.");
+            return Result<SupplierProfile, SupplierError>.Fail(SupplierError.VersionConflict);
+        }
+
+        if (saved != SaveOutcome.Saved)
         {
             logger.LogWarning("Rejected a duplicate supplier code.");
             return DuplicateCode(SupplierIssueKind.Duplicate);

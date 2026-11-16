@@ -1,3 +1,4 @@
+using Pancras.Application.Common;
 using Pancras.Application.Auditing;
 using Microsoft.Extensions.Logging;
 using Pancras.Domain.Employees;
@@ -19,5 +20,5 @@ public interface ILocationManagementRepository
     /// <summary>Còn đơn mua (nháp, chờ duyệt, đã duyệt, đang về, nhận một phần) nhận về kho này hoặc phiếu chuyển chưa đóng có kho này là kho xuất hoặc kho nhận.</summary>
     Task<bool> HasOpenDocumentsAsync(Guid id, CancellationToken cancellationToken);
 
-    Task<bool> TrySaveAsync(CancellationToken cancellationToken);
+    Task<SaveOutcome> TrySaveAsync(CancellationToken cancellationToken);
 }

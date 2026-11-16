@@ -248,6 +248,19 @@ public class UpdateCatalogPricesCommandHandlerTests
         Assert.Equal("Cái", item.Unit);
     }
 
+    [Fact]
+    public async Task ConcurrentSave_IsAVersionConflict()
+    {
+        var repository = new FakeCatalogRepository { NextOutcome = SaveOutcome.Conflict };
+        var item = ListCatalogItemsHandlerTests.Item("SP01", "Vòi", ProductCategory.SanitaryEquipment);
+        repository.Items.Add(item);
+        var handler = new UpdateCatalogPricesCommandHandler(repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
+
+        var result = await handler.HandleAsync(Command(item.Id, EmployeeRole.Admin, 9000000m), CancellationToken.None);
+
+        Assert.Equal(CatalogError.VersionConflict, result.Error);
+    }
+
     private static UpdateCatalogPricesCommand Command(Guid id, string role, decimal retail) => new()
     {
         Id = id,

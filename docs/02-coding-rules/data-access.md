@@ -62,8 +62,7 @@ dotnet ef database update --project src/Pancras.Infrastructure --startup-project
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| `Version` chưa trọn vẹn | Lần ghi chồng nhau thật sự (hai người lưu cùng tích tắc) vẫn hiện trang 409 chung trong `Program.cs`, chưa là `Conflict` của từng module. `TransferSlip` chỉ dựa vào kiểm tra trạng thái (`TransferStateChanged`), form không gửi `Version`. Rà các thực thể còn lại |
-| Conflict | Mới `CatalogItemRepository` bắt `DbUpdateConcurrencyException`; cần thống nhất mã lỗi Conflict ở mọi module |
+| `Version` chưa trọn vẹn | Lần ghi chồng nhau thật sự đã thành `VersionConflict` của Danh mục, Nhà cung cấp, Kho/showroom (repository trả `SaveOutcome.Conflict`). Còn trang 409 chung ở Nhân viên (lưu trực tiếp). Mua hàng và Kho gộp chung vào `SaveFailed`. `TransferSlip` chỉ dựa vào kiểm tra trạng thái (`TransferStateChanged`), form không gửi `Version` |
 | Gạch dưới tên | Bảng "đọc không tracking" (`...ReadOnlyAsync`) chưa nhất quán ở mọi repository |
 
 ## Chờ chốt (chưa có hiệu lực)

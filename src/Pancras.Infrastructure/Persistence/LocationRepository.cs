@@ -1,3 +1,4 @@
+using Pancras.Application.Common;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Pancras.Application.Locations;
@@ -77,16 +78,28 @@ public sealed class LocationRepository(PancrasDbContext context) : ILocationRepo
                 cancellationToken);
     }
 
-    public async Task<bool> TrySaveAsync(CancellationToken cancellationToken)
+    public async Task<SaveOutcome> TrySaveAsync(CancellationToken cancellationToken)
     {
         try
         {
             await context.SaveChangesAsync(cancellationToken);
-            return true;
+            return SaveOutcome.Saved;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            foreach (var entry in context.ChangeTracker.Entries<StockLocation>().ToList())
+            {
+                if (entry.State == EntityState.Modified)
+                {
+                    await entry.ReloadAsync(cancellationToken);
+                }
+            }
+
+            return SaveOutcome.Conflict;
         }
         catch (DbUpdateException)
         {
-            return false;
+            return SaveOutcome.Duplicate;
         }
     }
 }

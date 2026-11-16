@@ -1,3 +1,4 @@
+using Pancras.Application.Common;
 using Pancras.Application.Suppliers;
 using Pancras.Domain.Employees;
 using Pancras.Domain.Suppliers;
@@ -22,6 +23,8 @@ internal sealed class FakeSupplierRepository : ISupplierRepository
     public List<Supplier> Suppliers { get; } = [];
 
     public bool RejectNextSave { get; set; }
+
+    public SaveOutcome? NextOutcome { get; set; }
 
     public Task<IReadOnlyList<Supplier>> ListAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<Supplier>>(Filtered(SupplierListFilter.From(null)));
@@ -120,15 +123,21 @@ internal sealed class FakeSupplierRepository : ISupplierRepository
         return Task.FromResult(count);
     }
 
-    public Task<bool> TrySaveAsync(CancellationToken cancellationToken)
+    public Task<SaveOutcome> TrySaveAsync(CancellationToken cancellationToken)
     {
+        if (NextOutcome is { } outcome)
+        {
+            NextOutcome = null;
+            return Task.FromResult(outcome);
+        }
+
         if (!RejectNextSave)
         {
-            return Task.FromResult(true);
+            return Task.FromResult(SaveOutcome.Saved);
         }
 
         RejectNextSave = false;
-        return Task.FromResult(false);
+        return Task.FromResult(SaveOutcome.Duplicate);
     }
 }
 

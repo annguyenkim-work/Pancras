@@ -1,3 +1,4 @@
+using Pancras.Application.Common;
 using Pancras.Domain.Catalog;
 
 namespace Pancras.Application.Catalog;
@@ -22,7 +23,7 @@ public interface ICatalogItemRepository
 
     Task<bool> TryAddAsync(CatalogItem item, CancellationToken cancellationToken);
 
-    Task<bool> TrySaveAsync(CancellationToken cancellationToken);
+    Task<SaveOutcome> TrySaveAsync(CancellationToken cancellationToken);
 
     Task<IReadOnlyDictionary<Guid, CatalogItemMeasure>> ListMeasuresAsync(
         IReadOnlyCollection<Guid> ids,

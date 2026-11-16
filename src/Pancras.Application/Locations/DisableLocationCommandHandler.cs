@@ -1,3 +1,4 @@
+using Pancras.Application.Common;
 using Pancras.Application.Auditing;
 using Microsoft.Extensions.Logging;
 using Pancras.Domain.Employees;
@@ -43,9 +44,10 @@ public sealed class DisableLocationCommandHandler(
         }
 
         location.Deactivate();
-        if (!await repository.TrySaveAsync(cancellationToken))
+        var saved = await repository.TrySaveAsync(cancellationToken);
+        if (saved != SaveOutcome.Saved)
         {
-            return LocationManageError.SaveFailed;
+            return saved == SaveOutcome.Conflict ? LocationManageError.VersionConflict : LocationManageError.SaveFailed;
         }
 
         logger.LogInformation("Soft-deleted stock location {LocationId}.", id);

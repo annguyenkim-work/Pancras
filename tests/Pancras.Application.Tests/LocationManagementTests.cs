@@ -1,3 +1,4 @@
+using Pancras.Application.Common;
 using Microsoft.Extensions.Logging.Abstractions;
 using Pancras.Application.Locations;
 using Pancras.Domain.Employees;
@@ -7,6 +8,19 @@ namespace Pancras.Application.Tests;
 
 public class LocationManagementTests
 {
+    [Fact]
+    public async Task ConcurrentSave_IsAVersionConflict_ForUpdateAndDisable()
+    {
+        var (repo, location) = Setup();
+        repo.NextOutcome = SaveOutcome.Conflict;
+
+        var update = await Update(repo).HandleAsync(new UpdateLocationCommand { Id = location.Id, Version = location.Version, Name = "Tên mới", Kind = StockLocationKind.Showroom }, Admin, CancellationToken.None);
+        var disable = await Delete(repo).HandleAsync(location.Id, Admin, CancellationToken.None);
+
+        Assert.Equal(LocationManageError.VersionConflict, update);
+        Assert.Equal(LocationManageError.VersionConflict, disable);
+    }
+
     private sealed class FakeManagement : ILocationManagementRepository
     {
         public List<StockLocation> Locations { get; } = [];
@@ -31,10 +45,12 @@ public class LocationManagementTests
 
         public Task<bool> HasOpenDocumentsAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(OpenDocuments);
 
-        public Task<bool> TrySaveAsync(CancellationToken cancellationToken)
+        public SaveOutcome NextOutcome { get; set; } = SaveOutcome.Saved;
+
+        public Task<SaveOutcome> TrySaveAsync(CancellationToken cancellationToken)
         {
             Saves++;
-            return Task.FromResult(true);
+            return Task.FromResult(NextOutcome);
         }
     }
 
