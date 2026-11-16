@@ -51,5 +51,5 @@ Các nhóm sau **chưa làm, chưa quyết định phạm vi**, không đoán; s
 
 ## Chờ chốt (chưa có hiệu lực)
 
-- Thông tin doanh nghiệp (số chi nhánh/showroom/kho, số người dùng dự kiến, ngành hàng chính) để ghi vào mục 1.
+- **Đã chốt 2026-11-16:** chưa cần ghi thông tin quy mô doanh nghiệp vào docs.
 - **Đã chốt 2026-11-16:** thứ tự làm module "Sắp có": Khách hàng → Bán hàng → Công nợ phải thu; sau đó Báo giá, Combo, Bảo hành (thứ tự ba mục sau chưa chốt).

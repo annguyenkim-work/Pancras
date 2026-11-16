@@ -55,5 +55,5 @@ Với **dữ liệu bị ẩn** (giá vốn, ngân hàng nhà cung cấp, tiền
 ## Chờ chốt (chưa có hiệu lực)
 
 - Mẫu bảng review chính thức (cột, thang mức độ) nếu muốn cố định ngoài mô tả trên.
-- Tự động hóa test thủ công bằng trình duyệt (Playwright) cho các case P1.
+- **Đã chốt 2026-11-16:** chưa cần tự động hóa test thủ công bằng Playwright.
 - Nơi lưu kết quả các đợt chạy (ngoài git) nếu cần đối chiếu lâu dài.

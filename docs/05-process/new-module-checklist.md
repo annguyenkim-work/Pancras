@@ -39,4 +39,4 @@
 ## Chờ chốt (chưa có hiệu lực)
 
 - Mẫu cụ thể cho cấu trúc thư mục khi tạo module mới (có thể sinh từ module `catalog` hoặc `suppliers`).
-- Có cần bước review mã trước khi merge (xem manual-testing-and-review.md mục review) cho mọi thay đổi hay chỉ thay đổi lớn.
+- **Đã chốt 2026-11-16:** review mã trước khi gộp cho **mọi** thay đổi (không phải PR bắt buộc hay bảo vệ nhánh `main`; hình thức review chưa chốt, xem build-and-git.md).

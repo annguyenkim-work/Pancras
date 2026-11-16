@@ -69,4 +69,4 @@ dotnet ef database update --project src/Pancras.Infrastructure --startup-project
 
 - Chiến lược chỉ mục (index) và khi nào thêm.
 - Quy tắc sao lưu và khôi phục database — để ở `06-operations/deployment.md`.
-- Phân trang bằng keyset hay Skip/Take cho danh sách rất lớn (nhật ký, lịch sử tồn).
+- **Đã chốt 2026-11-16 (chưa làm):** danh sách rất lớn (nhật ký, lịch sử tồn) đổi sang phân trang keyset (mất nhảy tới trang bất kỳ); các danh sách còn lại giữ Skip/Take 20/50.
