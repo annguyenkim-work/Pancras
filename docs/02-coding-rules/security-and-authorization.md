@@ -47,7 +47,6 @@
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| CSP | `script-src 'self' 'unsafe-inline'`; gỡ sau khi chuyển JS inline sang `wwwroot/js` (xem principles.md nguyên tắc 11) |
 | Rà phạm vi theo kho | Chưa rà từng handler xem đã kiểm Id thuộc phạm vi actor chưa (kho, phiếu, đơn); cần danh sách kiểm tra và test cho từng module |
 | Tải tệp | Giới hạn 12 MB request chưa thử bằng tệp lớn thật; tải về: kiểm lại header `Content-Disposition`; tệp mồ côi khi xóa chứng từ lỗi chưa có việc dọn định kỳ |
 | Giới hạn tốc độ | Chỉ có policy `login` (mặc định 120 lượt/phút/IP); chưa áp cho đổi mật khẩu, 2FA |

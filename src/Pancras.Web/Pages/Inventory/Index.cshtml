@@ -156,7 +156,7 @@
                     <h2 class="font-display text-lg font-bold text-slate-900">Lịch Sử Điều Chuyển Hàng Giữa Các Kho &amp; Showroom</h2>
                     <p class="mt-1 text-sm text-slate-500">Hàng hóa chuyển từ kho này sang kho hoặc showroom khác được theo dõi theo trạng thái đang vận chuyển. Bấm vào một phiếu để xem chi tiết và xử lý.</p>
                 </div>
-                <button id="open-transfer" type="button" class="sm:ml-auto inline-flex items-center rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white hover:bg-sky-700" onclick="document.getElementById('transfer-dialog').showModal()">+ Tạo Phiếu Đề Nghị Chuyển Kho</button>
+                <button id="open-transfer" type="button" class="sm:ml-auto inline-flex items-center rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white hover:bg-sky-700" data-open-dialog="transfer-dialog">+ Tạo Phiếu Đề Nghị Chuyển Kho</button>
             </div>
 
             @{
@@ -259,7 +259,7 @@
                                     : flow.CanReceive ? "Chờ bạn nhận hàng"
                                     : flow.CanResolve ? "Chờ bạn xử lý chênh lệch"
                                     : null;
-                                <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer" onclick="openTransfer('@slip.Id')">
+                                <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer" data-open-transfer="@slip.Id">
                                     <td class="px-4 py-3 font-mono text-xs font-bold text-slate-900">@StockLabels.DocumentCode("CK", slip.Id)</td>
                                     <td class="px-4 py-3">@slip.SourceName <span class="text-slate-400">→</span> @slip.DestinationName</td>
                                     <td class="px-4 py-3 text-slate-600">@slip.Lines.Count mặt hàng · @IndexModel.Count(slip.Lines.Sum(line => line.Quantity)) sản phẩm</td>
@@ -267,7 +267,7 @@
                                     <td class="px-4 py-3 text-slate-600">@(string.IsNullOrEmpty(slip.Stamp?.UpdatedBy) ? "—" : slip.Stamp!.UpdatedBy)</td>
                                     <td class="px-4 py-3 text-slate-600">@(IndexModel.When(slip.Id) is { Length: > 0 } created ? created : "—")</td>
                                     <td class="px-4 py-3">@if (todo is not null) { <span class="rounded-full bg-sky-600 px-2 py-0.5 text-xs font-bold text-white">@todo</span> } else { <span class="text-slate-400">—</span> }</td>
-                                    <td class="px-4 py-3 text-right"><button type="button" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-white" onclick="event.stopPropagation(); openTransfer('@slip.Id')">Chi tiết</button></td>
+                                    <td class="px-4 py-3 text-right"><button type="button" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-white" data-open-transfer="@slip.Id">Chi tiết</button></td>
                                 </tr>
                             }
                         </tbody>
@@ -310,7 +310,7 @@
                                 </div>
                                 <partial name="_AuditStamp" model="slip.Stamp" />
                             </div>
-                            <button type="button" class="text-2xl leading-none text-slate-400" onclick="this.closest('dialog').close()" aria-label="Đóng">×</button>
+                            <button type="button" class="text-2xl leading-none text-slate-400" data-close-dialog aria-label="Đóng">×</button>
                         </div>
                         <div class="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
                             @if (attention)
@@ -588,13 +588,13 @@
                 <div class="sm:ml-auto flex flex-wrap gap-2">
                     @if (Model.CanCountStock)
                     {
-                        <button id="open-stocktake" type="button" class="inline-flex items-center rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white" onclick="document.getElementById('stocktake-dialog').showModal()">+ Lập Biên Bản Kiểm Kê</button>
+                        <button id="open-stocktake" type="button" class="inline-flex items-center rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white" data-open-dialog="stocktake-dialog">+ Lập Biên Bản Kiểm Kê</button>
                     }
                     @if (Model.CanDraftAdjustment || Model.CanPostAdjustment)
                     {
-                        <button type="button" class="inline-flex items-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white" onclick="document.getElementById('adjustment-dialog').showModal()">+ Phiếu điều chỉnh</button>
+                        <button type="button" class="inline-flex items-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white" data-open-dialog="adjustment-dialog">+ Phiếu điều chỉnh</button>
                     }
-                    <button type="button" class="inline-flex items-center rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white" onclick="document.getElementById('disposal-dialog').showModal()">+ Phiếu hủy</button>
+                    <button type="button" class="inline-flex items-center rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white" data-open-dialog="disposal-dialog">+ Phiếu hủy</button>
                 </div>
             </div>
             @if (Model.Stocktakes.Count == 0)
@@ -737,7 +737,7 @@
                 <h2 class="font-display text-lg font-bold">Tạo Phiếu Đề Nghị Chuyển Kho</h2>
                 <p class="mt-1 text-xs text-slate-500">Chọn kho nào cũng được, miễn kho xuất hoặc nơi nhận là kho/showroom của bạn. Phiếu chờ duyệt, chưa trừ tồn.</p>
             </div>
-            <button type="button" class="text-2xl leading-none text-slate-400" onclick="this.closest('dialog').close()" aria-label="Đóng">×</button>
+            <button type="button" class="text-2xl leading-none text-slate-400" data-close-dialog aria-label="Đóng">×</button>
         </div>
         <div class="min-h-0 flex-1 overflow-y-auto p-5">
             @if (Model.ShowTransferDialog && !string.IsNullOrEmpty(Model.ErrorMessage))
@@ -791,7 +791,7 @@
             </label>
         </div>
         <div class="flex shrink-0 justify-end gap-2 border-t border-slate-100 p-4">
-            <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" onclick="this.closest('dialog').close()">Hủy bỏ</button>
+            <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" data-close-dialog>Hủy bỏ</button>
             <button type="submit" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-60">Gửi Đề Nghị Chuyển Kho</button>
         </div>
     </form>
@@ -826,7 +826,7 @@
                 <h2 class="font-display text-lg font-bold">Lập Biên Bản Kiểm Kê Kho</h2>
                 <p class="mt-1 text-sm text-slate-500">Kiểm đếm mặt hàng để ghi nhận chênh lệch với tồn sổ sách.</p>
             </div>
-            <button type="button" class="text-slate-400" onclick="this.closest('dialog').close()" aria-label="Đóng">×</button>
+            <button type="button" class="text-slate-400" data-close-dialog aria-label="Đóng">×</button>
         </div>
         <div class="min-h-0 flex-1 overflow-y-auto p-5">
         <label class="mt-4 block text-sm font-medium text-slate-700">Chọn địa điểm kiểm kê
@@ -863,7 +863,7 @@
         </label>
         </div>
         <div class="flex shrink-0 justify-end gap-2 border-t border-slate-100 p-4">
-            <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" onclick="this.closest('dialog').close()">Hủy</button>
+            <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" data-close-dialog>Hủy</button>
             <button type="submit" class="rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white">Lưu Biên Bản Kiểm Kê</button>
         </div>
     </form>
@@ -873,7 +873,7 @@
     <form method="post" asp-antiforgery="true" action="/inventory?handler=CreateAdjustment" enctype="multipart/form-data" class="flex max-h-[90vh] min-h-0 flex-col overflow-hidden">
         <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 p-5">
             <h2 class="font-display text-lg font-bold">Phiếu điều chỉnh số lượng</h2>
-            <button type="button" class="text-slate-400" onclick="this.closest('dialog').close()" aria-label="Đóng">×</button>
+            <button type="button" class="text-slate-400" data-close-dialog aria-label="Đóng">×</button>
         </div>
         <div class="min-h-0 flex-1 overflow-y-auto p-5">
         <p class="mt-1 text-sm text-slate-500">Thủ kho và trưởng kho lập phiếu chờ duyệt. Admin, Giám đốc và Kế toán ghi thẳng vào tồn.</p>
@@ -910,7 +910,7 @@
         </label>
         </div>
         <div class="flex shrink-0 justify-end gap-2 border-t border-slate-100 p-4">
-            <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" onclick="this.closest('dialog').close()">Hủy</button>
+            <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" data-close-dialog>Hủy</button>
             <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white">Lưu điều chỉnh</button>
         </div>
     </form>
@@ -920,7 +920,7 @@
     <form method="post" asp-antiforgery="true" action="/inventory?handler=CreateDisposal" enctype="multipart/form-data" class="flex max-h-[90vh] min-h-0 flex-col overflow-hidden">
         <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 p-5">
             <h2 class="font-display text-lg font-bold">Phiếu hủy một sản phẩm</h2>
-            <button type="button" class="text-slate-400" onclick="this.closest('dialog').close()" aria-label="Đóng">×</button>
+            <button type="button" class="text-slate-400" data-close-dialog aria-label="Đóng">×</button>
         </div>
         <div class="min-h-0 flex-1 overflow-y-auto p-5">
         <label class="mt-4 block text-sm font-medium text-slate-700">Địa điểm
@@ -956,7 +956,7 @@
         </label>
         </div>
         <div class="flex shrink-0 justify-end gap-2 border-t border-slate-100 p-4">
-            <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" onclick="this.closest('dialog').close()">Hủy</button>
+            <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700" data-close-dialog>Hủy</button>
             <button type="submit" class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white">Lưu phiếu hủy</button>
         </div>
     </form>
@@ -1054,7 +1054,7 @@
                         <input type="hidden" name="location" value="@Model.Location" />
                         <input type="hidden" name="category" value="@Model.Category" />
                         <input type="hidden" name="kind" value="@Model.HistoryKind" />
-                        <select name="size" class="rounded-lg border border-slate-200 px-2 py-1 text-xs" onchange="this.form.submit()">
+                        <select name="size" class="rounded-lg border border-slate-200 px-2 py-1 text-xs" data-auto-submit>
                             @foreach (var size in new[] { 10, 20, 50 })
                             {
                                 if (Model.HistorySize == size)
@@ -1067,7 +1067,7 @@
                                 }
                             }
                         </select>
-                        <select name="place" class="rounded-lg border border-slate-200 px-2 py-1 text-xs" onchange="this.form.submit()">
+                        <select name="place" class="rounded-lg border border-slate-200 px-2 py-1 text-xs" data-auto-submit>
                             <option value="">Tất cả địa điểm</option>
                             @foreach (var location in Model.AllLocations)
                             {
@@ -1140,173 +1140,5 @@
 }
 
 <script type="application/json" id="stock-map">@Html.Raw(Model.BalanceJson)</script>
-<script>
-    const stockMap = JSON.parse(document.getElementById('stock-map').textContent || '[]');
-    function onHandAt(itemId, locationId) {
-        const row = stockMap.find(point => point.item === itemId && point.location === locationId);
-        return row ? row.onHand : 0;
-    }
-    function availableAt(itemId, locationId) {
-        const row = stockMap.find(point => point.item === itemId && point.location === locationId);
-        return row ? row.available : 0;
-    }
-    function openTransfer(id) {
-        const dialog = document.getElementById('transfer-' + id);
-        if (dialog && !dialog.open) {
-            dialog.showModal();
-        }
-    }
-    const transferItemIds = new Map(Array.from(document.querySelectorAll('#transfer-items option')).map(option => [option.value, option.dataset.id]));
-    function refreshTransferLine(line) {
-        const text = line.querySelector('.transfer-item-search');
-        const hidden = line.querySelector('.transfer-item');
-        const quantity = line.querySelector('.transfer-qty');
-        const hint = line.querySelector('.transfer-stock');
-        const typed = text.value.trim();
-        const id = transferItemIds.get(typed) || '';
-        hidden.value = id;
-        text.setCustomValidity(typed && !id ? 'Chọn mặt hàng trong danh sách gợi ý.' : '');
-        hint.className = 'transfer-stock text-xs md:col-span-2 text-slate-500';
-        if (!id) {
-            hint.textContent = '';
-            return;
-        }
-        const source = document.getElementById('transfer-source').value;
-        if (!source) {
-            hint.textContent = 'Chọn kho xuất để xem tồn khả dụng.';
-            return;
-        }
-        const available = availableAt(id, source);
-        const wanted = parseInt(quantity.value, 10) || 0;
-        if (wanted > available) {
-            hint.className = 'transfer-stock text-xs md:col-span-2 font-semibold text-rose-700';
-            hint.textContent = 'Kho xuất chỉ còn khả dụng ' + available + ', ít hơn số lượng đề nghị (' + wanted + '). Phiếu có thể không duyệt được.';
-        } else {
-            hint.textContent = 'Tồn khả dụng ở kho xuất: ' + available;
-        }
-    }
-    function refreshTransferLines() {
-        document.querySelectorAll('#transfer-lines .transfer-line').forEach(refreshTransferLine);
-    }
-    function reindexTransferLines() {
-        document.querySelectorAll('#transfer-lines .transfer-line').forEach((line, index) => {
-            line.querySelector('.transfer-item').name = 'Transfer.Lines[' + index + '].CatalogItemId';
-            line.querySelector('.transfer-qty').name = 'Transfer.Lines[' + index + '].Quantity';
-        });
-    }
-    document.getElementById('transfer-source').addEventListener('change', refreshTransferLines);
-    document.getElementById('transfer-lines').addEventListener('input', event => {
-        const line = event.target.closest('.transfer-line');
-        if (line) {
-            refreshTransferLine(line);
-        }
-    });
-    document.getElementById('add-transfer-line').addEventListener('click', () => {
-        const lines = document.getElementById('transfer-lines');
-        const copy = lines.querySelector('.transfer-line').cloneNode(true);
-        copy.querySelector('.transfer-item-search').value = '';
-        copy.querySelector('.transfer-item').value = '';
-        copy.querySelector('.transfer-qty').value = '';
-        lines.appendChild(copy);
-        reindexTransferLines();
-        refreshTransferLines();
-    });
-    refreshTransferLines();
-
-    document.addEventListener('click', event => {
-        const button = event.target.closest('[data-fill-received]');
-        if (!button) {
-            return;
-        }
-        button.closest('form').querySelectorAll('input[data-shipped]').forEach(input => {
-            input.value = input.dataset.shipped;
-        });
-    });
-
-    // Hộp xác nhận dùng chung: form có data-confirm sẽ hiện hộp này trước khi gửi.
-    // Nút gửi có thể mang data-confirm-title, data-confirm-message, data-confirm-label, data-confirm-tone="danger" và
-    // data-reason="required|optional" (lý do được chép vào ô ẩn name="reason" của form).
-    (function () {
-        const dialog = document.getElementById('confirm-dialog');
-        const title = document.getElementById('confirm-title');
-        const message = document.getElementById('confirm-message');
-        const reasonBox = document.getElementById('confirm-reason-box');
-        const reason = document.getElementById('confirm-reason');
-        const reasonError = document.getElementById('confirm-reason-error');
-        const ok = document.getElementById('confirm-ok');
-        let pending = null;
-        function closeConfirm() {
-            dialog.close();
-            pending = null;
-        }
-        document.addEventListener('submit', event => {
-            const form = event.target;
-            if (!(form instanceof HTMLFormElement) || !form.hasAttribute('data-confirm') || form.dataset.confirmed === '1') {
-                return;
-            }
-            event.preventDefault();
-            const submitter = event.submitter;
-            const read = name => (submitter && submitter.dataset[name]) || form.dataset[name] || '';
-            const mode = read('reason');
-            pending = { form, submitter, mode };
-            title.textContent = read('confirmTitle') || 'Xác nhận';
-            message.textContent = read('confirmMessage');
-            ok.textContent = read('confirmLabel') || 'Xác nhận';
-            ok.className = 'rounded-xl px-4 py-2 text-sm font-bold text-white ' + (read('confirmTone') === 'danger' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-sky-600 hover:bg-sky-700');
-            reasonBox.classList.toggle('hidden', !mode);
-            reason.value = '';
-            reasonError.classList.add('hidden');
-            dialog.showModal();
-        }, true);
-        ok.addEventListener('click', () => {
-            if (!pending) {
-                return;
-            }
-            const { form, submitter, mode } = pending;
-            if (mode) {
-                const text = reason.value.trim();
-                if (mode === 'required' && !text) {
-                    reasonError.classList.remove('hidden');
-                    reason.focus();
-                    return;
-                }
-                const target = form.querySelector('input[name="reason"]');
-                if (target) {
-                    target.value = text;
-                }
-            }
-            if (submitter && submitter.name) {
-                const extra = document.createElement('input');
-                extra.type = 'hidden';
-                extra.name = submitter.name;
-                extra.value = submitter.value;
-                form.appendChild(extra);
-            }
-            form.dataset.confirmed = '1';
-            dialog.close();
-            form.submit();
-        });
-        document.getElementById('confirm-cancel').addEventListener('click', closeConfirm);
-        document.getElementById('confirm-close').addEventListener('click', closeConfirm);
-    })();
-    function refreshBook() {
-        const item = document.getElementById('stocktake-item').value;
-        const location = document.getElementById('stocktake-location').value;
-        const book = document.getElementById('stocktake-book');
-        book.textContent = item && location ? 'Tồn sổ sách: ' + onHandAt(item, location) : 'Tồn sổ sách: —';
-    }
-    document.getElementById('stocktake-item').addEventListener('change', refreshBook);
-    document.getElementById('stocktake-location').addEventListener('change', refreshBook);
-    @if (Model.ShowTransferDialog)
-    {
-        <text>document.getElementById('transfer-dialog').showModal();</text>
-    }
-    @if (Model.OpenTransferId is Guid openTransferId)
-    {
-        <text>openTransfer('@openTransferId');</text>
-    }
-    @if (Model.ShowStocktakeDialog)
-    {
-        <text>document.getElementById('stocktake-dialog').showModal();</text>
-    }
-</script>
+<div id="inventory-boot" hidden data-show-transfer-dialog="@(Model.ShowTransferDialog ? "true" : "false")" data-open-transfer="@(Model.OpenTransferId is Guid openId ? openId.ToString("D") : "")" data-show-stocktake-dialog="@(Model.ShowStocktakeDialog ? "true" : "false")"></div>
+<script src="~/js/inventory-page.js" asp-append-version="true" defer></script>

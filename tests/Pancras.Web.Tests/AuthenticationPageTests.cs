@@ -36,6 +36,7 @@ public class AuthenticationPageTests : IClassFixture<PancrasWebFactory>
         Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
         Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
         Assert.Contains("frame-ancestors 'none'", response.Headers.GetValues("Content-Security-Policy").Single(), StringComparison.Ordinal);
+        Assert.DoesNotContain("unsafe-inline", response.Headers.GetValues("Content-Security-Policy").Single(), StringComparison.Ordinal);
         Assert.DoesNotContain("cdn.tailwindcss.com", html, StringComparison.Ordinal);
         Assert.Contains("/css/site.css", html, StringComparison.Ordinal);
     }

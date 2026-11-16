@@ -52,7 +52,7 @@ public class SupplierPageTests : IClassFixture<PancrasWebFactory>
         var add = await client.GetAsync("/suppliers?add=true");
         var addHtml = await add.Content.ReadAsStringAsync();
         Assert.Contains("<dialog id=\"supplier-dialog\"", addHtml, StringComparison.Ordinal);
-        Assert.Contains("showModal()", addHtml, StringComparison.Ordinal);
+        Assert.Contains("data-autoshow", addHtml, StringComparison.Ordinal);
         Assert.Contains("8–15 chữ số", addHtml, StringComparison.Ordinal);
         Assert.Contains("maxlength=\"30\"", addHtml, StringComparison.Ordinal);
         Assert.Contains("type=\"email\"", addHtml, StringComparison.Ordinal);

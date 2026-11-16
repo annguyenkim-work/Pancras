@@ -124,7 +124,7 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         Assert.Contains("id=\"charge-area\"", html, StringComparison.Ordinal);
         Assert.Contains("Nhập mặt hàng, số lượng và đơn giá FOB", html, StringComparison.Ordinal);
         Assert.Contains("id=\"purchase-dialog\"", html, StringComparison.Ordinal);
-        Assert.Contains("getElementById(\"purchase-dialog\")?.showModal()", html, StringComparison.Ordinal);
+        Assert.Contains("/js/purchasing-form.js", html, StringComparison.Ordinal);
         Assert.DoesNotContain("<dialog open", html, StringComparison.Ordinal);
     }
 

@@ -67,7 +67,7 @@ public class CatalogPageTests : IClassFixture<PancrasWebFactory>
         Assert.Contains("Sửa sản phẩm", priceText, StringComparison.Ordinal);
         Assert.Contains("0 VNĐ", addText, StringComparison.Ordinal);
         Assert.Contains("<dialog id=\"catalog-dialog\"", addHtml, StringComparison.Ordinal);
-        Assert.Contains("getElementById(\"catalog-dialog\").showModal()", addHtml, StringComparison.Ordinal);
+        Assert.Contains("id=\"catalog-dialog\" data-autoshow", addHtml, StringComparison.Ordinal);
         Assert.Contains("Chiều cao (mm)", addText, StringComparison.Ordinal);
         Assert.Contains("Chiều dài (mm)", addText, StringComparison.Ordinal);
         Assert.Contains("Chiều rộng (mm)", addText, StringComparison.Ordinal);

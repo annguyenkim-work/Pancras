@@ -87,7 +87,7 @@ Requested ──duyệt──▶ Approved ──xuất kho──▶ InTransit �
 | --- | --- |
 | `StockMovement` đủ chứng từ | Cần rà từng chứng từ (kiểm kê, điều chỉnh, hủy, nhận lệch, trả hàng) đều ghi dòng `StockMovement` đúng loại; hiện chỉ có 4 loại `Receipt/Issue/Transfer/Adjustment` |
 | Enum `Draft` | Còn trong `TransferStatus` dù không dùng |
-| Tệp lớn | `Pages/Inventory/Index.cshtml` hơn 1.000 dòng, 16 `onclick` inline |
+| Tệp lớn | `Pages/Inventory/Index.cshtml` hơn 1.000 dòng; JS đã chuyển sang `wwwroot/js/inventory-page.js` |
 
 ## Chờ chốt (chưa có hiệu lực)
 

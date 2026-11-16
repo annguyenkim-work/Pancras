@@ -280,8 +280,8 @@ app.Use(async (context, next) =>
     headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()";
     headers["Content-Security-Policy"] =
         "default-src 'self'; "
-        + "script-src 'self' 'unsafe-inline'; "
-        + "style-src 'self' 'unsafe-inline'; "
+        + "script-src 'self'; "
+        + "style-src 'self'; "
         + "font-src 'self'; "
         + "img-src 'self' data:; "
         + "connect-src 'self'; "

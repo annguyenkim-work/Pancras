@@ -212,7 +212,7 @@ else
 
 @if (Model.CanCreate && Model.ShowForm)
 {
-    <dialog id="employee-create-dialog" class="m-auto !flex w-[min(40rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
+    <dialog id="employee-create-dialog" data-autoshow class="m-auto !flex w-[min(40rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
         <div class="flex shrink-0 items-center justify-between gap-3 px-6 pt-6">
             <h2 class="text-lg font-bold">Thêm nhân viên</h2>
             <a href="@Model.ListUrl()" class="text-slate-400" aria-label="Đóng">×</a>
@@ -271,27 +271,12 @@ else
             </div>
         </form>
     </dialog>
-    <script>
-        document.getElementById("employee-create-dialog").showModal();
-        (function () {
-            const name = document.getElementById("employee-name");
-            const code = document.getElementById("employee-code");
-            if (!name || !code) return;
-            const preview = (value) => {
-                const words = value.trim().split(/\s+/).filter(Boolean).map((word) => word.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/gi, "d").replace(/[^A-Za-z0-9]/g, ""));
-                if (words.length === 0) return "";
-                const parts = words.map((word) => word[0].toUpperCase() + word.slice(1).toLowerCase());
-                if (parts.length === 1) return parts[0];
-                return parts[parts.length - 1] + parts.slice(0, -1).map((part) => part[0].toUpperCase()).join("");
-            };
-            name.addEventListener("input", () => { code.value = preview(name.value); });
-        })();
-    </script>
+    <script src="~/js/employee-code-preview.js" asp-append-version="true" defer></script>
 }
 
 @if (Model.ShowEdit)
 {
-    <dialog id="employee-edit-dialog" class="m-auto !flex w-[min(40rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
+    <dialog id="employee-edit-dialog" data-autoshow class="m-auto !flex w-[min(40rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
         <div class="flex shrink-0 items-center justify-between gap-3 px-6 pt-6">
             <h2 class="text-lg font-bold">Hồ sơ nhân viên</h2>
             <a href="@Model.ListUrl()" class="text-slate-400" aria-label="Đóng">×</a>
@@ -395,7 +380,6 @@ else
             }
         </form>
     </dialog>
-    <script>document.getElementById("employee-edit-dialog").showModal();</script>
 }
 
 <partial name="_ConfirmDialog" />

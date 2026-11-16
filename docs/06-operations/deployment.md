@@ -212,7 +212,6 @@ Checklist sau khi triển khai (**bắt buộc ở lần đầu**):
 | Chưa kiểm chứng | Tài liệu chưa chạy thử trên VinaHost thật; nhiều bước chưa thực hiện |
 | `docs/deployment-vps.md` cũ | Ghi cách dùng `dotnet ef database update` qua SSH tunnel và chuỗi kết nối ghi thẳng trong unit; docs mới thay thế |
 | Ảnh sản phẩm | Lưu trong `wwwroot/uploads` của thư mục ứng dụng và phải tạo liên kết thủ công; nên cấu hình đường dẫn qua `Storage__UploadsPath` như `attachments` |
-| CSP | Còn `'unsafe-inline'` cho script ([security-and-authorization.md](../02-coding-rules/security-and-authorization.md)) |
 
 ## Chờ chốt (chưa có hiệu lực)
 

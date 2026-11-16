@@ -154,7 +154,7 @@ else
 
 @if (Model.ShowForm)
 {
-<dialog id="catalog-dialog" class="m-auto !flex w-[min(56rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
+<dialog id="catalog-dialog" data-autoshow class="m-auto !flex w-[min(56rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
     <div class="flex shrink-0 items-center justify-between gap-3 px-6 pt-6 sm:px-8">
             <div class="flex items-center gap-3">
                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
@@ -299,12 +299,11 @@ else
             </div>
         </form>
 </dialog>
-<script>document.getElementById("catalog-dialog").showModal();</script>
 }
 
 @if (Model.ShowPriceForm)
 {
-<dialog id="catalog-price-dialog" class="m-auto !flex w-[min(56rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
+<dialog id="catalog-price-dialog" data-autoshow class="m-auto !flex w-[min(56rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
     <div class="flex shrink-0 items-center justify-between gap-3 px-6 pt-6 sm:px-8">
             <div class="flex items-center gap-3">
                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
@@ -468,14 +467,13 @@ else
             </div>
         </form>
 </dialog>
-<script>document.getElementById("catalog-price-dialog").showModal();</script>
 }
 
 @if (Model.Detail is not null)
 {
     var detail = Model.Detail;
     var detailImage = CatalogImageStore.PublicUrl(detail.ImagePath);
-    <dialog id="catalog-detail-dialog" class="m-auto !flex w-[min(42rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
+    <dialog id="catalog-detail-dialog" data-autoshow class="m-auto !flex w-[min(42rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
         <div class="flex shrink-0 items-center justify-between gap-3 px-6 pt-6">
             <div>
                 <h2 class="text-base font-bold text-slate-900">@detail.Name</h2>
@@ -509,26 +507,6 @@ else
             <p class="mt-6 text-sm font-medium text-slate-700">@CatalogLabels.PricesIncludeVat</p>
         </div>
     </dialog>
-    <script>document.getElementById("catalog-detail-dialog").showModal();</script>
 }
 
-<script>
-    document.querySelectorAll("[data-vnd]").forEach(function (input) {
-        input.addEventListener("focus", function () {
-            input.value = input.value.replace(/VNĐ/gi, "").replace(/đ/gi, "").replace(/\./g, "").replace(/\s/g, "").trim();
-        });
-        input.addEventListener("blur", function () {
-            var text = input.value.trim();
-            if (text === "") {
-                return;
-            }
-            var normalized = text.replace(/\./g, "").replace(",", ".");
-            var number = Number(normalized);
-            if (!Number.isFinite(number)) {
-                return;
-            }
-            var whole = Math.max(0, Math.round(number));
-            input.value = new Intl.NumberFormat("vi-VN").format(whole) + " VNĐ";
-        });
-    });
-</script>
+<script src="~/js/catalog-form.js" asp-append-version="true" defer></script>
