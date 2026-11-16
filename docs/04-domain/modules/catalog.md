@@ -55,6 +55,16 @@ Năm mức: **giá vốn**, **giá lẻ (niêm yết)**, **giá đại lý**, **
 - Hiển thị tiền theo `VNĐ` ([formatting-and-copy.md](../../03-ui-ux/formatting-and-copy.md)); xuất CSV tiền là số thuần.
 - Cột giá vốn trong danh sách thuộc dữ liệu nhạy cảm: chỉ vai có quyền thấy.
 
+
+## Combo (spec đã chốt 2026-11-16, chưa làm)
+
+- **Thành phần:** combo là một danh sách mặt hàng thường kèm số lượng (vd. 1 bồn cầu + 1 lavabo). **Không lồng combo trong combo.** Thành phần phải là mặt hàng thường còn hoạt động khi lập; mỗi mặt hàng chỉ xuất hiện một lần trong một combo (muốn nhiều thì tăng số lượng).
+- **Tồn:** combo **không có tồn riêng**. Số bộ bán được = nhỏ nhất của (tồn khả dụng từng thành phần ÷ số lượng trong combo), làm tròn xuống. Bán combo thì trừ tồn từng thành phần (khi có module Bán hàng). Combo không nhập kho, không kiểm kê, không chuyển kho.
+- **Giá:** combo có năm mức giá nhập tay như mặt hàng (lẻ, đại lý, nhà phân phối, dự án, đã gồm VAT; cùng quy tắc làm tròn). **Giá vốn combo chỉ xem**, tự tính bằng tổng (giá vốn thành phần × số lượng); không sửa tay. Giá vốn thuộc dữ liệu nhạy cảm như mặt hàng.
+- **Quyền:** tạo, sửa, sửa giá, ngừng combo: Admin, Giám đốc, Kế toán (như mặt hàng). Các vai khác không thấy.
+- **Ngừng:** combo có cờ `IsActive` như mặt hàng, không xóa. Thành phần bị ngừng thì combo hiển thị cảnh báo và không bán được cho đến khi sửa.
+- **Cần làm khi triển khai (chưa quyết, hỏi chủ dự án):** địa chỉ màn hình (hiện menu "Combo" ở `/combos` là "Sắp có"); cách lưu thành phần (bảng `catalog_combo_line`); ghi audit mỗi lần sửa thành phần và giá. Mọi chỗ hiện đang loại combo khỏi danh sách (`!IsCombo`: đơn mua, kho, bảng giá hiện tại) giữ nguyên.
+
 ## Nợ lệch so với luật
 
 | Vấn đề | Hiện trạng |
@@ -65,4 +75,4 @@ Năm mức: **giá vốn**, **giá lẻ (niêm yết)**, **giá đại lý**, **
 ## Chờ chốt (chưa có hiệu lực)
 
 - Giá nhà phân phối và giá dự án dùng khi bán cho ai và theo quy tắc nào (chờ spec Bán hàng/Báo giá).
-- **Đã chốt 2026-11-16 (chưa làm, cần spec chi tiết trước khi code):** có module Combo (bộ sản phẩm gộp thành một mã bán); có lịch sử đổi giá (ai, khi nào, từ bao nhiêu sang bao nhiêu) xem được ngoài nhật ký audit; có nhập mặt hàng hàng loạt từ CSV (không Excel). Còn chờ chốt: thành phần và cách tính tồn/giá combo, cột CSV, cách xử lý dòng lỗi/trùng mã.
+- **Đã chốt 2026-11-16 (chưa làm):** có lịch sử đổi giá (ai, khi nào, từ bao nhiêu sang bao nhiêu) xem được ngoài nhật ký audit; có nhập mặt hàng hàng loạt từ CSV (không Excel). Còn chờ chốt: cột CSV, cách xử lý dòng lỗi/trùng mã. Combo: xem mục "Combo (spec đã chốt, chưa làm)" bên dưới.
