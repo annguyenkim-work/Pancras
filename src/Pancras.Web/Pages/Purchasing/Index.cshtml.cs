@@ -28,7 +28,8 @@ public class IndexModel(
     ExportPurchaseOrderHandler exportOrder,
     ListSuppliersForPurchaseHandler listSuppliers,
     ListInventoryDocumentsHandler inventory,
-    Pancras.Application.Catalog.GetCatalogMeasuresHandler catalogMeasures) : PageModel
+    Pancras.Application.Catalog.GetCatalogMeasuresHandler catalogMeasures,
+    FindShipmentDuplicatesHandler findDuplicates) : PageModel
 {
     /// <summary>Cân nặng và thể tích theo mặt hàng, để bản xem thử trong form chia chi phí theo khối lượng/thể tích đúng như máy chủ.</summary>
     public IReadOnlyDictionary<Guid, Pancras.Application.Catalog.CatalogItemMeasure> ItemMeasures { get; private set; } =
@@ -218,6 +219,27 @@ public class IndexModel(
         }
 
         await LoadAsync(selected, formula);
+        if (notice is "created" or "updated" && Selected is not null)
+        {
+            // Cảnh báo, không chặn: container hoặc B/L đã có ở đơn khác còn hiệu lực.
+            var duplicates = await findDuplicates.HandleAsync(Selected.Id, Actor, HttpContext.RequestAborted);
+            if (duplicates.Count > 0)
+            {
+                var codes = string.Join(", ", duplicates.Select(item => $"{item.Code} (trùng {item.Shared})"));
+                TempData.Toast("Đã lưu đơn. Lưu ý: số container hoặc B/L này cũng có ở đơn " + codes + ".", ToastLevel.Warning);
+            }
+        }
+        if (notice is "created" or "updated" && Selected is not null)
+        {
+            // Cảnh báo, không chặn: container hoặc B/L đã có ở đơn khác còn hiệu lực.
+            var duplicates = await findDuplicates.HandleAsync(Selected.Id, Actor, HttpContext.RequestAborted);
+            if (duplicates.Count > 0)
+            {
+                var codes = string.Join(", ", duplicates.Select(item => $"{item.Code} (trùng {item.Shared})"));
+                TempData.Toast("Đã lưu đơn. Lưu ý: số container hoặc B/L này cũng có ở đơn " + codes + ".", ToastLevel.Warning);
+            }
+        }
+
         if (edit is not null && Selected is { } editing && IsEditable(editing.Status) && editing.Id == edit)
         {
             ShowForm = true;

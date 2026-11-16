@@ -42,7 +42,7 @@
         @if (Model.CanExport)
         {
             @Html.AntiForgeryToken()
-            <button type="submit" formmethod="post" formaction="/inventory?handler=Export" class="lg:ml-auto rounded-lg bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700">Xuất Excel</button>
+            <button type="submit" formmethod="post" formaction="/inventory?handler=Export" class="lg:ml-auto rounded-lg bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700">Xuất CSV</button>
         }
     </form>
     <div id="live-results">
