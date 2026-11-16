@@ -63,7 +63,7 @@ sudo chmod 700 /opt/pancras/keys /opt/pancras/attachments
 | `/opt/pancras/app` | Bản publish | Ghi đè khi cập nhật |
 | `/opt/pancras/keys` | Khóa Data Protection (cookie đăng nhập, bí mật 2FA) | **Bắt buộc sao lưu**; mất thì mọi phiên và 2FA mất hiệu lực |
 | `/opt/pancras/attachments` | Chứng từ đính kèm (tờ khai, hóa đơn, vận đơn, phiếu kho) | **Bắt buộc sao lưu**; không nằm trong thư mục công khai, chỉ tải qua trang sau khi đăng nhập có quyền |
-| `/opt/pancras/uploads` | Ảnh sản phẩm | Liên kết vào `wwwroot/uploads` một lần: `ln -s /opt/pancras/uploads /opt/pancras/app/wwwroot/uploads` |
+| `/opt/pancras/uploads` | Ảnh sản phẩm | Cấu hình `Storage__UploadsPath=/opt/pancras/uploads`; ứng dụng phục vụ lại ở `/uploads` |
 
 ## 5. Cấu hình (biến môi trường)
 
@@ -75,6 +75,7 @@ sudo chmod 700 /opt/pancras/keys /opt/pancras/attachments
 | `ConnectionStrings__DefaultConnection` | Chuỗi kết nối PostgreSQL |
 | `DataProtection__KeysPath=/opt/pancras/keys` | Thư mục khóa mã hóa |
 | `Storage__AttachmentsPath=/opt/pancras/attachments` | Thư mục chứng từ |
+| `Storage__UploadsPath=/opt/pancras/uploads` | Thư mục ảnh sản phẩm |
 | `Deployment__KnownProxies__0=<IP>` | Chỉ cần khi Caddy không chạy cùng máy |
 | `RateLimiting__LoginPerMinute` | Giới hạn đăng nhập theo IP (mặc định 120) |
 
@@ -186,7 +187,7 @@ rclone copy "$DEST" offsite:pancras-backup --max-age 2d   # remote đã cấu h�
 
 Cập nhật:
 1. **`pg_dump` trước.**
-2. Publish bản mới (đã `npm run build:css`), chép đè `/opt/pancras/app` (giữ liên kết `uploads`).
+2. Publish bản mới (đã `npm run build:css`), chép đè `/opt/pancras/app`.
 3. Áp **migrations bundle** nếu có migration mới.
 4. `sudo systemctl restart pancras`, xem `journalctl -u pancras`.
 
@@ -211,7 +212,6 @@ Checklist sau khi triển khai (**bắt buộc ở lần đầu**):
 | --- | --- |
 | Chưa kiểm chứng | Tài liệu chưa chạy thử trên VinaHost thật; nhiều bước chưa thực hiện |
 | `docs/deployment-vps.md` cũ | Ghi cách dùng `dotnet ef database update` qua SSH tunnel và chuỗi kết nối ghi thẳng trong unit; docs mới thay thế |
-| Ảnh sản phẩm | Lưu trong `wwwroot/uploads` của thư mục ứng dụng và phải tạo liên kết thủ công; nên cấu hình đường dẫn qua `Storage__UploadsPath` như `attachments` |
 
 ## Chờ chốt (chưa có hiệu lực)
 

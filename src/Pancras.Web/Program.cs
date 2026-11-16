@@ -359,6 +359,17 @@ app.UseStatusCodePages(async statusContext =>
 });
 
 app.UseStaticFiles();
+var uploadsPath = app.Configuration["Storage:UploadsPath"];
+if (!string.IsNullOrWhiteSpace(uploadsPath))
+{
+    // Ảnh sản phẩm nằm ngoài thư mục ứng dụng (để bản mới chép đè không mất ảnh), phục vụ lại ở /uploads.
+    Directory.CreateDirectory(uploadsPath);
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Path.GetFullPath(uploadsPath)),
+        RequestPath = "/uploads"
+    });
+}
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();

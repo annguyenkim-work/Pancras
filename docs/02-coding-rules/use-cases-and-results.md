@@ -77,7 +77,6 @@ public sealed class CreateEmployeeCommandHandler( /* repositories, ILogger<...> 
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Kiểm tra viết tay | `CatalogValidation.cs`, `SupplierIssue`/`CatalogIssue` — không đi qua FluentValidation; chuyển khi chạm tới |
 | Tên phương thức | 63 handler dùng `HandleAsync`; ngoại lệ `ListTransfersAsync`, `ListStocktakesAsync`, `ListLocationsAsync`, `ListItemsAsync`, `ListDisposalsAsync`, `ListCountriesAsync`, `ListAdjustmentsAsync`, `ExportAsync`... cần đổi hoặc tách |
 | Kiểu trả về | Vài handler đọc trả thẳng `StockItemDetail?`, `SupplierCardPage` thay vì `Result` |
 
