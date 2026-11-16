@@ -9,7 +9,10 @@ public enum NotificationKind
     Transfer = 3,
 
     /// <summary>Thông báo bước của đơn mua; không gắn với kho cụ thể khi gửi cho người duyệt hoặc người lập đơn.</summary>
-    Purchase = 4
+    Purchase = 4,
+
+    /// <summary>Biên bản kiểm kê chờ Trưởng Showroom/Kho duyệt.</summary>
+    StocktakePending = 5
 }
 
 public sealed class Notification
@@ -45,6 +48,14 @@ public sealed class Notification
     public const string PurchaseReturnedStep = "Đơn mua bị trả về nháp";
 
     public const string PurchaseInTransitStep = "Đơn mua đang về";
+
+    public const string PurchaseCancelledStep = "Đơn mua đã bị hủy";
+
+    public const string PurchaseReceivedStep = "Đơn mua đã nhập kho";
+
+    public const string PurchasePartiallyReceivedStep = "Đơn mua đã nhập kho một phần";
+
+    public const string StocktakePendingStep = "Biên bản kiểm kê chờ duyệt";
 
     private Notification()
     {

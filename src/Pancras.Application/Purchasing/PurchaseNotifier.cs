@@ -41,6 +41,7 @@ public static class PurchaseNotifier
             PurchaseStatusAction.Approve => (Notification.PurchaseApprovedStep, person => IsCreator(person) || StaffOfReceiveLocation(person), order.ReceiveLocationId),
             PurchaseStatusAction.ReturnToDraft => (WithReason(Notification.PurchaseReturnedStep, note), IsCreator, null),
             PurchaseStatusAction.MarkInTransit => (Notification.PurchaseInTransitStep, StaffOfReceiveLocation, order.ReceiveLocationId),
+            PurchaseStatusAction.Cancel => (WithReason(Notification.PurchaseCancelledStep, note), person => IsCreator(person) || StaffOfReceiveLocation(person), order.ReceiveLocationId),
             _ => null
         };
 
@@ -56,6 +57,33 @@ public static class PurchaseNotifier
             await notices.AddAsync(
                 Notification.Create(person.Id, chosen.Location, order.Id, NotificationKind.Purchase, chosen.Step, at),
                 cancellationToken);
+        }
+    }
+
+    /// <summary>Đơn đã nhập kho (một phần hoặc đủ): báo người lập đơn và tài chính, trừ người nhận hàng.</summary>
+    public static async Task NotifyReceivedAsync(
+        INoticeStore? notices,
+        IEmployeeRepository? employees,
+        PurchaseOrder order,
+        bool final,
+        Guid actorId,
+        DateTimeOffset at,
+        CancellationToken cancellationToken)
+    {
+        if (notices is null || employees is null)
+        {
+            return;
+        }
+
+        var createdBy = order.Events.FirstOrDefault(entry => entry.Kind == PurchaseEventKind.Created)?.ActorCode;
+        var people = (await employees.ListReadOnlyAsync(cancellationToken)).Where(person => person.IsActive).ToArray();
+        await notices.RemoveForDocumentAsync(order.Id, cancellationToken);
+        var step = final ? Notification.PurchaseReceivedStep : Notification.PurchasePartiallyReceivedStep;
+        foreach (var person in people.Where(person => person.Id != actorId
+            && (InventoryRoles.IsFinance(person.Role)
+                || (!string.IsNullOrEmpty(createdBy) && string.Equals(person.Code, createdBy, StringComparison.OrdinalIgnoreCase)))))
+        {
+            await notices.AddAsync(Notification.Create(person.Id, order.ReceiveLocationId, order.Id, NotificationKind.Purchase, step, at), cancellationToken);
         }
     }
 

@@ -44,6 +44,7 @@ public sealed class ApproveStocktakeCommandHandler(
             return Result<Guid, StockError>.Fail(StockError.NegativeStock);
         }
 
+        await repository.RemoveNoticesAsync(sheet.Id, cancellationToken);
         if (!await repository.CommitAsync(cancellationToken))
         {
             snapshot?.Restore();

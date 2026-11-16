@@ -71,7 +71,6 @@ Ghi `IAuditLog` (mã hành động dạng `nhóm.sự_kiện`, hiển thị ti�
 
 ## Chờ chốt (chưa có hiệu lực)
 
-- Bắt buộc 2FA cho vai nhạy cảm (Admin, Giám đốc, Kế toán) hoặc nâng mật khẩu tối thiểu lên 12 ký tự (hiện giữ nguyên).
 - Quên mật khẩu qua email: hiện **không có**, Admin đặt lại.
 - Danh sách chọn cố định cho chức vụ và phòng ban.
 - Tab ma trận quyền trên màn nhân sự (demo cũ có, đã bỏ): quyền chỉ ghi ở roles-and-permissions.md.

@@ -54,6 +54,6 @@ public bool CanSeeCost => InventoryAccess.CanSeeCost(Role());
 
 ## Chờ chốt (chưa có hiệu lực)
 
-- Dữ liệu nhạy cảm khi **xuất CSV/Excel, in PDF, nhật ký hệ thống và thông báo**: có áp dụng cùng quy tắc loại theo vai hay không.
+- **Đã chốt 2026-11-16:** xuất CSV/Excel, in và thông báo theo cùng quy tắc loại dữ liệu nhạy cảm theo vai như màn hình; nhật ký hệ thống chỉ Admin và Giám đốc xem.
 - Có cần test tự động "vai X không thấy giá trong HTML trả về" cho từng trang có dữ liệu nhạy cảm hay không.
 - Nhãn vai trò hiện trên header (tên tiếng Việt) và quy tắc đổi tên vai trò.

@@ -16,7 +16,7 @@ namespace Pancras.Web.Pages.Catalog;
 [Authorize(Roles = CatalogAccess.ViewRoles)]
 public class IndexModel(
     ListCatalogItemsHandler listHandler,
-    ListMatchingCatalogItemsHandler exportHandler,
+    ExportCatalogItemsHandler exportHandler,
     GetCatalogItemHandler itemHandler,
     CreateCatalogItemCommandHandler createHandler,
     UpdateCatalogPricesCommandHandler priceHandler,
@@ -142,8 +142,13 @@ public class IndexModel(
 
     public async Task<IActionResult> OnGetExportAsync(CancellationToken cancellationToken)
     {
-        var rows = await exportHandler.HandleAsync(CurrentFilter(), cancellationToken);
-        return File(CatalogCsv.Write(rows), "text/csv; charset=utf-8", "catalog.csv");
+        var result = await exportHandler.HandleAsync(CurrentFilter(), User.ToActor(), cancellationToken);
+        if (result.IsFailure)
+        {
+            return Forbid();
+        }
+
+        return File(CatalogCsv.Write(result.Value!), "text/csv; charset=utf-8", "catalog.csv");
     }
 
     public async Task<IActionResult> OnPostCreateAsync(CancellationToken cancellationToken)

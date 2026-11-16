@@ -85,4 +85,24 @@ public class PurchaseNotificationTests
         Assert.Equal(_creator.Id, notice.RecipientEmployeeId);
         Assert.Contains("Thiếu giá", notice.Step, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task Cancel_NotifiesTheCreatorAndTheReceivingLocationStaff_WithTheReason()
+    {
+        await Run(PurchaseStatusAction.Cancel, Actor(_director), "Nhà cung cấp hủy hàng");
+
+        var recipients = _notices.Notices.Select(notice => notice.RecipientEmployeeId).OrderBy(id => id).ToArray();
+        Assert.Equal(new[] { _creator.Id, _keeper.Id }.OrderBy(id => id).ToArray(), recipients);
+        Assert.All(_notices.Notices, notice => Assert.Contains("Nhà cung cấp hủy hàng", notice.Step, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Receipt_NotifiesTheCreatorAndFinance_ExceptTheReceiver()
+    {
+        await PurchaseNotifier.NotifyReceivedAsync(_notices, _employees, _order, final: true, Actor(_keeper).Id, DateTimeOffset.UtcNow, CancellationToken.None);
+
+        var recipients = _notices.Notices.Select(notice => notice.RecipientEmployeeId).OrderBy(id => id).ToArray();
+        Assert.Equal(new[] { _creator.Id, _director.Id }.OrderBy(id => id).ToArray(), recipients);
+        Assert.All(_notices.Notices, notice => Assert.Equal(Pancras.Domain.Notifications.Notification.PurchaseReceivedStep, notice.Step));
+    }
 }

@@ -63,6 +63,8 @@ public static class AuditLabels
         AuditActions.TransferReturned => "Trả hàng chuyển kho về kho xuất",
         AuditActions.PurchaseCreated => "Lập đơn mua",
         AuditActions.PurchaseExported => "Xuất đơn mua",
+        AuditActions.StockExported => "Xuất file tồn kho",
+        AuditActions.CatalogExported => "Xuất file danh mục",
         AuditActions.PurchaseStatusChanged => "Đổi trạng thái đơn mua",
         AuditActions.PurchaseCostAdjusted => "Điều chỉnh chi phí đơn mua",
         AuditActions.SupplierCreated => "Thêm nhà cung cấp",

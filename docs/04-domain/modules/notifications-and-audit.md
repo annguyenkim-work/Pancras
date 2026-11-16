@@ -35,12 +35,16 @@
 
 **Kho khác** (đã có trong code): lập điều chỉnh chờ duyệt → Admin, Giám đốc, Kế toán; duyệt hủy → nhân viên của đúng kho đó.
 
-**Mua hàng** (đã chốt, đã có trong code, trừ hủy và nhận):
+**Kiểm kê** (đã chốt phiên 2026-11-16): biên bản của nhân viên chờ duyệt báo Trưởng Showroom/Kho đúng kho đó (trừ người lập); duyệt xong thì thông báo biến mất.
+
+**Mua hàng** (đã chốt, đã có trong code):
 
 | Sự kiện | Người nhận |
 | --- | --- |
 | Gửi duyệt đơn | Admin, Giám đốc, Kế toán (trừ người gửi) |
 | Đơn được duyệt hoặc trả về nháp (kèm lý do) | Người lập đơn |
+| Đơn bị hủy (kèm lý do) | Người lập đơn, Trưởng Showroom/Kho và Thủ kho của kho nhận (trừ người hủy) |
+| Đơn đã nhập kho (một phần hoặc đủ) | Người lập đơn và Admin, Giám đốc, Kế toán (trừ người nhận hàng) |
 | Đơn đã duyệt hoặc đang về | Trưởng Showroom/Kho và Thủ kho của kho nhận (không kèm giá) |
 
 ## B. Nhật ký hệ thống (`AuditEntry`)
@@ -54,7 +58,7 @@
 
 ### B2. Ghi gì
 
-Theo quy tắc ở [use-cases-and-results.md](../../02-coding-rules/use-cases-and-results.md): mọi thao tác ghi dữ liệu và sự kiện bảo mật, **sau khi lưu thành công**; **không ghi thao tác đọc**; lỗi ghi nhật ký không làm hỏng thao tác chính. Nhóm hành động hiện có: `login`, `2fa`, `password`, `employee`, `location`, `stock` (chuyển kho, tệp đính kèm chứng từ), `access.denied`; mua hàng, danh mục, nhà cung cấp ghi theo cùng quy ước.
+Theo quy tắc ở [use-cases-and-results.md](../../02-coding-rules/use-cases-and-results.md): mọi thao tác ghi dữ liệu và sự kiện bảo mật, **sau khi lưu thành công**; **không ghi thao tác đọc**; lỗi ghi nhật ký không làm hỏng thao tác chính. Nhóm hành động hiện có: `login`, `2fa`, `password`, `employee`, `location`, `stock` (chuyển kho, tệp đính kèm chứng từ), `access.denied`; mua hàng, danh mục, nhà cung cấp ghi theo cùng quy ước. **Xuất file** (tồn kho, danh mục, đơn mua) cũng ghi nhật ký ai xuất, bao nhiêu dòng; **xem trên màn hình thì không ghi**. Thông báo đã xem chỉ đánh dấu, không tự dọn; nhật ký lưu vô thời hạn (quyết 2026-11-16).
 
 ### B3. Xem và bảo toàn
 
@@ -68,12 +72,7 @@ Theo quy tắc ở [use-cases-and-results.md](../../02-coding-rules/use-cases-an
 | --- | --- |
 | Thông báo dùng chung | Đã có thực thể `Notification` (bảng `notification`), chuông header, `/notifications`, mở đúng chứng từ. Cột kho `StockLocationId` có thể null; chưa đổi tên cột thành `LocationId` |
 | Vòng đời | Đã đúng trong code cho phiếu chuyển, điều chỉnh, hủy và đơn mua: mỗi bước xóa thông báo cũ của chứng từ rồi tạo thông báo mới (không trùng, biến mất khi bước xong), chỉ người nhận mở được. Chưa có test riêng cho phiếu chuyển/điều chỉnh/hủy |
-| Thông báo mua hàng | Đã làm cho gửi duyệt, duyệt, trả về nháp (kèm lý do) và đang về, qua `PurchaseNotifier` và `INoticeStore`. Chưa làm: thông báo khi đơn đã nhận hoặc bị hủy. Người lập đơn xác định theo mã nhân viên trong sự kiện Created của đơn |
-| Kiểm kê chờ duyệt | Spec cũ có thông báo cho Trưởng kho; code mới có thông báo cho điều chỉnh và hủy, chưa cho kiểm kê |
 
 ## Chờ chốt (chưa có hiệu lực)
 
 - Kênh thông báo ngoài phần mềm (email, Zalo, push): hiện chỉ trong phần mềm.
-- Thời hạn lưu thông báo đã xem và dọn thông báo cũ.
-- Chính sách lưu trữ nhật ký rất cũ (hiện vô thời hạn).
-- Có ghi nhật ký truy cập dữ liệu nhạy cảm (xem giá vốn, xuất file) hay không (xem [role-based-ui.md](../../03-ui-ux/role-based-ui.md)).

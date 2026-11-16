@@ -184,6 +184,7 @@ builder.Services.AddScoped<GetCatalogItemHandler>();
 builder.Services.AddScoped<GetCatalogMeasuresHandler>();
 builder.Services.AddScoped<ListMatchingCatalogItemsHandler>();
 builder.Services.AddScoped<SetCatalogItemActiveCommandHandler>();
+builder.Services.AddScoped<ExportCatalogItemsHandler>();
 builder.Services.AddSingleton<CatalogImageStore>();
 builder.Services.AddScoped<CreateCatalogItemCommandHandler>();
 builder.Services.AddScoped<UpdateCatalogPricesCommandHandler>();

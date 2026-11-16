@@ -20,7 +20,9 @@ public sealed class ReceivePurchaseOrderCommandHandler(
     ILogger<ReceivePurchaseOrderCommandHandler> logger,
     TimeProvider? clock = null,
     IAuditLog? audit = null,
-    IRequestInfo? request = null)
+    IRequestInfo? request = null,
+    Pancras.Application.Notifications.INoticeStore? notices = null,
+    Pancras.Application.Employees.IEmployeeRepository? employees = null)
 {
     public async Task<Result<Guid, PurchaseError>> HandleAsync(ReceivePurchaseOrderCommand command, CancellationToken cancellationToken)
     {
@@ -149,6 +151,7 @@ public sealed class ReceivePurchaseOrderCommandHandler(
         }
 
         order.AdvanceVersion();
+        await PurchaseNotifier.NotifyReceivedAsync(notices, employees, order, command.Final, command.Actor.Id, (clock ?? TimeProvider.System).GetUtcNow(), cancellationToken);
         if (order.ExchangeRate != exchangeRate || !await inventory.CommitAsync(cancellationToken))
         {
             Restore(order, undo!, balances, previous, items, previousCosts);

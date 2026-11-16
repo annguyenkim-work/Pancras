@@ -53,6 +53,5 @@
 
 ## Chờ chốt (chưa có hiệu lực)
 
-- Có bắt buộc 2FA cho vai nhạy cảm (Admin, Giám đốc, Kế toán) hay nâng mật khẩu tối thiểu lên 12 ký tự: tạm giữ như hiện tại.
+- **Đã chốt 2026-11-16:** 2FA vẫn tùy chọn, mật khẩu tối thiểu 8 ký tự (không đổi). Ghi lại để không hỏi lại.
 - Ghi chính thức các cấu hình đang bật nhưng chưa chọn làm quy tắc: bí mật 2FA mã hóa bằng Data Protection, header bảo mật (nosniff, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy), cookie `HttpOnly`/`SameSite=Lax`/`Secure` ở production, phiên 8 giờ trượt.
-- Chính sách ghi nhật ký truy cập dữ liệu nhạy cảm (xem giá vốn) và thời hạn lưu nhật ký.

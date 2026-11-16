@@ -89,7 +89,6 @@ Requested ──duyệt──▶ Approved ──xuất kho──▶ InTransit �
 
 ## Chờ chốt (chưa có hiệu lực)
 
-- Phiếu hủy có số lượng: đang kiểm số lượng ≥ 1 lúc lập và ≤ tồn khả dụng lúc duyệt (suy ra từ quy tắc cũ "trừ 1"); chủ dự án xác nhận hoặc đổi (ví dụ kiểm cả lúc lập, hạn mức).
 - Giữ chỗ cho nguồn khác ngoài phiếu chuyển (ví dụ đơn bán khi có module Bán hàng) dùng chung cột `Reserved`.
 - Duyệt theo ngưỡng giá trị/số lượng; người duyệt thay thế khi Trưởng kho vắng (hiện chỉ có tài chính thay).
 - Thông tin vận chuyển (người vận chuyển, số seal), phiếu giao in được.

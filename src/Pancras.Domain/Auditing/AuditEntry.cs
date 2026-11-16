@@ -112,6 +112,10 @@ public static class AuditActions
     public const string CatalogItemActivated = "catalog.item_activated";
     public const string PurchaseCreated = "purchase.created";
     public const string PurchaseExported = "purchase.exported";
+
+    public const string StockExported = "stock.exported";
+
+    public const string CatalogExported = "catalog.exported";
     public const string PurchaseReceived = "purchase.received";
     public const string PurchaseUpdated = "purchase.updated";
     public const string PurchaseStatusChanged = "purchase.status_changed";

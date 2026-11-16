@@ -6,7 +6,10 @@ namespace Pancras.Application.Inventory;
 
 public sealed class ListStockBalancesHandler(
     IInventoryRepository repository,
-    ILogger<ListStockBalancesHandler> logger)
+    ILogger<ListStockBalancesHandler> logger,
+    TimeProvider? clock = null,
+    Pancras.Application.Auditing.IAuditLog? audit = null,
+    Pancras.Application.Auditing.IRequestInfo? request = null)
 {
     public async Task<IReadOnlyList<StockBalanceRow>> HandleAsync(
         ListStockBalancesQuery filter,
@@ -30,6 +33,7 @@ public sealed class ListStockBalancesHandler(
         }
 
         var rows = await LoadAsync(filter, actor, limitToOwnLocation: true, cancellationToken);
+        await Pancras.Application.Auditing.AuditLogExtensions.RecordAsync(audit, clock ?? TimeProvider.System, request, actor.Id, null, Pancras.Domain.Auditing.AuditActions.StockExported, "stock_balance", null, rows.Count + " dòng", cancellationToken);
         logger.LogInformation("Exported {StockBalanceCount} stock balances.", rows.Count);
         return rows;
     }

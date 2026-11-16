@@ -7,7 +7,8 @@ namespace Pancras.Application.Inventory;
 public sealed class CreateStocktakeCommandHandler(
     IInventoryRepository repository,
     ILogger<CreateStocktakeCommandHandler> logger,
-    TimeProvider? clock = null)
+    TimeProvider? clock = null,
+    Pancras.Application.Employees.IEmployeeRepository? employees = null)
 {
     public async Task<Result<Guid, StockError>> HandleAsync(CreateStocktakeCommand command, CancellationToken cancellationToken)
     {
@@ -56,6 +57,21 @@ public sealed class CreateStocktakeCommandHandler(
         }
 
         await repository.AddStocktakeAsync(sheet, cancellationToken);
+        if (sheet.Status == ApprovalStatus.Pending && employees is not null)
+        {
+            // Biên bản của nhân viên chờ duyệt: báo Trưởng Showroom/Kho đúng kho đó (trừ người lập).
+            var at = (clock ?? TimeProvider.System).GetUtcNow();
+            var people = (await employees.ListReadOnlyAsync(cancellationToken))
+                .Where(person => person.IsActive && person.Id != command.Actor.Id
+                    && InventoryRoles.IsShowroomLead(person.Role) && person.StockLocationId == sheet.StockLocationId);
+            foreach (var person in people)
+            {
+                await repository.AddNoticeAsync(
+                    Pancras.Domain.Notifications.Notification.Create(person.Id, sheet.StockLocationId, sheet.Id, Pancras.Domain.Notifications.NotificationKind.StocktakePending, Pancras.Domain.Notifications.Notification.StocktakePendingStep, at),
+                    cancellationToken);
+            }
+        }
+
         if (!await repository.CommitAsync(cancellationToken))
         {
             snapshot?.Restore();

@@ -113,4 +113,3 @@ Khớp với `EmployeeAccess`, `SupplierAccess`, `LocationAccess`, `CatalogAcces
 ## Chờ chốt (chưa có hiệu lực)
 
 - Quyền của module Khách hàng, Bán hàng, Báo giá, Combo, Công nợ, Bảo hành, CSKH: định nghĩa khi làm từng module.
-- Quyền xem dữ liệu nhạy cảm khi xuất file/in/nhật ký (xem role-based-ui.md).
