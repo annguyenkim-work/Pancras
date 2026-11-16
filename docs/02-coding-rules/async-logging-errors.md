@@ -47,5 +47,5 @@
 
 ## Chờ chốt (chưa có hiệu lực)
 
-- Thời gian lưu log trên máy chủ và cách thu gom/xoay vòng (để ở `06-operations/deployment.md`).
+- **Đã chốt 2026-11-16:** log giữ 30 ngày, xoay vòng (chi tiết ở `06-operations/deployment.md`).
 - Kiểm tra sức khỏe (health check) và giám sát lỗi (cảnh báo khi Error tăng).

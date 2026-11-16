@@ -75,4 +75,4 @@ Theo quy tắc ở [use-cases-and-results.md](../../02-coding-rules/use-cases-an
 
 ## Chờ chốt (chưa có hiệu lực)
 
-- Kênh thông báo ngoài phần mềm (email, Zalo, push): hiện chỉ trong phần mềm.
+- **Đã chốt 2026-11-16 (chưa làm):** thêm kênh email cho thông báo (không Zalo, không push); hiện vẫn chỉ trong phần mềm. Dùng chung dịch vụ email với quên mật khẩu; còn chờ chốt loại thông báo nào gửi email và cho ai.
