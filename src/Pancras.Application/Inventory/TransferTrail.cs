@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Pancras.Application.Auditing;
 using Pancras.Application.Employees;
 using Pancras.Domain.Inventory;
@@ -75,7 +76,7 @@ internal static class TransferTrail
         foreach (var recipient in recipients)
         {
             await repository.AddNoticeAsync(
-                StockNotice.Create(recipient, slip.SourceLocationId, slip.Id, StockNoticeKind.Transfer, step, occurredAt),
+                Notification.Create(recipient, slip.SourceLocationId, slip.Id, NotificationKind.Transfer, step, occurredAt),
                 cancellationToken);
         }
     }

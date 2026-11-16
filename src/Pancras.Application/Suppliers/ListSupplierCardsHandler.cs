@@ -1,3 +1,4 @@
+using Pancras.Domain.Suppliers;
 using Microsoft.Extensions.Logging;
 using Pancras.Domain.Employees;
 
@@ -9,18 +10,17 @@ public sealed class ListSupplierCardsHandler(
     ILogger<ListSupplierCardsHandler> logger)
 {
     public async Task<SupplierCardPage> HandleAsync(
-        SupplierListFilter filter,
-        SupplierPageRequest page,
+        ListSuppliersQuery query,
         EmployeeActor actor,
         CancellationToken cancellationToken)
     {
         if (!SupplierAccess.CanView(actor.Role))
         {
             logger.LogWarning("Supplier list forbidden for role {Role}.", actor.Role);
-            return new SupplierCardPage([], 1, page.Size, 0);
+            return new SupplierCardPage([], 1, query.PageSize, 0);
         }
 
-        var slice = await repository.ListFilteredAsync(filter, page.Number, page.Size, cancellationToken);
+        var slice = await repository.ListFilteredAsync(query, query.PageNumber, query.PageSize, cancellationToken);
         var stats = await statsReader.ReadAsync(
             slice.Items.Select(supplier => supplier.Id).ToArray(),
             cancellationToken);
@@ -42,11 +42,11 @@ public sealed class ListSupplierCardsHandler(
                 showBank ? SupplierBankMask.Of(supplier.Account) : string.Empty,
                 row?.PurchaseOrderCount ?? 0,
                 row?.LotsNotReceived ?? 0,
-                supplier.IsInactive,
+                supplier.IsActive,
                 Pancras.Application.Auditing.AuditStampView.From(supplier));
         }).ToArray();
 
-        return new SupplierCardPage(cards, slice.PageNumber, page.Size, slice.TotalCount);
+        return new SupplierCardPage(cards, slice.PageNumber, query.PageSize, slice.TotalCount);
     }
 
     /// <summary>Các quốc gia đang có trong danh bạ, để lọc.</summary>
@@ -56,6 +56,6 @@ public sealed class ListSupplierCardsHandler(
     public async Task<int> PageContainingAsync(string name, string code, CancellationToken cancellationToken)
     {
         var before = await repository.CountActiveBeforeAsync(name, code, cancellationToken);
-        return before / SupplierPageRequest.DefaultSize + 1;
+        return before / Pancras.Application.Common.PageSizes.Default + 1;
     }
 }

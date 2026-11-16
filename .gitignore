@@ -11,11 +11,6 @@ Thumbs.db
 *.swp
 .vscode/
 .idea/
-/.cursor
-/.specify
-/specs
-*.cursorrules
-/ARCHITECTURE.md
 src/Pancras.Web/wwwroot/uploads/
 
 node_modules/

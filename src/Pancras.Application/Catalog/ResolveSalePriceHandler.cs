@@ -8,7 +8,7 @@ public sealed class ResolveSalePriceHandler(
     ICatalogItemRepository repository,
     ILogger<ResolveSalePriceHandler> logger)
 {
-    public async Task<Result<decimal>> HandleAsync(
+    public async Task<Result<decimal, CatalogError>> HandleAsync(
         ResolveSalePriceCommand command,
         CancellationToken cancellationToken)
     {
@@ -16,18 +16,18 @@ public sealed class ResolveSalePriceHandler(
         if (item is null)
         {
             logger.LogInformation("Rejected a sale price lookup.");
-            return Result<decimal>.Fail(CatalogError.NotFound);
+            return Result<decimal, CatalogError>.Fail(CatalogError.NotFound);
         }
 
         var request = new SalePriceRequest(command.Customer, command.FromQuoteFile, command.FilePrice);
         if (!CatalogSalePrice.TryResolve(item, request, out var price, out var error))
         {
             logger.LogInformation("Rejected a sale price lookup for {CatalogItemId}.", item.Id);
-            return Result<decimal>.Fail(Map(error));
+            return Result<decimal, CatalogError>.Fail(Map(error));
         }
 
         logger.LogInformation("Resolved a sale price for {CatalogItemId}.", item.Id);
-        return Result<decimal>.Ok(price);
+        return Result<decimal, CatalogError>.Ok(price);
     }
 
     private static CatalogError Map(SalePriceError error) => error switch

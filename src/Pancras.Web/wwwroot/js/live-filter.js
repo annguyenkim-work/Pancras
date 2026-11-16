@@ -28,7 +28,7 @@
             var current = document.getElementById('live-results');
             if (current) {
                 current.setAttribute('aria-busy', 'true');
-                current.classList.add('opacity-60');
+                current.classList.add('opacity-60', 'cursor-progress');
             }
 
             fetch(url, { headers: { 'X-Live-Filter': '1' }, credentials: 'same-origin', signal: controller.signal })
@@ -57,7 +57,7 @@
 
                     var target = document.getElementById('live-results');
                     if (target) {
-                        target.classList.remove('opacity-60');
+                        target.classList.remove('opacity-60', 'cursor-progress');
                         target.removeAttribute('aria-busy');
                     }
                 });

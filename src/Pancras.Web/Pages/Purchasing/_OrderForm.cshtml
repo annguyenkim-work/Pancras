@@ -1,0 +1,243 @@
+@model Pancras.Web.Pages.Purchasing.IndexModel
+@using System.Globalization
+@using Pancras.Domain.Purchasing
+@using Pancras.Web.Formatting
+@{
+    const string costNote = "Giá vốn dòng = trị giá hải quan + thuế nhập khẩu + thuế khác không khấu trừ + phí logistics được chia. Trị giá hải quan = FOB quy đổi (số lượng × đơn giá USD × tỷ giá) + cước biển được chia. Thuế nhập khẩu = trị giá hải quan × suất thuế. Phí chia theo cách chọn ở từng khoản, phần dư đồng về dòng cuối. VAT đầu vào được khấu trừ thì không vào giá vốn.";
+}
+
+@if (Model.ShowForm)
+{
+    <dialog id="purchase-dialog" class="m-auto w-[min(72rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50 open:flex">
+        <div class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
+            <h2 class="text-lg font-bold text-slate-900">@(Model.EditingId is null ? "Lập Phiếu Mua Hàng & Container Nhập Khẩu (Nhiều Mặt Hàng)" : "Sửa Đơn Mua Hàng (chưa nhập kho)")</h2>
+            <a href="/purchasing" data-leave class="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-2xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Đóng">×</a>
+        </div>
+        <form method="post" asp-page-handler="@(Model.EditingId is null ? "Create" : "Update")" id="purchase-draft" class="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+            @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+            {
+                <div class="mb-3"><partial name="_Notice" model='new NoticeModel(Model.ErrorMessage, ToastLevel.Error, null, "form-error")' /></div>
+            }
+            @if (Model.EditingId is Guid editingId)
+            {
+                <input type="hidden" name="orderId" value="@editingId" />
+                <input type="hidden" asp-for="Form.Version" />
+                <p class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">Sửa mặt hàng, giá, tỷ giá, thuế sẽ tự chia lại các khoản chi phí của container. Thêm, sửa, xóa khoản chi phí ngay trong bảng "Chi phí chung của cả đơn" bên dưới.</p>
+            }
+            @if (Model.Suppliers.Count == 0 || Model.Locations.Count == 0 || Model.Items.Count == 0)
+            {
+                <p class="mt-3 text-sm text-amber-800">Cần có nhà cung cấp, địa điểm kho và mặt hàng trong danh mục trước khi tạo đơn.</p>
+            }
+            <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+                <label class="text-sm">Mã đơn<input asp-for="Form.Code" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" /></label>
+                <label class="text-sm">Nhà cung cấp quốc tế
+                    <select asp-for="Form.SupplierId" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+                        <option value="">Chọn nhà cung cấp</option>
+                        @foreach (var supplier in Model.Suppliers)
+                        {
+                            <option value="@supplier.Id">@supplier.Code — @supplier.Name</option>
+                        }
+                    </select>
+                </label>
+                <label class="text-sm">Kho tiếp nhận đích
+                    <select asp-for="Form.ReceiveLocationId" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+                        <option value="">Chọn kho nhận</option>
+                        @foreach (var location in Model.Locations)
+                        {
+                            <option value="@location.Id">@location.Name</option>
+                        }
+                    </select>
+                </label>
+                <label class="flex flex-col justify-between gap-1 text-sm">
+                    <span>Tỷ giá (VNĐ / USD)</span>
+                    <span class="relative block">
+                        <input name="Form.ExchangeRate" value="@Model.Form.ExchangeRate.ToString("0", CultureInfo.InvariantCulture)" id="rate" inputmode="numeric" class="vnd draft w-full rounded-lg border border-slate-300 py-2 pl-3 pr-8" />
+                        <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-slate-500">VNĐ</span>
+                    </span>
+                </label>
+                <label class="text-sm">Số hiệu Container<input asp-for="Form.ContainerNumber" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" /></label>
+                <label class="text-sm">Số Vận đơn (Bill of Lading)<input asp-for="Form.BillOfLading" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" /></label>
+                <label class="text-sm">Cảng Đến Tiếp Nhận<input asp-for="Form.Port" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" /></label>
+                <label class="text-sm">Ngày Dự Kiến Cập Cảng (ETA)<input asp-for="Form.ExpectedOn" type="date" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" /></label>
+            </div>
+
+            <div class="mt-6 flex flex-wrap items-end justify-between gap-3">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900">DANH SÁCH CÁC MẶT HÀNG ĐẶT MUA TRONG CONTAINER (<span id="line-count">0</span> MẶT HÀNG)</h3>
+                    <p class="mt-1 max-w-3xl text-xs leading-5 text-slate-500">@costNote</p>
+                </div>
+                <button type="button" id="add-line" class="text-sm font-bold text-sky-700">+ Thêm Mặt Hàng Nhập</button>
+            </div>
+            <div class="mt-3 overflow-x-auto">
+                @* Chỉ các ô nhập và một kết quả (giá vốn / đơn vị). Các bước tính trung gian nằm ở "Bảng kiểm tra tính giá vốn" bên dưới, không lặp lại ở đây. *@
+                <table class="min-w-[46rem] w-full text-sm">
+                    <thead class="bg-slate-50 text-left text-xs font-bold text-slate-500">
+                        <tr>
+                            <th class="px-3 py-2">Sản phẩm / Thiết bị</th>
+                            <th class="px-3 py-2">Số lượng</th>
+                            <th class="px-3 py-2">Đơn giá FOB (USD)</th>
+                            <th class="px-3 py-2">Thuế NK %</th>
+                            <th class="px-3 py-2" title="Thuế bổ sung, tiêu thụ đặc biệt, môi trường (tổng). Không khấu trừ nên tính vào giá vốn.">Thuế khác (VNĐ)</th>
+                            <th class="px-3 py-2 text-right">Giá vốn / đơn vị</th>
+                            <th class="py-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="line-body">
+                        @for (var index = 0; index < Model.Form.Lines.Count; index++)
+                        {
+                            var line = Model.Form.Lines[index];
+                            var unitPrice = index < Model.Form.UnitPrices.Count ? Model.Form.UnitPrices[index] : 0m;
+                            var dutyPercent = index < Model.Form.DutyPercents.Count ? Model.Form.DutyPercents[index] : 0m;
+                            <tr class="line-row border-t border-slate-100">
+                                <td class="px-3 py-2">
+                                    <input type="hidden" class="line-id" name="Form.Lines[@index].LineId" value="@(line.LineId?.ToString() ?? "")" />
+                                    <select name="Form.Lines[@index].CatalogItemId" class="w-64 rounded-lg border border-slate-300 px-2 py-2">
+                                        <option value="">Chọn mặt hàng</option>
+                                        @foreach (var item in Model.Items)
+                                        {
+                                            Model.ItemMeasures.TryGetValue(item.Id, out var measure);
+                                            @* Cân nặng/thể tích để bản xem thử chia chi phí theo khối lượng/thể tích đúng như máy chủ. *@
+                                            <option value="@item.Id" data-code="@item.Code" data-weight="@(measure?.WeightKg?.ToString("0.####", CultureInfo.InvariantCulture))" data-volume="@(measure?.VolumeM3?.ToString("0.#####", CultureInfo.InvariantCulture))" selected="@(item.Id == line.CatalogItemId)">@item.Code — @item.Name</option>
+                                        }
+                                    </select>
+                                </td>
+                                <td class="px-3 py-2"><input name="Form.Lines[@index].Quantity" value="@line.Quantity.ToString(CultureInfo.InvariantCulture)" class="line-qty draft w-20 rounded-lg border border-slate-300 px-2 py-2" /></td>
+                                <td class="px-3 py-2"><input name="Form.UnitPrices[@index]" value="@unitPrice.ToString("0.####", CultureInfo.InvariantCulture)" class="line-unit draft w-24 rounded-lg border border-slate-300 px-2 py-2" /></td>
+                                <td class="px-3 py-2"><input name="Form.DutyPercents[@index]" value="@dutyPercent.ToString("0.####", CultureInfo.InvariantCulture)" class="line-duty draft w-16 rounded-lg border border-amber-200 bg-amber-50 px-2 py-2" /></td>
+                                <td class="px-3 py-2"><input name="Form.Lines[@index].SupplementalDuty" value="@line.SupplementalDuty.ToString("0", CultureInfo.InvariantCulture)" inputmode="numeric" class="line-other draft w-28 rounded-lg border border-slate-300 px-2 py-2" /></td>
+                                <td class="out-unit px-3 py-2 text-right font-bold tabular-nums">0 VNĐ</td>
+                                <td class="py-2 text-right">
+                                    <button type="button" class="remove-line rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600" aria-label="Xóa mặt hàng" title="Xóa mặt hàng">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-9 0 1 12h8l1-12" />
+                                        </svg>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <section id="charge-section" class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <h3 class="text-sm font-bold text-slate-900">CHI PHÍ CHUNG CỦA CẢ ĐƠN</h3>
+                    <p class="text-sm font-bold">Tổng chi phí chung: <span id="sum-charges">0 VNĐ</span></p>
+                </div>
+                <p class="mt-1 text-xs leading-5 text-slate-600">Mỗi dòng là một khoản chi phí của cả container (không thuộc riêng mặt hàng nào), nhập số tiền <b>chưa gồm VAT của hóa đơn dịch vụ</b>. Chọn <b>Nhóm</b> và <b>Cách chia</b> cho từng dòng, hệ thống chia cho các mặt hàng và hiện kết quả ở bảng kiểm tra bên dưới. Không có khoản nào thì để số tiền 0 hoặc xóa dòng.</p>
+                <p class="mt-1 text-xs leading-5 text-slate-600">Gợi ý cách chia: cước biển, kéo xe theo thể tích hoặc khối lượng; bảo hiểm, kiểm định theo trị giá; khoản chung nhỏ theo số lượng.</p>
+                @* Thứ tự nhập: mặt hàng và số lượng trước, chi phí chung sau. Chưa có mặt hàng đủ số lượng và đơn giá thì khóa
+                   (inert: không bấm/nhập được nhưng vẫn gửi cùng form, nên không làm mất các khoản đã có khi sửa đơn). *@
+                <p id="charge-lock-note" class="mt-3 rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-medium text-amber-900">Nhập mặt hàng, số lượng và đơn giá FOB ở bảng phía trên trước, rồi mới nhập chi phí chung.</p>
+                <div id="charge-area">
+                <div class="mt-3 overflow-x-auto">
+                    <table class="min-w-[52rem] w-full text-sm">
+                        <thead class="bg-slate-50 text-left text-xs font-bold text-slate-600">
+                            <tr>
+                                <th class="px-3 py-2">Tên khoản chi phí</th>
+                                <th class="px-3 py-2">Số tiền (VNĐ)</th>
+                                <th class="px-3 py-2">Nhóm</th>
+                                <th class="px-3 py-2">Cách chia cho các mặt hàng</th>
+                                <th class="py-2"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="charge-body">
+                            @for (var chargeIndex = 0; chargeIndex < Model.Form.Charges.Count; chargeIndex++)
+                            {
+                                <partial name="_ChargeRow" model="new ChargeRowView(Model.Form.Charges[chargeIndex], chargeIndex.ToString(CultureInfo.InvariantCulture))" />
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr class="border-t-2 border-amber-300 bg-amber-100/60 align-top">
+                                <td class="px-3 py-2">
+                                    <p class="font-medium text-slate-900">VAT hàng nhập khẩu (tự tính)</p>
+                                    <p class="text-xs text-slate-600">= (trị giá hải quan + thuế NK + thuế khác) × suất VAT</p>
+                                </td>
+                                <td class="px-3 py-2 text-right text-base font-bold tabular-nums text-slate-900"><span id="vat-amount">0 VNĐ</span></td>
+                                <td class="px-3 py-2">
+                                    <label class="block text-xs text-slate-600">Suất VAT
+                                        <span class="relative mt-1 block">
+                                            <input name="Form.VatPercent" value="@Model.Form.VatPercent.ToString("0.####", CultureInfo.InvariantCulture)" id="vat-percent" inputmode="decimal" class="draft w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-9 text-sm text-slate-900" />
+                                            <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-slate-500">%</span>
+                                        </span>
+                                    </label>
+                                </td>
+                                <td class="px-3 py-2">
+                                    <label class="flex items-start gap-2 text-sm text-slate-800">
+                                        <input asp-for="Form.VatDeductible" id="vat-deductible" type="checkbox" class="draft mt-1" />
+                                        <span>VAT đầu vào được khấu trừ <span class="block text-xs text-slate-600">Tắt (mặc định): VAT cộng vào giá vốn. Bật: VAT không vào giá vốn.</span></span>
+                                    </label>
+                                </td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                <button type="button" id="add-charge" class="mt-2 text-sm font-bold text-sky-700">+ Thêm dòng chi phí</button>
+                <details class="mt-3 rounded-lg border border-amber-200 bg-white p-3 text-xs leading-5 text-slate-700">
+                    <summary class="cursor-pointer font-bold text-slate-900">Các nhóm chi phí nghĩa là gì?</summary>
+                    <ul class="mt-2 list-disc space-y-1 pl-5">
+                        <li><b>Trị giá hải quan</b> (cước biển, bảo hiểm): cộng vào trị giá tính thuế, nên làm tăng thuế nhập khẩu và VAT, rồi vào giá vốn.</li>
+                        <li><b>Logistics</b> (THC, D/O, kiểm định, kéo xe): cộng thẳng vào giá vốn, không tính thuế nhập khẩu.</li>
+                        <li><b>Thuế không khấu trừ</b>: khoản thuế không được khấu trừ, tính vào giá vốn.</li>
+                        <li><b>Thuế khấu trừ</b> (ví dụ VAT của hóa đơn dịch vụ): không vào giá vốn nhưng vẫn là tiền phải trả, được cộng vào tổng thực chi.</li>
+                    </ul>
+                </details>
+                <template id="charge-template">
+                    <partial name="_ChargeRow" model='new ChargeRowView(new ChargeRowInput(), "__i__")' />
+                </template>
+                </div>
+            </section>
+
+            @* Thu gọn mặc định để form không quá dài; mở ra khi kế toán cần đối chiếu từng bước. Kết quả chính luôn hiện ở thanh dưới cùng. *@
+            <details id="check-details" class="mt-5 rounded-xl border border-slate-200 p-4">
+                <summary id="check-title" class="cursor-pointer text-sm font-bold text-slate-900">BẢNG KIỂM TRA TÍNH GIÁ VỐN (để đối chiếu) <span class="font-normal text-sky-700">· bấm để mở / thu gọn</span></summary>
+                <p class="mt-2 text-xs leading-5 text-slate-600">Từng bước tính cho mỗi mặt hàng, cập nhật ngay khi nhập. ③ = ① + ② · ④ = ③ × thuế NK % · ⑥ = ③ + ④ + ⑤ · ⑦ = ⑥ × suất VAT · ⑨ = ③ + ④ + ⑤ + ⑧ (+ ⑦ nếu VAT không khấu trừ) · ⑩ = ⑨ ÷ số lượng. Rê chuột vào tiêu đề cột để xem giải thích. Phần dư làm tròn đồng của mỗi khoản chia dồn về mặt hàng cuối.</p>
+                <div class="mt-3 overflow-x-auto">
+                    <table class="min-w-[66rem] w-full text-xs">
+                        <thead class="bg-slate-50 text-right font-bold text-slate-600">
+                            <tr class="border-b border-slate-200">
+                                <th class="px-3 py-2 text-left">Mặt hàng</th>
+                                <th class="px-3 py-2">SL</th>
+                                <th class="px-3 py-2" title="Số lượng × đơn giá USD × tỷ giá">① FOB quy đổi</th>
+                                <th class="px-3 py-2" title="Các khoản nhóm Trị giá hải quan được chia cho mặt hàng">② Cước / bảo hiểm</th>
+                                <th class="px-3 py-2">③ Trị giá hải quan</th>
+                                <th class="px-3 py-2">④ Thuế NK</th>
+                                <th class="px-3 py-2">⑤ Thuế khác</th>
+                                <th class="px-3 py-2">⑥ Giá tính VAT</th>
+                                <th class="px-3 py-2">⑦ VAT</th>
+                                <th class="px-3 py-2" title="Các khoản nhóm Logistics và nhóm Thuế không khấu trừ được chia cho mặt hàng">⑧ Logistics &amp; thuế không khấu trừ</th>
+                                <th class="px-3 py-2">⑨ Giá vốn dòng</th>
+                                <th class="py-2">⑩ Giá vốn / đơn vị</th>
+                            </tr>
+                        </thead>
+                        <tbody id="check-body" class="text-right tabular-nums"></tbody>
+                        <tfoot id="check-foot" class="text-right font-bold tabular-nums"></tfoot>
+                    </table>
+                </div>
+            </details>
+
+            <div class="mt-4 rounded-xl bg-slate-900 px-5 py-4 text-sm text-slate-300">
+                <div class="flex justify-between gap-3 py-0.5"><span>Tổng tiền hàng FOB quy đổi</span><span class="tabular-nums" id="t-fob">0 VNĐ</span></div>
+                <div class="flex justify-between gap-3 py-0.5"><span>Cước biển / bảo hiểm (nhóm trị giá hải quan)</span><span class="tabular-nums" id="t-adj">0 VNĐ</span></div>
+                <div class="flex justify-between gap-3 py-0.5"><span>Thuế nhập khẩu</span><span class="tabular-nums" id="t-duty">0 VNĐ</span></div>
+                <div class="flex justify-between gap-3 py-0.5"><span>Thuế khác không khấu trừ</span><span class="tabular-nums" id="t-other">0 VNĐ</span></div>
+                <div class="flex justify-between gap-3 py-0.5"><span>Logistics (THC, D/O, kiểm định, kéo xe...)</span><span class="tabular-nums" id="t-log">0 VNĐ</span></div>
+                <div class="flex justify-between gap-3 py-0.5"><span>Khoản thuế không khấu trừ khác</span><span class="tabular-nums" id="t-nonded">0 VNĐ</span></div>
+                <div class="flex justify-between gap-3 py-0.5"><span id="t-vatcost-label">VAT tính vào giá vốn</span><span class="tabular-nums" id="t-vatcost">0 VNĐ</span></div>
+                <div class="mt-2 flex justify-between gap-3 border-t border-slate-700 pt-2 text-base font-bold text-emerald-300"><span>Giá vốn hàng nhập</span><span class="tabular-nums" id="t-landed">0 VNĐ</span></div>
+                <div class="mt-2 flex justify-between gap-3 py-0.5"><span>VAT được khấu trừ (không vào giá vốn)</span><span class="tabular-nums" id="t-vatded">0 VNĐ</span></div>
+                <div class="flex justify-between gap-3 py-0.5"><span>Khoản thuế khấu trừ khác (không vào giá vốn)</span><span class="tabular-nums" id="t-ded">0 VNĐ</span></div>
+                <div class="mt-1 flex justify-between gap-3 font-bold text-white"><span>Tổng tiền thực chi cho container (gồm VAT nộp khi thông quan)</span><span class="tabular-nums" id="sum-order">0 VNĐ</span></div>
+            </div>
+            @* Thanh dưới cố định: kết quả chính và nút Lưu luôn thấy được, không phải cuộn tới cuối form. *@
+            <div class="sticky -bottom-5 z-10 -mx-5 -mb-5 mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-3 sm:-mx-6 sm:px-6">
+                <p class="text-sm text-slate-600">Giá vốn hàng nhập <strong id="f-landed" class="text-base text-emerald-700">0 VNĐ</strong> <span class="mx-1 text-slate-300">|</span> Tổng thực chi <strong id="f-cash" class="text-base text-slate-900">0 VNĐ</strong></p>
+                <div class="flex gap-2">
+                    <a href="/purchasing" data-leave class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Quay lại</a>
+                    <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">@(Model.EditingId is null ? "Lưu Đơn Mua Hàng & Container" : "Lưu thay đổi")</button>
+                </div>
+            </div>
+        </form>
+    </dialog>
+    <script src="~/js/purchasing-form.js" asp-append-version="true" defer></script>
+}

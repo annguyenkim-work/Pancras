@@ -44,6 +44,29 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
     }
 
     [Fact]
+    public async Task OrderList_IsPaged_With20Or50PerPage()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var location = Guid.CreateVersion7();
+        for (var index = 1; index <= 25; index++)
+        {
+            orders.Orders.Add(NewOrder("PO-" + index.ToString("00"), location));
+        }
+
+        await SignInAsync(client);
+
+        var first = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing")).Content.ReadAsStringAsync());
+        var second = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?pageNumber=2")).Content.ReadAsStringAsync());
+        var wide = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?size=50")).Content.ReadAsStringAsync());
+
+        Assert.Contains("Hiển thị 1–20 / 25", first, StringComparison.Ordinal);
+        Assert.Contains("Hiển thị 21–25 / 25", second, StringComparison.Ordinal);
+        Assert.Contains("Hiển thị 1–25 / 25", wide, StringComparison.Ordinal);
+        Assert.Contains("pageNumber=2", first, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ReceivedOrder_HidesTheReceiveButton()
     {
         using var client = _factory.CreateClient(NoRedirect);
@@ -124,7 +147,7 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         Assert.Contains("id=\"charge-area\"", html, StringComparison.Ordinal);
         Assert.Contains("Nhập mặt hàng, số lượng và đơn giá FOB", html, StringComparison.Ordinal);
         Assert.Contains("id=\"purchase-dialog\"", html, StringComparison.Ordinal);
-        Assert.Contains("getElementById(\"purchase-dialog\")?.showModal()", html, StringComparison.Ordinal);
+        Assert.Contains("/js/purchasing-form.js", html, StringComparison.Ordinal);
         Assert.DoesNotContain("<dialog open", html, StringComparison.Ordinal);
     }
 
@@ -275,6 +298,76 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
             0.10m,
             [(Guid.CreateVersion7(), 4, 10m, 0.05m, 0m, 0m, 0m)])!;
         return order;
+    }
+
+    [Theory]
+    [InlineData(EmployeeRole.WarehouseKeeper, false)]
+    [InlineData(EmployeeRole.ShowroomWarehouseLead, false)]
+    [InlineData(EmployeeRole.Accountant, true)]
+    [InlineData(EmployeeRole.Director, true)]
+    [InlineData(EmployeeRole.Admin, true)]
+    public async Task ExchangeRateAndFobPrice_AppearInOrderHtml_OnlyForManagingRoles(string role, bool seesCost)
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var location = Guid.CreateVersion7();
+        var order = PurchaseOrder.TryCreate(
+            "PO-GIA", Guid.CreateVersion7(), location, "CONT", "BL", "Hải Phòng", new DateOnly(2026, 11, 12),
+            31337m, 0.10m, [(Guid.CreateVersion7(), 4, 987m, 0.05m, 0m, 0m, 0m)])!;
+        Assert.True(order.TrySubmit());
+        Assert.True(order.TryApprove());
+        orders.Orders.Add(order);
+        await SignInAsync(client, role, location);
+
+        var page = await client.GetAsync("/purchasing?order=" + order.Id);
+        var text = System.Net.WebUtility.HtmlDecode(await page.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        Assert.Contains("PO-GIA", text, StringComparison.Ordinal);
+        Assert.Equal(seesCost, text.Contains("31.337", StringComparison.Ordinal));
+        if (!seesCost)
+        {
+            Assert.DoesNotContain("31337", text, StringComparison.Ordinal);
+            Assert.DoesNotContain("987 USD", text, StringComparison.Ordinal);
+        }
+    }
+
+    [Theory]
+    [InlineData(EmployeeRole.Accountant, true)]
+    [InlineData(EmployeeRole.Admin, true)]
+    [InlineData(EmployeeRole.WarehouseKeeper, false)]
+    public async Task ReceivableOrder_ShowsTheCostPreviewPanel_OnlyToRolesThatSeeCost(string role, bool shown)
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var location = Guid.CreateVersion7();
+        var order = NewOrder("PO-XEM-TRUOC", location);
+        Assert.True(order.TrySubmit());
+        Assert.True(order.TryApprove());
+        orders.Orders.Add(order);
+        await SignInAsync(client, role, location);
+
+        var page = await client.GetAsync("/purchasing?order=" + order.Id);
+        var text = System.Net.WebUtility.HtmlDecode(await page.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        Assert.Equal(shown, text.Contains("id=\"receipt-preview\"", StringComparison.Ordinal));
+        Assert.Equal(shown, text.Contains("Giá vốn dự kiến", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DraftOrder_HasNoCostPreviewPanel()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var order = NewOrder("PO-NHAP", Guid.CreateVersion7());
+        orders.Orders.Add(order);
+        await SignInAsync(client, EmployeeRole.Accountant);
+
+        var page = await client.GetAsync("/purchasing?order=" + order.Id);
+        var text = System.Net.WebUtility.HtmlDecode(await page.Content.ReadAsStringAsync());
+
+        Assert.DoesNotContain("id=\"receipt-preview\"", text, StringComparison.Ordinal);
     }
 
     [Fact]

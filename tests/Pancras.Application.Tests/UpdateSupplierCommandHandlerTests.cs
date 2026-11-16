@@ -7,6 +7,17 @@ namespace Pancras.Application.Tests;
 
 public class UpdateSupplierCommandHandlerTests
 {
+    [Fact]
+    public async Task ConcurrentSave_IsAVersionConflict_NotADuplicateCode()
+    {
+        var supplier = AddSample();
+        _repository.NextOutcome = SaveOutcome.Conflict;
+
+        var result = await Handler().HandleAsync(Edit(supplier.Id, name: "Tên mới"), CancellationToken.None);
+
+        Assert.Equal(SupplierError.VersionConflict, result.Error);
+    }
+
     private readonly FakeSupplierRepository _repository = new();
 
     [Fact]
@@ -19,6 +30,19 @@ public class UpdateSupplierCommandHandlerTests
         Assert.Equal("Tên mới", supplier.Name);
         Assert.Equal("b@c.co", supplier.Email);
         Assert.Equal("NCC01", supplier.Code);
+    }
+
+    [Fact]
+    public async Task StaleVersion_IsRejected_AndChangesNothing()
+    {
+        var supplier = AddSample();
+        var command = Edit(supplier.Id, name: "Tên mới");
+        command.Version = supplier.Version + 1;
+
+        var result = await Handler().HandleAsync(command, CancellationToken.None);
+
+        Assert.Equal(SupplierError.VersionConflict, result.Error);
+        Assert.Equal("Kim An", supplier.Name);
     }
 
     [Fact]
@@ -39,7 +63,7 @@ public class UpdateSupplierCommandHandlerTests
 
         var result = await Handler().HandleAsync(Edit(supplier.Id, code: "ncc02"), CancellationToken.None);
 
-        Assert.Equal(SupplierError.DuplicateCode, result.SupplierError);
+        Assert.Equal(SupplierError.DuplicateCode, result.Error);
         Assert.Equal("Kim An", supplier.Name);
         Assert.Equal("NCC01", supplier.Code);
     }
@@ -50,7 +74,7 @@ public class UpdateSupplierCommandHandlerTests
         var supplier = AddSample();
         var result = await Handler().HandleAsync(Edit(supplier.Id, name: " "), CancellationToken.None);
 
-        Assert.Equal(SupplierError.Incomplete, result.SupplierError);
+        Assert.Equal(SupplierError.Incomplete, result.Error);
         Assert.Equal("Kim An", supplier.Name);
     }
 
@@ -62,8 +86,8 @@ public class UpdateSupplierCommandHandlerTests
 
         var result = await Handler().HandleAsync(Edit(supplier.Id, name: "Tên mới"), CancellationToken.None);
 
-        Assert.Equal(SupplierError.NotFound, result.SupplierError);
-        Assert.True(supplier.IsInactive);
+        Assert.Equal(SupplierError.NotFound, result.Error);
+        Assert.False(supplier.IsActive);
         Assert.Equal("Kim An", supplier.Name);
     }
 
@@ -75,7 +99,7 @@ public class UpdateSupplierCommandHandlerTests
 
         var result = await Handler().HandleAsync(Edit(supplier.Id, name: "Tên mới"), CancellationToken.None);
 
-        Assert.Equal(SupplierError.DuplicateCode, result.SupplierError);
+        Assert.Equal(SupplierError.DuplicateCode, result.Error);
     }
 
     [Fact]
@@ -83,7 +107,7 @@ public class UpdateSupplierCommandHandlerTests
     {
         var result = await Handler().HandleAsync(Edit(Guid.CreateVersion7()), CancellationToken.None);
 
-        Assert.Equal(SupplierError.NotFound, result.SupplierError);
+        Assert.Equal(SupplierError.NotFound, result.Error);
     }
 
     [Fact]
@@ -95,7 +119,7 @@ public class UpdateSupplierCommandHandlerTests
 
         var result = await Handler().HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(SupplierError.Forbidden, result.SupplierError);
+        Assert.Equal(SupplierError.Forbidden, result.Error);
         Assert.Equal("Kim An", supplier.Name);
     }
 
@@ -128,8 +152,8 @@ public class UpdateSupplierCommandHandlerTests
 
         var result = await Handler().HandleAsync(Edit(supplier.Id, code: "ncc09"), CancellationToken.None);
 
-        Assert.Equal(SupplierError.DuplicateCode, result.SupplierError);
-        Assert.Contains(result.SupplierIssues, issue => issue.Kind == SupplierIssueKind.DuplicateInactive);
+        Assert.Equal(SupplierError.DuplicateCode, result.Error);
+        Assert.Contains(result.IssuesOf<SupplierIssue>(), issue => issue.Kind == SupplierIssueKind.DuplicateInactive);
         Assert.Equal("NCC01", supplier.Code);
     }
 

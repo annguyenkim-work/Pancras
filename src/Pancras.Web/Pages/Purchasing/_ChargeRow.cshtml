@@ -11,14 +11,14 @@
 }
 @* Một dòng chi phí chung. Khoản chia tay (nhập số từng mặt hàng) chỉ xem ở đây, sửa ở chi tiết đơn. *@
 <tr class="charge-row border-t border-amber-200 align-top" data-manual="@(manual ? "1" : "0")" data-auto="@(row.AutoVolume ? "1" : "0")" data-shares="@shares">
-    <td class="py-2 pr-2">
+    <td class="px-3 py-2">
         <input type="hidden" class="charge-id" name="Form.Charges[@i].ChargeId" value="@(row.ChargeId?.ToString() ?? "")" />
         <input name="Form.Charges[@i].Label" value="@row.Label" maxlength="200" placeholder="Tên khoản chi phí" readonly="@manual" class="charge-label w-full rounded-lg border border-slate-300 bg-white px-2 py-2" />
     </td>
-    <td class="py-2 pr-2">
-        <input name="Form.Charges[@i].Amount" value="@row.Amount.ToString("0", CultureInfo.InvariantCulture)" inputmode="numeric" readonly="@manual" aria-label="Số tiền (đ)" class="charge-amount vnd draft w-36 rounded-lg border border-slate-300 bg-white px-2 py-2 text-right tabular-nums" />
+    <td class="px-3 py-2">
+        <input name="Form.Charges[@i].Amount" value="@row.Amount.ToString("0", CultureInfo.InvariantCulture)" inputmode="numeric" readonly="@manual" aria-label="Số tiền (VNĐ)" class="charge-amount vnd draft w-36 rounded-lg border border-slate-300 bg-white px-2 py-2 text-right tabular-nums" />
     </td>
-    <td class="py-2 pr-2">
+    <td class="px-3 py-2">
         @* Nhãn ngắn để không bị cắt; giải thích đầy đủ nằm ở title (rê chuột) và phần "Các nhóm chi phí" dưới bảng. *@
         <select name="Form.Charges[@i].Group" aria-label="Nhóm chi phí" title="Nhóm quyết định khoản này vào giá vốn thế nào. Xem 'Các nhóm chi phí' dưới bảng." class="charge-group draft w-full min-w-[11rem] rounded-lg border border-slate-300 bg-white px-2 py-2">
             <option value="@((int)ChargeGroup.CustomsValueAdjustment)" selected="@(row.Group == ChargeGroup.CustomsValueAdjustment)" title="Cước biển, bảo hiểm: cộng vào trị giá tính thuế nên làm tăng thuế nhập khẩu và VAT, rồi vào giá vốn.">Trị giá hải quan</option>
@@ -27,7 +27,7 @@
             <option value="@((int)ChargeGroup.DeductibleTax)" selected="@(row.Group == ChargeGroup.DeductibleTax)" title="Thuế được khấu trừ (ví dụ VAT hóa đơn dịch vụ): không vào giá vốn nhưng vẫn là tiền phải trả.">Thuế khấu trừ</option>
         </select>
     </td>
-    <td class="py-2 pr-2">
+    <td class="px-3 py-2">
         @if (manual)
         {
             <input type="hidden" class="charge-method" name="Form.Charges[@i].Method" value="@((int)ChargeSplitMethod.Manual)" />

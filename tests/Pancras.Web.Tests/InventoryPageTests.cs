@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -45,6 +46,8 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
         Assert.Equal(HttpStatusCode.OK, page.StatusCode);
         Assert.Contains("Tồn thực tế", text, StringComparison.Ordinal);
         Assert.Contains("Đang giữ chỗ", text, StringComparison.Ordinal);
+        Assert.Contains("role=\"tablist\"", text, StringComparison.Ordinal);
+        Assert.Contains("id=\"tab-transfers\" href=\"/inventory?view=transfers\"", text, StringComparison.Ordinal);
         Assert.Contains("Khả dụng", text, StringComparison.Ordinal);
         Assert.Contains("Đang chuyển", text, StringComparison.Ordinal);
         Assert.Contains("Quản Lý Đa Kho", text, StringComparison.Ordinal);
@@ -270,7 +273,7 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
         var dialog = Decode(Regex.Match(html, "<dialog id=\"transfer-" + slip.Id + "\".*?</dialog>", RegexOptions.Singleline).Value);
 
         Assert.Contains("id=\"transfer-table\"", html, StringComparison.Ordinal);
-        Assert.Contains("bg-yellow-100 text-yellow-800", html, StringComparison.Ordinal);
+        Assert.Contains("bg-amber-100 text-amber-800", html, StringComparison.Ordinal);
         Assert.Contains("Chờ bạn duyệt", text, StringComparison.Ordinal);
         Assert.Contains("Chờ tôi duyệt", text, StringComparison.Ordinal);
         Assert.Contains("Lịch sử phiếu", dialog, StringComparison.Ordinal);
@@ -281,6 +284,43 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
         Assert.DoesNotContain("Hủy phiếu", dialog, StringComparison.Ordinal);
         Assert.DoesNotContain("Trả về kho xuất", dialog, StringComparison.Ordinal);
         Assert.Single(Regex.Matches(html, "id=\"open-transfer\""));
+    }
+
+    [Fact]
+    public async Task TransferFilter_IsLive_AndTheResultsIncludeTheRowDialogs()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        var slip = SeedRequestedSlip(inventory);
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+
+        var html = await (await client.GetAsync("/inventory?view=transfers&ts=Requested")).Content.ReadAsStringAsync();
+
+        var form = Regex.Match(html, "<form[^>]*id=\"transfer-filter\"[^>]*>").Value;
+        Assert.Contains("data-live-filter", form, StringComparison.Ordinal);
+        var results = html.IndexOf("id=\"live-results\"", StringComparison.Ordinal);
+        Assert.True(results > 0);
+        Assert.True(html.IndexOf("id=\"transfer-table\"", StringComparison.Ordinal) > results);
+        // Hộp thoại chi tiết của từng dòng nằm trong vùng kết quả, để dòng mới hiện ra sau khi lọc vẫn bấm mở được.
+        Assert.True(html.IndexOf("<dialog id=\"transfer-" + slip.Id + "\"", StringComparison.Ordinal) > results);
+        Assert.Single(Regex.Matches(html, "id=\"live-results\""));
+        Assert.DoesNotContain(">Lọc</button>", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TransferFilter_OffersAClearLink_OnlyWhileFiltering_InsideTheResults()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        SeedRequestedSlip(inventory);
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+
+        var plain = await (await client.GetAsync("/inventory?view=transfers")).Content.ReadAsStringAsync();
+        var filtered = await (await client.GetAsync("/inventory?view=transfers&ts=Approved")).Content.ReadAsStringAsync();
+
+        Assert.DoesNotContain("Xóa lọc", plain, StringComparison.Ordinal);
+        Assert.Contains("Xóa lọc", filtered, StringComparison.Ordinal);
+        Assert.True(filtered.IndexOf("Xóa lọc", StringComparison.Ordinal) > filtered.IndexOf("id=\"live-results\"", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -311,6 +351,94 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
 
         Assert.Contains("SP01", html, StringComparison.Ordinal);
         Assert.DoesNotContain("Giá vốn", html, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(EmployeeRole.Sales, false)]
+    [InlineData(EmployeeRole.WarehouseKeeper, false)]
+    [InlineData(EmployeeRole.ShowroomWarehouseLead, false)]
+    [InlineData(EmployeeRole.CustomerCare, false)]
+    [InlineData(EmployeeRole.Accountant, true)]
+    [InlineData(EmployeeRole.Director, true)]
+    [InlineData(EmployeeRole.Admin, true)]
+    public async Task CostValue_AppearsInPageHtml_OnlyForFinanceRoles(string role, bool seesCost)
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        inventory.Rows.Add(Row("SP01", "Vòi", ProductCategory.SanitaryEquipment, Guid.CreateVersion7()) with { CostPrice = 7654321m });
+        await SignInAsync(client, role, "roletest");
+
+        var response = await client.GetAsync("/inventory");
+        var html = Decode(await response.Content.ReadAsStringAsync());
+
+        if (response.StatusCode == HttpStatusCode.OK)
+        {
+            Assert.Equal(seesCost, html.Contains("7.654.321", StringComparison.Ordinal));
+            if (!seesCost)
+            {
+                Assert.DoesNotContain("7654321", html, StringComparison.Ordinal);
+            }
+        }
+        else
+        {
+            // Vai không được mở trang thì không có dữ liệu nào để lộ.
+            Assert.False(seesCost);
+            Assert.DoesNotContain("7.654.321", html, StringComparison.Ordinal);
+        }
+    }
+
+    [Theory]
+    [InlineData(EmployeeRole.Sales)]
+    [InlineData(EmployeeRole.WarehouseKeeper)]
+    [InlineData(EmployeeRole.Accountant)]
+    [InlineData(EmployeeRole.Admin)]
+    public async Task CsvExport_NeverCarriesTheCostValue_ForAnyRole(string role)
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        inventory.Rows.Add(Row("SP01", "Vòi", ProductCategory.SanitaryEquipment, Guid.CreateVersion7()) with { CostPrice = 7654321m });
+        await SignInAsync(client, role, "roletest");
+        var page = await client.GetAsync("/inventory");
+        var token = Regex.Match(await page.Content.ReadAsStringAsync(), "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+
+        var response = await client.PostAsync(
+            "/inventory?handler=Export",
+            new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = token }));
+        var text = Encoding.UTF8.GetString(await response.Content.ReadAsByteArrayAsync());
+
+        Assert.DoesNotContain("7654321", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("7.654.321", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Giá vốn", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Balances_ArePaged_TwentyAtATime_WithAPagerThatKeepsTheFilter()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        var location = Guid.CreateVersion7();
+        for (var i = 1; i <= 25; i++)
+        {
+            inventory.Rows.Add(Row("SP" + i.ToString("00"), "Vòi " + i, ProductCategory.SanitaryEquipment, location));
+        }
+
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+
+        var first = Decode(await (await client.GetAsync("/inventory?category=" + ProductCategoryToken.Sanitary)).Content.ReadAsStringAsync());
+        var second = Decode(await (await client.GetAsync("/inventory?category=" + ProductCategoryToken.Sanitary + "&bp=2")).Content.ReadAsStringAsync());
+        var wide = Decode(await (await client.GetAsync("/inventory?size=50")).Content.ReadAsStringAsync());
+
+        Assert.Contains("SP01", first, StringComparison.Ordinal);
+        Assert.Contains("SP20", first, StringComparison.Ordinal);
+        Assert.DoesNotContain("SP21", first, StringComparison.Ordinal);
+        Assert.Contains("Hiển thị 1–20 / 25", first, StringComparison.Ordinal);
+        Assert.Contains("category=" + ProductCategoryToken.Sanitary + "&bp=2", first, StringComparison.Ordinal);
+        Assert.DoesNotContain("SP20", second, StringComparison.Ordinal);
+        Assert.Contains("SP21", second, StringComparison.Ordinal);
+        Assert.Contains("SP25", second, StringComparison.Ordinal);
+        Assert.Contains("Hiển thị 21–25 / 25", second, StringComparison.Ordinal);
+        Assert.Contains("SP25", wide, StringComparison.Ordinal);
+        Assert.Contains("25 mặt hàng", first, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -430,7 +558,7 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
     public Task<IReadOnlyList<StockItemChoice>> ListItemChoicesAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<StockItemChoice>>([]);
 
-    public Task<IReadOnlyList<StockBalanceRow>> ListBalancesAsync(StockListFilter filter, CancellationToken cancellationToken) =>
+    public Task<IReadOnlyList<StockBalanceRow>> ListBalancesAsync(ListStockBalancesQuery filter, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<StockBalanceRow>>(Rows.Where(filter.Matches).ToArray());
 
     public Task<int> SumOnHandAsync(Guid catalogItemId, CancellationToken cancellationToken) =>
@@ -525,13 +653,22 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
     public Task<IReadOnlyList<DisposalSlip>> ListDisposalsAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<DisposalSlip>>([]);
 
-    public Task AddNoticeAsync(StockNotice notice, CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task AddNoticeAsync(Notification notice, CancellationToken cancellationToken) => Task.CompletedTask;
 
-    public Task<IReadOnlyList<StockNotice>> ListNoticesAsync(Guid recipientEmployeeId, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<StockNotice>>([]);
+    public List<Notification> Notices { get; } = [];
 
-    public Task<StockNotice?> FindNoticeForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult<StockNotice?>(null);
+    public Task<NoticePage> ListNoticesPageAsync(Guid recipientEmployeeId, int pageNumber, int pageSize, CancellationToken cancellationToken)
+    {
+        var mine = Notices.Where(notice => notice.RecipientEmployeeId == recipientEmployeeId)
+            .OrderByDescending(notice => notice.CreatedAt).ToArray();
+        return Task.FromResult(new NoticePage(mine.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToArray(), mine.Length));
+    }
+
+    public Task<int> CountUnseenNoticesAsync(Guid recipientEmployeeId, CancellationToken cancellationToken) =>
+        Task.FromResult(Notices.Count(notice => notice.RecipientEmployeeId == recipientEmployeeId && !notice.Seen));
+
+    public Task<Notification?> FindNoticeForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
+        Task.FromResult<Notification?>(null);
 
     public Task RemoveNoticesAsync(Guid documentId, CancellationToken cancellationToken) => Task.CompletedTask;
 

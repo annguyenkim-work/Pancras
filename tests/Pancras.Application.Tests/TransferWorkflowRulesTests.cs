@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Microsoft.Extensions.Logging.Abstractions;
 using Pancras.Application.Common;
 using Pancras.Application.Inventory;
@@ -52,7 +53,7 @@ public class TransferWorkflowRulesTests
         var shortage = await Decide(second, true);
 
         Assert.True(ok.IsSuccess);
-        Assert.Equal(StockError.InsufficientStock, shortage.StockError);
+        Assert.Equal(StockError.InsufficientStock, shortage.Error);
         Assert.Contains("còn 3, cần 7", shortage.Detail);
         Assert.Equal(7, _sourceBalance.Reserved);
         Assert.Equal(TransferStatus.Requested, _store.Transfers.Single(slip => slip.Id == second).Status);
@@ -97,11 +98,11 @@ public class TransferWorkflowRulesTests
                 CancellationToken.None);
         var byCreator = await Cancel(id, maker, "Không cần");
 
-        Assert.Equal(StockError.NotCreator, admin.StockError);
-        Assert.Equal(StockError.NotCreator, otherKeeper.StockError);
-        Assert.Equal(StockError.Forbidden, outsider.StockError);
-        Assert.Equal(StockError.ReasonRequired, noReason.StockError);
-        Assert.Equal(StockError.NotCreator, edit.StockError);
+        Assert.Equal(StockError.NotCreator, admin.Error);
+        Assert.Equal(StockError.NotCreator, otherKeeper.Error);
+        Assert.Equal(StockError.Forbidden, outsider.Error);
+        Assert.Equal(StockError.ReasonRequired, noReason.Error);
+        Assert.Equal(StockError.NotCreator, edit.Error);
         Assert.True(byCreator.IsSuccess);
     }
 
@@ -118,10 +119,10 @@ public class TransferWorkflowRulesTests
         var ok = await handler.HandleAsync(new ReturnTransferCommand(id, TestActors.Accountant, "Giao nhầm kho"), CancellationToken.None);
         var again = await handler.HandleAsync(new ReturnTransferCommand(id, TestActors.Accountant, "Giao nhầm kho"), CancellationToken.None);
 
-        Assert.Equal(StockError.Forbidden, keeper.StockError);
-        Assert.Equal(StockError.ReasonRequired, noReason.StockError);
+        Assert.Equal(StockError.Forbidden, keeper.Error);
+        Assert.Equal(StockError.ReasonRequired, noReason.Error);
         Assert.True(ok.IsSuccess);
-        Assert.Equal(StockError.TransferStateChanged, again.StockError);
+        Assert.Equal(StockError.TransferStateChanged, again.Error);
         var slip = _store.Transfers.Single();
         Assert.Equal(TransferStatus.Returned, slip.Status);
         Assert.Equal(10, _sourceBalance.OnHand);
@@ -143,8 +144,8 @@ public class TransferWorkflowRulesTests
         var empty = await Receipt().HandleAsync(new ConfirmTransferCommand(id, TestActors.Admin, []), CancellationToken.None);
         var ok = await Receipt().HandleAsync(TransferFlow.FullReceipt(_store, id, TestActors.Admin), CancellationToken.None);
 
-        Assert.Equal(StockError.QuantityRequired, none.StockError);
-        Assert.Equal(StockError.QuantityRequired, empty.StockError);
+        Assert.Equal(StockError.QuantityRequired, none.Error);
+        Assert.Equal(StockError.QuantityRequired, empty.Error);
         Assert.True(ok.IsSuccess);
         Assert.Equal(TransferStatus.Received, _store.Transfers.Single().Status);
         Assert.Empty(_store.Adjustments);
@@ -222,10 +223,10 @@ public class TransferWorkflowRulesTests
         Assert.Equal(new HashSet<Guid> { lead.Id, accountant.Id, director.Id }, onRequest);
         Assert.True(approve.IsSuccess);
         var afterApproval = _store.Notices.Where(notice => notice.DocumentId == id).ToArray();
-        Assert.All(afterApproval, notice => Assert.Equal(StockNoticeKind.Transfer, notice.Kind));
-        Assert.Contains(afterApproval, notice => notice.RecipientEmployeeId == maker.Id && notice.Step == StockNotice.TransferApprovedStep);
+        Assert.All(afterApproval, notice => Assert.Equal(NotificationKind.Transfer, notice.Kind));
+        Assert.Contains(afterApproval, notice => notice.RecipientEmployeeId == maker.Id && notice.Step == Notification.TransferApprovedStep);
         Assert.DoesNotContain(afterApproval, notice => notice.RecipientEmployeeId == lead.Id);
-        Assert.DoesNotContain(afterApproval, notice => notice.Step == StockNotice.TransferRequestedStep);
+        Assert.DoesNotContain(afterApproval, notice => notice.Step == Notification.TransferRequestedStep);
     }
 
     private async Task<Guid> RequestAsync(EmployeeActor actor, int quantity)
@@ -244,15 +245,15 @@ public class TransferWorkflowRulesTests
             Lines = [new TransferLineInput(_item, quantity)]
         };
 
-    private Task<Result<Guid>> Decide(Guid id, bool approve) =>
+    private Task<Result<Guid, StockError>> Decide(Guid id, bool approve) =>
         new DecideTransferCommandHandler(_store, NullLogger<DecideTransferCommandHandler>.Instance)
             .HandleAsync(new DecideTransferCommand(id, TestActors.Admin, approve, approve ? null : "Không"), CancellationToken.None);
 
-    private Task<Result<Guid>> Ship(Guid id) =>
+    private Task<Result<Guid, StockError>> Ship(Guid id) =>
         new ShipTransferCommandHandler(_store, NullLogger<ShipTransferCommandHandler>.Instance)
             .HandleAsync(new ShipTransferCommand(id, TestActors.Admin), CancellationToken.None);
 
-    private Task<Result<Guid>> Cancel(Guid id, EmployeeActor actor, string? reason) =>
+    private Task<Result<Guid, StockError>> Cancel(Guid id, EmployeeActor actor, string? reason) =>
         new CancelTransferCommandHandler(_store, NullLogger<CancelTransferCommandHandler>.Instance)
             .HandleAsync(new ConfirmTransferCommand(id, actor, null, reason), CancellationToken.None);
 

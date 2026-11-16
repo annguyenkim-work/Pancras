@@ -1,3 +1,5 @@
+using Pancras.Domain.Suppliers;
+using Pancras.Web.Formatting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -17,7 +19,7 @@ public class IndexModel(
     DeactivateSupplierCommandHandler deactivateHandler,
     ReactivateSupplierCommandHandler reactivateHandler) : PageModel
 {
-    public SupplierCardPage CardPage { get; private set; } = new([], 1, SupplierPageRequest.DefaultSize, 0);
+    public SupplierCardPage CardPage { get; private set; } = new([], 1, Pancras.Application.Common.PageSizes.Default, 0);
 
     public IReadOnlyList<SupplierCard> Cards => CardPage.Cards;
 
@@ -41,7 +43,6 @@ public class IndexModel(
 
     public SupplierProfile? StopProfile { get; private set; }
 
-    public string? Notice { get; private set; }
 
     /// <summary>Dùng chung cho thêm và sửa: Id rỗng là thêm mới.</summary>
     [BindProperty]
@@ -79,11 +80,21 @@ public class IndexModel(
 
     public bool HasSearch => Filter.HasCriteria;
 
-    private SupplierListFilter Filter => SupplierListFilter.From(Search, StatusFilter, Country);
+    private ListSuppliersQuery Filter => ListSuppliersQuery.From(Search, StatusFilter, Country, SortToken);
 
     public string FilteredListUrl => BuildUrl(CardPage.PageNumber);
 
-    public string PageUrl(int page) => BuildUrl(page);
+    [BindProperty(SupportsGet = true, Name = "sort")]
+    public string? SortToken { get; set; }
+
+    public Pancras.Application.Common.ListSort Sort => SupplierOrdering.Parse(SortToken);
+
+    /// <summary>Địa chỉ khi bấm tiêu đề cột: đổi cột hoặc đảo chiều, về trang 1.</summary>
+    public string SortUrl(string key) => BuildUrl(1, sortToken: Sort.Toggle(key).Token);
+
+    public int RequestedSize => Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
+
+    public Pancras.Web.Formatting.PagerModel Pager => new(CardPage.PageNumber, CardPage.PageSize, CardPage.TotalCount, (page, size) => BuildUrl(page, size: size));
 
     public string EditUrl(Guid id) => BuildUrl(CardPage.PageNumber, id);
 
@@ -98,37 +109,21 @@ public class IndexModel(
 
     public string FieldClass(SupplierField field)
     {
-        var border = HasIssue(field) ? "border-rose-400" : "border-slate-200";
-        return $"mt-1.5 w-full px-3 py-2 text-sm rounded-lg border {border} bg-white outline-none focus:border-slate-900";
+        return HasIssue(field) ? Pancras.Web.Formatting.UiClasses.InputInvalid : Pancras.Web.Formatting.UiClasses.Input;
     }
 
     public IReadOnlyList<string> CountryChoices => SupplierCountries.For(Form.Country);
 
-    public IReadOnlyList<int> VisiblePages
-    {
-        get
-        {
-            const int window = 5;
-            var total = CardPage.TotalPages;
-            var current = CardPage.PageNumber;
-            var start = Math.Max(1, current - window / 2);
-            var end = Math.Min(total, start + window - 1);
-            start = Math.Max(1, end - window + 1);
-            return Enumerable.Range(start, end - start + 1).ToArray();
-        }
-    }
-
     public async Task<IActionResult> OnGetAsync(Guid? edit, Guid? stop, bool add, CancellationToken cancellationToken)
     {
         ReadPage();
-        var requested = SupplierPageRequest.From(PageNumber);
+        var requested = Filter.WithPage(PageNumber, RequestedSize);
         await LoadAsync(requested, cancellationToken);
-        if (requested.Number != CardPage.PageNumber)
+        if (requested.PageNumber != CardPage.PageNumber)
         {
             return Redirect(BuildUrl(CardPage.PageNumber, edit, stop, add));
         }
 
-        Notice = TempData["SupplierNotice"] as string;
         if (!CanManage)
         {
             return Page();
@@ -139,7 +134,7 @@ public class IndexModel(
             var existing = await profileHandler.HandleAsync(stopId, Actor, cancellationToken);
             if (existing.IsFailure)
             {
-                RememberFailure("Không mở được nhà cung cấp", existing.SupplierError, existing.SupplierIssues, null);
+                RememberFailure("Không mở được nhà cung cấp", existing.Error, existing.IssuesOf<SupplierIssue>(), null);
                 return Page();
             }
 
@@ -163,13 +158,14 @@ public class IndexModel(
         var profile = await profileHandler.HandleAsync(id, Actor, cancellationToken);
         if (profile.IsFailure)
         {
-            RememberFailure("Không mở được nhà cung cấp", profile.SupplierError, profile.SupplierIssues, null);
+            RememberFailure("Không mở được nhà cung cấp", profile.Error, profile.IssuesOf<SupplierIssue>(), null);
             return Page();
         }
 
         Form = new UpdateSupplierCommand
         {
             Id = profile.Value!.Id,
+            Version = profile.Value.Version,
             Code = profile.Value.Code,
             Name = profile.Value.Name,
             Country = profile.Value.Country,
@@ -200,13 +196,13 @@ public class IndexModel(
         var result = await deactivateHandler.HandleAsync(StopId, Actor, cancellationToken);
         if (result.IsFailure)
         {
-            RememberFailure("Không ngừng hợp tác được", result.SupplierError, result.SupplierIssues, null);
-            await LoadAsync(SupplierPageRequest.From(PageNumber), cancellationToken);
+            RememberFailure("Không Disable được", result.Error, result.IssuesOf<SupplierIssue>(), null);
+            await LoadAsync(Filter.WithPage(PageNumber, RequestedSize), cancellationToken);
             return Page();
         }
 
-        TempData["SupplierNotice"] = "Đã chuyển nhà cung cấp sang trạng thái ngừng hợp tác. Xem lại ở bộ lọc \"Đã ngừng hợp tác\"; Admin có thể khôi phục.";
-        return Redirect(BuildUrl(SupplierPageRequest.From(PageNumber).Number));
+        TempData.Toast("Đã chuyển nhà cung cấp sang trạng thái Disable. Xem lại ở bộ lọc \"Disabled\"; Admin có thể khôi phục.");
+        return Redirect(BuildUrl(Filter.WithPage(PageNumber, RequestedSize).PageNumber));
     }
 
     public async Task<IActionResult> OnPostReactivateAsync(Guid id, CancellationToken cancellationToken)
@@ -215,13 +211,13 @@ public class IndexModel(
         var result = await reactivateHandler.HandleAsync(id, Actor, cancellationToken);
         if (result.IsFailure)
         {
-            RememberFailure("Không khôi phục được nhà cung cấp", result.SupplierError, result.SupplierIssues, null);
-            await LoadAsync(SupplierPageRequest.From(PageNumber), cancellationToken);
+            RememberFailure("Không khôi phục được nhà cung cấp", result.Error, result.IssuesOf<SupplierIssue>(), null);
+            await LoadAsync(Filter.WithPage(PageNumber, RequestedSize), cancellationToken);
             return Page();
         }
 
-        TempData["SupplierNotice"] = "Đã khôi phục nhà cung cấp. Nhà cung cấp lại xuất hiện khi lập đơn mua.";
-        return Redirect(BuildUrl(SupplierPageRequest.From(PageNumber).Number));
+        TempData.Toast("Đã khôi phục nhà cung cấp. Nhà cung cấp lại xuất hiện khi lập đơn mua.");
+        return Redirect(BuildUrl(Filter.WithPage(PageNumber, RequestedSize).PageNumber));
     }
 
     private async Task<IActionResult> SaveNewAsync(CancellationToken cancellationToken)
@@ -248,15 +244,15 @@ public class IndexModel(
             cancellationToken);
         if (result.IsFailure)
         {
-            RememberFailure("Không thêm được nhà cung cấp", result.SupplierError, result.SupplierIssues, Form.Code);
+            RememberFailure("Không thêm được nhà cung cấp", result.Error, result.IssuesOf<SupplierIssue>(), Form.Code);
             ShowForm = true;
-            await LoadAsync(SupplierPageRequest.From(PageNumber), cancellationToken);
+            await LoadAsync(Filter.WithPage(PageNumber, RequestedSize), cancellationToken);
             return Page();
         }
 
         var created = result.Value!;
         var page = await listHandler.PageContainingAsync(created.Name, created.Code, cancellationToken);
-        TempData["SupplierNotice"] = $"Đã thêm nhà cung cấp {created.Name}.";
+        TempData.Toast($"Đã thêm nhà cung cấp {created.Name}.");
         Search = null;
         Status = null;
         Country = null;
@@ -273,17 +269,17 @@ public class IndexModel(
         var result = await updateHandler.HandleAsync(Form, cancellationToken);
         if (result.IsFailure)
         {
-            RememberFailure("Không sửa được nhà cung cấp", result.SupplierError, result.SupplierIssues, Form.Code);
+            RememberFailure("Không sửa được nhà cung cấp", result.Error, result.IssuesOf<SupplierIssue>(), Form.Code);
             ShowForm = true;
-            await LoadAsync(SupplierPageRequest.From(PageNumber), cancellationToken);
+            await LoadAsync(Filter.WithPage(PageNumber, RequestedSize), cancellationToken);
             return Page();
         }
 
-        var cards = await listHandler.HandleAsync(Filter, SupplierPageRequest.From(PageNumber), Actor, cancellationToken);
+        var cards = await listHandler.HandleAsync(Filter.WithPage(PageNumber, RequestedSize), Actor, cancellationToken);
         var visible = cards.Cards.Any(card => card.Id == result.Value!.Id);
-        TempData["SupplierNotice"] = visible
+        TempData.Toast(visible
             ? $"Đã lưu nhà cung cấp {result.Value!.Name}."
-            : $"Đã lưu nhà cung cấp {result.Value!.Name}. Nhà cung cấp không khớp bộ lọc hiện tại, hãy bỏ lọc để xem.";
+            : $"Đã lưu nhà cung cấp {result.Value!.Name}. Nhà cung cấp không khớp bộ lọc hiện tại, hãy bỏ lọc để xem.");
         return Redirect(BuildUrl(cards.PageNumber));
     }
 
@@ -317,13 +313,13 @@ public class IndexModel(
         ErrorMessages = SupplierErrorMessages.Describe(error, issues, code);
     }
 
-    private async Task LoadAsync(SupplierPageRequest page, CancellationToken cancellationToken)
+    private async Task LoadAsync(ListSuppliersQuery query, CancellationToken cancellationToken)
     {
-        CardPage = await listHandler.HandleAsync(Filter, page, Actor, cancellationToken);
+        CardPage = await listHandler.HandleAsync(query, Actor, cancellationToken);
         Countries = await listHandler.ListCountriesAsync(Actor, cancellationToken);
     }
 
-    private string BuildUrl(int page, Guid? edit = null, Guid? stopId = null, bool add = false)
+    private string BuildUrl(int page, Guid? edit = null, Guid? stopId = null, bool add = false, int? size = null, string? sortToken = null)
     {
         var filter = Filter;
         var parts = new List<string>();
@@ -359,6 +355,18 @@ public class IndexModel(
         if (filter.Country is not null)
         {
             parts.Add("country=" + Uri.EscapeDataString(filter.Country));
+        }
+
+        var order = SupplierOrdering.Parse(sortToken ?? SortToken);
+        if (order != SupplierOrdering.Parse(null))
+        {
+            parts.Add("sort=" + order.Token);
+        }
+
+        var pageSize = size ?? RequestedSize;
+        if (pageSize != Pancras.Application.Common.PageSizes.Default)
+        {
+            parts.Add("size=" + pageSize.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
 
         if (page > 1)

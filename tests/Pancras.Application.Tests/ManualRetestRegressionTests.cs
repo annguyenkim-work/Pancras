@@ -33,7 +33,7 @@ public class ManualRetestRegressionTests
             },
             CancellationToken.None);
 
-        Assert.Equal(StockError.MissingTarget, result.StockError);
+        Assert.Equal(StockError.MissingTarget, result.Error);
     }
 
     [Fact]
@@ -93,7 +93,7 @@ public class ManualRetestRegressionTests
         var second = await approve.HandleAsync(new ApproveDocumentCommand(created.Value, TestActors.Director), CancellationToken.None);
 
         Assert.True(first.IsSuccess);
-        Assert.Equal(StockError.TransferStateChanged, second.StockError);
+        Assert.Equal(StockError.TransferStateChanged, second.Error);
     }
 
     private sealed class LocationFake : ILocationManagementRepository
@@ -111,6 +111,6 @@ public class ManualRetestRegressionTests
 
         public Task<bool> HasOpenDocumentsAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(false);
 
-        public Task<bool> TrySaveAsync(CancellationToken cancellationToken) => Task.FromResult(true);
+        public Task<Pancras.Application.Common.SaveOutcome> TrySaveAsync(CancellationToken cancellationToken) => Task.FromResult(Pancras.Application.Common.SaveOutcome.Saved);
     }
 }

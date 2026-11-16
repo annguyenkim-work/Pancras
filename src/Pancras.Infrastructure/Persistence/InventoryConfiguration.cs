@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Pancras.Domain.Catalog;
@@ -11,10 +12,10 @@ public sealed class StockLocationConfiguration : IEntityTypeConfiguration<StockL
     {
         builder.ToTable("stock_location");
         builder.HasKey(location => location.Id);
+        builder.Property(location => location.Version).IsConcurrencyToken().IsRequired();
         builder.Property(location => location.Name).HasMaxLength(StockLocation.NameMaxLength).IsRequired();
         builder.Property(location => location.Kind).HasConversion<int>().IsRequired();
-        builder.Property(location => location.IsDeleted).IsRequired();
-        builder.HasQueryFilter(location => !location.IsDeleted);
+        builder.Property(location => location.IsActive).IsRequired().HasDefaultValue(true);
         builder.HasIndex(location => location.Name).IsUnique().HasFilter("NOT is_deleted");
     }
 }
@@ -60,6 +61,7 @@ public sealed class TransferSlipConfiguration : IEntityTypeConfiguration<Transfe
     {
         builder.ToTable("transfer_slip");
         builder.HasKey(slip => slip.Id);
+        builder.Property(slip => slip.Version).IsConcurrencyToken().IsRequired();
         builder.Property(slip => slip.SourceLocationId).IsRequired();
         builder.Property(slip => slip.DestinationLocationId).IsRequired();
         builder.Property(slip => slip.Note).HasMaxLength(TransferSlip.NoteMaxLength).IsRequired();
@@ -162,6 +164,7 @@ public sealed class DisposalSlipConfiguration : IEntityTypeConfiguration<Disposa
         builder.HasKey(slip => slip.Id);
         builder.Property(slip => slip.StockLocationId).IsRequired();
         builder.Property(slip => slip.CatalogItemId).IsRequired();
+        builder.Property(slip => slip.Quantity).HasDefaultValue(1).IsRequired();
         builder.Property(slip => slip.Reason).HasMaxLength(StocktakeSheet.ReasonMaxLength).IsRequired();
         builder.Property(slip => slip.DocumentRef).HasMaxLength(StocktakeSheet.DocumentRefMaxLength).IsRequired();
         builder.Property(slip => slip.ImageRef).HasMaxLength(StocktakeSheet.ImageRefMaxLength).IsRequired();
@@ -172,14 +175,14 @@ public sealed class DisposalSlipConfiguration : IEntityTypeConfiguration<Disposa
     }
 }
 
-public sealed class StockNoticeConfiguration : IEntityTypeConfiguration<StockNotice>
+public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notification>
 {
-    public void Configure(EntityTypeBuilder<StockNotice> builder)
+    public void Configure(EntityTypeBuilder<Notification> builder)
     {
-        builder.ToTable("stock_notice");
+        builder.ToTable("notification");
         builder.HasKey(notice => notice.Id);
         builder.Property(notice => notice.RecipientEmployeeId).IsRequired();
-        builder.Property(notice => notice.StockLocationId).IsRequired();
+        builder.Property(notice => notice.StockLocationId);
         builder.Property(notice => notice.DocumentId).IsRequired();
         builder.Property(notice => notice.Kind).HasConversion<int>().IsRequired();
         builder.Property(notice => notice.Step).HasMaxLength(120).IsRequired();

@@ -1,0 +1,40 @@
+@model Pancras.Web.Formatting.KeysetPagerModel
+@{
+    const string button = "px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-slate-200 text-slate-700";
+    const string disabled = "px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-slate-200 text-slate-300";
+}
+<nav class="mt-4 flex flex-wrap items-center justify-between gap-3" aria-label="Phân trang">
+    <p class="text-sm text-slate-500">Hiển thị @Model.Shown dòng</p>
+    <div class="flex flex-wrap items-center gap-2">
+        @if (Model.PreviousUrl is not null)
+        {
+            <a href="@Model.PreviousUrl" class="@button">Trước</a>
+        }
+        else
+        {
+            <span class="@disabled">Trước</span>
+        }
+        @if (Model.NextUrl is not null)
+        {
+            <a href="@Model.NextUrl" class="@button">Sau</a>
+        }
+        else
+        {
+            <span class="@disabled">Sau</span>
+        }
+    </div>
+    <p class="flex items-center gap-1 text-sm text-slate-500">
+        Dòng/trang:
+        @foreach (var size in Model.Sizes)
+        {
+            if (size == Model.PageSize)
+            {
+                <span class="px-2 py-1 font-bold text-slate-900" aria-current="true">@size</span>
+            }
+            else
+            {
+                <a href="@Model.SizeUrlFor(size)" class="px-2 py-1 font-medium text-sky-700">@size</a>
+            }
+        }
+    </p>
+</nav>

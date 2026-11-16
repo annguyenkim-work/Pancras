@@ -113,14 +113,14 @@ public sealed class CreateSupplierCommandHandler(
 {
     private readonly CreateSupplierCommandValidator _validator = new();
 
-    public async Task<Result<CreatedSupplier>> HandleAsync(
+    public async Task<Result<CreatedSupplier, SupplierError>> HandleAsync(
         CreateSupplierCommand command,
         CancellationToken cancellationToken)
     {
         if (!SupplierAccess.CanManage(command.Actor.Role))
         {
             logger.LogWarning("Supplier creation forbidden for role {Role}.", command.Actor.Role);
-            return Result<CreatedSupplier>.Fail(SupplierError.Forbidden);
+            return Result<CreatedSupplier, SupplierError>.Fail(SupplierError.Forbidden);
         }
 
         var validation = _validator.Validate(command);
@@ -128,20 +128,20 @@ public sealed class CreateSupplierCommandHandler(
         {
             var issues = CreateSupplierCommandValidator.IssuesFrom(validation);
             logger.LogInformation("Rejected a supplier profile with {IssueCount} problems.", issues.Count);
-            return Result<CreatedSupplier>.Fail(CreateSupplierCommandValidator.Primary(issues), issues);
+            return Result<CreatedSupplier, SupplierError>.Fail(CreateSupplierCommandValidator.Primary(issues), issues);
         }
 
         var code = command.Code!.Trim();
         var normalizedCode = Supplier.NormalizeCode(code);
         if (await repository.NormalizedCodeExistsAsync(normalizedCode, null, cancellationToken))
         {
-            logger.LogWarning("Rejected a duplicate supplier code.");
+            logger.LogInformation("Rejected a duplicate supplier code.");
             return Duplicate(SupplierIssueKind.Duplicate);
         }
 
         if (await repository.InactiveNameWithCodeAsync(normalizedCode, cancellationToken) is not null)
         {
-            logger.LogWarning("Rejected a supplier code held by an inactive supplier.");
+            logger.LogInformation("Rejected a supplier code held by an inactive supplier.");
             return Duplicate(SupplierIssueKind.DuplicateInactive);
         }
 
@@ -157,15 +157,15 @@ public sealed class CreateSupplierCommandHandler(
             command.SwiftCode ?? string.Empty);
         if (!await repository.TryAddAsync(supplier, cancellationToken))
         {
-            logger.LogWarning("Rejected a duplicate supplier code.");
+            logger.LogInformation("Rejected a duplicate supplier code.");
             return Duplicate(SupplierIssueKind.Duplicate);
         }
 
         logger.LogInformation("Created supplier {SupplierId}.", supplier.Id);
         await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.SupplierCreated, "supplier", supplier.Id.ToString("D"), supplier.Code, cancellationToken);
-        return Result<CreatedSupplier>.Ok(new CreatedSupplier(supplier.Id, supplier.Code, supplier.Name));
+        return Result<CreatedSupplier, SupplierError>.Ok(new CreatedSupplier(supplier.Id, supplier.Code, supplier.Name));
     }
 
-    private static Result<CreatedSupplier> Duplicate(SupplierIssueKind kind) =>
-        Result<CreatedSupplier>.Fail(SupplierError.DuplicateCode, [new SupplierIssue(SupplierField.Code, kind)]);
+    private static Result<CreatedSupplier, SupplierError> Duplicate(SupplierIssueKind kind) =>
+        Result<CreatedSupplier, SupplierError>.Fail(SupplierError.DuplicateCode, [new SupplierIssue(SupplierField.Code, kind)]);
 }

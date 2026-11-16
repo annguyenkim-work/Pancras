@@ -1,0 +1,473 @@
+@model Pancras.Web.Pages.Purchasing.IndexModel
+@using System.Globalization
+@using Pancras.Domain.Purchasing
+@using Pancras.Web.Formatting
+@{
+    const string costNote = "Giá vốn dòng = trị giá hải quan + thuế nhập khẩu + thuế khác không khấu trừ + phí logistics được chia. Trị giá hải quan = FOB quy đổi (số lượng × đơn giá USD × tỷ giá) + cước biển được chia. Thuế nhập khẩu = trị giá hải quan × suất thuế. Phí chia theo cách chọn ở từng khoản, phần dư đồng về dòng cuối. VAT đầu vào được khấu trừ thì không vào giá vốn.";
+}
+
+@if (Model.Selected is { } order)
+{
+    var quantity = order.Lines.Sum(line => line.Quantity);
+    // Giá vốn còn là dự toán cho đến khi nhận hàng lần đầu.
+    var estimated = order.Status is not (PurchaseStatus.Received or PurchaseStatus.PartiallyReceived);
+    <section class="min-w-0 rounded-xl border border-slate-200 bg-white p-5">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <h2 class="text-base font-bold text-slate-900">@order.Code · @order.SupplierName</h2>
+                <p class="mt-1 text-sm text-slate-500">Cont: @order.ContainerNumber · B/L: @order.BillOfLading · Cảng: @order.Port · Kho nhận: @order.ReceiveLocationName</p>
+                @if (order.CostVisible)
+                {
+                    <p class="mt-1 text-sm text-slate-500">Tỷ giá @VndMoney.FormatDong(order.ExchangeRate) / USD · VAT @VndMoney.FormatPercent(order.VatRate) @(order.VatDeductible ? "(được khấu trừ)" : "(không khấu trừ, tính vào giá vốn)")</p>
+                }
+                @* Lần ghi cuối trên đơn (kể cả lúc tạo) và lần nhận kho. Chi tiết từng bước nằm ở Nhật ký hệ thống. *@
+                <p class="mt-1 text-xs text-slate-500" id="order-stamps">
+                    Cập nhật @VietnamTime.Format(order.UpdatedAt)@(string.IsNullOrEmpty(order.UpdatedBy) ? "" : " bởi " + order.UpdatedBy)
+                    @if (order.ReceivedAt is DateTimeOffset receivedAt)
+                    {
+                        <text>· Nhận kho @VietnamTime.Format(receivedAt)@(string.IsNullOrEmpty(order.ReceivedBy) ? "" : " bởi " + order.ReceivedBy)</text>
+                    }
+                </p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <span class="self-center @Badge.Frame @Pancras.Web.Pages.Purchasing.IndexModel.StatusClass(order.Status)">@Pancras.Web.Pages.Purchasing.IndexModel.StatusLabel(order.Status)</span>
+                <form method="post" asp-page-handler="Export">
+                    <input type="hidden" name="orderId" value="@order.Id" />
+                    <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Xuất CSV</button>
+                </form>
+                @if (Model.CanManage && Pancras.Web.Pages.Purchasing.IndexModel.IsEditable(order.Status))
+                {
+                    <a href="/purchasing?edit=@order.Id" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Sửa đơn</a>
+                }
+                @if (Model.CanReceiveSelected && Pancras.Web.Pages.Purchasing.IndexModel.IsReceivable(order.Status))
+                {
+                    <form id="receive-form" method="post" asp-page-handler="Receive" data-confirm data-confirm-title="Ghi nhận hàng vào kho" data-confirm-message="Ghi số thực nhận vào tồn và cập nhật giá vốn bình quân? Thao tác này không hoàn tác được." data-confirm-label="Ghi nhận" data-confirm-tone="danger">
+                        <input type="hidden" name="orderId" value="@order.Id" />
+                        <input type="hidden" name="note" value="" />
+                        <label class="flex items-center gap-2 self-center text-xs font-medium text-slate-600">
+                            <input type="checkbox" name="closeOrder" value="true" class="rounded border-slate-300" />
+                            Đóng đơn dù nhận thiếu
+                        </label>
+                        <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60">Nhập Kho &amp; Cập Nhật Giá Vốn (@order.Lines.Count món)</button>
+                    </form>
+                }
+            </div>
+        </div>
+
+        @if (Model.CanManage && order.Status is PurchaseStatus.Draft or PurchaseStatus.PendingApproval or PurchaseStatus.Approved or PurchaseStatus.InTransit)
+        {
+            @* Luồng đơn: Nháp → Chờ duyệt → Đã duyệt → Hàng đang về → nhận hàng. Trả về nháp và hủy phải ghi lý do. *@
+            <div class="mt-4 flex flex-wrap gap-2" id="order-workflow">
+                @if (order.Status == PurchaseStatus.Draft)
+                {
+                    <form method="post" asp-page-handler="ChangeStatus" data-confirm data-confirm-title="Gửi duyệt" data-confirm-message="Gửi đơn này đi duyệt?" data-confirm-label="Gửi duyệt">
+                        <input type="hidden" name="orderId" value="@order.Id" />
+                        <input type="hidden" name="action" value="@((int)Pancras.Application.Purchasing.PurchaseStatusAction.Submit)" />
+                        <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Gửi duyệt</button>
+                    </form>
+                }
+                @if (order.Status == PurchaseStatus.PendingApproval)
+                {
+                    <form method="post" asp-page-handler="ChangeStatus" data-confirm data-confirm-title="Duyệt đơn" data-confirm-message="Duyệt đơn này?" data-confirm-label="Duyệt đơn">
+                        <input type="hidden" name="orderId" value="@order.Id" />
+                        <input type="hidden" name="action" value="@((int)Pancras.Application.Purchasing.PurchaseStatusAction.Approve)" />
+                        <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60">Duyệt đơn</button>
+                    </form>
+                    <form method="post" asp-page-handler="ChangeStatus" data-confirm data-confirm-title="Trả về nháp" data-confirm-message="Đơn quay về nháp để sửa. Nhập lý do trả về." data-confirm-label="Trả về nháp" data-reason="required">
+                        <input type="hidden" name="orderId" value="@order.Id" />
+                        <input type="hidden" name="action" value="@((int)Pancras.Application.Purchasing.PurchaseStatusAction.ReturnToDraft)" />
+                        <input type="hidden" name="note" value="" />
+                        <button type="submit" class="rounded-lg bg-slate-200 px-3 py-2 text-sm font-bold text-slate-800">Trả về nháp</button>
+                    </form>
+                }
+                @if (order.Status == PurchaseStatus.Approved)
+                {
+                    <form method="post" asp-page-handler="ChangeStatus" data-confirm data-confirm-title="Hàng đang về" data-confirm-message="Đánh dấu hàng đang trên đường về?" data-confirm-label="Hàng đang về">
+                        <input type="hidden" name="orderId" value="@order.Id" />
+                        <input type="hidden" name="action" value="@((int)Pancras.Application.Purchasing.PurchaseStatusAction.MarkInTransit)" />
+                        <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Hàng đang về</button>
+                    </form>
+                }
+                <form method="post" asp-page-handler="ChangeStatus" data-confirm data-confirm-title="Hủy đơn" data-confirm-message="Hủy đơn này? Không hoàn tác được." data-confirm-label="Hủy đơn" data-confirm-tone="danger" data-reason="required">
+                    <input type="hidden" name="orderId" value="@order.Id" />
+                    <input type="hidden" name="action" value="@((int)Pancras.Application.Purchasing.PurchaseStatusAction.Cancel)" />
+                    <input type="hidden" name="note" value="" />
+                    <button type="submit" class="rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm font-bold text-rose-700">Hủy đơn</button>
+                </form>
+            </div>
+        }
+
+        <div class="mt-5 flex items-end justify-between gap-3">
+            <h3 class="text-xs font-bold tracking-wide text-slate-500">DANH SÁCH MẶT HÀNG TRONG CONTAINER</h3>
+            <p class="text-xs text-slate-500">Tổng SL: @quantity</p>
+        </div>
+        @if (order.CostVisible)
+        {
+            <p class="mt-2 text-xs leading-5 text-slate-500">@costNote</p>
+        }
+        <div class="mt-3 max-w-full overflow-x-auto">
+            <table class="min-w-full whitespace-nowrap text-sm">
+                <thead class="bg-slate-50 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+                    <tr>
+                        <th class="px-3 py-2">Mã SKU</th>
+                        <th class="px-3 py-2">Tên sản phẩm</th>
+                        <th class="px-3 py-2">SL đặt</th>
+                        <th class="px-3 py-2">SL đã nhận</th>
+                        @if (Model.CanReceiveSelected && Pancras.Web.Pages.Purchasing.IndexModel.IsReceivable(order.Status))
+                        {
+                            <th class="px-3 py-2">SL nhận lần này</th>
+                        }
+                        @if (order.CostVisible)
+                        {
+                            <th class="px-3 py-2">Giá FOB (USD)</th>
+                            <th class="px-3 py-2">Thuế NK</th>
+                            <th class="px-3 py-2">Trị giá hải quan</th>
+                            <th class="px-3 py-2">Giá tính VAT</th>
+                            <th class="px-3 py-2">VAT</th>
+                            <th class="px-3 py-2">Chi phí phân bổ</th>
+                            <th class="px-3 py-2">@(estimated ? "Dự toán giá vốn dòng" : "Giá vốn dòng")</th>
+                            <th class="px-3 py-2">@(estimated ? "Dự toán giá vốn / đơn vị" : "Giá vốn / đơn vị")</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var line in order.Lines)
+                    {
+                        <tr class="border-t border-slate-100 align-top">
+                            <td class="px-3 py-2 font-mono">@line.ItemCode</td>
+                            <td class="px-3 py-2">@line.ItemName</td>
+                            <td class="px-3 py-2 tabular-nums">@line.Quantity</td>
+                            <td class="px-3 py-2 tabular-nums">@line.ReceivedQuantity</td>
+                            @if (Model.CanReceiveSelected && Pancras.Web.Pages.Purchasing.IndexModel.IsReceivable(order.Status))
+                            {
+                                var remaining = Math.Max(0, line.Quantity - line.ReceivedQuantity);
+                                <td class="px-3 py-2">
+                                    <input form="receive-form" type="number" name="actuals[@line.Id]" value="@remaining" min="0" data-remaining="@remaining" class="w-20 rounded-lg border border-slate-300 px-2 py-1 text-right tabular-nums" />
+                                </td>
+                            }
+                            @if (order.CostVisible)
+                            {
+                                <td class="px-3 py-2 tabular-nums">@VndMoney.FormatUsd(line.Quantity == 0 ? line.FobUsd : line.FobUsd / line.Quantity)</td>
+                                <td class="px-3 py-2 tabular-nums">@VndMoney.FormatPercent(line.DutyRate)</td>
+                                <td class="px-3 py-2 tabular-nums">@VndMoney.FormatDong(line.Cost.CustomsInUse)</td>
+                                <td class="px-3 py-2 tabular-nums">@VndMoney.FormatDong(line.Cost.VatBase)</td>
+                                <td class="px-3 py-2 tabular-nums">@VndMoney.FormatDong(line.Cost.VatInUse)</td>
+                                <td class="px-3 py-2 tabular-nums text-emerald-700">@VndMoney.FormatDong(line.Cost.LogisticsAllocated)</td>
+                                <td class="px-3 py-2 tabular-nums">@VndMoney.FormatDong(line.Cost.LandedCost)</td>
+                                <td class="px-3 py-2 tabular-nums font-bold">
+                                    <a class="text-sky-700" href="/purchasing?order=@order.Id&amp;formula=@line.Id">@VndMoney.FormatDong(line.Cost.UnitCost)</a>
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (order.CostVisible)
+        {
+        if (Model.ReceiptPreview.Count > 0)
+        {
+            <section id="receipt-preview" class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-slate-700">
+                <h3 class="font-bold text-slate-900">Xem trước giá vốn khi nhận đủ phần còn lại</h3>
+                <p class="mt-1 text-xs text-slate-500">Giá vốn bình quân của mặt hàng trên toàn công ty, trước và sau khi bấm Nhập Kho &amp; Cập Nhật Giá Vốn.</p>
+                <div class="mt-3 overflow-x-auto">
+                    <table class="min-w-full text-left text-sm">
+                        <thead class="bg-slate-50 text-xs text-slate-600">
+                            <tr>
+                                <th class="px-3 py-2 font-semibold">Mặt hàng</th>
+                                <th class="px-3 py-2 text-right font-semibold">Còn nhận</th>
+                                <th class="px-3 py-2 text-right font-semibold">Tồn hiện tại</th>
+                                <th class="px-3 py-2 text-right font-semibold">Giá vốn hiện tại</th>
+                                <th class="px-3 py-2 text-right font-semibold">Giá vốn dự kiến</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var preview in Model.ReceiptPreview)
+                            {
+                                var previewLine = order.Lines.FirstOrDefault(line => line.Id == preview.LineId);
+                                <tr class="border-t border-emerald-100">
+                                    <td class="px-3 py-2"><span class="font-mono text-xs font-semibold">@previewLine?.ItemCode</span> @previewLine?.ItemName</td>
+                                    <td class="px-3 py-2 text-right tabular-nums">@preview.Remaining</td>
+                                    <td class="px-3 py-2 text-right tabular-nums">@preview.OnHand</td>
+                                    <td class="px-3 py-2 text-right tabular-nums">@VndMoney.FormatDong(preview.CurrentCost)</td>
+                                    <td class="px-3 py-2 text-right tabular-nums font-bold">@VndMoney.FormatDong(preview.ProjectedCost)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        }
+        if (Model.FormulaLine is { } formula)
+        {
+            <section class="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-slate-700">
+                <h3 class="font-bold text-slate-900">Công thức giá vốn · @formula.ItemCode</h3>
+                <p class="mt-2">@costNote</p>
+                <p class="mt-2">Dòng này: FOB quy đổi @VndMoney.FormatDong(formula.Cost.FobConverted), thuế nhập khẩu @VndMoney.FormatDong(formula.Cost.DutyInUse), phí logistics @VndMoney.FormatDong(formula.Cost.LogisticsAllocated), giá vốn dòng @VndMoney.FormatDong(formula.Cost.LandedCost), đơn giá @VndMoney.FormatDong(formula.Cost.UnitCost).</p>
+            </section>
+        }
+            var totalFob = order.Lines.Sum(line => line.Cost.FobConverted);
+            var totalDuty = order.Lines.Sum(line => line.Cost.DutyInUse);
+            var totalOtherTaxes = order.Lines.Sum(line => line.Cost.OtherTaxes);
+            var totalVat = order.Lines.Sum(line => line.Cost.VatInUse);
+            var totalLanded = order.Lines.Sum(line => line.Cost.LandedCost);
+            var totalExtra = totalLanded - totalFob;
+            var deductibleCharges = order.Charges.Where(charge => charge.Group == ChargeGroup.DeductibleTax).Sum(charge => charge.Amount);
+            // Tiền thực chi gồm cả VAT được khấu trừ và các khoản thuế khấu trừ khác: chúng không vào giá vốn nhưng vẫn phải trả.
+            var cashOut = totalLanded + (order.VatDeductible ? totalVat : 0m) + deductibleCharges;
+            var isOpen = Model.CanManage && Pancras.Web.Pages.Purchasing.IndexModel.IsEditable(order.Status);
+            var ungrouped = order.Charges.Count(charge => charge.Group is null);
+        <div class="mt-6 flex flex-wrap items-center justify-between gap-2">
+            <h3 id="charges" class="scroll-mt-4 text-xs font-bold tracking-wide text-slate-500">BẢNG CHI PHÍ NHẬP KHẨU &amp; PHÂN BỔ (LANDED COST BREAKDOWN)</h3>
+            @if (isOpen)
+            {
+                <a href="/purchasing?edit=@order.Id&amp;focus=charges" class="rounded-lg px-3 py-1.5 text-xs font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Sửa chi phí</a>
+            }
+        </div>
+        <p class="mt-1 text-xs leading-5 text-slate-600">Mỗi khoản chi phí của container thuộc một nhóm. <b>Điều chỉnh trị giá hải quan</b> (cước biển, bảo hiểm) cộng vào trị giá tính thuế. <b>Logistics</b> (THC, D/O, kiểm định, kéo xe) cộng thẳng vào giá vốn. <b>Thuế không được khấu trừ</b> cộng vào giá vốn. <b>Thuế được khấu trừ</b> không vào giá vốn. Bản scan tờ khai và hóa đơn đính kèm ở mục "Chứng từ đính kèm" bên dưới.</p>
+        @if (ungrouped > 0)
+        {
+            var ungroupedNotice = new NoticeModel($"Có {ungrouped} khoản chưa gán nhóm (dữ liệu cũ). Bấm \"Sửa chi phí\" để chọn nhóm; khoản chưa gán nhóm không được tính vào giá vốn và chặn việc nhập kho.", ToastLevel.Warning);
+            <div class="mt-3"><partial name="_Notice" model="ungroupedNotice" /></div>
+        }
+        <div class="mt-3 space-y-2 text-sm">
+            <div class="flex items-start justify-between gap-3 rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
+                <div>
+                    <p class="font-medium text-slate-900">Thuế nhập khẩu theo từng mặt hàng</p>
+                    <p class="text-xs text-slate-500">Trị giá hải quan × suất thuế của từng mặt hàng</p>
+                </div>
+                <span class="tabular-nums font-bold text-slate-900">@VndMoney.FormatDong(totalDuty)</span>
+            </div>
+            @if (totalOtherTaxes > 0)
+            {
+                <div class="flex items-start justify-between gap-3 rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
+                    <div>
+                        <p class="font-medium text-slate-900">Thuế bổ sung, tiêu thụ đặc biệt, môi trường</p>
+                        <p class="text-xs text-slate-500">Không được khấu trừ, tính vào giá vốn</p>
+                    </div>
+                    <span class="tabular-nums font-bold text-slate-900">@VndMoney.FormatDong(totalOtherTaxes)</span>
+                </div>
+            }
+            @foreach (var charge in order.Charges)
+            {
+                var methodName = charge.Method switch
+                {
+                    ChargeSplitMethod.FobValue => "Theo trị giá FOB",
+                    ChargeSplitMethod.Quantity => "Theo số lượng",
+                    ChargeSplitMethod.Weight => "Theo cân nặng",
+                    ChargeSplitMethod.Volume => "Theo thể tích",
+                    _ => "Nhập tay"
+                };
+                var groupName = charge.Group switch
+                {
+                    ChargeGroup.Logistics => "Logistics",
+                    ChargeGroup.CustomsValueAdjustment => "Điều chỉnh trị giá hải quan",
+                    ChargeGroup.DeductibleTax => "Thuế được khấu trừ",
+                    ChargeGroup.NonDeductibleTax => "Thuế không được khấu trừ",
+                    _ => "Chưa gán nhóm"
+                };
+                <div class="rounded-lg border @(charge.Group is null ? "border-amber-300 bg-amber-50" : "border-slate-100 bg-slate-50") px-4 py-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <p class="font-medium text-slate-900">@(string.IsNullOrWhiteSpace(charge.Label) ? "Khoản chi phí container" : charge.Label)</p>
+                            <p class="text-xs text-slate-500">@groupName · @methodName</p>
+                        </div>
+                        <span class="tabular-nums font-bold text-slate-900">@VndMoney.FormatDong(charge.Amount)</span>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @if (order.Charges.Count > 0 && order.Lines.Count > 0)
+        {
+            @* Bảng phân bổ: mỗi khoản chi phí được chia bao nhiêu cho từng mặt hàng, để kế toán đối chiếu. *@
+            <details class="mt-3 rounded-lg border border-slate-200 p-4" open>
+                <summary class="cursor-pointer text-sm font-bold text-sky-700">Bảng phân bổ chi phí cho từng mặt hàng</summary>
+                <div class="mt-3 max-w-full overflow-x-auto">
+                    <table class="min-w-full whitespace-nowrap text-xs">
+                        <thead class="bg-slate-50 text-right font-bold text-slate-600">
+                            <tr class="border-b border-slate-200">
+                                <th class="px-3 py-2 text-left">Khoản chi phí</th>
+                                <th class="px-3 py-2 text-left">Cách chia</th>
+                                <th class="px-3 py-2">Số tiền</th>
+                                @foreach (var column in order.Lines)
+                                {
+                                    <th class="px-3 py-2 font-mono" title="@column.ItemName">@column.ItemCode</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody class="text-right tabular-nums">
+                            @foreach (var charge in order.Charges)
+                            {
+                                <tr class="border-b border-slate-100">
+                                    <td class="px-3 py-1.5 text-left">@(string.IsNullOrWhiteSpace(charge.Label) ? "Khoản chi phí container" : charge.Label)<span class="block text-slate-500">@(charge.Group switch { ChargeGroup.Logistics => "Logistics", ChargeGroup.CustomsValueAdjustment => "Trị giá hải quan", ChargeGroup.DeductibleTax => "Thuế khấu trừ", ChargeGroup.NonDeductibleTax => "Thuế không khấu trừ", _ => "Chưa gán nhóm" })</span></td>
+                                    <td class="px-3 py-1.5 text-left">@(charge.Method switch { ChargeSplitMethod.FobValue => "Theo trị giá FOB", ChargeSplitMethod.Quantity => "Bình quân theo số lượng", ChargeSplitMethod.Weight => "Theo khối lượng", ChargeSplitMethod.Volume => "Theo thể tích", _ => "Nhập tay" })</td>
+                                    <td class="px-3 py-1.5 font-medium">@VndMoney.FormatDong(charge.Amount)</td>
+                                    @foreach (var column in order.Lines)
+                                    {
+                                        <td class="px-3 py-1.5">@VndMoney.FormatDong(charge.Shares.Where(share => share.LineId == column.Id).Sum(share => share.Amount))</td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot class="text-right font-bold tabular-nums">
+                            <tr class="border-t-2 border-slate-300">
+                                <td class="px-3 py-2 text-left" colspan="2">Tổng</td>
+                                <td class="px-3 py-2">@VndMoney.FormatDong(order.Charges.Sum(charge => charge.Amount))</td>
+                                @foreach (var column in order.Lines)
+                                {
+                                    <td class="px-3 py-2">@VndMoney.FormatDong(order.Charges.Sum(charge => charge.Shares.Where(share => share.LineId == column.Id).Sum(share => share.Amount)))</td>
+                                }
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </details>
+        }
+
+        <div class="mt-4 rounded-xl bg-slate-900 px-5 py-4 text-sm text-slate-300">
+            <div class="flex justify-between gap-3 py-1"><span>Tổng tiền hàng FOB (@order.Lines.Count mặt hàng quy đổi)</span><span class="tabular-nums">@VndMoney.FormatDong(totalFob)</span></div>
+            <div class="flex justify-between gap-3 py-1"><span>Tổng chi phí nhập khẩu &amp; logistics</span><span class="tabular-nums text-amber-300">@(totalExtra < 0 ? "−" : "+") @VndMoney.FormatDong(Math.Abs(totalExtra))</span></div>
+            <div class="mt-2 flex justify-between gap-3 border-t border-slate-700 pt-3 text-base font-bold text-emerald-300"><span>@(estimated ? "Dự toán giá vốn hàng nhập (chưa ghi nhận)" : "Giá vốn hàng nhập đã ghi nhận (Landed Total)")</span><span class="tabular-nums">@VndMoney.FormatDong(totalLanded)</span></div>
+            <div class="mt-3 flex justify-between gap-3 py-1"><span>@(order.VatDeductible ? "VAT đầu vào được khấu trừ (không vào giá vốn)" : "VAT đầu vào (không khấu trừ, đã nằm trong giá vốn)")</span><span class="tabular-nums">@VndMoney.FormatDong(totalVat)</span></div>
+            @if (deductibleCharges > 0)
+            {
+                <div class="flex justify-between gap-3 py-1"><span>Khoản thuế khấu trừ khác (không vào giá vốn)</span><span class="tabular-nums">@VndMoney.FormatDong(deductibleCharges)</span></div>
+            }
+            <div class="flex justify-between gap-3 py-1 font-bold text-white"><span>Tổng tiền thực chi cho container</span><span class="tabular-nums">@VndMoney.FormatDong(cashOut)</span></div>
+        </div>
+
+        @if (order.Adjustments is { Count: > 0 } adjustments)
+        {
+            <section class="mt-6" aria-labelledby="adjustments-title">
+                <h3 id="adjustments-title" class="text-xs font-bold tracking-wide text-slate-500">ĐIỀU CHỈNH CHI PHÍ SAU KHI NHẬN (@adjustments.Count)</h3>
+                <div class="mt-2 overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-slate-50 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+                            <tr>
+                                <th class="px-3 py-2">Khoản</th>
+                                <th class="px-3 py-2">Số tiền</th>
+                                <th class="px-3 py-2">Vào giá vốn hàng còn tồn</th>
+                                <th class="px-3 py-2">Chênh lệch (hàng đã xuất)</th>
+                                <th class="px-3 py-2">Lý do</th>
+                                <th class="px-3 py-2">Ai, lúc nào</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var adjustment in adjustments)
+                            {
+                                <tr class="border-t border-slate-100 align-top">
+                                    <td class="px-3 py-2">@adjustment.Label</td>
+                                    <td class="px-3 py-2 tabular-nums">@VndMoney.FormatDong(adjustment.Amount)</td>
+                                    <td class="px-3 py-2 tabular-nums">@VndMoney.FormatDong(adjustment.AppliedToStock)</td>
+                                    <td class="px-3 py-2 tabular-nums">@VndMoney.FormatDong(adjustment.Variance)</td>
+                                    <td class="px-3 py-2">@adjustment.Reason</td>
+                                    <td class="px-3 py-2 text-xs text-slate-500">@adjustment.CreatedBy · @VietnamTime.Format(adjustment.CreatedAt)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        }
+        @if (Model.CanManage && order.Status == PurchaseStatus.Received)
+        {
+            <details class="mt-3 rounded-lg border border-slate-200 p-4" id="adjust-cost">
+                <summary class="cursor-pointer text-sm font-bold text-sky-700">Ghi điều chỉnh chi phí (hóa đơn về muộn)</summary>
+                <p class="mt-2 text-xs leading-5 text-slate-600">Số tiền có dấu: dương làm tăng giá vốn, âm làm giảm. Khoản này được chia cho các dòng đã nhận theo cách chọn; phần ứng với hàng còn trong kho cộng vào giá vốn bình quân, phần ứng với hàng đã xuất được ghi là chênh lệch và không sửa ngược.</p>
+                <form method="post" asp-page-handler="AdjustCost" class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-4" data-confirm data-confirm-title="Ghi điều chỉnh chi phí" data-confirm-message="Giá vốn của hàng còn tồn sẽ đổi." data-confirm-label="Ghi điều chỉnh">
+                    <input type="hidden" name="orderId" value="@order.Id" />
+                    <label class="text-sm">Tên khoản<input name="label" required maxlength="200" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" /></label>
+                    <label class="text-sm">Số tiền (VNĐ, có dấu)<input name="amount" required inputmode="numeric" pattern="-?[0-9]+" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" /></label>
+                    <label class="text-sm">Cách chia
+                        <select name="method" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+                            <option value="@((int)ChargeSplitMethod.FobValue)">Theo trị giá FOB</option>
+                            <option value="@((int)ChargeSplitMethod.Quantity)">Theo số lượng</option>
+                            <option value="@((int)ChargeSplitMethod.Weight)">Theo cân nặng</option>
+                            <option value="@((int)ChargeSplitMethod.Volume)">Theo thể tích</option>
+                        </select>
+                    </label>
+                    <label class="text-sm">Lý do<input name="reason" required maxlength="500" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" /></label>
+                    <div class="md:col-span-4"><button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Ghi điều chỉnh</button></div>
+                </form>
+            </details>
+        }
+        }
+
+        <section class="mt-6" aria-labelledby="attachments-title">
+            <h3 id="attachments-title" class="text-xs font-bold tracking-wide text-slate-500">CHỨNG TỪ ĐÍNH KÈM (@Model.Attachments.Count)</h3>
+            <p class="mt-1 text-xs leading-5 text-slate-600">Đính kèm bản scan tờ khai hải quan, hóa đơn nhà cung cấp, vận đơn (B/L), packing list, hóa đơn phí logistics. Nhận @AttachmentRules.AllowedExtensionsText, tối đa 10 MB mỗi file, 30 file mỗi đơn. Admin, Giám đốc, Kế toán đính kèm và xóa chứng từ; kho tải được mọi file của đơn về kho mình.</p>
+            @if (Model.Attachments.Count > 0)
+            {
+                <ul class="mt-3 divide-y divide-slate-100 rounded-lg border border-slate-200 text-sm">
+                    @foreach (var file in Model.Attachments)
+                    {
+                        <li class="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+                            <div class="min-w-0">
+                                <a href="/purchasing?handler=Download&amp;id=@file.Id" class="break-all font-medium text-sky-700 hover:underline">@file.FileName</a>
+                                <p class="text-xs text-slate-500">@(file.Kind switch
+                                {
+                                    AttachmentKind.CustomsDeclaration => "Tờ khai hải quan",
+                                    AttachmentKind.SupplierInvoice => "Hóa đơn nhà cung cấp",
+                                    AttachmentKind.BillOfLading => "Vận đơn (B/L)",
+                                    AttachmentKind.PackingList => "Packing list",
+                                    AttachmentKind.LogisticsInvoice => "Hóa đơn phí logistics",
+                                    _ => "Khác"
+                                }) · @(file.SizeBytes >= 1048576 ? (file.SizeBytes / 1048576m).ToString("0.#", CultureInfo.GetCultureInfo("vi-VN")) + " MB" : Math.Max(1, file.SizeBytes / 1024).ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) + " KB") · @VietnamTime.Format(file.UploadedAt) @(string.IsNullOrEmpty(file.UploadedBy) ? "" : "· " + file.UploadedBy)</p>
+                            </div>
+                            @if (Model.CanManage && Pancras.Web.Pages.Purchasing.IndexModel.IsEditable(order.Status))
+                            {
+                                <form method="post" asp-page-handler="DeleteAttachment" data-confirm data-confirm-title="Xóa chứng từ" data-confirm-message="Xóa chứng từ này?" data-confirm-label="Xóa" data-confirm-tone="danger">
+                                    <input type="hidden" name="orderId" value="@order.Id" />
+                                    <input type="hidden" name="attachmentId" value="@file.Id" />
+                                    <button type="submit" class="text-xs font-bold text-rose-600 hover:underline">Xóa</button>
+                                </form>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <p class="mt-3 rounded-lg border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-500">Chưa có chứng từ đính kèm.</p>
+            }
+            @if (Model.CanManage)
+            {
+            <form method="post" asp-page-handler="Upload" enctype="multipart/form-data" class="mt-3 flex flex-wrap items-end gap-3">
+                <input type="hidden" name="orderId" value="@order.Id" />
+                <label class="text-xs">Loại chứng từ
+                    <select name="kind" class="mt-1 block rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                        <option value="@((int)AttachmentKind.CustomsDeclaration)">Tờ khai hải quan</option>
+                        <option value="@((int)AttachmentKind.SupplierInvoice)">Hóa đơn nhà cung cấp</option>
+                        <option value="@((int)AttachmentKind.BillOfLading)">Vận đơn (B/L)</option>
+                        <option value="@((int)AttachmentKind.PackingList)">Packing list</option>
+                        <option value="@((int)AttachmentKind.LogisticsInvoice)">Hóa đơn phí logistics</option>
+                        <option value="@((int)AttachmentKind.Other)">Khác</option>
+                    </select>
+                </label>
+                <label class="text-xs">File
+                    <input type="file" name="file" required accept=".pdf,.jpg,.jpeg,.png,.xlsx,.docx" class="mt-1 block max-w-xs text-sm" />
+                </label>
+                <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Đính kèm</button>
+            </form>
+            }
+        </section>
+
+        @if (order.Events is { Count: > 0 } events)
+        {
+            <section class="mt-6" aria-labelledby="history-title" id="order-history">
+                <h3 id="history-title" class="text-xs font-bold tracking-wide text-slate-500">LỊCH SỬ ĐƠN</h3>
+                <ol class="mt-2 space-y-2 border-l-2 border-slate-200 pl-4 text-sm">
+                    @foreach (var step in events.OrderBy(item => item.OccurredAt))
+                    {
+                        <li>
+                            <p class="font-medium text-slate-900">@Pancras.Web.Pages.Purchasing.IndexModel.EventLabel(step.Kind)</p>
+                            <p class="text-xs text-slate-500">@VietnamTime.Format(step.OccurredAt)@(string.IsNullOrEmpty(step.ActorCode) ? "" : " · " + step.ActorCode)@(string.IsNullOrWhiteSpace(step.Note) ? "" : " · " + step.Note)</p>
+                        </li>
+                    }
+                </ol>
+            </section>
+        }
+    </section>
+}

@@ -90,27 +90,27 @@ public sealed class UpdateCatalogPricesCommandHandler(
 {
     private readonly UpdateCatalogPricesCommandValidator _validator = new();
 
-    public async Task<Result<CatalogItemRow>> HandleAsync(
+    public async Task<Result<CatalogItemRow, CatalogError>> HandleAsync(
         UpdateCatalogPricesCommand command,
         CancellationToken cancellationToken)
     {
         if (!PriceListRole.CanEdit(command.Role))
         {
-            logger.LogWarning("Rejected a price list edit.");
-            return Result<CatalogItemRow>.Fail(CatalogError.PriceListForbidden);
+            logger.LogInformation("Rejected a price list edit.");
+            return Result<CatalogItemRow, CatalogError>.Fail(CatalogError.PriceListForbidden);
         }
 
         var item = await repository.GetVisibleForUpdateAsync(command.Id, cancellationToken);
         if (item is null)
         {
-            logger.LogWarning("Rejected a price list edit.");
-            return Result<CatalogItemRow>.Fail(CatalogError.NotFound);
+            logger.LogInformation("Rejected a price list edit.");
+            return Result<CatalogItemRow, CatalogError>.Fail(CatalogError.NotFound);
         }
 
         if (command.Version != item.Version)
         {
             logger.LogInformation("Rejected a stale catalog edit for {CatalogItemId}.", item.Id);
-            return Result<CatalogItemRow>.Fail(CatalogError.VersionConflict);
+            return Result<CatalogItemRow, CatalogError>.Fail(CatalogError.VersionConflict);
         }
 
         var validation = _validator.Validate(command);
@@ -118,7 +118,7 @@ public sealed class UpdateCatalogPricesCommandHandler(
         {
             var issues = CatalogValidation.IssuesFrom(validation);
             logger.LogInformation("Rejected a price list edit for {CatalogItemId} with {IssueCount} problems.", item.Id, issues.Count);
-            return Result<CatalogItemRow>.Fail(CatalogValidation.Primary(issues), issues);
+            return Result<CatalogItemRow, CatalogError>.Fail(CatalogValidation.Primary(issues), issues);
         }
 
         if (stock is not null)
@@ -128,7 +128,7 @@ public sealed class UpdateCatalogPricesCommandHandler(
             if (onHand > 0 && submittedCost != item.CostPrice)
             {
                 logger.LogInformation("Rejected a cost edit for stocked catalog item {CatalogItemId}.", item.Id);
-                return Result<CatalogItemRow>.Fail(CatalogError.CostLocked);
+                return Result<CatalogItemRow, CatalogError>.Fail(CatalogError.CostLocked);
             }
         }
 
@@ -138,8 +138,8 @@ public sealed class UpdateCatalogPricesCommandHandler(
             if (!string.Equals(normalized, item.NormalizedCode, StringComparison.Ordinal)
                 && await repository.NormalizedCodeExistsAsync(normalized, cancellationToken))
             {
-                logger.LogWarning("Rejected a duplicate catalog item.");
-                return Result<CatalogItemRow>.Fail(
+                logger.LogInformation("Rejected a duplicate catalog item.");
+                return Result<CatalogItemRow, CatalogError>.Fail(
                     CatalogError.DuplicateCode,
                     [new CatalogIssue(CatalogField.Code, CatalogIssueKind.Duplicate)]);
             }
@@ -172,14 +172,14 @@ public sealed class UpdateCatalogPricesCommandHandler(
             command.DistributorPrice!.Value,
             command.ProjectPrice!.Value);
         item.AdvanceVersion();
-        if (!await repository.TrySaveAsync(cancellationToken))
+        if (await repository.TrySaveAsync(cancellationToken) != SaveOutcome.Saved)
         {
-            logger.LogWarning("Rejected a price list edit for {CatalogItemId}.", item.Id);
-            return Result<CatalogItemRow>.Fail(CatalogError.VersionConflict);
+            logger.LogInformation("Rejected a price list edit for {CatalogItemId}.", item.Id);
+            return Result<CatalogItemRow, CatalogError>.Fail(CatalogError.VersionConflict);
         }
 
         logger.LogInformation("Updated prices for catalog item {CatalogItemId}.", item.Id);
         await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.PricesChanged, "catalog_item", item.Id.ToString("D"), null, cancellationToken);
-        return Result<CatalogItemRow>.Ok(CatalogItemRow.From(item));
+        return Result<CatalogItemRow, CatalogError>.Ok(CatalogItemRow.From(item));
     }
 }

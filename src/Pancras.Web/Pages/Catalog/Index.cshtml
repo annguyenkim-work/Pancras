@@ -5,9 +5,9 @@
 @using Pancras.Web.Formatting
 @{
     ViewData["Title"] = "Danh mục sản phẩm và giá";
-    var inputClass = "mt-1.5 w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white outline-none focus:border-slate-900";
+    var inputClass = Pancras.Web.Formatting.UiClasses.Input;
     var fieldClass = "w-full px-3 py-2.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-800 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100";
-    var labelClass = "mb-1.5 block text-sm font-medium text-slate-600";
+    var labelClass = Pancras.Web.Formatting.UiClasses.Label;
 }
 
 <section class="bg-white rounded-xl border border-slate-200 p-6">
@@ -17,11 +17,11 @@
             <p class="mt-1 text-sm text-slate-500"><span class="font-mono tabular-nums">@Model.ItemPage.TotalCount</span> mặt hàng</p>
         </div>
         <div class="flex flex-wrap gap-2">
-            <a href="@Model.ExportUrl" class="px-4 py-2 text-sm font-bold rounded-lg bg-emerald-50 text-emerald-700">Xuất</a>
-            <a href="@Model.AddUrl" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Thêm sản phẩm</a>
+            <a href="@Model.ExportUrl" class="px-4 py-2 text-sm font-bold rounded-lg bg-emerald-50 text-emerald-700">Xuất CSV</a>
+            <a href="@Model.AddUrl" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Thêm sản phẩm</a>
         </div>
     </div>
-    <form method="get" action="/catalog" data-live-filter class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-[14rem_1fr] sm:items-end">
+    <form method="get" action="/catalog" data-live-filter class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-[14rem_12rem_1fr] sm:items-end">
         <div>
             <label class="block text-sm font-medium text-slate-600" for="catalog-category">Ngành</label>
             <select id="catalog-category" name="category" class="@inputClass">
@@ -60,25 +60,21 @@
             </select>
         </div>
         <div>
+            <label class="block text-sm font-medium text-slate-600" for="catalog-status">Trạng thái</label>
+            <select id="catalog-status" name="status" class="@inputClass">
+                <option value="" selected="@(Model.StatusFilter == CatalogStatusFilter.Active)">Active</option>
+                <option value="disabled" selected="@(Model.StatusFilter == CatalogStatusFilter.Disabled)">Disabled</option>
+                <option value="all" selected="@(Model.StatusFilter == CatalogStatusFilter.All)">Tất cả</option>
+            </select>
+        </div>
+        <div>
             <label class="block text-sm font-medium text-slate-600" for="catalog-search">Tìm kiếm</label>
             <input id="catalog-search" name="q" value="@Model.Search" type="search" placeholder="Tìm theo mã, tên hoặc thương hiệu..." class="@inputClass" />
         </div>
     </form>
-    @if (!string.IsNullOrEmpty(Model.Notice))
-    {
-        <p class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800" role="status">@Model.Notice</p>
-    }
     @if (Model.ErrorMessages.Count > 0 && !Model.ShowForm && !Model.ShowPriceForm)
     {
-        <div class="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
-            <p class="font-bold">@Model.ErrorTitle</p>
-            <ul class="mt-2 list-disc pl-5">
-                @foreach (var message in Model.ErrorMessages)
-                {
-                    <li>@message</li>
-                }
-            </ul>
-        </div>
+        <div class="mt-4"><partial name="_Notice" model="new NoticeModel(Model.ErrorTitle, ToastLevel.Error, Model.ErrorMessages)" /></div>
     }
 </section>
 
@@ -93,24 +89,38 @@ else
         <table class="min-w-full whitespace-nowrap text-xs">
             <thead class="bg-slate-50 text-left text-slate-500">
                 <tr>
+                    <th class="sticky left-0 z-10 bg-slate-50 px-3 py-3 font-medium"><partial name="_SortHeader" model='new SortHeaderModel("Mã", Model.SortUrl("code"), Model.Sort.Key == "code", Model.Sort.Descending)' /></th>
+                    <th class="px-3 py-3 font-medium"></th>
                     <th class="px-3 py-3 font-medium">Ảnh</th>
-                    <th class="px-3 py-3 font-medium">Mã</th>
-                    <th class="px-3 py-3 font-medium">Tên</th>
+                    <th class="px-3 py-3 font-medium"><partial name="_SortHeader" model='new SortHeaderModel("Tên", Model.SortUrl("name"), Model.Sort.Key == "name", Model.Sort.Descending)' /></th>
                     <th class="px-3 py-3 font-medium">Ngành</th>
-                    <th class="px-3 py-3 font-medium">Thương hiệu</th>
+                    <th class="px-3 py-3 font-medium"><partial name="_SortHeader" model='new SortHeaderModel("Thương hiệu", Model.SortUrl("brand"), Model.Sort.Key == "brand", Model.Sort.Descending)' /></th>
                     <th class="px-3 py-3 font-medium">Đơn vị</th>
                     <th class="px-3 py-3 font-medium text-right">Giá vốn</th>
                     <th class="px-3 py-3 font-medium text-right">Giá lẻ</th>
                     <th class="px-3 py-3 font-medium text-right">Giá đại lý</th>
                     <th class="px-3 py-3 font-medium text-right">Giá nhà phân phối</th>
                     <th class="px-3 py-3 font-medium text-right">Giá dự án</th>
-                    <th class="px-3 py-3 font-medium"></th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var row in Model.Rows)
                 {
-                    <tr class="border-t border-slate-100 hover:bg-slate-50">
+                    <tr class="group border-t border-slate-100 hover:bg-slate-50">
+                        <td class="sticky left-0 z-10 bg-white px-3 py-3 font-mono text-slate-700 group-hover:bg-slate-50">@row.Code</td>
+                        <td class="px-3 py-3 text-right whitespace-nowrap">
+                            <a href="@Model.DetailUrl(row.Id)" class="rounded-lg px-3 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Chi tiết</a>
+                            <a href="@Model.PriceUrl(row.Id)" class="ml-2 rounded-lg px-3 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Sửa</a>
+                            @if (Model.CanDisable)
+                            {
+                                <form method="post" asp-page-handler="SetActive" class="inline" data-confirm data-confirm-title="@(row.IsActive ? "Disable mặt hàng" : "Active mặt hàng")" data-confirm-message="@(row.IsActive ? "Disable mặt hàng này? Mặt hàng sẽ không còn hiện trong danh sách chọn (đơn mua, phiếu kho); lịch sử vẫn được giữ." : "Active lại mặt hàng này?")" data-confirm-label="@(row.IsActive ? "Disable" : "Active")" data-confirm-tone="@(row.IsActive ? "danger" : "")">
+                                    <input type="hidden" name="id" value="@row.Id" />
+                                    <input type="hidden" name="active" value="@(row.IsActive ? "false" : "true")" />
+                                    <input type="hidden" name="version" value="@row.Version" />
+                                    <button type="submit" class="ml-2 px-3 py-1.5 text-xs font-bold rounded-lg @(row.IsActive ? "text-rose-700 hover:bg-rose-50" : "text-emerald-700 hover:bg-emerald-50")">@(row.IsActive ? "Disable" : "Active")</button>
+                                </form>
+                            }
+                        </td>
                         <td class="px-3 py-3">
                             @{
                                 var imageUrl = CatalogImageStore.PublicUrl(row.ImagePath);
@@ -124,8 +134,7 @@ else
                                 <img src="@imageUrl" alt="@row.Name" class="h-12 w-12 rounded-lg object-cover" />
                             }
                         </td>
-                        <td class="px-3 py-3 font-mono text-slate-700">@row.Code</td>
-                        <td class="px-3 py-3 font-medium text-slate-900">@row.Name<partial name="_AuditStamp" model="row.Stamp" /></td>
+                        <td class="px-3 py-3 font-medium text-slate-900">@row.Name@if (!row.IsActive) { <span class="ml-2 @Badge.Classes(BadgeTone.Neutral)">Disabled</span> }<partial name="_AuditStamp" model="row.Stamp" /></td>
                         <td class="px-3 py-3 text-slate-700">@CatalogLabels.Category(row.Category)</td>
                         <td class="px-3 py-3 text-slate-700">@CatalogLabels.Text(row.Brand)</td>
                         <td class="px-3 py-3 text-slate-700">@CatalogLabels.Text(row.Unit)</td>
@@ -134,53 +143,18 @@ else
                         <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.FormatDong(row.DealerPrice)</td>
                         <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.FormatDong(row.DistributorPrice)</td>
                         <td class="px-3 py-3 text-right font-mono tabular-nums text-slate-800">@VndMoney.FormatDong(row.ProjectPrice)</td>
-                        <td class="px-3 py-3 text-right whitespace-nowrap">
-                            <a href="@Model.DetailUrl(row.Id)" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Chi tiết</a>
-                            <a href="@Model.PriceUrl(row.Id)" class="ml-2 px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Sửa</a>
-                        </td>
                     </tr>
                 }
             </tbody>
         </table>
     </div>
-    @if (Model.ItemPage.TotalPages > 1)
-    {
-        <nav class="mt-4 flex flex-wrap items-center justify-center gap-2" aria-label="Phân trang">
-            @if (Model.ItemPage.HasPrevious)
-            {
-                <a href="@Model.PageUrl(Model.ItemPage.PageNumber - 1)" class="px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-slate-200 text-slate-700">Trước</a>
-            }
-            else
-            {
-                <span class="px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-slate-200 text-slate-300">Trước</span>
-            }
-            @foreach (var page in Model.VisiblePages)
-            {
-                if (page == Model.ItemPage.PageNumber)
-                {
-                    <span class="px-3 py-1.5 text-sm font-bold rounded-lg bg-sky-600 text-white" aria-current="page">@(page)</span>
-                }
-                else
-                {
-                    <a href="@Model.PageUrl(page)" class="px-3 py-1.5 text-sm font-bold rounded-lg bg-white border border-slate-200 text-slate-700">@(page)</a>
-                }
-            }
-            @if (Model.ItemPage.HasNext)
-            {
-                <a href="@Model.PageUrl(Model.ItemPage.PageNumber + 1)" class="px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-slate-200 text-slate-700">Sau</a>
-            }
-            else
-            {
-                <span class="px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-slate-200 text-slate-300">Sau</span>
-            }
-        </nav>
-    }
+    <partial name="_Pager" model="Model.Pager" />
 }
 </div>
 
 @if (Model.ShowForm)
 {
-<dialog id="catalog-dialog" class="m-auto !flex w-[min(56rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
+<dialog id="catalog-dialog" data-autoshow class="m-auto !flex w-[min(56rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
     <div class="flex shrink-0 items-center justify-between gap-3 px-6 pt-6 sm:px-8">
             <div class="flex items-center gap-3">
                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
@@ -201,17 +175,10 @@ else
             <input type="hidden" name="q" value="@Model.Search" />
             <input type="hidden" name="category" value="@Model.CategoryToken" />
             <input type="hidden" name="page" value="@Model.ItemPage.PageNumber" />
+            <partial name="_ListState" model="(Model.RequestedSize, Model.SortToken)" />
             @if (Model.ShowForm && Model.ErrorMessages.Count > 0)
             {
-                <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
-                    <p class="font-bold">@Model.ErrorTitle</p>
-                    <ul class="mt-2 list-disc pl-5">
-                        @foreach (var message in Model.ErrorMessages)
-                        {
-                            <li>@message</li>
-                        }
-                    </ul>
-                </div>
+                <div class="mb-4"><partial name="_Notice" model="new NoticeModel(Model.ErrorTitle, ToastLevel.Error, Model.ErrorMessages)" /></div>
             }
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
@@ -271,25 +238,25 @@ else
                 </div>
             </div>
             <p class="mt-4 text-xs font-medium text-slate-500">@CatalogLabels.PricesIncludeVat</p>
-            <div class="mt-2 grid grid-cols-2 gap-4 lg:grid-cols-5">
+            <div class="mt-2 grid grid-cols-2 items-end gap-4 lg:grid-cols-5">
                 <div>
-                    <label class="@labelClass" for="Form_CostPrice">Giá vốn (đ)</label>
+                    <label class="@labelClass" for="Form_CostPrice">Giá vốn</label>
                     <input asp-for="Form.CostPrice" id="Form_CostPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
                 </div>
                 <div>
-                    <label class="@labelClass" for="Form_RetailPrice">Giá lẻ (đ)</label>
+                    <label class="@labelClass" for="Form_RetailPrice">Giá lẻ</label>
                     <input asp-for="Form.RetailPrice" id="Form_RetailPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
                 </div>
                 <div>
-                    <label class="@labelClass" for="Form_DealerPrice">Giá đại lý (đ)</label>
+                    <label class="@labelClass" for="Form_DealerPrice">Giá đại lý</label>
                     <input asp-for="Form.DealerPrice" id="Form_DealerPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
                 </div>
                 <div>
-                    <label class="@labelClass" for="Form_DistributorPrice">Giá nhà phân phối (đ)</label>
+                    <label class="@labelClass" for="Form_DistributorPrice">Giá nhà phân phối</label>
                     <input asp-for="Form.DistributorPrice" id="Form_DistributorPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
                 </div>
                 <div>
-                    <label class="@labelClass" for="Form_ProjectPrice">Giá dự án (đ)</label>
+                    <label class="@labelClass" for="Form_ProjectPrice">Giá dự án</label>
                     <input asp-for="Form.ProjectPrice" id="Form_ProjectPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
                 </div>
             </div>
@@ -327,17 +294,16 @@ else
                 <p class="mt-1 text-xs text-slate-500">JPG, PNG, WEBP hoặc GIF, tối đa 5 MB.</p>
             </div>
             <div class="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
-                <a href="@Model.FilteredListUrl" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600">Hủy</a>
-                <button type="submit" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white">Lưu sản phẩm</button>
+                <a href="@Model.FilteredListUrl" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Quay lại</a>
+                <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Lưu sản phẩm</button>
             </div>
         </form>
 </dialog>
-<script>document.getElementById("catalog-dialog").showModal();</script>
 }
 
 @if (Model.ShowPriceForm)
 {
-<dialog id="catalog-price-dialog" class="m-auto !flex w-[min(56rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
+<dialog id="catalog-price-dialog" data-autoshow class="m-auto !flex w-[min(56rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
     <div class="flex shrink-0 items-center justify-between gap-3 px-6 pt-6 sm:px-8">
             <div class="flex items-center gap-3">
                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
@@ -361,17 +327,10 @@ else
             <input type="hidden" name="q" value="@Model.Search" />
             <input type="hidden" name="category" value="@Model.CategoryToken" />
             <input type="hidden" name="page" value="@Model.ItemPage.PageNumber" />
+            <partial name="_ListState" model="(Model.RequestedSize, Model.SortToken)" />
             @if (Model.ShowPriceForm && Model.ErrorMessages.Count > 0)
             {
-                <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
-                    <p class="font-bold">@Model.ErrorTitle</p>
-                    <ul class="mt-2 list-disc pl-5">
-                        @foreach (var message in Model.ErrorMessages)
-                        {
-                            <li>@message</li>
-                        }
-                    </ul>
-                </div>
+                <div class="mb-4"><partial name="_Notice" model="new NoticeModel(Model.ErrorTitle, ToastLevel.Error, Model.ErrorMessages)" /></div>
             }
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
@@ -431,9 +390,9 @@ else
                 </div>
             </div>
             <p class="mt-4 text-xs font-medium text-slate-500">@CatalogLabels.PricesIncludeVat</p>
-            <div class="mt-2 grid grid-cols-2 gap-4 lg:grid-cols-5">
+            <div class="mt-2 grid grid-cols-2 items-end gap-4 lg:grid-cols-5">
                 <div>
-                    <label class="@labelClass" for="Prices_CostPrice">Giá vốn (đ)</label>
+                    <label class="@labelClass" for="Prices_CostPrice">Giá vốn</label>
                     @if (Model.CostLocked)
                     {
                         <input id="Prices_CostPrice" value="@Model.Prices.CostPrice" disabled class="@fieldClass bg-slate-50 font-mono tabular-nums text-slate-500" />
@@ -446,19 +405,19 @@ else
                     }
                 </div>
                 <div>
-                    <label class="@labelClass" for="Prices_RetailPrice">Giá lẻ (đ)</label>
+                    <label class="@labelClass" for="Prices_RetailPrice">Giá lẻ</label>
                     <input asp-for="Prices.RetailPrice" id="Prices_RetailPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
                 </div>
                 <div>
-                    <label class="@labelClass" for="Prices_DealerPrice">Giá đại lý (đ)</label>
+                    <label class="@labelClass" for="Prices_DealerPrice">Giá đại lý</label>
                     <input asp-for="Prices.DealerPrice" id="Prices_DealerPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
                 </div>
                 <div>
-                    <label class="@labelClass" for="Prices_DistributorPrice">Giá nhà phân phối (đ)</label>
+                    <label class="@labelClass" for="Prices_DistributorPrice">Giá nhà phân phối</label>
                     <input asp-for="Prices.DistributorPrice" id="Prices_DistributorPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
                 </div>
                 <div>
-                    <label class="@labelClass" for="Prices_ProjectPrice">Giá dự án (đ)</label>
+                    <label class="@labelClass" for="Prices_ProjectPrice">Giá dự án</label>
                     <input asp-for="Prices.ProjectPrice" id="Prices_ProjectPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
                 </div>
             </div>
@@ -503,25 +462,24 @@ else
                 <p class="mt-1 text-xs text-slate-500">JPG, PNG, WEBP hoặc GIF, tối đa 5 MB. Để trống nếu giữ ảnh hiện tại.</p>
             </div>
             <div class="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
-                <a href="@Model.FilteredListUrl" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600">Hủy</a>
-                <button type="submit" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white">Lưu sản phẩm</button>
+                <a href="@Model.FilteredListUrl" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Quay lại</a>
+                <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Lưu sản phẩm</button>
             </div>
         </form>
 </dialog>
-<script>document.getElementById("catalog-price-dialog").showModal();</script>
 }
 
 @if (Model.Detail is not null)
 {
     var detail = Model.Detail;
     var detailImage = CatalogImageStore.PublicUrl(detail.ImagePath);
-    <dialog id="catalog-detail-dialog" class="m-auto !flex w-[min(42rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
+    <dialog id="catalog-detail-dialog" data-autoshow class="m-auto !flex w-[min(40rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
         <div class="flex shrink-0 items-center justify-between gap-3 px-6 pt-6">
             <div>
                 <h2 class="text-base font-bold text-slate-900">@detail.Name</h2>
                 <p class="mt-1 font-mono text-xs text-slate-500">@detail.Code</p>
             </div>
-            <a href="@Model.FilteredListUrl" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Đóng</a>
+            <a href="@Model.FilteredListUrl" class="rounded-lg px-3 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Đóng</a>
         </div>
         <div class="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
             @if (detailImage is not null)
@@ -549,26 +507,6 @@ else
             <p class="mt-6 text-sm font-medium text-slate-700">@CatalogLabels.PricesIncludeVat</p>
         </div>
     </dialog>
-    <script>document.getElementById("catalog-detail-dialog").showModal();</script>
 }
 
-<script>
-    document.querySelectorAll("[data-vnd]").forEach(function (input) {
-        input.addEventListener("focus", function () {
-            input.value = input.value.replace(/VNĐ/gi, "").replace(/đ/gi, "").replace(/\./g, "").replace(/\s/g, "").trim();
-        });
-        input.addEventListener("blur", function () {
-            var text = input.value.trim();
-            if (text === "") {
-                return;
-            }
-            var normalized = text.replace(/\./g, "").replace(",", ".");
-            var number = Number(normalized);
-            if (!Number.isFinite(number)) {
-                return;
-            }
-            var whole = Math.max(0, Math.round(number));
-            input.value = new Intl.NumberFormat("vi-VN").format(whole) + " đ";
-        });
-    });
-</script>
+<script src="~/js/catalog-form.js" asp-append-version="true" defer></script>

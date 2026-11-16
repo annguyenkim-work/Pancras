@@ -1,3 +1,4 @@
+using Pancras.Domain.Suppliers;
 using Pancras.Domain.Employees;
 
 namespace Pancras.Domain.Tests;

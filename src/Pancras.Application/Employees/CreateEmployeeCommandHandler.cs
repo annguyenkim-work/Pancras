@@ -96,20 +96,20 @@ public sealed class CreateEmployeeCommandHandler(
 {
     private readonly CreateEmployeeCommandValidator _validator = new();
 
-    public async Task<Result<CreatedEmployee>> HandleAsync(
+    public async Task<Result<CreatedEmployee, EmployeeError>> HandleAsync(
         CreateEmployeeCommand command,
         EmployeeActor actor,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(command.Role))
         {
-            return Result<CreatedEmployee>.Fail(EmployeeError.RoleRequired);
+            return Result<CreatedEmployee, EmployeeError>.Fail(EmployeeError.RoleRequired);
         }
 
         if (!EmployeeAccess.CanCreate(actor, command.Role, command.StockLocationId))
         {
             logger.LogWarning("Employee creation forbidden for employee {EmployeeId}.", actor.Id);
-            return Result<CreatedEmployee>.Fail(EmployeeError.Forbidden);
+            return Result<CreatedEmployee, EmployeeError>.Fail(EmployeeError.Forbidden);
         }
 
         var validation = _validator.Validate(command);
@@ -117,29 +117,29 @@ public sealed class CreateEmployeeCommandHandler(
         {
             if (validation.Errors.Any(error => error.ErrorCode == nameof(EmployeeError.WeakPassword)))
             {
-                return Result<CreatedEmployee>.Fail(EmployeeError.WeakPassword);
+                return Result<CreatedEmployee, EmployeeError>.Fail(EmployeeError.WeakPassword);
             }
 
             if (validation.Errors.Any(error => error.ErrorCode == nameof(EmployeeError.ProfileIncomplete)))
             {
-                return Result<CreatedEmployee>.Fail(EmployeeError.ProfileIncomplete);
+                return Result<CreatedEmployee, EmployeeError>.Fail(EmployeeError.ProfileIncomplete);
             }
 
-            return Result<CreatedEmployee>.Fail(EmployeeError.InvalidRole);
+            return Result<CreatedEmployee, EmployeeError>.Fail(EmployeeError.InvalidRole);
         }
 
         var assignment = await EmployeeRules.CheckAssignmentAsync(
             command.Role!, command.StockLocationId, null, repository, locations, cancellationToken);
         if (assignment != EmployeeError.None)
         {
-            return Result<CreatedEmployee>.Fail(assignment);
+            return Result<CreatedEmployee, EmployeeError>.Fail(assignment);
         }
 
         var fullName = command.FullName!.Trim();
         if (!EmployeeCodeGenerator.HasUsableName(fullName))
         {
             logger.LogInformation("Rejected an employee name that cannot produce a code.");
-            return Result<CreatedEmployee>.Fail(EmployeeError.NameUnusable);
+            return Result<CreatedEmployee, EmployeeError>.Fail(EmployeeError.NameUnusable);
         }
 
         var passwordHash = passwordHasher.Hash(command.Password!);
@@ -169,11 +169,11 @@ public sealed class CreateEmployeeCommandHandler(
 
             logger.LogInformation("Created employee {EmployeeId} by {ActorId}.", employee.Id, actor.Id);
             await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.EmployeeCreated, "employee", employee.Id.ToString("D"), $"role={employee.Role}", cancellationToken);
-            return Result<CreatedEmployee>.Ok(
+            return Result<CreatedEmployee, EmployeeError>.Ok(
                 new CreatedEmployee(employee.Id, employee.Code, employee.FullName, employee.Role));
         }
 
         logger.LogWarning("Could not allocate an employee code.");
-        return Result<CreatedEmployee>.Fail(EmployeeError.CodeExhausted);
+        return Result<CreatedEmployee, EmployeeError>.Fail(EmployeeError.CodeExhausted);
     }
 }

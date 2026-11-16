@@ -33,10 +33,8 @@ internal sealed class MemoryAudit : IAuditLog
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyList<AuditEntry>> ListAsync(string? search, int pageNumber, int pageSize, CancellationToken cancellationToken) =>
+    public Task<IReadOnlyList<AuditEntry>> ListPageAsync(AuditQuery query, AuditCursor? cursor, bool backward, int limit, bool newestFirst, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<AuditEntry>>(Entries);
-
-    public Task<int> CountAsync(string? search, CancellationToken cancellationToken) => Task.FromResult(Entries.Count);
 }
 
 public class LoginLockoutAndTwoFactorTests
@@ -60,7 +58,7 @@ public class LoginLockoutAndTwoFactorTests
     private VerifyTwoFactorCommandHandler Verify() =>
         new(_repository, _protector, NullLogger<VerifyTwoFactorCommandHandler>.Instance, _clock, _audit);
 
-    private Task<Result<EmployeeSession>> Attempt(string password) =>
+    private Task<Result<EmployeeSession, LoginError>> Attempt(string password) =>
         Login().HandleAsync(new LoginEmployeeCommand { EmployeeCode = "AnNK", Password = password }, CancellationToken.None);
 
     [Fact]
@@ -68,12 +66,12 @@ public class LoginLockoutAndTwoFactorTests
     {
         for (var index = 0; index < 5; index++)
         {
-            Assert.Equal(LoginError.InvalidCredentials, (await Attempt("wrong")).LoginError);
+            Assert.Equal(LoginError.InvalidCredentials, (await Attempt("wrong")).Error);
         }
 
         var locked = await Attempt("Secret12");
 
-        Assert.Equal(LoginError.InvalidCredentials, locked.LoginError);
+        Assert.Equal(LoginError.InvalidCredentials, locked.Error);
         Assert.Contains(_audit.Entries, entry => entry.Action == AuditActions.LoginLockedOut);
     }
 
@@ -117,8 +115,8 @@ public class LoginLockoutAndTwoFactorTests
         _employee.Deactivate();
         var inactive = await Attempt("Secret12");
 
-        Assert.Equal(LoginError.InvalidCredentials, unknown.LoginError);
-        Assert.Equal(LoginError.InvalidCredentials, inactive.LoginError);
+        Assert.Equal(LoginError.InvalidCredentials, unknown.Error);
+        Assert.Equal(LoginError.InvalidCredentials, inactive.Error);
     }
 
     [Fact]
@@ -159,7 +157,7 @@ public class LoginLockoutAndTwoFactorTests
             Actor(),
             CancellationToken.None);
 
-        Assert.Equal(EmployeeError.InvalidCode, wrong.EmployeeError);
+        Assert.Equal(EmployeeError.InvalidCode, wrong.Error);
         Assert.False(_employee.TwoFactorEnabled);
 
         var (_, codes) = await EnableAsync();
@@ -192,7 +190,7 @@ public class LoginLockoutAndTwoFactorTests
         var replay = await Verify().HandleAsync(new VerifyTwoFactorCommand { EmployeeId = _employee.Id, Code = code }, CancellationToken.None);
 
         Assert.True(first.IsSuccess);
-        Assert.Equal(LoginError.InvalidCode, replay.LoginError);
+        Assert.Equal(LoginError.InvalidCode, replay.Error);
         Assert.Equal(1, _employee.FailedLoginCount);
         Assert.Contains(_audit.Entries, entry => entry.Action == AuditActions.TwoFactorFailed);
     }
@@ -206,7 +204,7 @@ public class LoginLockoutAndTwoFactorTests
         var second = await Verify().HandleAsync(new VerifyTwoFactorCommand { EmployeeId = _employee.Id, Code = codes[0] }, CancellationToken.None);
 
         Assert.True(first.IsSuccess);
-        Assert.Equal(LoginError.InvalidCode, second.LoginError);
+        Assert.Equal(LoginError.InvalidCode, second.Error);
         Assert.Contains(_audit.Entries, entry => entry.Action == AuditActions.RecoveryCodeUsed);
     }
 
@@ -222,9 +220,9 @@ public class LoginLockoutAndTwoFactorTests
         var byDirector = await reset.HandleAsync(_employee.Id, new EmployeeActor(Guid.NewGuid(), EmployeeRole.Director, null), CancellationToken.None);
         var byAdmin = await reset.HandleAsync(_employee.Id, new EmployeeActor(Guid.NewGuid(), EmployeeRole.Admin, null), CancellationToken.None);
 
-        Assert.Equal(EmployeeError.WrongPassword, noPassword.EmployeeError);
-        Assert.Equal(EmployeeError.InvalidCode, noCode.EmployeeError);
-        Assert.Equal(EmployeeError.Forbidden, byDirector.EmployeeError);
+        Assert.Equal(EmployeeError.WrongPassword, noPassword.Error);
+        Assert.Equal(EmployeeError.InvalidCode, noCode.Error);
+        Assert.Equal(EmployeeError.Forbidden, byDirector.Error);
         Assert.True(byAdmin.IsSuccess);
         Assert.False(_employee.TwoFactorEnabled);
         Assert.NotNull(secret);
@@ -252,7 +250,7 @@ public class LoginLockoutAndTwoFactorTests
         Assert.True(_employee.TwoFactorEnabled);
         Assert.NotEqual(string.Empty, _employee.TotpSecret);
         Assert.NotEqual(stamp, _employee.SecurityStamp);
-        Assert.Equal(LoginError.InvalidCredentials, whileLocked.LoginError);
+        Assert.Equal(LoginError.InvalidCredentials, whileLocked.Error);
         Assert.True(afterLock.Value!.RequiresTwoFactor);
         Assert.True(verified.IsSuccess);
     }
@@ -281,7 +279,7 @@ public class LoginLockoutAndTwoFactorTests
         var byAdmin = await unlock.HandleAsync(_employee.Id, new EmployeeActor(Guid.NewGuid(), EmployeeRole.Admin, null), CancellationToken.None);
         var login = await Attempt("Secret12");
 
-        Assert.Equal(EmployeeError.Forbidden, byAccountant.EmployeeError);
+        Assert.Equal(EmployeeError.Forbidden, byAccountant.Error);
         Assert.True(byAdmin.IsSuccess);
         Assert.True(login.IsSuccess);
     }

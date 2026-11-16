@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Pancras.Application.Auditing;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Common;
@@ -19,35 +20,35 @@ public sealed class CancelTransferCommandHandler(
     IRequestInfo? request = null,
     IEmployeeRepository? employees = null)
 {
-    public async Task<Result<Guid>> HandleAsync(ConfirmTransferCommand command, CancellationToken cancellationToken)
+    public async Task<Result<Guid, StockError>> HandleAsync(ConfirmTransferCommand command, CancellationToken cancellationToken)
     {
         var slip = await repository.FindTransferForUpdateAsync(command.TransferSlipId, cancellationToken);
         if (slip is null)
         {
-            return Result<Guid>.Fail(StockError.TransferNotFound);
+            return Result<Guid, StockError>.Fail(StockError.TransferNotFound);
         }
 
         if (!TransferAccess.CanTouch(command.Actor, slip))
         {
             logger.LogWarning("Transfer cancel forbidden for employee {EmployeeId}.", command.Actor.Id);
             await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, Pancras.Domain.Auditing.AuditActions.AccessDenied, "transfer_slip", command.TransferSlipId.ToString("D"), "Hủy phiếu chuyển", cancellationToken);
-            return Result<Guid>.Fail(StockError.Forbidden);
+            return Result<Guid, StockError>.Fail(StockError.Forbidden);
         }
 
         if (!TransferAccess.IsCreator(command.Actor, slip))
         {
             logger.LogWarning("Transfer cancel by non-creator employee {EmployeeId}.", command.Actor.Id);
-            return Result<Guid>.Fail(StockError.NotCreator);
+            return Result<Guid, StockError>.Fail(StockError.NotCreator);
         }
 
         if (slip.Status is not (TransferStatus.Requested or TransferStatus.Approved))
         {
-            return Result<Guid>.Fail(StockError.TransferStateChanged);
+            return Result<Guid, StockError>.Fail(StockError.TransferStateChanged);
         }
 
         if (string.IsNullOrWhiteSpace(command.Note))
         {
-            return Result<Guid>.Fail(StockError.ReasonRequired);
+            return Result<Guid, StockError>.Fail(StockError.ReasonRequired);
         }
 
         var status = slip.Status;
@@ -73,8 +74,8 @@ public sealed class CancelTransferCommandHandler(
                 snapshot.Restore();
             }
 
-            logger.LogWarning("Transfer cancel rejected for {TransferSlipId}.", command.TransferSlipId);
-            return Result<Guid>.Fail(StockError.CancelRejected);
+            logger.LogInformation("Transfer cancel rejected for {TransferSlipId}.", command.TransferSlipId);
+            return Result<Guid, StockError>.Fail(StockError.CancelRejected);
         }
 
         await TransferTrail.RecordAsync(repository, slip, TransferEventKind.Cancelled, request, clock, command.Note, cancellationToken);
@@ -83,7 +84,7 @@ public sealed class CancelTransferCommandHandler(
             employees,
             slip,
             command.Actor.Id,
-            StockNotice.TransferCancelledStep,
+            Notification.TransferCancelledStep,
             status == TransferStatus.Approved ? TransferAudience.SourceStaff : TransferAudience.SourceLead,
             clock,
             cancellationToken);
@@ -96,11 +97,11 @@ public sealed class CancelTransferCommandHandler(
 
             slip.RestoreUncommitted(status);
             slip.RestoreReserved(wasReserved);
-            return Result<Guid>.Fail(StockError.TransferStateChanged);
+            return Result<Guid, StockError>.Fail(StockError.TransferStateChanged);
         }
 
         logger.LogInformation("Cancelled transfer {TransferSlipId}.", slip.Id);
         await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, Pancras.Domain.Auditing.AuditActions.TransferCancelled, "transfer_slip", slip.Id.ToString("D"), null, cancellationToken);
-        return Result<Guid>.Ok(slip.Id);
+        return Result<Guid, StockError>.Ok(slip.Id);
     }
 }

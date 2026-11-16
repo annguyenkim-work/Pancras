@@ -33,7 +33,6 @@ public class IndexModel(
     ApproveQuantityAdjustmentCommandHandler approveAdjustmentHandler,
     CreateDisposalSlipCommandHandler createDisposalHandler,
     ApproveDisposalSlipCommandHandler approveDisposalHandler,
-    ListStockNoticesHandler noticesHandler,
     UploadStockDocumentAttachmentCommandHandler uploadStockDocumentFile,
     OpenStockDocumentAttachmentHandler openStockDocumentFile) : PageModel
 {
@@ -54,8 +53,6 @@ public class IndexModel(
     public IReadOnlyList<AdjustmentRow> Adjustments { get; private set; } = [];
 
     public IReadOnlyList<DisposalRow> Disposals { get; private set; } = [];
-
-    public IReadOnlyList<StockNotice> Notices { get; private set; } = [];
 
     public Pancras.Domain.Employees.EmployeeActor Actor => User.ToActor();
 
@@ -99,7 +96,76 @@ public class IndexModel(
 
     public bool ShowStocktakeDialog { get; private set; }
 
-    public const int TransferPageSize = 10;
+    [BindProperty(SupportsGet = true, Name = "bp")]
+    public int BalancePage { get; set; } = 1;
+
+    /// <summary>Trang tra cứu tồn: cắt theo mặt hàng (mỗi mặt hàng một dòng, kèm các kho của nó), 20 hoặc 50 dòng mỗi trang.</summary>
+    public int BalancePageSize => Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
+
+    public int CurrentBalancePage => Math.Clamp(BalancePage, 1, Math.Max(1, (Groups.Count + BalancePageSize - 1) / BalancePageSize));
+
+    public IReadOnlyList<StockItemGroup> PagedGroups =>
+        Groups.Skip((CurrentBalancePage - 1) * BalancePageSize).Take(BalancePageSize).ToArray();
+
+    public Pancras.Web.Formatting.PagerModel BalancePager =>
+        new(CurrentBalancePage, BalancePageSize, Groups.Count, (page, size) => BalancesUrl(page, size));
+
+    private string BalancesUrl(int page, int size)
+    {
+        var parts = new List<string>();
+        Add(parts, "q", Search);
+        Add(parts, "location", Location);
+        Add(parts, "category", Category);
+        if (size != Pancras.Application.Common.PageSizes.Default)
+        {
+            parts.Add("size=" + size.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (page > 1)
+        {
+            parts.Add("bp=" + page.ToString(CultureInfo.InvariantCulture));
+        }
+
+        return parts.Count == 0 ? "/inventory" : "/inventory?" + string.Join('&', parts);
+    }
+
+    [BindProperty(SupportsGet = true, Name = "sp")]
+    public int StocktakePage { get; set; } = 1;
+
+    /// <summary>Phiếu cần mở (từ thông báo): nhảy tới đúng trang chứa phiếu đó ở tab Kiểm kê và điều chỉnh.</summary>
+    [BindProperty(SupportsGet = true, Name = "doc")]
+    public Guid? FocusDocument { get; set; }
+
+    private Pancras.Web.Formatting.DocumentSlice? _stocktakeSlice;
+
+    /// <summary>Kiểm kê, điều chỉnh và phiếu hủy gộp thành một danh sách phân trang 20/50.</summary>
+    public Pancras.Web.Formatting.DocumentSlice StocktakeSlice => _stocktakeSlice ??= Pancras.Web.Formatting.DocumentPaging.Slice(
+        Stocktakes, Adjustments, Disposals, StocktakePage, Pancras.Web.Formatting.PagerModel.SizeFrom(Request), FocusDocument);
+
+    public Pancras.Web.Formatting.PagerModel StocktakePager =>
+        new(StocktakeSlice.Page, Pancras.Web.Formatting.PagerModel.SizeFrom(Request), StocktakeSlice.Total, (page, size) => StocktakesUrl(page, size));
+
+    private static string StocktakesUrl(int page, int size)
+    {
+        var parts = new List<string> { "view=stocktakes" };
+        if (size != Pancras.Application.Common.PageSizes.Default)
+        {
+            parts.Add("size=" + size.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (page > 1)
+        {
+            parts.Add("sp=" + page.ToString(CultureInfo.InvariantCulture));
+        }
+
+        return "/inventory?" + string.Join('&', parts);
+    }
+
+    /// <summary>Cỡ trang danh sách phiếu chuyển: 20 hoặc 50 (query `size`).</summary>
+    public int TransferPageSize => Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
+
+    public Pancras.Web.Formatting.PagerModel TransferPager(string? quick) =>
+        new(CurrentTransferPage, TransferPageSize, TransferTotal, (page, size) => TransferUrl(quick, page, true, size));
 
     /// <summary>Số phiếu đang chờ chính người dùng xử lý (duyệt, xuất, nhận hoặc xử lý chênh lệch), hiện trên tab Chuyển kho.</summary>
     public int PendingForMeCount => Transfers.Count(slip => Waiting(slip, "all-mine"));
@@ -177,7 +243,7 @@ public class IndexModel(
             }
         }
 
-        var created = StockLabels.Version7Time(slip.Id)?.ToLocalTime().Date;
+        var created = StockLabels.Version7Time(slip.Id) is { } createdAt ? VietnamTime.Of(createdAt).DateTime.Date : (DateTime?)null;
         if (created is DateTime day)
         {
             if (DateTime.TryParse(TransferFrom, CultureInfo.InvariantCulture, DateTimeStyles.None, out var from) && day < from.Date)
@@ -327,7 +393,7 @@ public class IndexModel(
             cancellationToken);
         if (created.IsFailure || created.Value == Guid.Empty)
         {
-            return await FailAsync(created.StockError, created.Detail, openTransfer: true, "transfers", cancellationToken);
+            return await FailAsync(created.Error, created.Detail, openTransfer: true, "transfers", cancellationToken);
         }
 
         View = "transfers";
@@ -398,7 +464,7 @@ public class IndexModel(
             cancellationToken);
         if (checkedReceipt.IsFailure)
         {
-            return await FailAsync(checkedReceipt.StockError, checkedReceipt.Detail, openTransfer: false, "transfers", cancellationToken);
+            return await FailAsync(checkedReceipt.Error, checkedReceipt.Detail, openTransfer: false, "transfers", cancellationToken);
         }
 
         if (await UploadTransferFilesAsync(files, cancellationToken) is { } uploadFailure)
@@ -440,7 +506,7 @@ public class IndexModel(
         var verdict = await uploadTransferAttachment.CheckAsync(DocumentId, pending, Actor, cancellationToken);
         if (verdict.IsFailure)
         {
-            return await FailAsync(verdict.StockError, verdict.Detail, openTransfer: false, "transfers", cancellationToken);
+            return await FailAsync(verdict.Error, verdict.Detail, openTransfer: false, "transfers", cancellationToken);
         }
 
         foreach (var file in chosen)
@@ -451,7 +517,7 @@ public class IndexModel(
                 cancellationToken);
             if (uploaded.IsFailure)
             {
-                return await FailAsync(uploaded.StockError, uploaded.Detail, openTransfer: false, "transfers", cancellationToken);
+                return await FailAsync(uploaded.Error, uploaded.Detail, openTransfer: false, "transfers", cancellationToken);
             }
         }
 
@@ -537,6 +603,7 @@ public class IndexModel(
                     Actor = Actor,
                     StockLocationId = Disposal.StockLocationId,
                     CatalogItemId = Disposal.CatalogItemId,
+                    Quantity = Disposal.Quantity,
                     Reason = Disposal.Reason,
                     DocumentRef = Disposal.DocumentRef
                 },
@@ -544,31 +611,13 @@ public class IndexModel(
             files,
             cancellationToken);
 
-    public async Task<IActionResult> OnPostOpenNoticeAsync(Guid noticeId, CancellationToken cancellationToken)
-    {
-        StockNotice? notice = null;
-        if (Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var employeeId))
-        {
-            notice = await noticesHandler.OpenAsync(noticeId, employeeId, cancellationToken);
-        }
-
-        var target = notice switch
-        {
-            null => "/inventory?view=transfers",
-            { Kind: StockNoticeKind.Transfer } => $"/inventory?view=transfers&open={notice.DocumentId:D}",
-            _ => $"/inventory?view=stocktakes#document-{notice.DocumentId:D}"
-        };
-
-        return Redirect(target);
-    }
-
     public Task<IActionResult> OnPostApproveDisposalAsync(CancellationToken cancellationToken) =>
         CanApproveAnything
             ? SaveAsync(approveDisposalHandler.HandleAsync(new ApproveDocumentCommand(DocumentId, Actor), cancellationToken), "stocktakes", cancellationToken)
             : Task.FromResult<IActionResult>(Forbid());
 
     /// <summary>Địa chỉ trang Chuyển kho với bộ lọc hiện tại, đổi một vài tham số (null thì bỏ tham số đó).</summary>
-    public string TransferUrl(string? quick = null, int? page = null, bool keepFilters = true)
+    public string TransferUrl(string? quick = null, int? page = null, bool keepFilters = true, int? size = null)
     {
         var parts = new List<string> { "view=transfers" };
         if (keepFilters)
@@ -583,6 +632,11 @@ public class IndexModel(
         if (!string.IsNullOrEmpty(quick) && quick != "all")
         {
             parts.Add("tf=" + Uri.EscapeDataString(quick));
+        }
+
+        if (size is { } pageSize && pageSize != Pancras.Application.Common.PageSizes.Default)
+        {
+            parts.Add("size=" + pageSize.ToString(CultureInfo.InvariantCulture));
         }
 
         if (page is > 1)
@@ -607,7 +661,7 @@ public class IndexModel(
     /// <summary>Nhãn loại biến động. Dòng trừ tồn theo phiếu hủy hiện "Xuất hủy" thay vì "Xuất bán" (dữ liệu vẫn là loại xuất).</summary>
     public (string Label, string ClassName) MovementBadge(StockHistoryEntry entry) =>
         entry.Kind == StockMovementKind.Issue && Disposals.Any(slip => slip.Id == entry.DocumentId)
-            ? ("Xuất hủy", "bg-rose-100 text-rose-800")
+            ? ("Xuất hủy", Badge.Colors(BadgeTone.Danger))
             : StockLabels.MovementBadge(entry.Kind, entry.Quantity);
 
     public string Describe(StockHistoryEntry entry)
@@ -654,18 +708,18 @@ public class IndexModel(
     public static string When(Guid id)
     {
         var time = StockLabels.Version7Time(id);
-        return time is null ? string.Empty : time.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm", Vietnamese);
+        return time is null ? string.Empty : VietnamTime.Format(time.Value, "yyyy-MM-dd HH:mm");
     }
 
     public string PlaceCode(Guid locationId) =>
         PlaceCodes.TryGetValue(locationId, out var code) ? code : string.Empty;
 
-    private async Task<IActionResult> SaveAsync(Task<Result<Guid>> operation, string view, CancellationToken cancellationToken)
+    private async Task<IActionResult> SaveAsync(Task<Result<Guid, StockError>> operation, string view, CancellationToken cancellationToken)
     {
         var result = await operation;
         if (result.IsFailure)
         {
-            return await FailAsync(result.StockError, result.Detail, openTransfer: false, view, cancellationToken);
+            return await FailAsync(result.Error, result.Detail, openTransfer: false, view, cancellationToken);
         }
 
         View = view;
@@ -684,7 +738,7 @@ public class IndexModel(
     /// </summary>
     private async Task<IActionResult> CreateStockDocumentAsync(
         StockDocumentKind kind,
-        Func<Task<Result<Guid>>> create,
+        Func<Task<Result<Guid, StockError>>> create,
         List<IFormFile>? files,
         CancellationToken cancellationToken)
     {
@@ -701,13 +755,13 @@ public class IndexModel(
         var verdict = UploadStockDocumentAttachmentCommandHandler.CheckFiles(pending);
         if (verdict.IsFailure)
         {
-            return await FailStockDocumentAsync(kind, verdict.StockError, verdict.Detail, cancellationToken);
+            return await FailStockDocumentAsync(kind, verdict.Error, verdict.Detail, cancellationToken);
         }
 
         var created = await create();
         if (created.IsFailure)
         {
-            return await FailStockDocumentAsync(kind, created.StockError, created.Detail, cancellationToken);
+            return await FailStockDocumentAsync(kind, created.Error, created.Detail, cancellationToken);
         }
 
         foreach (var file in chosen)
@@ -718,7 +772,7 @@ public class IndexModel(
                 cancellationToken);
             if (uploaded.IsFailure)
             {
-                return await FailStockDocumentAsync(kind, uploaded.StockError, uploaded.Detail, cancellationToken);
+                return await FailStockDocumentAsync(kind, uploaded.Error, uploaded.Detail, cancellationToken);
             }
         }
 
@@ -768,7 +822,7 @@ public class IndexModel(
         var filter = CurrentFilter();
         var filtered = await listHandler.HandleAsync(filter, Actor, cancellationToken);
         var badges = await listHandler.HandleAsync(
-            new StockListFilter(null, filter.LocationRejected, filter.Category, filter.CategoryRejected, filter.Term),
+            new ListStockBalancesQuery(null, filter.LocationRejected, filter.Category, filter.CategoryRejected, filter.Term),
             Actor,
             cancellationToken);
         Locations = await documentsHandler.ListLocationsAsync(Actor, cancellationToken);
@@ -779,10 +833,6 @@ public class IndexModel(
         Adjustments = await documentsHandler.ListAdjustmentsAsync(Actor, cancellationToken);
         Disposals = await documentsHandler.ListDisposalsAsync(Actor, cancellationToken);
         OpenTransferId = OpenTransfer;
-        // Chưa xem lên trước, mới nhất trước; chỉ hiện một số thông báo để banner không dài vô hạn.
-        Notices = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var employeeId)
-            ? (await noticesHandler.HandleAsync(employeeId, cancellationToken)).OrderBy(notice => notice.Seen).ThenByDescending(notice => notice.CreatedAt).Take(8).ToArray()
-            : [];
         PlaceCodes = BuildPlaceCodes(AllLocations);
         Groups = BuildGroups(filtered, badges);
         BalanceJson = JsonSerializer.Serialize(
@@ -884,7 +934,7 @@ public class IndexModel(
         return map;
     }
 
-    private StockListFilter CurrentFilter() => StockListFilter.From(Location, Category, Search);
+    private ListStockBalancesQuery CurrentFilter() => ListStockBalancesQuery.From(Location, Category, Search);
 
     private string? Role() => User.FindFirstValue(ClaimTypes.Role);
 
@@ -1028,6 +1078,8 @@ public sealed class DisposalInput
     public Guid StockLocationId { get; set; }
 
     public Guid CatalogItemId { get; set; }
+
+    public int Quantity { get; set; } = 1;
 
     public string? Reason { get; set; }
 

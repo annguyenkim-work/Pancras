@@ -36,6 +36,7 @@ public class AuthenticationPageTests : IClassFixture<PancrasWebFactory>
         Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
         Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
         Assert.Contains("frame-ancestors 'none'", response.Headers.GetValues("Content-Security-Policy").Single(), StringComparison.Ordinal);
+        Assert.DoesNotContain("unsafe-inline", response.Headers.GetValues("Content-Security-Policy").Single(), StringComparison.Ordinal);
         Assert.DoesNotContain("cdn.tailwindcss.com", html, StringComparison.Ordinal);
         Assert.Contains("/css/site.css", html, StringComparison.Ordinal);
     }
@@ -236,6 +237,27 @@ public class AuthenticationPageTests : IClassFixture<PancrasWebFactory>
     }
 
     [Fact]
+    public async Task ProfileRateLimit_LimitsPasswordAndTwoFactorActions()
+    {
+        using var factory = new PancrasWebFactory { SensitivePerMinute = "2" };
+        var repository = factory.Services.GetRequiredService<FakeEmployeeRepository>();
+        repository.Employees.Clear();
+        repository.Employees.Add(Employee.Create("Quản trị hệ thống", "admin", "ADMIN", factory.Services.GetRequiredService<FakePasswordHasher>().Hash("Admin@12345"), EmployeeRole.Admin));
+        using var client = factory.CreateClient(NoRedirect);
+        await SignInAsync(client, "admin", "Admin@12345");
+
+        var first = await client.GetAsync("/profile");
+        var second = await client.GetAsync("/profile");
+        var third = await client.GetAsync("/profile");
+        var html = await third.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        Assert.Equal(HttpStatusCode.TooManyRequests, third.StatusCode);
+        Assert.Contains("Bạn thao tác quá nhiều lần", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Session_EndsTwelveHoursAfterSignIn_EvenIfTheCookieSlides()
     {
         var clock = new ManualTimeProvider(new DateTimeOffset(2040, 1, 1, 0, 0, 0, TimeSpan.Zero));
@@ -379,12 +401,15 @@ public sealed class PancrasWebFactory : WebApplicationFactory<Program>
 {
     public string LoginPerMinute { get; init; } = "100000";
 
+    public string SensitivePerMinute { get; init; } = "100000";
+
     public TimeProvider? Clock { get; init; }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
         builder.UseSetting("RateLimiting:LoginPerMinute", LoginPerMinute);
+        builder.UseSetting("RateLimiting:SensitivePerMinute", SensitivePerMinute);
         builder.UseSetting(
             "ConnectionStrings:DefaultConnection",
             "Host=localhost;Port=5432;Database=pancras;Username=postgres;Password=testing");
@@ -423,6 +448,8 @@ public sealed class PancrasWebFactory : WebApplicationFactory<Program>
             services.RemoveAll<IPurchaseOrderRepository>();
             services.AddSingleton<PurchaseDirectoryDouble>();
             services.AddSingleton<IPurchaseOrderRepository>(provider => provider.GetRequiredService<PurchaseDirectoryDouble>());
+            services.RemoveAll<Pancras.Application.Notifications.INoticeStore>();
+            services.AddSingleton<Pancras.Application.Notifications.INoticeStore, NoticeStoreDouble>();
             services.RemoveAll<ISupplierPurchaseStatsReader>();
             services.AddSingleton<SupplierStatsDouble>();
             services.AddSingleton<ISupplierPurchaseStatsReader>(provider => provider.GetRequiredService<SupplierStatsDouble>());
@@ -488,6 +515,9 @@ internal sealed class FakeEmployeeRepository : IEmployeeRepository
     public Task SaveChangesAsync(CancellationToken cancellationToken) =>
         Task.CompletedTask;
 
+    public Task<Pancras.Application.Common.SaveOutcome> TrySaveChangesAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(Pancras.Application.Common.SaveOutcome.Saved);
+
     public Task<T> WithinPersonnelRulesAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken) =>
         action(cancellationToken);
 }
@@ -505,12 +535,12 @@ internal sealed class SupplierDirectoryDouble : ISupplierRepository
     public List<Supplier> Suppliers { get; } = [];
 
     public Task<IReadOnlyList<Supplier>> ListAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<Supplier>>(Filtered(SupplierListFilter.From(null)));
+        Task.FromResult<IReadOnlyList<Supplier>>(Filtered(ListSuppliersQuery.From(null)));
 
-    public Task<SupplierSlice> ListFilteredAsync(SupplierListFilter filter, int pageNumber, int pageSize, CancellationToken cancellationToken)
+    public Task<SupplierSlice> ListFilteredAsync(ListSuppliersQuery filter, int pageNumber, int pageSize, CancellationToken cancellationToken)
     {
         var ordered = Filtered(filter);
-        var size = pageSize < 1 ? SupplierPageRequest.DefaultSize : pageSize;
+        var size = pageSize < 1 ? Pancras.Application.Common.PageSizes.Default : pageSize;
         var totalPages = ordered.Count == 0 ? 1 : (ordered.Count + size - 1) / size;
         var number = Math.Clamp(pageNumber < 1 ? 1 : pageNumber, 1, totalPages);
         IReadOnlyList<Supplier> items = ordered.Skip((number - 1) * size).Take(size).ToList();
@@ -521,7 +551,7 @@ internal sealed class SupplierDirectoryDouble : ISupplierRepository
         Task.FromResult<IReadOnlyList<string>>(Suppliers.Select(supplier => supplier.Country).Distinct().Order().ToList());
 
     public Task<Supplier?> GetActiveReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult(Suppliers.FirstOrDefault(supplier => supplier.Id == id && !supplier.IsInactive));
+        Task.FromResult(Suppliers.FirstOrDefault(supplier => supplier.Id == id && supplier.IsActive));
 
     public Task<Supplier?> GetAnyReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
         Task.FromResult(Suppliers.FirstOrDefault(supplier => supplier.Id == id));
@@ -538,14 +568,14 @@ internal sealed class SupplierDirectoryDouble : ISupplierRepository
 
     public Task<bool> NormalizedCodeExistsAsync(string normalizedCode, Guid? excludingId, CancellationToken cancellationToken) =>
         Task.FromResult(Suppliers.Any(supplier =>
-            !supplier.IsInactive && supplier.NormalizedCode == normalizedCode && supplier.Id != excludingId));
+            supplier.IsActive && supplier.NormalizedCode == normalizedCode && supplier.Id != excludingId));
 
     public Task<string?> InactiveNameWithCodeAsync(string normalizedCode, CancellationToken cancellationToken) =>
-        Task.FromResult(Suppliers.FirstOrDefault(supplier => supplier.IsInactive && supplier.NormalizedCode == normalizedCode)?.Name);
+        Task.FromResult(Suppliers.FirstOrDefault(supplier => !supplier.IsActive && supplier.NormalizedCode == normalizedCode)?.Name);
 
     public Task<int> CountActiveBeforeAsync(string name, string code, CancellationToken cancellationToken) =>
         Task.FromResult(Suppliers.Count(supplier =>
-            !supplier.IsInactive
+            supplier.IsActive
             && (string.CompareOrdinal(supplier.Name, name) < 0
                 || (supplier.Name == name && string.CompareOrdinal(supplier.Code, code) < 0))));
 
@@ -555,15 +585,15 @@ internal sealed class SupplierDirectoryDouble : ISupplierRepository
         return Task.FromResult(true);
     }
 
-    public Task<bool> TrySaveAsync(CancellationToken cancellationToken) => Task.FromResult(true);
+    public Task<Pancras.Application.Common.SaveOutcome> TrySaveAsync(CancellationToken cancellationToken) => Task.FromResult(Pancras.Application.Common.SaveOutcome.Saved);
 
-    private List<Supplier> Filtered(SupplierListFilter filter)
+    private List<Supplier> Filtered(ListSuppliersQuery filter)
     {
         IEnumerable<Supplier> suppliers = filter.Status switch
         {
-            SupplierStatusFilter.Inactive => Suppliers.Where(supplier => supplier.IsInactive),
+            SupplierStatusFilter.Inactive => Suppliers.Where(supplier => !supplier.IsActive),
             SupplierStatusFilter.All => Suppliers,
-            _ => Suppliers.Where(supplier => !supplier.IsInactive)
+            _ => Suppliers.Where(supplier => supplier.IsActive)
         };
         if (filter.Country is not null)
         {
@@ -616,8 +646,6 @@ internal sealed class NoAuditLog : Pancras.Application.Auditing.IAuditLog
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyList<Pancras.Domain.Auditing.AuditEntry>> ListAsync(string? search, int pageNumber, int pageSize, CancellationToken cancellationToken) =>
+    public Task<IReadOnlyList<Pancras.Domain.Auditing.AuditEntry>> ListPageAsync(Pancras.Application.Auditing.AuditQuery query, Pancras.Application.Auditing.AuditCursor? cursor, bool backward, int limit, bool newestFirst, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<Pancras.Domain.Auditing.AuditEntry>>([]);
-
-    public Task<int> CountAsync(string? search, CancellationToken cancellationToken) => Task.FromResult(0);
 }

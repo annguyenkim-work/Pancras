@@ -1,3 +1,4 @@
+using Pancras.Application.Common;
 using Pancras.Application.Catalog;
 using Pancras.Domain.Catalog;
 
@@ -10,13 +11,13 @@ internal sealed class FakeCatalogRepository : ICatalogItemRepository
     public int SaveCount { get; private set; }
 
     public Task<CatalogSlice> ListAsync(
-        CatalogListFilter filter,
+        ListCatalogItemsQuery filter,
         int pageNumber,
         int pageSize,
         CancellationToken cancellationToken)
     {
         var ordered = Matching(filter);
-        var size = pageSize < 1 ? CatalogPageRequest.DefaultSize : pageSize;
+        var size = pageSize < 1 ? Pancras.Application.Common.PageSizes.Default : pageSize;
         var totalPages = ordered.Count == 0 ? 1 : (ordered.Count + size - 1) / size;
         var number = Math.Clamp(pageNumber < 1 ? 1 : pageNumber, 1, totalPages);
         IReadOnlyList<CatalogItem> page = ordered.Skip((number - 1) * size).Take(size).ToList();
@@ -24,7 +25,7 @@ internal sealed class FakeCatalogRepository : ICatalogItemRepository
     }
 
     public Task<IReadOnlyList<CatalogItem>> ListMatchingAsync(
-        CatalogListFilter filter,
+        ListCatalogItemsQuery filter,
         CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<CatalogItem>>(Matching(filter));
 
@@ -51,10 +52,12 @@ internal sealed class FakeCatalogRepository : ICatalogItemRepository
         return Task.FromResult(true);
     }
 
-    public Task<bool> TrySaveAsync(CancellationToken cancellationToken)
+    public SaveOutcome NextOutcome { get; set; } = SaveOutcome.Saved;
+
+    public Task<SaveOutcome> TrySaveAsync(CancellationToken cancellationToken)
     {
         SaveCount++;
-        return Task.FromResult(true);
+        return Task.FromResult(NextOutcome);
     }
 
     public Task<IReadOnlyDictionary<Guid, CatalogItemMeasure>> ListMeasuresAsync(
@@ -68,6 +71,6 @@ internal sealed class FakeCatalogRepository : ICatalogItemRepository
         return Task.FromResult<IReadOnlyDictionary<Guid, CatalogItemMeasure>>(rows);
     }
 
-    private List<CatalogItem> Matching(CatalogListFilter filter) =>
+    private List<CatalogItem> Matching(ListCatalogItemsQuery filter) =>
         Items.Where(filter.Matches).OrderBy(item => item.Name).ThenBy(item => item.Code).ToList();
 }

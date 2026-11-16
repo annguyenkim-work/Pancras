@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Microsoft.Extensions.Logging.Abstractions;
 using Pancras.Application.Common;
 using Pancras.Application.Inventory;
@@ -29,7 +30,7 @@ public class DisposalSlipHandlerTests
         var result = await new ApproveQuantityAdjustmentCommandHandler(store, NullLogger<ApproveQuantityAdjustmentCommandHandler>.Instance)
             .HandleAsync(new ApproveDocumentCommand(created.Value, TestActors.Accountant), CancellationToken.None);
 
-        Assert.Equal(StockError.NegativeStock, result.StockError);
+        Assert.Equal(StockError.NegativeStock, result.Error);
         Assert.Equal(5, balance.OnHand);
         Assert.Equal(4, balance.Reserved);
         Assert.Equal(ApprovalStatus.Pending, store.Adjustments[0].Status);
@@ -50,9 +51,47 @@ public class DisposalSlipHandlerTests
         Assert.Equal(0, store.Balance.Reserved);
         var notice = Assert.Single(store.Notices);
         Assert.Equal(store.Location.Id, notice.StockLocationId);
-        Assert.Equal(StockNoticeKind.DisposalApproved, notice.Kind);
+        Assert.Equal(NotificationKind.DisposalApproved, notice.Kind);
         Assert.Equal(store.Keeper.Id, notice.RecipientEmployeeId);
-        Assert.Equal(StockNotice.DisposalStep, notice.Step);
+        Assert.Equal(Notification.DisposalStep, notice.Step);
+    }
+
+    [Fact]
+    public async Task Approve_DropsTheWholeQuantity()
+    {
+        var store = Prepared(onHand: 5, reserved: 1);
+        var created = await CreateAsync(store, quantity: 3);
+
+        var result = await ApproveAsync(store, created.Value, EmployeeRole.ShowroomWarehouseLead);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, store.Balance.OnHand);
+        Assert.Equal(3, store.Disposals[0].Quantity);
+    }
+
+    [Fact]
+    public async Task Approve_RejectsAQuantityAboveTheAvailableStock()
+    {
+        var store = Prepared(onHand: 5, reserved: 3);
+        var created = await CreateAsync(store, quantity: 3);
+
+        var result = await ApproveAsync(store, created.Value, EmployeeRole.ShowroomWarehouseLead);
+
+        Assert.Equal(StockError.DisposalRejected, result.Error);
+        Assert.Equal(5, store.Balance.OnHand);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-2)]
+    public async Task Create_RejectsAQuantityBelowOne(int quantity)
+    {
+        var store = Prepared(onHand: 5, reserved: 0);
+
+        var result = await CreateAsync(store, quantity);
+
+        Assert.Equal(StockError.InvalidQuantity, result.Error);
+        Assert.Empty(store.Disposals);
     }
 
     [Fact]
@@ -63,7 +102,7 @@ public class DisposalSlipHandlerTests
 
         var result = await ApproveAsync(store, created.Value, EmployeeRole.Sales);
 
-        Assert.Equal(StockError.ApprovalForbidden, result.StockError);
+        Assert.Equal(StockError.ApprovalForbidden, result.Error);
         Assert.Equal(5, store.Balance.Available);
         Assert.Equal(ApprovalStatus.Pending, store.Disposals[0].Status);
         Assert.Empty(store.Notices);
@@ -78,7 +117,7 @@ public class DisposalSlipHandlerTests
 
         var second = await ApproveAsync(store, created.Value, EmployeeRole.Director);
 
-        Assert.Equal(StockError.TransferStateChanged, second.StockError);
+        Assert.Equal(StockError.TransferStateChanged, second.Error);
         Assert.Equal(4, store.Balance.Available);
         Assert.Single(store.Notices);
     }
@@ -91,7 +130,7 @@ public class DisposalSlipHandlerTests
 
         var result = await ApproveAsync(store, created.Value, EmployeeRole.ShowroomWarehouseLead);
 
-        Assert.Equal(StockError.DisposalRejected, result.StockError);
+        Assert.Equal(StockError.DisposalRejected, result.Error);
         Assert.Equal(0, store.Balance.OnHand);
         Assert.Equal(0, store.Balance.Available);
         Assert.Empty(store.Notices);
@@ -141,10 +180,10 @@ public class DisposalSlipHandlerTests
         Assert.Equal(ApprovalStatus.Pending, store.Adjustments[1].Status);
         var notice = Assert.Single(store.Notices);
         Assert.Equal(accountant.Id, notice.RecipientEmployeeId);
-        Assert.Equal(StockNoticeKind.AdjustmentPending, notice.Kind);
+        Assert.Equal(NotificationKind.AdjustmentPending, notice.Kind);
     }
 
-    private static Task<Result<Guid>> CreateAsync(DisposalFixture store) =>
+    private static Task<Result<Guid, StockError>> CreateAsync(DisposalFixture store, int quantity = 1) =>
         new CreateDisposalSlipCommandHandler(
                 store.Store,
                 new ApproveDisposalSlipCommandHandler(store.Store, store.Employees, NullLogger<ApproveDisposalSlipCommandHandler>.Instance),
@@ -155,10 +194,11 @@ public class DisposalSlipHandlerTests
                 StockLocationId = store.Location.Id,
                 CatalogItemId = store.ItemId,
                 Reason = "Vỡ",
-                DocumentRef = "HH-01"
+                DocumentRef = "HH-01",
+                Quantity = quantity
             }, CancellationToken.None);
 
-    private static Task<Result<Guid>> ApproveAsync(DisposalFixture store, Guid id, string role) =>
+    private static Task<Result<Guid, StockError>> ApproveAsync(DisposalFixture store, Guid id, string role) =>
         new ApproveDisposalSlipCommandHandler(store.Store, store.Employees, NullLogger<ApproveDisposalSlipCommandHandler>.Instance)
             .HandleAsync(new ApproveDocumentCommand(id, new EmployeeActor(Guid.NewGuid(), role, role is EmployeeRole.Admin or EmployeeRole.Director or EmployeeRole.Accountant ? null : store.Location.Id)), CancellationToken.None);
 
@@ -204,6 +244,6 @@ public class DisposalSlipHandlerTests
 
         public List<DisposalSlip> Disposals => _store.Disposals;
 
-        public List<StockNotice> Notices => _store.Notices;
+        public List<Notification> Notices => _store.Notices;
     }
 }

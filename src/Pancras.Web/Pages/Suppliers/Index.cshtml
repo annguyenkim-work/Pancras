@@ -1,10 +1,11 @@
 @page "/suppliers"
+@using Pancras.Web.Formatting
 @model Pancras.Web.Pages.Suppliers.IndexModel
 @using Pancras.Application.Common
 @using Pancras.Application.Suppliers
 @{
     ViewData["Title"] = "Nhà cung cấp nhập khẩu";
-    const string dialogClass = "m-auto !flex w-[min(42rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50";
+    const string dialogClass = "m-auto !flex w-[min(40rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50";
     var inputInvalid = new Func<SupplierField, string>(field => Model.HasIssue(field) ? "true" : "false");
 }
 
@@ -19,28 +20,24 @@
         </div>
         @if (Model.CanManage)
         {
-            <a href="@Model.AddUrl" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Thêm nhà cung cấp</a>
+            <a href="@Model.AddUrl" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Thêm nhà cung cấp</a>
         }
     </div>
     <form method="get" action="/suppliers" data-live-filter class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <input id="supplier-search" name="q" value="@Model.Search" type="search" placeholder="Tìm theo mã, tên, người liên hệ, email, điện thoại, quốc gia..." aria-label="Tìm kiếm nhà cung cấp" class="min-w-0 w-full flex-1 px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white outline-none focus:border-sky-500" />
-        <select name="country" aria-label="Lọc theo quốc gia" class="w-full shrink-0 px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white outline-none focus:border-sky-500 sm:w-52">
+        <input id="supplier-search" name="q" value="@Model.Search" type="search" placeholder="Tìm theo mã, tên, người liên hệ, email, điện thoại, quốc gia..." aria-label="Tìm kiếm nhà cung cấp" class="min-w-0 w-full flex-1 px-3 py-2 border rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" />
+        <select name="country" aria-label="Lọc theo quốc gia" class="w-full shrink-0 px-3 py-2 border sm:w-52 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
             <option value="">Mọi quốc gia</option>
             @foreach (var country in Model.Countries)
             {
                 <option value="@country" selected="@(string.Equals(country, Model.Country, StringComparison.Ordinal))">@country</option>
             }
         </select>
-        <select name="status" aria-label="Lọc theo trạng thái" class="w-full shrink-0 px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white outline-none focus:border-sky-500 sm:w-56">
-            <option value="" selected="@(Model.StatusFilter == SupplierStatusFilter.Active)">Đang hợp tác</option>
-            <option value="inactive" selected="@(Model.StatusFilter == SupplierStatusFilter.Inactive)">Đã ngừng hợp tác</option>
+        <select name="status" aria-label="Lọc theo trạng thái" class="w-full shrink-0 px-3 py-2 border sm:w-56 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+            <option value="" selected="@(Model.StatusFilter == SupplierStatusFilter.Active)">Active</option>
+            <option value="inactive" selected="@(Model.StatusFilter == SupplierStatusFilter.Inactive)">Disabled</option>
             <option value="all" selected="@(Model.StatusFilter == SupplierStatusFilter.All)">Tất cả</option>
         </select>
     </form>
-    @if (!string.IsNullOrEmpty(Model.Notice))
-    {
-        <p class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800" role="status">@Model.Notice</p>
-    }
     @if (Model.ErrorMessages.Count > 0 && !Model.ShowForm && !Model.ShowStop)
     {
         <div class="mt-4">
@@ -60,8 +57,12 @@ else
         <table class="w-full min-w-[56rem] text-left text-sm">
             <thead class="bg-slate-50 text-xs tracking-wide text-slate-500">
                 <tr>
-                    <th class="px-3 py-3 font-semibold">Nhà cung cấp</th>
-                    <th class="px-3 py-3 font-semibold">Quốc gia</th>
+                    <th class="sticky left-0 z-10 bg-slate-50 px-3 py-3 font-semibold"><partial name="_SortHeader" model='new SortHeaderModel("Nhà cung cấp", Model.SortUrl("name"), Model.Sort.Key == "name", Model.Sort.Descending)' /> <span class="font-normal">(<partial name="_SortHeader" model='new SortHeaderModel("mã", Model.SortUrl("code"), Model.Sort.Key == "code", Model.Sort.Descending)' />)</span></th>
+                    @if (Model.CanManage)
+                    {
+                        <th class="px-3 py-3 text-right font-semibold">Thao tác</th>
+                    }
+                    <th class="px-3 py-3 font-semibold"><partial name="_SortHeader" model='new SortHeaderModel("Quốc gia", Model.SortUrl("country"), Model.Sort.Key == "country", Model.Sort.Descending)' /></th>
                     <th class="px-3 py-3 font-semibold">Liên hệ</th>
                     @if (Model.CanViewBank)
                     {
@@ -69,25 +70,54 @@ else
                     }
                     <th class="px-3 py-3 font-semibold">Đơn mua</th>
                     <th class="px-3 py-3 font-semibold">Dấu vết</th>
-                    @if (Model.CanManage)
-                    {
-                        <th class="px-3 py-3 text-right font-semibold">Thao tác</th>
-                    }
                 </tr>
             </thead>
             <tbody>
                 @foreach (var card in Model.Cards)
                 {
-                    <tr class="border-t border-slate-100 align-top hover:bg-slate-50 @(card.IsInactive ? "text-slate-500" : string.Empty)">
-                        <td class="px-3 py-3">
-                            <p class="font-bold @(card.IsInactive ? "text-slate-600" : "text-slate-900")">@card.Name</p>
+                    <tr class="group border-t border-slate-100 align-top hover:bg-slate-50 @(!card.IsActive ? "text-slate-500" : string.Empty)">
+                        <td class="sticky left-0 z-10 bg-white px-3 py-3 group-hover:bg-slate-50">
+                            <p class="font-bold @(!card.IsActive ? "text-slate-600" : "text-slate-900")">@card.Name</p>
                             <p class="mt-0.5 font-mono text-xs tracking-wide text-slate-500">@card.Code</p>
-                            @if (card.IsInactive)
+                            @if (!card.IsActive)
                             {
-                                <span class="mt-1 inline-block rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">Ngừng hợp tác</span>
+                                <span class="mt-1 inline-block @Badge.Classes(BadgeTone.Neutral)">Disabled</span>
                             }
                         </td>
-                        <td class="px-3 py-3"><span class="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-600">@card.Country</span></td>
+                        @if (Model.CanManage)
+                        {
+                            <td class="px-3 py-3">
+                                <div class="flex items-center justify-end gap-2">
+                                    @if (!card.IsActive)
+                                    {
+                                        @if (Model.CanReactivate)
+                                        {
+                                            <form method="post" asp-page-handler="Reactivate" asp-route-id="@card.Id">
+                                                <input type="hidden" name="q" value="@Model.Search" />
+                                                <input type="hidden" name="status" value="@Model.Status" />
+                                                <input type="hidden" name="country" value="@Model.Country" />
+                                                <input type="hidden" name="page" value="@Model.CardPage.PageNumber" />
+                                                <partial name="_ListState" model="(Model.RequestedSize, Model.SortToken)" />
+                                                <button type="submit" class="rounded-lg px-3 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Active</button>
+                                            </form>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <a href="@Model.EditUrl(card.Id)" class="rounded-lg px-3 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Sửa</a>
+                                        @if (card.LotsNotReceived > 0)
+                                        {
+                                            <button type="button" disabled class="px-3 py-1.5 text-sm font-medium rounded-lg text-slate-400 cursor-not-allowed" title="Còn @card.LotsNotReceived lô chưa nhập kho. Nhập kho hoặc xử lý các đơn đó trước khi Disable.">Disable</button>
+                                        }
+                                        else
+                                        {
+                                            <a href="@Model.StopUrl(card.Id)" class="px-3 py-1.5 text-sm font-medium rounded-lg text-rose-700 hover:bg-rose-50">Disable</a>
+                                        }
+                                    }
+                                </div>
+                            </td>
+                        }
+                        <td class="px-3 py-3"><span class="@Badge.Classes(BadgeTone.Neutral)">@card.Country</span></td>
                         <td class="px-3 py-3">
                             <p class="text-slate-800">@card.ContactName</p>
                             @if (!string.IsNullOrEmpty(card.Phone))
@@ -118,89 +148,26 @@ else
                             }
                             else if (Model.CanManage)
                             {
-                                <a href="@IndexModel.PurchasesUrl(card.Id)" class="mt-0.5 block text-xs font-medium text-orange-600 hover:underline"><span class="font-mono tabular-nums">@card.LotsNotReceived</span> lô chưa nhập kho</a>
+                                <a href="@IndexModel.PurchasesUrl(card.Id)" class="mt-0.5 block text-xs font-medium text-amber-700 hover:underline"><span class="font-mono tabular-nums">@card.LotsNotReceived</span> lô chưa nhập kho</a>
                             }
                             else
                             {
-                                <p class="mt-0.5 text-xs font-medium text-orange-600"><span class="font-mono tabular-nums">@card.LotsNotReceived</span> lô chưa nhập kho</p>
+                                <p class="mt-0.5 text-xs font-medium text-amber-700"><span class="font-mono tabular-nums">@card.LotsNotReceived</span> lô chưa nhập kho</p>
                             }
                         </td>
                         <td class="px-3 py-3"><partial name="_AuditStamp" model="card.Stamp" /></td>
-                        @if (Model.CanManage)
-                        {
-                            <td class="px-3 py-3">
-                                <div class="flex items-center justify-end gap-2">
-                                    @if (card.IsInactive)
-                                    {
-                                        @if (Model.CanReactivate)
-                                        {
-                                            <form method="post" asp-page-handler="Reactivate" asp-route-id="@card.Id">
-                                                <input type="hidden" name="q" value="@Model.Search" />
-                                                <input type="hidden" name="status" value="@Model.Status" />
-                                                <input type="hidden" name="country" value="@Model.Country" />
-                                                <input type="hidden" name="page" value="@Model.CardPage.PageNumber" />
-                                                <button type="submit" class="px-3 py-1.5 text-sm font-bold rounded-lg bg-slate-100 text-slate-700">Khôi phục</button>
-                                            </form>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        <a href="@Model.EditUrl(card.Id)" class="px-3 py-1.5 text-sm font-bold rounded-lg bg-slate-100 text-slate-700">Sửa</a>
-                                        @if (card.LotsNotReceived > 0)
-                                        {
-                                            <button type="button" disabled class="px-3 py-1.5 text-sm font-medium rounded-lg text-slate-400 cursor-not-allowed" title="Còn @card.LotsNotReceived lô chưa nhập kho. Nhập kho hoặc xử lý các đơn đó trước khi ngừng hợp tác.">Ngừng hợp tác</button>
-                                        }
-                                        else
-                                        {
-                                            <a href="@Model.StopUrl(card.Id)" class="px-3 py-1.5 text-sm font-medium rounded-lg text-rose-700 hover:bg-rose-50">Ngừng hợp tác</a>
-                                        }
-                                    }
-                                </div>
-                            </td>
-                        }
                     </tr>
                 }
             </tbody>
         </table>
     </div>
-    @if (Model.CardPage.TotalPages > 1)
-    {
-        <nav class="mt-4 flex flex-wrap items-center justify-center gap-2" aria-label="Phân trang">
-            @if (Model.CardPage.HasPrevious)
-            {
-                <a href="@Model.PageUrl(Model.CardPage.PageNumber - 1)" class="px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-slate-200 text-slate-700">Trước</a>
-            }
-            else
-            {
-                <span class="px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-slate-200 text-slate-300">Trước</span>
-            }
-            @foreach (var page in Model.VisiblePages)
-            {
-                if (page == Model.CardPage.PageNumber)
-                {
-                    <span class="px-3 py-1.5 text-sm font-bold rounded-lg bg-sky-600 text-white" aria-current="page">@(page)</span>
-                }
-                else
-                {
-                    <a href="@Model.PageUrl(page)" class="px-3 py-1.5 text-sm font-bold rounded-lg bg-white border border-slate-200 text-slate-700">@(page)</a>
-                }
-            }
-            @if (Model.CardPage.HasNext)
-            {
-                <a href="@Model.PageUrl(Model.CardPage.PageNumber + 1)" class="px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-slate-200 text-slate-700">Sau</a>
-            }
-            else
-            {
-                <span class="px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-slate-200 text-slate-300">Sau</span>
-            }
-        </nav>
-    }
+    <partial name="_Pager" model="Model.Pager" />
 }
 </div>
 
 @if (Model.CanManage && Model.ShowForm)
 {
-    <dialog id="supplier-dialog" class="@dialogClass" aria-labelledby="supplier-dialog-title">
+    <dialog id="supplier-dialog" data-autoshow data-cancel-url="@Model.FilteredListUrl" class="@dialogClass" aria-labelledby="supplier-dialog-title">
         <div class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-6 py-4">
             <div class="flex items-center gap-2.5">
                 <svg class="w-5 h-5 text-sky-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -219,7 +186,9 @@ else
             <input type="hidden" name="status" value="@Model.Status" />
             <input type="hidden" name="country" value="@Model.Country" />
             <input type="hidden" name="page" value="@Model.CardPage.PageNumber" />
+            <partial name="_ListState" model="(Model.RequestedSize, Model.SortToken)" />
             <input type="hidden" asp-for="Form.Id" />
+            <input type="hidden" asp-for="Form.Version" />
             <div class="mt-4">
                 <partial name="_ErrorNotice" />
             </div>
@@ -275,33 +244,19 @@ else
                 </div>
             </fieldset>
             <div class="flex justify-end gap-2 mt-6">
-                <a href="@Model.FilteredListUrl" class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 text-slate-600">Hủy</a>
-                <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">@(Model.IsEditing ? "Lưu thay đổi" : "Lưu nhà cung cấp")</button>
+                <a href="@Model.FilteredListUrl" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Quay lại</a>
+                <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">@(Model.IsEditing ? "Lưu thay đổi" : "Lưu nhà cung cấp")</button>
             </div>
         </form>
     </dialog>
-    <script>
-        (function () {
-            var dialog = document.getElementById('supplier-dialog');
-            dialog.addEventListener('cancel', function (event) {
-                event.preventDefault();
-                window.location.href = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.FilteredListUrl));
-            });
-            dialog.showModal();
-            var invalid = dialog.querySelector('[aria-invalid="true"]');
-            if (invalid) {
-                invalid.focus();
-            }
-        })();
-    </script>
 }
 
 @if (Model.CanManage && Model.ShowStop && Model.StopProfile is not null)
 {
     var stop = Model.StopProfile;
-    <dialog id="supplier-stop-dialog" class="m-auto !flex w-[min(28rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50" aria-labelledby="supplier-stop-title">
+    <dialog id="supplier-stop-dialog" data-autoshow data-cancel-url="@Model.FilteredListUrl" class="m-auto !flex w-[min(28rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50" aria-labelledby="supplier-stop-title">
         <div class="flex shrink-0 items-center justify-between gap-3 px-6 pt-6">
-            <h2 id="supplier-stop-title" class="text-base font-bold text-slate-900">Ngừng hợp tác với nhà cung cấp</h2>
+            <h2 id="supplier-stop-title" class="text-base font-bold text-slate-900">Disable nhà cung cấp</h2>
             <a href="@Model.FilteredListUrl" class="text-slate-400" aria-label="Đóng">×</a>
         </div>
         <form method="post" asp-page-handler="Stop" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
@@ -309,30 +264,21 @@ else
             <input type="hidden" name="status" value="@Model.Status" />
             <input type="hidden" name="country" value="@Model.Country" />
             <input type="hidden" name="page" value="@Model.CardPage.PageNumber" />
+            <partial name="_ListState" model="(Model.RequestedSize, Model.SortToken)" />
             <input type="hidden" asp-for="StopId" />
             <p class="mt-3 text-sm text-slate-600"><span class="font-medium text-slate-900">@stop.Name</span> (@stop.Code) sẽ không còn xuất hiện khi lập đơn mua mới.</p>
             <ul class="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-600">
                 <li>Lịch sử @stop.PurchaseOrderCount đơn mua vẫn được giữ nguyên.</li>
-                <li>Hồ sơ vẫn xem lại được ở bộ lọc "Đã ngừng hợp tác"; chỉ Admin khôi phục được.</li>
+                <li>Hồ sơ vẫn xem lại được ở bộ lọc "Disabled"; chỉ Admin Active lại được.</li>
             </ul>
             @if (Model.ErrorMessages.Count > 0)
             {
                 <div class="mt-4"><partial name="_ErrorNotice" /></div>
             }
             <div class="mt-6 flex justify-end gap-2">
-                <a href="@Model.FilteredListUrl" class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 text-slate-600">Hủy</a>
-                <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-rose-600 rounded-lg">Ngừng hợp tác</button>
+                <a href="@Model.FilteredListUrl" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Quay lại</a>
+                <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-60">Disable</button>
             </div>
         </form>
     </dialog>
-    <script>
-        (function () {
-            var dialog = document.getElementById('supplier-stop-dialog');
-            dialog.addEventListener('cancel', function (event) {
-                event.preventDefault();
-                window.location.href = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.FilteredListUrl));
-            });
-            dialog.showModal();
-        })();
-    </script>
 }

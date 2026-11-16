@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Inventory;
@@ -9,22 +10,22 @@ namespace Pancras.Infrastructure.Persistence;
 public sealed class InventoryRepository(PancrasDbContext context, ILogger<InventoryRepository> logger) : IInventoryRepository
 {
     public async Task<IReadOnlyList<StockLocation>> ListLocationsAsync(CancellationToken cancellationToken) =>
-        await context.StockLocations.AsNoTracking().OrderBy(location => location.Name).ToListAsync(cancellationToken);
+        await context.StockLocations.AsNoTracking().Where(location => location.IsActive).OrderBy(location => location.Name).ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<StockLocation>> ListDeletedLocationsAsync(CancellationToken cancellationToken) =>
-        await context.StockLocations.IgnoreQueryFilters().AsNoTracking().Where(location => location.IsDeleted).ToListAsync(cancellationToken);
+        await context.StockLocations.AsNoTracking().Where(location => !location.IsActive).ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<StockItemChoice>> ListItemChoicesAsync(CancellationToken cancellationToken)
     {
         var items = await context.CatalogItems.AsNoTracking()
             .OrderBy(item => item.Name)
             .ThenBy(item => item.Code)
-            .Select(item => new StockItemChoice(item.Id, item.Code, item.Name, item.Unit))
+            .Select(item => new StockItemChoice(item.Id, item.Code, item.Name, item.Unit, item.IsActive))
             .ToListAsync(cancellationToken);
         return items;
     }
 
-    public async Task<IReadOnlyList<StockBalanceRow>> ListBalancesAsync(StockListFilter filter, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<StockBalanceRow>> ListBalancesAsync(ListStockBalancesQuery filter, CancellationToken cancellationToken)
     {
         if (filter.LocationRejected || filter.CategoryRejected)
         {
@@ -34,7 +35,7 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
         var query =
             from balance in context.StockBalances.AsNoTracking()
             join item in context.CatalogItems.AsNoTracking() on balance.CatalogItemId equals item.Id
-            join location in context.StockLocations.AsNoTracking() on balance.StockLocationId equals location.Id
+            join location in context.StockLocations.AsNoTracking().Where(place => place.IsActive) on balance.StockLocationId equals location.Id
             select new { balance, item, location };
 
         if (filter.LocationId is Guid locationId)
@@ -77,7 +78,7 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
             .ToListAsync(cancellationToken);
 
         var stocked = context.StockBalances.Select(balance => balance.CatalogItemId);
-        var missing = context.CatalogItems.AsNoTracking().Where(item => !item.IsCombo && !stocked.Contains(item.Id));
+        var missing = context.CatalogItems.AsNoTracking().Where(item => !item.IsCombo && item.IsActive && !stocked.Contains(item.Id));
         if (filter.Category is ProductCategory missingCategory)
         {
             missing = missing.Where(item => item.Category == missingCategory);
@@ -209,7 +210,7 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
         var rows = await (
             from balance in context.StockBalances.AsNoTracking()
             join item in context.CatalogItems.AsNoTracking() on balance.CatalogItemId equals item.Id
-            join location in context.StockLocations.AsNoTracking() on balance.StockLocationId equals location.Id
+            join location in context.StockLocations.AsNoTracking().Where(place => place.IsActive) on balance.StockLocationId equals location.Id
             where balance.CatalogItemId == catalogItemId
             orderby location.Name
             select new StockBalanceRow(
@@ -276,22 +277,34 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
     public async Task<IReadOnlyList<DisposalSlip>> ListDisposalsAsync(CancellationToken cancellationToken) =>
         await context.DisposalSlips.AsNoTracking().ToListAsync(cancellationToken);
 
-    public Task AddNoticeAsync(StockNotice notice, CancellationToken cancellationToken) =>
-        context.StockNotices.AddAsync(notice, cancellationToken).AsTask();
+    public Task AddNoticeAsync(Notification notice, CancellationToken cancellationToken) =>
+        context.Notifications.AddAsync(notice, cancellationToken).AsTask();
 
-    public async Task<IReadOnlyList<StockNotice>> ListNoticesAsync(Guid recipientEmployeeId, CancellationToken cancellationToken) =>
-        await context.StockNotices.AsNoTracking()
-            .Where(notice => notice.RecipientEmployeeId == recipientEmployeeId)
+    public async Task<NoticePage> ListNoticesPageAsync(Guid recipientEmployeeId, int pageNumber, int pageSize, CancellationToken cancellationToken)
+    {
+        var mine = context.Notifications.AsNoTracking().Where(notice => notice.RecipientEmployeeId == recipientEmployeeId);
+        var total = await mine.CountAsync(cancellationToken);
+        var size = Math.Max(1, pageSize);
+        var items = await mine
             .OrderByDescending(notice => notice.CreatedAt)
+            .ThenByDescending(notice => notice.Id)
+            .Skip((Math.Max(1, pageNumber) - 1) * size)
+            .Take(size)
             .ToListAsync(cancellationToken);
+        return new NoticePage(items, total);
+    }
 
-    public Task<StockNotice?> FindNoticeForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
-        context.StockNotices.FirstOrDefaultAsync(notice => notice.Id == id, cancellationToken);
+    public Task<int> CountUnseenNoticesAsync(Guid recipientEmployeeId, CancellationToken cancellationToken) =>
+        context.Notifications.AsNoTracking()
+            .CountAsync(notice => notice.RecipientEmployeeId == recipientEmployeeId && !notice.Seen, cancellationToken);
+
+    public Task<Notification?> FindNoticeForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
+        context.Notifications.FirstOrDefaultAsync(notice => notice.Id == id, cancellationToken);
 
     public async Task RemoveNoticesAsync(Guid documentId, CancellationToken cancellationToken)
     {
-        var notices = await context.StockNotices.Where(notice => notice.DocumentId == documentId).ToListAsync(cancellationToken);
-        context.StockNotices.RemoveRange(notices);
+        var notices = await context.Notifications.Where(notice => notice.DocumentId == documentId).ToListAsync(cancellationToken);
+        context.Notifications.RemoveRange(notices);
     }
 
     /// <summary>Khóa dòng phiếu (SELECT ... FOR UPDATE) trong transaction giữ đến <see cref="CommitAsync"/> rồi mới đọc, để hai lần duyệt đồng thời chạy lần lượt.</summary>
@@ -340,4 +353,13 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
             await transaction.DisposeAsync();
         }
     }
+}
+
+public sealed class NoticeStore(PancrasDbContext context) : Pancras.Application.Notifications.INoticeStore
+{
+    public Task AddAsync(Notification notice, CancellationToken cancellationToken) =>
+        context.Notifications.AddAsync(notice, cancellationToken).AsTask();
+
+    public async Task RemoveForDocumentAsync(Guid documentId, CancellationToken cancellationToken) =>
+        context.Notifications.RemoveRange(await context.Notifications.Where(notice => notice.DocumentId == documentId).ToListAsync(cancellationToken));
 }

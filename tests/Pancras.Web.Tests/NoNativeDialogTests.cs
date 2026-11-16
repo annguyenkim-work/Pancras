@@ -47,3 +47,24 @@ public class NoNativeDialogTests
         throw new DirectoryNotFoundException("Cannot locate src/Pancras.Web/Pages from the test output directory.");
     }
 }
+
+/// <summary>CSP không cho script inline: không trang nào được có <c>&lt;script&gt;</c> trần hoặc thuộc tính <c>on…=</c>.</summary>
+public class NoInlineScriptTests
+{
+    [Fact]
+    public void Views_HaveNoInlineScriptsOrEventHandlers()
+    {
+        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../src/Pancras.Web/Pages"));
+        var offenders = Directory.EnumerateFiles(root, "*.cshtml", SearchOption.AllDirectories)
+            .Where(file =>
+            {
+                var text = File.ReadAllText(file);
+                return text.Contains("<script>", StringComparison.Ordinal)
+                    || System.Text.RegularExpressions.Regex.IsMatch(text, @"\son(click|change|submit|input|load)=");
+            })
+            .Select(Path.GetFileName)
+            .ToArray();
+
+        Assert.Empty(offenders);
+    }
+}

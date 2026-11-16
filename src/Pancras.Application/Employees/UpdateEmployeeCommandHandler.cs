@@ -7,34 +7,6 @@ using Pancras.Domain.Employees;
 
 namespace Pancras.Application.Employees;
 
-public sealed class UpdateEmployeeCommandValidator : AbstractValidator<UpdateEmployeeCommand>
-{
-    public UpdateEmployeeCommandValidator()
-    {
-        RuleFor(command => command.FullName)
-            .Must(name => EmployeeRules.Present(name, 200))
-            .WithErrorCode(nameof(EmployeeError.ProfileIncomplete));
-        RuleFor(command => command.Role)
-            .Must(EmployeeRole.IsAllowed)
-            .WithErrorCode(nameof(EmployeeError.InvalidRole));
-        RuleFor(command => command.Email)
-            .Must(EmployeeRules.IsEmail)
-            .WithErrorCode(nameof(EmployeeError.ProfileIncomplete));
-        RuleFor(command => command.Phone)
-            .Must(value => EmployeeRules.Present(value, 30))
-            .WithErrorCode(nameof(EmployeeError.ProfileIncomplete));
-        RuleFor(command => command.JobTitle)
-            .Must(value => EmployeeRules.Present(value, 100))
-            .WithErrorCode(nameof(EmployeeError.ProfileIncomplete));
-        RuleFor(command => command.Address)
-            .Must(value => EmployeeRules.Fits(value, 300))
-            .WithErrorCode(nameof(EmployeeError.ProfileIncomplete));
-        RuleFor(command => command.Department)
-            .Must(value => EmployeeRules.Fits(value, 100))
-            .WithErrorCode(nameof(EmployeeError.ProfileIncomplete));
-    }
-}
-
 public sealed class UpdateEmployeeCommandHandler(
     IEmployeeRepository repository,
     ILocationRepository locations,
@@ -46,7 +18,7 @@ public sealed class UpdateEmployeeCommandHandler(
 {
     private readonly UpdateEmployeeCommandValidator _validator = new();
 
-    public async Task<Result<EmployeeProfile>> HandleAsync(
+    public async Task<Result<EmployeeProfile, EmployeeError>> HandleAsync(
         UpdateEmployeeCommand command,
         EmployeeActor actor,
         CancellationToken cancellationToken)
@@ -82,7 +54,7 @@ public sealed class UpdateEmployeeCommandHandler(
                 cancellationToken);
         }
 
-        return outcome.Result;
+        return outcome.Profile;
     }
 
     private async Task<UpdateOutcome> SaveUpdateAsync(
@@ -110,6 +82,12 @@ public sealed class UpdateEmployeeCommandHandler(
         if (!EmployeeAccess.CanView(actor, employee.Id, employee.StockLocationId))
         {
             return Forbidden(actor, employee.Id);
+        }
+
+        if (command.Version != employee.Version)
+        {
+            logger.LogInformation("Rejected a stale employee edit for {EmployeeId}.", employee.Id);
+            return UpdateOutcome.Fail(EmployeeError.VersionConflict);
         }
 
         var personalChanged =
@@ -190,14 +168,19 @@ public sealed class UpdateEmployeeCommandHandler(
             return UpdateOutcome.Fail(EmployeeError.ProfileIncomplete);
         }
 
-        await repository.SaveChangesAsync(cancellationToken);
+        if (await repository.TrySaveChangesAsync(cancellationToken) == SaveOutcome.Conflict)
+        {
+            logger.LogInformation("Concurrent edit rejected for employee {EmployeeId}.", employee.Id);
+            return UpdateOutcome.Fail(EmployeeError.VersionConflict);
+        }
+
         logger.LogInformation("Updated employee {EmployeeId} by {ActorId}.", employee.Id, actor.Id);
         var employeeId = employee.Id.ToString("D");
         var action = assignmentChanged
             ? Pancras.Domain.Auditing.AuditActions.EmployeeRoleChanged
             : Pancras.Domain.Auditing.AuditActions.EmployeeUpdated;
         return new UpdateOutcome(
-            Result<EmployeeProfile>.Ok(EmployeeMapping.ToProfile(employee)),
+            Result<EmployeeProfile, EmployeeError>.Ok(EmployeeMapping.ToProfile(employee)),
             employeeId,
             action,
             assignmentChanged ? "role/assignment changed" : null,
@@ -205,14 +188,14 @@ public sealed class UpdateEmployeeCommandHandler(
     }
 
     private readonly record struct UpdateOutcome(
-        Result<EmployeeProfile> Result,
+        Result<EmployeeProfile, EmployeeError> Profile,
         string? EmployeeId,
         string? AuditAction,
         string? Detail,
         bool PasswordReset)
     {
         public static UpdateOutcome Fail(EmployeeError error) =>
-            new(Result<EmployeeProfile>.Fail(error), null, null, null, false);
+            new(Result<EmployeeProfile, EmployeeError>.Fail(error), null, null, null, false);
     }
 
     private UpdateOutcome Forbidden(EmployeeActor actor, Guid targetId)
@@ -223,6 +206,34 @@ public sealed class UpdateEmployeeCommandHandler(
 
     private static bool Same(string? left, string? right) =>
         string.Equals(left?.Trim() ?? string.Empty, right?.Trim() ?? string.Empty, StringComparison.Ordinal);
+}
+
+public sealed class UpdateEmployeeCommandValidator : AbstractValidator<UpdateEmployeeCommand>
+{
+    public UpdateEmployeeCommandValidator()
+    {
+        RuleFor(command => command.FullName)
+            .Must(name => EmployeeRules.Present(name, 200))
+            .WithErrorCode(nameof(EmployeeError.ProfileIncomplete));
+        RuleFor(command => command.Role)
+            .Must(EmployeeRole.IsAllowed)
+            .WithErrorCode(nameof(EmployeeError.InvalidRole));
+        RuleFor(command => command.Email)
+            .Must(EmployeeRules.IsEmail)
+            .WithErrorCode(nameof(EmployeeError.ProfileIncomplete));
+        RuleFor(command => command.Phone)
+            .Must(value => EmployeeRules.Present(value, 30))
+            .WithErrorCode(nameof(EmployeeError.ProfileIncomplete));
+        RuleFor(command => command.JobTitle)
+            .Must(value => EmployeeRules.Present(value, 100))
+            .WithErrorCode(nameof(EmployeeError.ProfileIncomplete));
+        RuleFor(command => command.Address)
+            .Must(value => EmployeeRules.Fits(value, 300))
+            .WithErrorCode(nameof(EmployeeError.ProfileIncomplete));
+        RuleFor(command => command.Department)
+            .Must(value => EmployeeRules.Fits(value, 100))
+            .WithErrorCode(nameof(EmployeeError.ProfileIncomplete));
+    }
 }
 
 internal static class EmployeeMapping
@@ -242,179 +253,6 @@ internal static class EmployeeMapping
             employee.IsActive,
             employee.TwoFactorEnabled,
             employee.LockedUntil,
-            employee.RecoveryCodesLeft);
-}
-
-public sealed class GetEmployeeHandler(
-    IEmployeeRepository repository,
-    ILogger<GetEmployeeHandler> logger)
-{
-    public async Task<Result<EmployeeProfile>> HandleAsync(
-        Guid id,
-        EmployeeActor actor,
-        CancellationToken cancellationToken)
-    {
-        var employee = await repository.GetByIdReadOnlyAsync(id, cancellationToken);
-        if (employee is null)
-        {
-            logger.LogWarning("Employee {EmployeeId} was not found.", id);
-            return Result<EmployeeProfile>.Fail(EmployeeError.NotFound);
-        }
-
-        if (!EmployeeAccess.CanView(actor, employee.Id, employee.StockLocationId))
-        {
-            return Result<EmployeeProfile>.Fail(EmployeeError.Forbidden);
-        }
-
-        return Result<EmployeeProfile>.Ok(EmployeeMapping.ToProfile(employee));
-    }
-}
-
-public sealed class SetEmployeeActiveCommandHandler(
-    IEmployeeRepository repository,
-    ILogger<SetEmployeeActiveCommandHandler> logger,
-    TimeProvider? clock = null,
-    Pancras.Application.Auditing.IAuditLog? audit = null,
-    Pancras.Application.Auditing.IRequestInfo? request = null)
-{
-    public async Task<Result<EmployeeProfile>> HandleAsync(
-        Guid id,
-        bool active,
-        EmployeeActor actor,
-        CancellationToken cancellationToken)
-    {
-        var employee = await repository.GetByIdAsync(id, cancellationToken);
-        if (employee is null)
-        {
-            return Result<EmployeeProfile>.Fail(EmployeeError.NotFound);
-        }
-
-        if (!EmployeeAccess.CanSetActive(actor, employee.Id, employee.Role))
-        {
-            logger.LogWarning("Employee status change forbidden for {ActorId} on {EmployeeId}.", actor.Id, employee.Id);
-            return Result<EmployeeProfile>.Fail(EmployeeError.Forbidden);
-        }
-
-        var result = await repository.WithinPersonnelRulesAsync(
-            ct => ApplyActiveChangeAsync(employee, active, ct),
-            cancellationToken);
-        if (result.IsSuccess)
-        {
-            var action = active
-                ? Pancras.Domain.Auditing.AuditActions.EmployeeActivated
-                : Pancras.Domain.Auditing.AuditActions.EmployeeDeactivated;
-            await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, action, "employee", employee.Id.ToString("D"), active ? "activated" : null, cancellationToken);
-        }
-
-        return result;
-    }
-
-    private async Task<Result<EmployeeProfile>> ApplyActiveChangeAsync(
-        Employee employee,
-        bool active,
-        CancellationToken cancellationToken)
-    {
-        if (!active && employee.IsActive && employee.Role == EmployeeRole.Admin
-            && await repository.CountActiveAdminsAsync(cancellationToken) <= 1)
-        {
-            return Result<EmployeeProfile>.Fail(EmployeeError.LastAdmin);
-        }
-
-        if (active && !employee.IsActive
-            && employee.Role == EmployeeRole.ShowroomWarehouseLead
-            && employee.StockLocationId is Guid locationId
-            && await repository.ActiveLeadExistsAsync(locationId, employee.Id, cancellationToken))
-        {
-            return Result<EmployeeProfile>.Fail(EmployeeError.LeadExists);
-        }
-
-        if (active)
-        {
-            employee.Activate();
-        }
-        else
-        {
-            employee.Deactivate();
-        }
-
-        await repository.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("Set employee {EmployeeId} active={Active}.", employee.Id, active);
-        return Result<EmployeeProfile>.Ok(EmployeeMapping.ToProfile(employee));
-    }
-}
-
-public sealed class UpdateOwnProfileCommandHandler(
-    IEmployeeRepository repository,
-    ILogger<UpdateOwnProfileCommandHandler> logger)
-{
-    public async Task<Result<EmployeeSession>> HandleAsync(
-        UpdateOwnProfileCommand command,
-        EmployeeActor actor,
-        CancellationToken cancellationToken)
-    {
-        if (!EmployeeRules.Present(command.FullName, 200)
-            || !EmployeeRules.IsEmail(command.Email)
-            || !EmployeeRules.Present(command.Phone, 30)
-            || !EmployeeRules.Fits(command.Address, 300))
-        {
-            return Result<EmployeeSession>.Fail(EmployeeError.ProfileIncomplete);
-        }
-
-        var employee = await repository.GetByIdAsync(actor.Id, cancellationToken);
-        if (employee is null)
-        {
-            return Result<EmployeeSession>.Fail(EmployeeError.NotFound);
-        }
-
-        if (!employee.Rename(command.FullName!))
-        {
-            return Result<EmployeeSession>.Fail(EmployeeError.ProfileIncomplete);
-        }
-
-        employee.ReplaceContact(command.Email, command.Phone, command.Address);
-        await repository.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("Employee {EmployeeId} updated their own profile.", employee.Id);
-        return Result<EmployeeSession>.Ok(
-            new EmployeeSession(employee.Id, employee.FullName, employee.Code, employee.Role, employee.StockLocationId, employee.SecurityStamp));
-    }
-}
-
-public sealed class ChangeOwnPasswordCommandHandler(
-    IEmployeeRepository repository,
-    IPasswordHasher passwordHasher,
-    ILogger<ChangeOwnPasswordCommandHandler> logger,
-    TimeProvider? clock = null,
-    Pancras.Application.Auditing.IAuditLog? audit = null,
-    Pancras.Application.Auditing.IRequestInfo? request = null)
-{
-    public async Task<Result<EmployeeSession>> HandleAsync(
-        ChangeOwnPasswordCommand command,
-        EmployeeActor actor,
-        CancellationToken cancellationToken)
-    {
-        var employee = await repository.GetByIdAsync(actor.Id, cancellationToken);
-        if (employee is null)
-        {
-            return Result<EmployeeSession>.Fail(EmployeeError.NotFound);
-        }
-
-        if (string.IsNullOrEmpty(command.CurrentPassword)
-            || !passwordHasher.Verify(command.CurrentPassword, employee.PasswordHash))
-        {
-            logger.LogWarning("Password change rejected for employee {EmployeeId}.", employee.Id);
-            return Result<EmployeeSession>.Fail(EmployeeError.WrongPassword);
-        }
-
-        if (!PasswordPolicy.IsAcceptable(command.NewPassword))
-        {
-            return Result<EmployeeSession>.Fail(EmployeeError.WeakPassword);
-        }
-
-        employee.ReplacePassword(passwordHasher.Hash(command.NewPassword!));
-        await repository.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("Employee {EmployeeId} changed their password.", employee.Id);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.PasswordChanged, "employee", employee.Id.ToString("D"), null, cancellationToken);
-        return Result<EmployeeSession>.Ok(
-            new EmployeeSession(employee.Id, employee.FullName, employee.Code, employee.Role, employee.StockLocationId, employee.SecurityStamp));
-    }
+            employee.RecoveryCodesLeft,
+            employee.Version);
 }

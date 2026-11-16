@@ -27,8 +27,6 @@ public sealed class ListEmployeesHandler(
     ILocationRepository locations,
     ILogger<ListEmployeesHandler> logger)
 {
-    public const int PageSize = 20;
-
     public async Task<IReadOnlyList<EmployeeCard>> HandleAsync(
         EmployeeActor actor,
         string? search,

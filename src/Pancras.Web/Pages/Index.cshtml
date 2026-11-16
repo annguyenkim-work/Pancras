@@ -1,35 +1,9 @@
 @page "/"
 @model Pancras.Web.Pages.IndexModel
-@using Pancras.Domain.Catalog
-@using Pancras.Domain.Employees
+@using Pancras.Web.Navigation
 @{
     ViewData["Title"] = "Tổng quan điều hành";
-    var canPurchase = User.IsInRole(EmployeeRole.Admin)
-        || User.IsInRole(EmployeeRole.Director)
-        || User.IsInRole(EmployeeRole.Accountant);
-    var canViewCatalog = CatalogAccess.CanView(Model.Role);
-    var canManageStaff = Model.Role is "Admin" or "Giám đốc" or "Kế toán" or "Trưởng Showroom/Kho";
-    var shortcuts = new List<(string Href, string Title, string Hint)>();
-    if (Pancras.Domain.Inventory.InventoryAccess.CanView(Model.Role))
-    {
-        shortcuts.Add(("/inventory", "Kho & Điều chuyển", "Tra cứu tồn, chuyển kho, kiểm kê, điều chỉnh."));
-    }
-    if (canPurchase)
-    {
-        shortcuts.Add(("/purchasing", "Mua hàng & Container", "Lập đơn nhập khẩu, phân bổ chi phí, nhận hàng."));
-    }
-    if (SupplierAccess.CanManage(Model.Role))
-    {
-        shortcuts.Add(("/suppliers", "Nhà cung cấp", "Danh bạ nhà cung cấp nhập khẩu."));
-    }
-    if (canViewCatalog)
-    {
-        shortcuts.Add(("/catalog", "Danh mục sản phẩm & giá", "Mặt hàng, quy cách và các bảng giá."));
-    }
-    if (canManageStaff)
-    {
-        shortcuts.Add(("/employees", "Nhân sự & Phân quyền", "Hồ sơ nhân viên và vai trò."));
-    }
+    var shortcuts = NavigationMenu.ShortcutsFor(Model.Role).ToList();
 }
 
 <section class="bg-white rounded-xl border border-slate-200 p-6">
@@ -43,10 +17,10 @@
     {
         <a href="@item.Href" class="group block rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-sky-300 hover:shadow">
             <div class="flex items-center justify-between gap-3">
-                <h3 class="text-base font-bold text-slate-900">@item.Title</h3>
+                <h3 class="text-base font-bold text-slate-900">@(item.HomeTitle ?? item.Label)</h3>
                 <span class="text-sky-600 transition group-hover:translate-x-0.5" aria-hidden="true">→</span>
             </div>
-            <p class="mt-2 text-sm text-slate-600">@item.Hint</p>
+            <p class="mt-2 text-sm text-slate-600">@item.HomeHint</p>
         </a>
     }
 </div>

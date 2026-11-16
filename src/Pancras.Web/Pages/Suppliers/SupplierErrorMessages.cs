@@ -8,12 +8,17 @@ public static class SupplierErrorMessages
     {
         if (error == SupplierError.NotFound)
         {
-            return ["Không tìm thấy nhà cung cấp này. Có thể nhà cung cấp đã ngừng hợp tác hoặc bị xóa."];
+            return ["Không tìm thấy nhà cung cấp này. Có thể nhà cung cấp đã Disable hoặc bị xóa."];
         }
 
         if (error == SupplierError.Forbidden)
         {
             return ["Bạn không có quyền thực hiện thao tác này."];
+        }
+
+        if (error == SupplierError.VersionConflict)
+        {
+            return ["Nhà cung cấp vừa được người khác cập nhật. Đóng form, tải lại trang rồi sửa lại."];
         }
 
         var messages = issues.Select(issue => Sentence(issue, code)).ToArray();
@@ -30,7 +35,7 @@ public static class SupplierErrorMessages
             SupplierError.InvalidPhone => ["Điện thoại không đúng định dạng."],
             SupplierError.InvalidSwift => ["Mã SWIFT không đúng định dạng. Cần 8 hoặc 11 ký tự chữ và số."],
             SupplierError.DuplicateCode => ["Mã nhà cung cấp đã có trong danh bạ."],
-            SupplierError.HasOpenPurchases => ["Nhà cung cấp này còn đơn mua chưa nhập kho. Nhập kho hoặc xử lý các đơn đó trước khi ngừng hợp tác."],
+            SupplierError.HasOpenPurchases => ["Nhà cung cấp này còn đơn mua chưa nhập kho. Nhập kho hoặc xử lý các đơn đó trước khi Disable."],
             _ => []
         };
     }
@@ -51,7 +56,7 @@ public static class SupplierErrorMessages
             SupplierIssueKind.Duplicate =>
                 $"Mã nhà cung cấp \"{code?.Trim()}\" đã có trong danh bạ. Mã không phân biệt chữ hoa và chữ thường. Hãy nhập mã khác.",
             SupplierIssueKind.DuplicateInactive =>
-                $"Mã nhà cung cấp \"{code?.Trim()}\" đang thuộc một nhà cung cấp đã ngừng hợp tác. Hãy chọn bộ lọc \"Đã ngừng hợp tác\" để nhờ Admin khôi phục, hoặc dùng mã khác.",
+                $"Mã nhà cung cấp \"{code?.Trim()}\" đang thuộc một nhà cung cấp đã Disable. Hãy chọn bộ lọc \"Disabled\" để nhờ Admin khôi phục, hoặc dùng mã khác.",
             _ => $"{label} không hợp lệ."
         };
     }

@@ -1,3 +1,4 @@
+using Pancras.Application.Common;
 using Microsoft.Extensions.Logging.Abstractions;
 using Pancras.Application.Locations;
 using Pancras.Domain.Employees;
@@ -7,6 +8,19 @@ namespace Pancras.Application.Tests;
 
 public class LocationManagementTests
 {
+    [Fact]
+    public async Task ConcurrentSave_IsAVersionConflict_ForUpdateAndDisable()
+    {
+        var (repo, location) = Setup();
+        repo.NextOutcome = SaveOutcome.Conflict;
+
+        var update = await Update(repo).HandleAsync(new UpdateLocationCommand { Id = location.Id, Version = location.Version, Name = "Tên mới", Kind = StockLocationKind.Showroom }, Admin, CancellationToken.None);
+        var disable = await Delete(repo).HandleAsync(location.Id, Admin, CancellationToken.None);
+
+        Assert.Equal(LocationManageError.VersionConflict, update);
+        Assert.Equal(LocationManageError.VersionConflict, disable);
+    }
+
     private sealed class FakeManagement : ILocationManagementRepository
     {
         public List<StockLocation> Locations { get; } = [];
@@ -20,10 +34,10 @@ public class LocationManagementTests
         public int Saves { get; private set; }
 
         public Task<StockLocation?> GetForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
-            Task.FromResult(Locations.FirstOrDefault(l => l.Id == id && !l.IsDeleted));
+            Task.FromResult(Locations.FirstOrDefault(l => l.Id == id && l.IsActive));
 
         public Task<bool> NameExistsAsync(string name, Guid excludingId, CancellationToken cancellationToken) =>
-            Task.FromResult(Locations.Any(l => !l.IsDeleted && l.Id != excludingId && string.Equals(l.Name, name, StringComparison.OrdinalIgnoreCase)));
+            Task.FromResult(Locations.Any(l => l.IsActive && l.Id != excludingId && string.Equals(l.Name, name, StringComparison.OrdinalIgnoreCase)));
 
         public Task<bool> HasStockAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(Stock);
 
@@ -31,10 +45,12 @@ public class LocationManagementTests
 
         public Task<bool> HasOpenDocumentsAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(OpenDocuments);
 
-        public Task<bool> TrySaveAsync(CancellationToken cancellationToken)
+        public SaveOutcome NextOutcome { get; set; } = SaveOutcome.Saved;
+
+        public Task<SaveOutcome> TrySaveAsync(CancellationToken cancellationToken)
         {
             Saves++;
-            return Task.FromResult(true);
+            return Task.FromResult(NextOutcome);
         }
     }
 
@@ -61,7 +77,7 @@ public class LocationManagementTests
 
         Assert.Equal(LocationManageError.HasOpenDocuments, blocked);
         Assert.Equal(LocationManageError.None, allowed);
-        Assert.True(location.IsDeleted);
+        Assert.False(location.IsActive);
     }
 
     [Theory]
@@ -85,19 +101,28 @@ public class LocationManagementTests
     {
         var (repo, location) = Setup();
         var audit = new MemoryAudit();
-        var handler = new DeleteLocationCommandHandler(repo, NullLogger<DeleteLocationCommandHandler>.Instance, audit: audit);
+        var handler = new DisableLocationCommandHandler(repo, NullLogger<DisableLocationCommandHandler>.Instance, audit: audit);
 
         var result = await handler.HandleAsync(location.Id, new EmployeeActor(Guid.NewGuid(), EmployeeRole.Sales, null), CancellationToken.None);
 
         Assert.Equal(LocationManageError.Forbidden, result);
-        Assert.False(location.IsDeleted);
+        Assert.True(location.IsActive);
         var entry = Assert.Single(audit.Entries);
         Assert.Equal(Pancras.Domain.Auditing.AuditActions.AccessDenied, entry.Action);
     }
 
     private static UpdateLocationCommandHandler Update(FakeManagement repo) => new(repo, NullLogger<UpdateLocationCommandHandler>.Instance);
 
-    private static DeleteLocationCommandHandler Delete(FakeManagement repo) => new(repo, NullLogger<DeleteLocationCommandHandler>.Instance);
+    private static DisableLocationCommandHandler Delete(FakeManagement repo) => new(repo, NullLogger<DisableLocationCommandHandler>.Instance);
+
+    [Fact]
+    public async Task Update_WithAStaleVersion_IsRejected_AndChangesNothing()
+    {
+        var (repo, location) = Setup();
+        var error = await Update(repo).HandleAsync(new UpdateLocationCommand { Id = location.Id, Version = location.Version + 1, Name = "Tên mới", Kind = StockLocationKind.Showroom }, Admin, CancellationToken.None);
+        Assert.Equal(LocationManageError.VersionConflict, error);
+        Assert.NotEqual("Tên mới", location.Name);
+    }
 
     [Fact]
     public async Task Update_RenamesAndChangesKind()
@@ -124,7 +149,7 @@ public class LocationManagementTests
     {
         var (repo, location) = Setup();
         Assert.Equal(LocationManageError.None, await Delete(repo).HandleAsync(location.Id, Admin, CancellationToken.None));
-        Assert.True(location.IsDeleted);
+        Assert.False(location.IsActive);
         Assert.Contains(location, repo.Locations);
     }
 
@@ -137,6 +162,6 @@ public class LocationManagementTests
         repo.Stock = false;
         repo.ActiveEmployees = true;
         Assert.Equal(LocationManageError.HasActiveEmployees, await Delete(repo).HandleAsync(location.Id, Admin, CancellationToken.None));
-        Assert.False(location.IsDeleted);
+        Assert.True(location.IsActive);
     }
 }

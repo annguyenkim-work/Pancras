@@ -1,0 +1,48 @@
+using Pancras.Application.Auditing;
+using FluentValidation;
+using Microsoft.Extensions.Logging;
+using Pancras.Application.Common;
+using Pancras.Application.Locations;
+using Pancras.Domain.Employees;
+
+namespace Pancras.Application.Employees;
+
+public sealed class ChangeOwnPasswordCommandHandler(
+    IEmployeeRepository repository,
+    IPasswordHasher passwordHasher,
+    ILogger<ChangeOwnPasswordCommandHandler> logger,
+    TimeProvider? clock = null,
+    Pancras.Application.Auditing.IAuditLog? audit = null,
+    Pancras.Application.Auditing.IRequestInfo? request = null)
+{
+    public async Task<Result<EmployeeSession, EmployeeError>> HandleAsync(
+        ChangeOwnPasswordCommand command,
+        EmployeeActor actor,
+        CancellationToken cancellationToken)
+    {
+        var employee = await repository.GetByIdAsync(actor.Id, cancellationToken);
+        if (employee is null)
+        {
+            return Result<EmployeeSession, EmployeeError>.Fail(EmployeeError.NotFound);
+        }
+
+        if (string.IsNullOrEmpty(command.CurrentPassword)
+            || !passwordHasher.Verify(command.CurrentPassword, employee.PasswordHash))
+        {
+            logger.LogInformation("Password change rejected for employee {EmployeeId}.", employee.Id);
+            return Result<EmployeeSession, EmployeeError>.Fail(EmployeeError.WrongPassword);
+        }
+
+        if (!PasswordPolicy.IsAcceptable(command.NewPassword))
+        {
+            return Result<EmployeeSession, EmployeeError>.Fail(EmployeeError.WeakPassword);
+        }
+
+        employee.ReplacePassword(passwordHasher.Hash(command.NewPassword!));
+        await repository.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Employee {EmployeeId} changed their password.", employee.Id);
+        await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.PasswordChanged, "employee", employee.Id.ToString("D"), null, cancellationToken);
+        return Result<EmployeeSession, EmployeeError>.Ok(
+            new EmployeeSession(employee.Id, employee.FullName, employee.Code, employee.Role, employee.StockLocationId, employee.SecurityStamp));
+    }
+}

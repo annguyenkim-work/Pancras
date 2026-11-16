@@ -54,21 +54,20 @@ public class CatalogPageTests : IClassFixture<PancrasWebFactory>
         var detailText = Decode(detailHtml);
         var addText = Decode(addHtml);
         var priceText = Decode(priceHtml);
-        Assert.Contains("15.000.000 đ", text, StringComparison.Ordinal);
-        Assert.Contains("0 đ", text, StringComparison.Ordinal);
-        Assert.DoesNotContain("15.000.000 VNĐ", text, StringComparison.Ordinal);
-        Assert.DoesNotContain("0 VNĐ", text, StringComparison.Ordinal);
+        Assert.Contains("15.000.000 VNĐ", text, StringComparison.Ordinal);
+        Assert.Contains("0 VNĐ", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("15.000.000 đ", text, StringComparison.Ordinal);
         Assert.Contains("0,4", detailText, StringComparison.Ordinal);
-        Assert.DoesNotContain("0,4 đ", detailText, StringComparison.Ordinal);
-        Assert.DoesNotContain("12 đ", detailText, StringComparison.Ordinal);
+        Assert.DoesNotContain("0,4 VNĐ", detailText, StringComparison.Ordinal);
+        Assert.DoesNotContain("12 VNĐ", detailText, StringComparison.Ordinal);
         Assert.Contains("Giá đã gồm VAT.", addText, StringComparison.Ordinal);
         Assert.Contains("Giá đã gồm VAT.", priceText, StringComparison.Ordinal);
         Assert.Contains("Thêm sản phẩm vào danh mục", addText, StringComparison.Ordinal);
         Assert.Contains("Lưu sản phẩm", addText, StringComparison.Ordinal);
         Assert.Contains("Sửa sản phẩm", priceText, StringComparison.Ordinal);
-        Assert.Contains("0 đ", addText, StringComparison.Ordinal);
+        Assert.Contains("0 VNĐ", addText, StringComparison.Ordinal);
         Assert.Contains("<dialog id=\"catalog-dialog\"", addHtml, StringComparison.Ordinal);
-        Assert.Contains("getElementById(\"catalog-dialog\").showModal()", addHtml, StringComparison.Ordinal);
+        Assert.Contains("id=\"catalog-dialog\" data-autoshow", addHtml, StringComparison.Ordinal);
         Assert.Contains("Chiều cao (mm)", addText, StringComparison.Ordinal);
         Assert.Contains("Chiều dài (mm)", addText, StringComparison.Ordinal);
         Assert.Contains("Chiều rộng (mm)", addText, StringComparison.Ordinal);
@@ -334,17 +333,17 @@ internal sealed class CatalogDirectoryDouble : ICatalogItemRepository
 {
     public List<CatalogItem> Items { get; } = [];
 
-    public Task<CatalogSlice> ListAsync(CatalogListFilter filter, int pageNumber, int pageSize, CancellationToken cancellationToken)
+    public Task<CatalogSlice> ListAsync(ListCatalogItemsQuery filter, int pageNumber, int pageSize, CancellationToken cancellationToken)
     {
         var ordered = Matching(filter);
-        var size = pageSize < 1 ? CatalogPageRequest.DefaultSize : pageSize;
+        var size = pageSize < 1 ? Pancras.Application.Common.PageSizes.Default : pageSize;
         var totalPages = ordered.Count == 0 ? 1 : (ordered.Count + size - 1) / size;
         var number = Math.Clamp(pageNumber < 1 ? 1 : pageNumber, 1, totalPages);
         IReadOnlyList<CatalogItem> page = ordered.Skip((number - 1) * size).Take(size).ToList();
         return Task.FromResult(new CatalogSlice(page, ordered.Count, number));
     }
 
-    public Task<IReadOnlyList<CatalogItem>> ListMatchingAsync(CatalogListFilter filter, CancellationToken cancellationToken) =>
+    public Task<IReadOnlyList<CatalogItem>> ListMatchingAsync(ListCatalogItemsQuery filter, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<CatalogItem>>(Matching(filter));
 
     public Task<CatalogItem?> GetVisibleReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
@@ -365,7 +364,7 @@ internal sealed class CatalogDirectoryDouble : ICatalogItemRepository
         return Task.FromResult(true);
     }
 
-    public Task<bool> TrySaveAsync(CancellationToken cancellationToken) => Task.FromResult(true);
+    public Task<Pancras.Application.Common.SaveOutcome> TrySaveAsync(CancellationToken cancellationToken) => Task.FromResult(Pancras.Application.Common.SaveOutcome.Saved);
 
     public Task<IReadOnlyDictionary<Guid, CatalogItemMeasure>> ListMeasuresAsync(
         IReadOnlyCollection<Guid> ids,
@@ -377,6 +376,6 @@ internal sealed class CatalogDirectoryDouble : ICatalogItemRepository
         return Task.FromResult(rows);
     }
 
-    private List<CatalogItem> Matching(CatalogListFilter filter) =>
+    private List<CatalogItem> Matching(ListCatalogItemsQuery filter) =>
         Items.Where(filter.Matches).OrderBy(item => item.Name).ThenBy(item => item.Code).ToList();
 }

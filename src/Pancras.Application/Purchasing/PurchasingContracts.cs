@@ -2,21 +2,6 @@ using Pancras.Domain.Purchasing;
 
 namespace Pancras.Application.Purchasing;
 
-public interface IPurchaseOrderRepository
-{
-    Task<IReadOnlyList<PurchaseOrder>> ListAsync(CancellationToken cancellationToken);
-
-    Task<PurchaseOrder?> FindReadOnlyAsync(Guid id, CancellationToken cancellationToken);
-
-    Task<PurchaseOrder?> FindForUpdateAsync(Guid id, CancellationToken cancellationToken);
-
-    Task<bool> NormalizedCodeExistsAsync(string normalizedCode, CancellationToken cancellationToken);
-
-    Task<bool> TryAddAsync(PurchaseOrder order, CancellationToken cancellationToken);
-
-    Task<bool> CommitAsync(CancellationToken cancellationToken);
-}
-
 public sealed record PurchaseOrderSummary(
     Guid Id,
     string Code,
@@ -221,7 +206,6 @@ public sealed class UpdatePurchaseOrderCommand
     /// </summary>
     public IReadOnlyList<UpdatePurchaseChargeInput>? Charges { get; set; }
 }
-
 
 /// <summary>
 /// Một lần nhận hàng. <see cref="Actuals"/> là số thực nhận lần này theo mã dòng; null nghĩa là nhận đủ phần còn lại của mọi dòng.

@@ -1,0 +1,34 @@
+namespace Pancras.Application.Common;
+
+public enum StockError
+{
+    None = 0,
+    InvalidTransfer,
+    ShipmentRejected,
+    ReceiptRejected,
+    CancelRejected,
+    ReasonRequired,
+    QuantityRequired,
+    InvalidText,
+    NotYourLocation,
+    NotCreator,
+    TransferStateChanged,
+    InsufficientStock,
+    ReturnRejected,
+    AttachmentRequired,
+    ApprovalRejected,
+    TransferNotFound,
+    AttachmentInvalid,
+    AttachmentTooLarge,
+    AttachmentLimit,
+    MissingEvidence,
+    NegativeStock,
+    ApprovalForbidden,
+    DisposalRejected,
+    Forbidden,
+    MissingTarget,
+    InvalidQuantity,
+    EvidenceTooLong,
+    CountRequired,
+    InvalidCount
+}

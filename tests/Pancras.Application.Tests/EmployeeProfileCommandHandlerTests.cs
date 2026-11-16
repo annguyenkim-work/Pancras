@@ -70,6 +70,47 @@ public class EmployeeProfileCommandHandlerTests
         };
 
     [Fact]
+    public async Task UpdateWithAStaleVersion_IsRejected_AndChangesNothing()
+    {
+        var employee = Add("Nguyễn An", "an", EmployeeRole.Accountant);
+        var command = UpdateFrom(employee);
+        command.Version = employee.Version + 1;
+        command.FullName = "Tên khác";
+
+        var result = await UpdateHandler().HandleAsync(command, Admin(), CancellationToken.None);
+
+        Assert.Equal(EmployeeError.VersionConflict, result.Error);
+        Assert.Equal("Nguyễn An", employee.FullName);
+    }
+
+    [Fact]
+    public async Task UpdateLostToAConcurrentSave_IsReportedAsAVersionConflict()
+    {
+        var employee = Add("Nguyễn An", "an", EmployeeRole.Accountant);
+        var command = UpdateFrom(employee);
+        command.Department = "Phòng mới";
+        _repository.NextSaveOutcome = Pancras.Application.Common.SaveOutcome.Conflict;
+
+        var result = await UpdateHandler().HandleAsync(command, Admin(), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(EmployeeError.VersionConflict, result.Error);
+    }
+
+    [Fact]
+    public async Task DeactivateLostToAConcurrentSave_IsReportedAsAVersionConflict()
+    {
+        Add("Quản Trị", "admin", EmployeeRole.Admin);
+        var accountant = Add("Nguyễn Kim An", "AnNK", EmployeeRole.Accountant);
+        _repository.NextSaveOutcome = Pancras.Application.Common.SaveOutcome.Conflict;
+        var handler = new SetEmployeeActiveCommandHandler(_repository, NullLogger<SetEmployeeActiveCommandHandler>.Instance);
+
+        var result = await handler.HandleAsync(accountant.Id, false, Admin(), CancellationToken.None);
+
+        Assert.Equal(EmployeeError.VersionConflict, result.Error);
+    }
+
+    [Fact]
     public async Task CreateWithoutPassword_DoesNotInsert()
     {
         var command = CreateCommand("Nguyễn Kim An");
@@ -77,7 +118,7 @@ public class EmployeeProfileCommandHandlerTests
 
         var result = await CreateHandler().HandleAsync(command, Admin(), CancellationToken.None);
 
-        Assert.Equal(EmployeeError.WeakPassword, result.EmployeeError);
+        Assert.Equal(EmployeeError.WeakPassword, result.Error);
         Assert.Empty(_repository.Added);
     }
 
@@ -89,7 +130,7 @@ public class EmployeeProfileCommandHandlerTests
 
         var result = await CreateHandler().HandleAsync(command, Admin(), CancellationToken.None);
 
-        Assert.Equal(EmployeeError.WeakPassword, result.EmployeeError);
+        Assert.Equal(EmployeeError.WeakPassword, result.Error);
     }
 
     [Fact]
@@ -120,7 +161,7 @@ public class EmployeeProfileCommandHandlerTests
     {
         var result = await CreateHandler().HandleAsync(CreateCommand("---"), Admin(), CancellationToken.None);
 
-        Assert.Equal(EmployeeError.NameUnusable, result.EmployeeError);
+        Assert.Equal(EmployeeError.NameUnusable, result.Error);
         Assert.Empty(_repository.Added);
     }
 
@@ -131,7 +172,7 @@ public class EmployeeProfileCommandHandlerTests
 
         var result = await CreateHandler().HandleAsync(CreateCommand("Nguyễn Kim An"), Admin(), CancellationToken.None);
 
-        Assert.Equal(EmployeeError.CodeExhausted, result.EmployeeError);
+        Assert.Equal(EmployeeError.CodeExhausted, result.Error);
     }
 
     [Fact]
@@ -150,7 +191,7 @@ public class EmployeeProfileCommandHandlerTests
         var byDirector = await CreateHandler().HandleAsync(CreateCommand("Nguyễn Kim An", EmployeeRole.Admin), Director(), CancellationToken.None);
         var byAdmin = await CreateHandler().HandleAsync(CreateCommand("Trần Văn Bình", EmployeeRole.Admin), Admin(), CancellationToken.None);
 
-        Assert.Equal(EmployeeError.Forbidden, byDirector.EmployeeError);
+        Assert.Equal(EmployeeError.Forbidden, byDirector.Error);
         Assert.True(byAdmin.IsSuccess);
     }
 
@@ -163,8 +204,8 @@ public class EmployeeProfileCommandHandlerTests
         var one = await CreateHandler().HandleAsync(CreateCommand("Nguyễn Kim An"), accountant, CancellationToken.None);
         var two = await CreateHandler().HandleAsync(CreateCommand("Nguyễn Kim An", EmployeeRole.Sales, _kho.Id), sales, CancellationToken.None);
 
-        Assert.Equal(EmployeeError.Forbidden, one.EmployeeError);
-        Assert.Equal(EmployeeError.Forbidden, two.EmployeeError);
+        Assert.Equal(EmployeeError.Forbidden, one.Error);
+        Assert.Equal(EmployeeError.Forbidden, two.Error);
     }
 
     [Fact]
@@ -177,8 +218,8 @@ public class EmployeeProfileCommandHandlerTests
         var wrongRole = await CreateHandler().HandleAsync(CreateCommand("Lê Văn Cường", EmployeeRole.Accountant, _kho.Id), lead, CancellationToken.None);
 
         Assert.True(ok.IsSuccess);
-        Assert.Equal(EmployeeError.Forbidden, otherLocation.EmployeeError);
-        Assert.Equal(EmployeeError.Forbidden, wrongRole.EmployeeError);
+        Assert.Equal(EmployeeError.Forbidden, otherLocation.Error);
+        Assert.Equal(EmployeeError.Forbidden, wrongRole.Error);
     }
 
     [Fact]
@@ -186,7 +227,7 @@ public class EmployeeProfileCommandHandlerTests
     {
         var result = await CreateHandler().HandleAsync(CreateCommand("Nguyễn Kim An", EmployeeRole.WarehouseKeeper), Admin(), CancellationToken.None);
 
-        Assert.Equal(EmployeeError.LocationRequired, result.EmployeeError);
+        Assert.Equal(EmployeeError.LocationRequired, result.Error);
     }
 
     [Fact]
@@ -194,7 +235,7 @@ public class EmployeeProfileCommandHandlerTests
     {
         var result = await CreateHandler().HandleAsync(CreateCommand("Nguyễn Kim An", EmployeeRole.Sales, Guid.NewGuid()), Admin(), CancellationToken.None);
 
-        Assert.Equal(EmployeeError.LocationNotFound, result.EmployeeError);
+        Assert.Equal(EmployeeError.LocationNotFound, result.Error);
     }
 
     [Fact]
@@ -204,7 +245,7 @@ public class EmployeeProfileCommandHandlerTests
 
         var result = await CreateHandler().HandleAsync(CreateCommand("Nguyễn Kim An", EmployeeRole.ShowroomWarehouseLead, _kho.Id), Admin(), CancellationToken.None);
 
-        Assert.Equal(EmployeeError.LeadExists, result.EmployeeError);
+        Assert.Equal(EmployeeError.LeadExists, result.Error);
     }
 
     [Fact]
@@ -252,8 +293,8 @@ public class EmployeeProfileCommandHandlerTests
         var one = await UpdateHandler().HandleAsync(reset, Director(), CancellationToken.None);
         var two = await UpdateHandler().HandleAsync(rename, Director(), CancellationToken.None);
 
-        Assert.Equal(EmployeeError.Forbidden, one.EmployeeError);
-        Assert.Equal(EmployeeError.Forbidden, two.EmployeeError);
+        Assert.Equal(EmployeeError.Forbidden, one.Error);
+        Assert.Equal(EmployeeError.Forbidden, two.Error);
         Assert.True(_hasher.Verify("Secret12", employee.PasswordHash));
         Assert.Equal("x@example.com", employee.Email);
     }
@@ -287,8 +328,8 @@ public class EmployeeProfileCommandHandlerTests
         var one = await UpdateHandler().HandleAsync(demote, Director(), CancellationToken.None);
         var two = await UpdateHandler().HandleAsync(promote, Director(), CancellationToken.None);
 
-        Assert.Equal(EmployeeError.Forbidden, one.EmployeeError);
-        Assert.Equal(EmployeeError.Forbidden, two.EmployeeError);
+        Assert.Equal(EmployeeError.Forbidden, one.Error);
+        Assert.Equal(EmployeeError.Forbidden, two.Error);
         Assert.Equal(EmployeeRole.Admin, admin.Role);
         Assert.Equal(EmployeeRole.Accountant, accountant.Role);
     }
@@ -302,7 +343,7 @@ public class EmployeeProfileCommandHandlerTests
 
         var result = await UpdateHandler().HandleAsync(command, Admin(), CancellationToken.None);
 
-        Assert.Equal(EmployeeError.LastAdmin, result.EmployeeError);
+        Assert.Equal(EmployeeError.LastAdmin, result.Error);
         Assert.Equal(EmployeeRole.Admin, onlyAdmin.Role);
     }
 
@@ -316,7 +357,7 @@ public class EmployeeProfileCommandHandlerTests
 
         var result = await UpdateHandler().HandleAsync(command, new EmployeeActor(admin.Id, admin.Role, null), CancellationToken.None);
 
-        Assert.Equal(EmployeeError.Forbidden, result.EmployeeError);
+        Assert.Equal(EmployeeError.Forbidden, result.Error);
     }
 
     [Fact]
@@ -328,7 +369,7 @@ public class EmployeeProfileCommandHandlerTests
 
         var result = await UpdateHandler().HandleAsync(command, Lead(_kho.Id), CancellationToken.None);
 
-        Assert.Equal(EmployeeError.Forbidden, result.EmployeeError);
+        Assert.Equal(EmployeeError.Forbidden, result.Error);
     }
 
     [Fact]
@@ -339,7 +380,7 @@ public class EmployeeProfileCommandHandlerTests
 
         var result = await handler.HandleAsync(other.Id, Lead(_kho.Id), CancellationToken.None);
 
-        Assert.Equal(EmployeeError.Forbidden, result.EmployeeError);
+        Assert.Equal(EmployeeError.Forbidden, result.Error);
     }
 
     [Fact]
@@ -373,8 +414,8 @@ public class EmployeeProfileCommandHandlerTests
         Assert.True(done.IsSuccess);
         Assert.False(accountant.IsActive);
         Assert.NotEqual(stamp, accountant.SecurityStamp);
-        Assert.Equal(EmployeeError.LastAdmin, lastAdmin.EmployeeError);
-        Assert.Equal(EmployeeError.Forbidden, byDirector.EmployeeError);
+        Assert.Equal(EmployeeError.LastAdmin, lastAdmin.Error);
+        Assert.Equal(EmployeeError.Forbidden, byDirector.Error);
         Assert.True(onlyAdmin.IsActive);
     }
 
@@ -407,8 +448,8 @@ public class EmployeeProfileCommandHandlerTests
         var weak = await handler.HandleAsync(new ChangeOwnPasswordCommand { CurrentPassword = "Secret12", NewPassword = "short" }, actor, CancellationToken.None);
         var ok = await handler.HandleAsync(new ChangeOwnPasswordCommand { CurrentPassword = "Secret12", NewPassword = "Another123" }, actor, CancellationToken.None);
 
-        Assert.Equal(EmployeeError.WrongPassword, wrong.EmployeeError);
-        Assert.Equal(EmployeeError.WeakPassword, weak.EmployeeError);
+        Assert.Equal(EmployeeError.WrongPassword, wrong.Error);
+        Assert.Equal(EmployeeError.WeakPassword, weak.Error);
         Assert.True(ok.IsSuccess);
         Assert.True(_hasher.Verify("Another123", employee.PasswordHash));
     }
@@ -422,7 +463,7 @@ public class EmployeeProfileCommandHandlerTests
 
         var result = await handler.HandleAsync(new LoginEmployeeCommand { EmployeeCode = "AnNK", Password = "Secret12" }, CancellationToken.None);
 
-        Assert.Equal(LoginError.InvalidCredentials, result.LoginError);
+        Assert.Equal(LoginError.InvalidCredentials, result.Error);
     }
 
     [Fact]
@@ -433,8 +474,8 @@ public class EmployeeProfileCommandHandlerTests
         var blank = await CreateHandler().HandleAsync(CreateCommand("Nguyễn Kim An", " "), Admin(), CancellationToken.None);
         var unknown = await CreateHandler().HandleAsync(CreateCommand("Nguyễn Kim An", "Nope"), Admin(), CancellationToken.None);
 
-        Assert.Equal(EmployeeError.RoleRequired, blank.EmployeeError);
-        Assert.Equal(EmployeeError.Forbidden, unknown.EmployeeError);
+        Assert.Equal(EmployeeError.RoleRequired, blank.Error);
+        Assert.Equal(EmployeeError.Forbidden, unknown.Error);
         Assert.Equal(before, _repository.Employees.Count);
     }
 
@@ -488,7 +529,7 @@ public class EmployeeProfileCommandHandlerTests
         var results = await Task.WhenAll(stoppingSecond, stoppingFirst);
 
         Assert.Equal(1, results.Count(result => result.IsSuccess));
-        Assert.Contains(results, result => result.EmployeeError == EmployeeError.LastAdmin);
+        Assert.Contains(results, result => result.Error == EmployeeError.LastAdmin);
         Assert.Equal(1, _repository.Employees.Count(employee => employee.Role == EmployeeRole.Admin && employee.IsActive));
     }
 }

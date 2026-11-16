@@ -8,6 +8,6 @@
     }
     @if (!string.IsNullOrWhiteSpace(Model.ActionLabel) && !string.IsNullOrWhiteSpace(Model.ActionHref))
     {
-        <a href="@Model.ActionHref" class="mt-4 inline-block rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white">@Model.ActionLabel</a>
+        <a href="@Model.ActionHref" class="mt-4 inline-block rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">@Model.ActionLabel</a>
     }
 </div>

@@ -33,7 +33,7 @@ public sealed class ListInventoryDocumentsHandler(
 
     public async Task<IReadOnlyList<StockItemChoice>> ListItemsAsync(CancellationToken cancellationToken)
     {
-        var items = await repository.ListItemChoicesAsync(cancellationToken);
+        var items = (await repository.ListItemChoicesAsync(cancellationToken)).Where(item => item.IsActive);
         return items.OrderBy(item => item.Name, StringComparer.Ordinal).ThenBy(item => item.Code, StringComparer.Ordinal).ToArray();
     }
 
@@ -207,7 +207,8 @@ public sealed class ListInventoryDocumentsHandler(
             slip.Status,
             slip.Status == ApprovalStatus.Pending && InventoryAccess.CanApprove(actor, slip.CreatedByRole, slip.StockLocationId),
             AuditStampView.From(slip),
-            files.GetValueOrDefault(slip.Id))).ToArray();
+            files.GetValueOrDefault(slip.Id),
+            slip.Quantity)).ToArray();
     }
 
     private async Task<Dictionary<Guid, IReadOnlyList<TransferAttachmentView>>> FilesAsync(IEnumerable<Guid> documentIds, CancellationToken cancellationToken)

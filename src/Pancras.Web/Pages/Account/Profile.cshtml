@@ -1,9 +1,10 @@
 @page "/profile"
+@using Pancras.Web.Formatting
 @model Pancras.Web.Pages.Account.ProfileModel
 @using Pancras.Application.Common
 @{
     ViewData["Title"] = "Hồ sơ của tôi";
-    const string inputClass = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2";
+    const string inputClass = Pancras.Web.Formatting.UiClasses.Input;
     string? ErrorText(EmployeeError error) => error switch
     {
         EmployeeError.None => null,
@@ -23,17 +24,9 @@
         Mã <span class="font-mono font-medium text-slate-700">@Model.Code</span> · @Model.Role@(string.IsNullOrWhiteSpace(Model.JobTitle) ? "" : " · " + Model.JobTitle).
         Vai trò, chức vụ và kho/showroom do Admin hoặc Giám đốc thay đổi.
     </p>
-    @if (Model.ProfileSaved)
-    {
-        <p class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800" role="status">Đã lưu hồ sơ.</p>
-    }
-    @if (Model.PasswordChanged)
-    {
-        <p class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800" role="status">Đã đổi mật khẩu.</p>
-    }
     @if (Model.Error != EmployeeError.None)
     {
-        <p class="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800" role="alert">@ErrorText(Model.Error)</p>
+        <div class="mt-4"><partial name="_Notice" model="new NoticeModel(ErrorText(Model.Error), ToastLevel.Error)" /></div>
     }
 </section>
 
@@ -46,7 +39,7 @@
             <label class="block text-sm">Điện thoại<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="Profile.Phone" class="@inputClass" /></label>
             <label class="block text-sm">Địa chỉ<input asp-for="Profile.Address" class="@inputClass" /></label>
             <div class="flex justify-end">
-                <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Lưu hồ sơ</button>
+                <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Lưu hồ sơ</button>
             </div>
         </form>
     </section>
@@ -56,7 +49,7 @@
             <label class="block text-sm">Mật khẩu hiện tại<input asp-for="Password.CurrentPassword" type="password" autocomplete="current-password" class="@inputClass" /></label>
             <label class="block text-sm">Mật khẩu mới <span class="text-xs text-slate-500">(8–128 ký tự)</span><input asp-for="Password.NewPassword" type="password" autocomplete="new-password" class="@inputClass" /></label>
             <div class="flex justify-end">
-                <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Đổi mật khẩu</button>
+                <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Đổi mật khẩu</button>
             </div>
         </form>
     </section>
@@ -65,10 +58,6 @@
 <section class="mt-4 bg-white rounded-xl border border-slate-200 p-6">
     <h2 class="text-base font-bold text-slate-900">Xác thực hai bước (tùy chọn)</h2>
     <p class="mt-1 text-sm text-slate-500">Thêm một lớp bảo vệ: sau mật khẩu, bạn nhập thêm mã 6 số từ ứng dụng Google Authenticator, Microsoft Authenticator hoặc Authy. Không tốn phí.</p>
-    @if (Model.TwoFactorOff)
-    {
-        <p class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800" role="status">Đã tắt xác thực hai bước.</p>
-    }
     @if (Model.NewRecoveryCodes.Count > 0)
     {
         <div class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4" role="status">
@@ -108,8 +97,8 @@
                     <input type="hidden" asp-for="ConfirmCode.ProtectedSecret" />
                     <input type="hidden" asp-for="SetupSecretText" />
                     <label class="block text-sm">Mã 6 số<input asp-for="ConfirmCode.Code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" class="@inputClass font-mono w-40" /></label>
-                    <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Xác nhận và bật</button>
-                    <a href="/profile" class="px-4 py-2 text-sm rounded-lg bg-slate-100 text-slate-600">Hủy</a>
+                    <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Xác nhận và bật</button>
+                    <a href="/profile" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Quay lại</a>
                 </form>
             </div>
         </div>
@@ -117,7 +106,7 @@
     else
     {
         <form method="post" asp-page-handler="BeginTwoFactor" class="mt-4">
-            <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Bật xác thực hai bước</button>
+            <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Bật xác thực hai bước</button>
         </form>
     }
 </section>

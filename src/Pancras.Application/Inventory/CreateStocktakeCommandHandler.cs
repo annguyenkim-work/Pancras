@@ -7,19 +7,20 @@ namespace Pancras.Application.Inventory;
 public sealed class CreateStocktakeCommandHandler(
     IInventoryRepository repository,
     ILogger<CreateStocktakeCommandHandler> logger,
-    TimeProvider? clock = null)
+    TimeProvider? clock = null,
+    Pancras.Application.Employees.IEmployeeRepository? employees = null)
 {
-    public async Task<Result<Guid>> HandleAsync(CreateStocktakeCommand command, CancellationToken cancellationToken)
+    public async Task<Result<Guid, StockError>> HandleAsync(CreateStocktakeCommand command, CancellationToken cancellationToken)
     {
         if (!InventoryAccess.CanOperate(command.Actor.Role) || !InventoryAccess.CanAccessLocation(command.Actor, command.StockLocationId))
         {
             logger.LogWarning("Stocktake forbidden for employee {EmployeeId}.", command.Actor.Id);
-            return Result<Guid>.Fail(StockError.Forbidden);
+            return Result<Guid, StockError>.Fail(StockError.Forbidden);
         }
 
         if (command.CountedQuantity < 0)
         {
-            return Result<Guid>.Fail(StockError.InvalidCount);
+            return Result<Guid, StockError>.Fail(StockError.InvalidCount);
         }
 
         var balance = await repository.FindBalanceForUpdateAsync(command.CatalogItemId, command.StockLocationId, cancellationToken);
@@ -36,8 +37,8 @@ public sealed class CreateStocktakeCommandHandler(
             out var sheet);
         if (decision != StockDecision.Accepted || sheet is null)
         {
-            logger.LogWarning("Stocktake rejected for {CatalogItemId}.", command.CatalogItemId);
-            return Result<Guid>.Fail(StockDecisionErrors.ToError(decision));
+            logger.LogInformation("Stocktake rejected for {CatalogItemId}.", command.CatalogItemId);
+            return Result<Guid, StockError>.Fail(StockDecisionErrors.ToError(decision));
         }
 
         // Người lập thuộc nhóm tự duyệt (Kế toán, Giám đốc, Admin): biên bản có hiệu lực ngay, áp luôn số đếm vào tồn.
@@ -48,22 +49,37 @@ public sealed class CreateStocktakeCommandHandler(
                 repository, sheet, (clock ?? TimeProvider.System).GetUtcNow(), cancellationToken);
             if (!applied)
             {
-                logger.LogWarning("Stocktake would drop stock below the reserved quantity for {CatalogItemId}.", command.CatalogItemId);
-                return Result<Guid>.Fail(StockError.NegativeStock);
+                logger.LogInformation("Stocktake would drop stock below the reserved quantity for {CatalogItemId}.", command.CatalogItemId);
+                return Result<Guid, StockError>.Fail(StockError.NegativeStock);
             }
 
             snapshot = taken;
         }
 
         await repository.AddStocktakeAsync(sheet, cancellationToken);
+        if (sheet.Status == ApprovalStatus.Pending && employees is not null)
+        {
+            // Biên bản của nhân viên chờ duyệt: báo Trưởng Showroom/Kho đúng kho đó (trừ người lập).
+            var at = (clock ?? TimeProvider.System).GetUtcNow();
+            var people = (await employees.ListReadOnlyAsync(cancellationToken))
+                .Where(person => person.IsActive && person.Id != command.Actor.Id
+                    && InventoryRoles.IsShowroomLead(person.Role) && person.StockLocationId == sheet.StockLocationId);
+            foreach (var person in people)
+            {
+                await repository.AddNoticeAsync(
+                    Pancras.Domain.Notifications.Notification.Create(person.Id, sheet.StockLocationId, sheet.Id, Pancras.Domain.Notifications.NotificationKind.StocktakePending, Pancras.Domain.Notifications.Notification.StocktakePendingStep, at),
+                    cancellationToken);
+            }
+        }
+
         if (!await repository.CommitAsync(cancellationToken))
         {
             snapshot?.Restore();
             logger.LogWarning("Stocktake commit failed for {CatalogItemId}.", command.CatalogItemId);
-            return Result<Guid>.Fail(StockError.MissingEvidence);
+            return Result<Guid, StockError>.Fail(StockError.MissingEvidence);
         }
 
         logger.LogInformation("Created stocktake {StocktakeId} for {CatalogItemId}.", sheet.Id, command.CatalogItemId);
-        return Result<Guid>.Ok(sheet.Id);
+        return Result<Guid, StockError>.Ok(sheet.Id);
     }
 }

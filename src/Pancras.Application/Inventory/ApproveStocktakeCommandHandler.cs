@@ -12,27 +12,27 @@ public sealed class ApproveStocktakeCommandHandler(
     Pancras.Application.Auditing.IAuditLog? audit = null,
     Pancras.Application.Auditing.IRequestInfo? request = null)
 {
-    public async Task<Result<Guid>> HandleAsync(ApproveDocumentCommand command, CancellationToken cancellationToken)
+    public async Task<Result<Guid, StockError>> HandleAsync(ApproveDocumentCommand command, CancellationToken cancellationToken)
     {
         var sheet = await repository.FindStocktakeForUpdateAsync(command.Id, cancellationToken);
         if (sheet is null)
         {
-            logger.LogWarning("Stocktake approval rejected for {StocktakeId}.", command.Id);
-            return Result<Guid>.Fail(StockError.ApprovalForbidden);
+            logger.LogInformation("Stocktake approval rejected for {StocktakeId}.", command.Id);
+            return Result<Guid, StockError>.Fail(StockError.ApprovalForbidden);
         }
 
         if (!InventoryAccess.CanApprove(command.Actor, sheet.CreatedByRole, sheet.StockLocationId))
         {
             logger.LogWarning("Stocktake approval forbidden for employee {EmployeeId}.", command.Actor.Id);
-            return Result<Guid>.Fail(StockError.ApprovalForbidden);
+            return Result<Guid, StockError>.Fail(StockError.ApprovalForbidden);
         }
 
         var status = sheet.Status;
         var decision = sheet.Approve(command.Actor.Role);
         if (decision != StockDecision.Accepted)
         {
-            logger.LogWarning("Stocktake approval rejected for {StocktakeId}.", sheet.Id);
-            return Result<Guid>.Fail(decision == StockDecision.NotPending ? StockError.TransferStateChanged : StockError.ApprovalForbidden);
+            logger.LogInformation("Stocktake approval rejected for {StocktakeId}.", sheet.Id);
+            return Result<Guid, StockError>.Fail(decision == StockDecision.NotPending ? StockError.TransferStateChanged : StockError.ApprovalForbidden);
         }
 
         var (applied, snapshot) = await StocktakeApplication.ApplyAsync(
@@ -40,20 +40,21 @@ public sealed class ApproveStocktakeCommandHandler(
         if (!applied)
         {
             sheet.RestoreUncommitted(status);
-            logger.LogWarning("Stocktake approval would drop stock below the reserved quantity for {StocktakeId}.", sheet.Id);
-            return Result<Guid>.Fail(StockError.NegativeStock);
+            logger.LogInformation("Stocktake approval would drop stock below the reserved quantity for {StocktakeId}.", sheet.Id);
+            return Result<Guid, StockError>.Fail(StockError.NegativeStock);
         }
 
+        await repository.RemoveNoticesAsync(sheet.Id, cancellationToken);
         if (!await repository.CommitAsync(cancellationToken))
         {
             snapshot?.Restore();
             sheet.RestoreUncommitted(status);
             logger.LogWarning("Stocktake approval commit failed for {StocktakeId}.", sheet.Id);
-            return Result<Guid>.Fail(StockError.ApprovalForbidden);
+            return Result<Guid, StockError>.Fail(StockError.ApprovalForbidden);
         }
 
         logger.LogInformation("Approved stocktake {StocktakeId}.", sheet.Id);
         await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.StocktakeApproved, "stocktake", sheet.Id.ToString("D"), null, cancellationToken);
-        return Result<Guid>.Ok(sheet.Id);
+        return Result<Guid, StockError>.Ok(sheet.Id);
     }
 }

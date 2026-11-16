@@ -1,3 +1,4 @@
+using Pancras.Domain.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Pancras.Domain.Catalog;
 using Pancras.Domain.Employees;
@@ -35,7 +36,7 @@ public sealed class PancrasDbContext(DbContextOptions<PancrasDbContext> options)
 
     public DbSet<DisposalSlip> DisposalSlips => Set<DisposalSlip>();
 
-    public DbSet<StockNotice> StockNotices => Set<StockNotice>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
 

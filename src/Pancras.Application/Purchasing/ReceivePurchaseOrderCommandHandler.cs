@@ -20,47 +20,49 @@ public sealed class ReceivePurchaseOrderCommandHandler(
     ILogger<ReceivePurchaseOrderCommandHandler> logger,
     TimeProvider? clock = null,
     IAuditLog? audit = null,
-    IRequestInfo? request = null)
+    IRequestInfo? request = null,
+    Pancras.Application.Notifications.INoticeStore? notices = null,
+    Pancras.Application.Employees.IEmployeeRepository? employees = null)
 {
-    public async Task<Result<Guid>> HandleAsync(ReceivePurchaseOrderCommand command, CancellationToken cancellationToken)
+    public async Task<Result<Guid, PurchaseError>> HandleAsync(ReceivePurchaseOrderCommand command, CancellationToken cancellationToken)
     {
         var order = await orders.FindForUpdateAsync(command.PurchaseOrderId, cancellationToken);
         if (order is null)
         {
             // Không lộ đơn có tồn tại hay không cho người không có quyền.
-            logger.LogWarning("Receipt rejected for purchase order {PurchaseOrderId}.", command.PurchaseOrderId);
-            return Result<Guid>.Fail(PurchaseAccess.CanManage(command.Actor) ? PurchaseError.InvalidOrder : PurchaseError.Forbidden);
+            logger.LogInformation("Receipt rejected for purchase order {PurchaseOrderId}.", command.PurchaseOrderId);
+            return Result<Guid, PurchaseError>.Fail(PurchaseAccess.CanManage(command.Actor) ? PurchaseError.InvalidOrder : PurchaseError.Forbidden);
         }
 
         if (!PurchaseAccess.CanReceive(command.Actor, order.ReceiveLocationId))
         {
             logger.LogWarning("Purchase receipt forbidden for role {Role}.", command.Actor.Role);
-            return Result<Guid>.Fail(PurchaseError.Forbidden);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.Forbidden);
         }
 
         if (order.Status == PurchaseStatus.Received)
         {
-            logger.LogWarning("Purchase order {PurchaseOrderId} is already received.", order.Id);
-            return Result<Guid>.Fail(PurchaseError.AlreadyReceived);
+            logger.LogInformation("Purchase order {PurchaseOrderId} is already received.", order.Id);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.AlreadyReceived);
         }
 
         if (!order.IsReceivable)
         {
-            logger.LogWarning("Purchase order {PurchaseOrderId} is not receivable in status {Status}.", order.Id, order.Status);
-            return Result<Guid>.Fail(PurchaseError.NotReceivable);
+            logger.LogInformation("Purchase order {PurchaseOrderId} is not receivable in status {Status}.", order.Id, order.Status);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.NotReceivable);
         }
 
         if (order.Lines.Any(line => line.FobUsd <= 0))
         {
             // Giá FOB 0 sẽ được bình quân vào giá vốn công ty và kéo giá xuống.
-            logger.LogWarning("Purchase order {PurchaseOrderId} has a line without a price.", order.Id);
-            return Result<Guid>.Fail(PurchaseError.ZeroPrice);
+            logger.LogInformation("Purchase order {PurchaseOrderId} has a line without a price.", order.Id);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.ZeroPrice);
         }
 
         if (order.HasUngroupedCharges)
         {
-            logger.LogWarning("Purchase order {PurchaseOrderId} still has charges without a group.", order.Id);
-            return Result<Guid>.Fail(PurchaseError.UngroupedCharge);
+            logger.LogInformation("Purchase order {PurchaseOrderId} still has charges without a group.", order.Id);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.UngroupedCharge);
         }
 
         var items = new Dictionary<Guid, CatalogItem>();
@@ -74,8 +76,8 @@ public sealed class ReceivePurchaseOrderCommandHandler(
             var item = await catalog.GetVisibleForUpdateAsync(line.CatalogItemId, cancellationToken);
             if (item is null)
             {
-                logger.LogWarning("Receipt rejected for catalog item {CatalogItemId}.", line.CatalogItemId);
-                return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+                logger.LogInformation("Receipt rejected for catalog item {CatalogItemId}.", line.CatalogItemId);
+                return Result<Guid, PurchaseError>.Fail(PurchaseError.InvalidOrder);
             }
 
             items[line.CatalogItemId] = item;
@@ -108,8 +110,8 @@ public sealed class ReceivePurchaseOrderCommandHandler(
         var decision = order.TryRecordReceipt(actuals, command.Final, command.Note, receivedAt, request?.ActorCode, out var results, out var undo);
         if (decision != ReceiptDecision.Ok)
         {
-            logger.LogWarning("Receipt rejected for purchase order {PurchaseOrderId}: {Decision}.", order.Id, decision);
-            return Result<Guid>.Fail(decision switch
+            logger.LogInformation("Receipt rejected for purchase order {PurchaseOrderId}: {Decision}.", order.Id, decision);
+            return Result<Guid, PurchaseError>.Fail(decision switch
             {
                 ReceiptDecision.NoteRequired => PurchaseError.ReceiptNoteRequired,
                 ReceiptDecision.InvalidQuantity => PurchaseError.InvalidReceiptQuantity,
@@ -127,8 +129,8 @@ public sealed class ReceivePurchaseOrderCommandHandler(
                 if (!balance.TryAddOnHand(result.Quantity) || balance.InTransit != beforeTransit)
                 {
                     Restore(order, undo!, balances, previous, items, previousCosts);
-                    logger.LogWarning("Receipt rejected for purchase order {PurchaseOrderId}.", order.Id);
-                    return Result<Guid>.Fail(PurchaseError.InvalidOrder);
+                    logger.LogInformation("Receipt rejected for purchase order {PurchaseOrderId}.", order.Id);
+                    return Result<Guid, PurchaseError>.Fail(PurchaseError.InvalidOrder);
                 }
 
                 var next = LandedCostAverage.Next(runningOnHand[itemId], runningCost[itemId], result.Quantity, result.UnitCost);
@@ -149,16 +151,17 @@ public sealed class ReceivePurchaseOrderCommandHandler(
         }
 
         order.AdvanceVersion();
+        await PurchaseNotifier.NotifyReceivedAsync(notices, employees, order, command.Final, command.Actor.Id, (clock ?? TimeProvider.System).GetUtcNow(), cancellationToken);
         if (order.ExchangeRate != exchangeRate || !await inventory.CommitAsync(cancellationToken))
         {
             Restore(order, undo!, balances, previous, items, previousCosts);
             logger.LogWarning("Receipt commit failed for purchase order {PurchaseOrderId}.", order.Id);
-            return Result<Guid>.Fail(PurchaseError.SaveFailed);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.SaveFailed);
         }
 
         logger.LogInformation("Received purchase order {PurchaseOrderId} (final: {Final}).", order.Id, command.Final);
         await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, Pancras.Domain.Auditing.AuditActions.PurchaseReceived, "purchase_order", order.Id.ToString("D"), command.Final ? "final" : "partial", cancellationToken);
-        return Result<Guid>.Ok(order.Id);
+        return Result<Guid, PurchaseError>.Ok(order.Id);
     }
 
     private static void Restore(

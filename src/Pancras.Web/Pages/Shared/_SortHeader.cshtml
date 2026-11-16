@@ -1,0 +1,2 @@
+@model Pancras.Web.Formatting.SortHeaderModel
+<a href="@Model.Href" class="inline-flex items-center gap-1 hover:text-slate-900" title="Sắp xếp theo @Model.Label">@Model.Label@if (Model.Active) { <span aria-hidden="true">@(Model.Descending ? "▼" : "▲")</span> }</a>

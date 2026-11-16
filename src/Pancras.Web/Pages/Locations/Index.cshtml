@@ -2,9 +2,10 @@
 @model Pancras.Web.Pages.Locations.IndexModel
 @using Pancras.Application.Locations
 @using Pancras.Domain.Inventory
+@using Pancras.Web.Formatting
 @{
     ViewData["Title"] = "Kho & Showroom";
-    const string inputClass = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2";
+    const string inputClass = Pancras.Web.Formatting.UiClasses.Input;
 }
 
 <section class="bg-white rounded-xl border border-slate-200 p-6">
@@ -15,17 +16,13 @@
         </div>
         @if (Model.CanManage)
         {
-            <a href="/locations?form=1" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Thêm kho/showroom</a>
+            <a href="/locations?form=1" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Thêm kho/showroom</a>
         }
     </div>
-    @if (!string.IsNullOrEmpty(Model.Notice))
-    {
-        <p class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800" role="status">@Model.Notice</p>
-    }
     @if (Model.HasAny)
     {
         <form method="get" action="/locations" data-live-filter class="mt-5">
-            <input name="q" value="@Model.Search" type="search" placeholder="Tìm theo tên kho hoặc showroom..." aria-label="Tìm kiếm kho hoặc showroom" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+            <input name="q" value="@Model.Search" type="search" placeholder="Tìm theo tên kho hoặc showroom..." aria-label="Tìm kiếm kho hoặc showroom" class="w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" />
         </form>
     }
 </section>
@@ -62,15 +59,15 @@ else
                 {
                     <tr class="border-t border-slate-100 align-top hover:bg-slate-50">
                         <td class="px-3 py-3 font-bold text-slate-900">@location.Name</td>
-                        <td class="px-3 py-3"><span class="rounded-md px-2 py-1 text-xs font-medium @(location.Kind == StockLocationKind.Showroom ? "bg-violet-50 text-violet-700" : "bg-sky-50 text-sky-700")">@IndexModel.KindLabel(location.Kind)</span></td>
+                        <td class="px-3 py-3"><span class="@Badge.Classes(location.Kind == StockLocationKind.Showroom ? BadgeTone.Category : BadgeTone.Info)">@IndexModel.KindLabel(location.Kind)</span></td>
                         <td class="px-3 py-3"><partial name="_AuditStamp" model="Pancras.Application.Auditing.AuditStampView.From(location)" /></td>
                         @if (Model.CanManage)
                         {
                             <td class="px-3 py-3">
                                 <div class="flex items-center justify-end gap-2">
-                                    <a href="/locations?edit=@location.Id" class="px-3 py-1.5 text-sm font-bold rounded-lg bg-slate-100 text-slate-700">Sửa</a>
-                                    <form method="post" asp-page-handler="Delete" asp-route-id="@location.Id" data-confirm data-confirm-title="Xóa kho/showroom" data-confirm-message="Xóa kho/showroom này? Địa điểm sẽ bị ẩn khỏi danh sách (xóa mềm)." data-confirm-label="Xóa" data-confirm-tone="danger">
-                                        <button type="submit" class="px-3 py-1.5 text-sm font-medium rounded-lg text-rose-700 hover:bg-rose-50">Xóa</button>
+                                    <a href="/locations?edit=@location.Id" class="rounded-lg px-3 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Sửa</a>
+                                    <form method="post" asp-page-handler="Disable" asp-route-id="@location.Id" data-confirm data-confirm-title="Disable kho/showroom" data-confirm-message="Disable kho/showroom này? Địa điểm sẽ bị ẩn khỏi danh sách, lịch sử vẫn được giữ." data-confirm-label="Disable" data-confirm-tone="danger">
+                                        <button type="submit" class="px-3 py-1.5 text-sm font-medium rounded-lg text-rose-700 hover:bg-rose-50">Disable</button>
                                     </form>
                                 </div>
                             </td>
@@ -85,7 +82,7 @@ else
 
 @if (Model.CanManage && Model.ShowForm)
 {
-    <dialog id="location-dialog" class="m-auto !flex w-[min(28rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
+    <dialog id="location-dialog" data-autoshow class="m-auto !flex w-[min(28rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
         <div class="flex shrink-0 items-center justify-between gap-3 px-6 pt-6">
             <h2 class="text-lg font-bold">Thêm kho/showroom</h2>
             <a href="/locations" class="text-slate-400" aria-label="Đóng">×</a>
@@ -93,7 +90,7 @@ else
         <form method="post" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
             @if (Model.Error != LocationError.None)
             {
-                <p class="mt-3 text-sm text-rose-700" role="alert">@IndexModel.ErrorText(Model.Error)</p>
+                <div class="mt-3"><partial name="_Notice" model="new NoticeModel(IndexModel.ErrorText(Model.Error), ToastLevel.Error)" /></div>
             }
             <div class="mt-4 space-y-3">
                 <label class="block text-sm">Tên<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="Command.Name" maxlength="200" class="@inputClass" /></label>
@@ -105,26 +102,26 @@ else
                 </label>
             </div>
             <div class="mt-4 flex justify-end gap-2">
-                <a href="/locations" class="px-4 py-2 text-sm rounded-lg bg-slate-100 text-slate-600">Hủy</a>
-                <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Lưu</button>
+                <a href="/locations" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Quay lại</a>
+                <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Lưu</button>
             </div>
         </form>
     </dialog>
-    <script>document.getElementById("location-dialog").showModal();</script>
 }
 
 @if (Model.CanManage && Model.EditId is not null)
 {
-    <dialog id="location-edit-dialog" class="m-auto !flex w-[min(28rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
+    <dialog id="location-edit-dialog" data-autoshow class="m-auto !flex w-[min(28rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
         <div class="flex shrink-0 items-center justify-between gap-3 px-6 pt-6">
             <h2 class="text-lg font-bold">Sửa kho/showroom</h2>
             <a href="/locations" class="text-slate-400" aria-label="Đóng">×</a>
         </div>
         <form method="post" asp-page-handler="Update" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
             <input type="hidden" asp-for="Edit.Id" />
+            <input type="hidden" asp-for="Edit.Version" />
             @if (Model.ManageError is not null)
             {
-                <p class="mt-3 text-sm text-rose-700" role="alert">@Model.ManageError</p>
+                <div class="mt-3"><partial name="_Notice" model="new NoticeModel(Model.ManageError, ToastLevel.Error)" /></div>
             }
             <div class="mt-4 space-y-3">
                 <label class="block text-sm">Tên<span class="text-rose-600" aria-hidden="true"> *</span><input asp-for="Edit.Name" maxlength="200" class="@inputClass" /></label>
@@ -136,12 +133,11 @@ else
                 </label>
             </div>
             <div class="mt-4 flex justify-end gap-2">
-                <a href="/locations" class="px-4 py-2 text-sm rounded-lg bg-slate-100 text-slate-600">Hủy</a>
-                <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-lg">Lưu</button>
+                <a href="/locations" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Quay lại</a>
+                <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Lưu</button>
             </div>
         </form>
     </dialog>
-    <script>document.getElementById("location-edit-dialog").showModal();</script>
 }
 
 <partial name="_ConfirmDialog" />

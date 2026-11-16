@@ -133,6 +133,12 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(240)")
                         .HasColumnName("image_path");
 
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
                     b.Property<bool>("IsCombo")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -344,6 +350,11 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("updated_by");
 
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
                     b.HasKey("Id")
                         .HasName("pk_employee");
 
@@ -389,6 +400,12 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("image_ref");
+
+                    b.Property<int>("Quantity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("quantity");
 
                     b.Property<string>("Reason")
                         .IsRequired()
@@ -601,9 +618,11 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<bool>("IsDeleted")
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
-                        .HasColumnName("is_deleted");
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
 
                     b.Property<int>("Kind")
                         .HasColumnType("integer")
@@ -624,6 +643,11 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasColumnName("updated_by");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
 
                     b.HasKey("Id")
                         .HasName("pk_stock_location");
@@ -677,52 +701,6 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_stock_movement_stock_location_id");
 
                     b.ToTable("stock_movement", (string)null);
-                });
-
-            modelBuilder.Entity("Pancras.Domain.Inventory.StockNotice", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid>("DocumentId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("document_id");
-
-                    b.Property<int>("Kind")
-                        .HasColumnType("integer")
-                        .HasColumnName("kind");
-
-                    b.Property<Guid>("RecipientEmployeeId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("recipient_employee_id");
-
-                    b.Property<bool>("Seen")
-                        .HasColumnType("boolean")
-                        .HasColumnName("seen");
-
-                    b.Property<string>("Step")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)")
-                        .HasColumnName("step");
-
-                    b.Property<Guid>("StockLocationId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("stock_location_id");
-
-                    b.HasKey("Id")
-                        .HasName("pk_stock_notice");
-
-                    b.HasIndex("StockLocationId")
-                        .HasDatabaseName("ix_stock_notice_stock_location_id");
-
-                    b.ToTable("stock_notice", (string)null);
                 });
 
             modelBuilder.Entity("Pancras.Domain.Inventory.StocktakeSheet", b =>
@@ -1034,6 +1012,11 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("updated_by");
 
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
                     b.HasKey("Id")
                         .HasName("pk_transfer_slip");
 
@@ -1048,6 +1031,52 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_transfer_slip_source_location_id");
 
                     b.ToTable("transfer_slip", (string)null);
+                });
+
+            modelBuilder.Entity("Pancras.Domain.Notifications.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("document_id");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer")
+                        .HasColumnName("kind");
+
+                    b.Property<Guid>("RecipientEmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recipient_employee_id");
+
+                    b.Property<bool>("Seen")
+                        .HasColumnType("boolean")
+                        .HasColumnName("seen");
+
+                    b.Property<string>("Step")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("step");
+
+                    b.Property<Guid?>("StockLocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("stock_location_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notification");
+
+                    b.HasIndex("StockLocationId")
+                        .HasDatabaseName("ix_notification_stock_location_id");
+
+                    b.ToTable("notification", (string)null);
                 });
 
             modelBuilder.Entity("Pancras.Domain.Purchasing.PurchaseAttachment", b =>
@@ -1501,11 +1530,11 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(254)")
                         .HasColumnName("email");
 
-                    b.Property<bool>("IsInactive")
+                    b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_inactive");
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -1543,13 +1572,18 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("updated_by");
 
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
                     b.HasKey("Id")
                         .HasName("pk_supplier");
 
                     b.HasIndex("NormalizedCode")
                         .IsUnique()
                         .HasDatabaseName("ix_supplier_normalized_code")
-                        .HasFilter("is_inactive = false");
+                        .HasFilter("is_active = true");
 
                     b.ToTable("supplier", (string)null);
                 });
@@ -1631,16 +1665,6 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_stock_movement_stock_location_stock_location_id");
                 });
 
-            modelBuilder.Entity("Pancras.Domain.Inventory.StockNotice", b =>
-                {
-                    b.HasOne("Pancras.Domain.Inventory.StockLocation", null)
-                        .WithMany()
-                        .HasForeignKey("StockLocationId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_stock_notice_stock_location_stock_location_id");
-                });
-
             modelBuilder.Entity("Pancras.Domain.Inventory.StocktakeSheet", b =>
                 {
                     b.HasOne("Pancras.Domain.Catalog.CatalogItem", null)
@@ -1710,6 +1734,15 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_transfer_slip_stock_location_source_location_id");
+                });
+
+            modelBuilder.Entity("Pancras.Domain.Notifications.Notification", b =>
+                {
+                    b.HasOne("Pancras.Domain.Inventory.StockLocation", null)
+                        .WithMany()
+                        .HasForeignKey("StockLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_notification_stock_locations_stock_location_id");
                 });
 
             modelBuilder.Entity("Pancras.Domain.Purchasing.PurchaseAttachment", b =>

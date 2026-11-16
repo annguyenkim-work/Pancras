@@ -34,7 +34,7 @@ public class LoginModel(LoginEmployeeCommandHandler login, EmployeeSignIn signIn
         var result = await login.HandleAsync(Command, HttpContext.RequestAborted);
         if (result.IsFailure)
         {
-            Error = result.LoginError;
+            Error = result.Error;
             return Page();
         }
 

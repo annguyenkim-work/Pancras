@@ -9,18 +9,19 @@ public sealed class CreateDisposalSlipCommandHandler(
     ApproveDisposalSlipCommandHandler approveHandler,
     ILogger<CreateDisposalSlipCommandHandler> logger)
 {
-    public async Task<Result<Guid>> HandleAsync(CreateDisposalSlipCommand command, CancellationToken cancellationToken)
+    public async Task<Result<Guid, StockError>> HandleAsync(CreateDisposalSlipCommand command, CancellationToken cancellationToken)
     {
         if (!InventoryAccess.CanOperate(command.Actor.Role)
             || !InventoryAccess.CanAccessLocation(command.Actor, command.StockLocationId))
         {
             logger.LogWarning("Disposal slip forbidden for employee {EmployeeId}.", command.Actor.Id);
-            return Result<Guid>.Fail(StockError.Forbidden);
+            return Result<Guid, StockError>.Fail(StockError.Forbidden);
         }
 
         var decision = DisposalSlip.TryCreate(
             command.StockLocationId,
             command.CatalogItemId,
+            command.Quantity,
             command.Reason,
             command.DocumentRef,
             command.ImageRef,
@@ -28,8 +29,8 @@ public sealed class CreateDisposalSlipCommandHandler(
             out var slip);
         if (decision != StockDecision.Accepted || slip is null)
         {
-            logger.LogWarning("Disposal slip rejected for {CatalogItemId}.", command.CatalogItemId);
-            return Result<Guid>.Fail(StockDecisionErrors.ToError(decision));
+            logger.LogInformation("Disposal slip rejected for {CatalogItemId}.", command.CatalogItemId);
+            return Result<Guid, StockError>.Fail(StockDecisionErrors.ToError(decision));
         }
 
         if (InventoryAccess.IsGlobal(command.Actor.Role))
@@ -39,22 +40,22 @@ public sealed class CreateDisposalSlipCommandHandler(
             var direct = await approveHandler.ApplyAsync(slip, command.Actor, isNew: true, cancellationToken);
             if (direct.IsFailure)
             {
-                logger.LogWarning("Direct disposal for {CatalogItemId} was rejected and nothing was saved.", command.CatalogItemId);
-                return Result<Guid>.Fail(direct.StockError);
+                logger.LogInformation("Direct disposal for {CatalogItemId} was rejected and nothing was saved.", command.CatalogItemId);
+                return Result<Guid, StockError>.Fail(direct.Error);
             }
 
             logger.LogInformation("Created and approved disposal slip {DisposalSlipId} for {CatalogItemId}.", slip.Id, command.CatalogItemId);
-            return Result<Guid>.Ok(slip.Id);
+            return Result<Guid, StockError>.Ok(slip.Id);
         }
 
         await repository.AddDisposalAsync(slip, cancellationToken);
         if (!await repository.CommitAsync(cancellationToken))
         {
             logger.LogWarning("Disposal slip commit failed for {CatalogItemId}.", command.CatalogItemId);
-            return Result<Guid>.Fail(StockError.MissingEvidence);
+            return Result<Guid, StockError>.Fail(StockError.MissingEvidence);
         }
 
         logger.LogInformation("Created disposal slip {DisposalSlipId} for {CatalogItemId}.", slip.Id, command.CatalogItemId);
-        return Result<Guid>.Ok(slip.Id);
+        return Result<Guid, StockError>.Ok(slip.Id);
     }
 }

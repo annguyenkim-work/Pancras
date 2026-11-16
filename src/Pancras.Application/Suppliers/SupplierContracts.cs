@@ -3,48 +3,6 @@ using Pancras.Domain.Suppliers;
 
 namespace Pancras.Application.Suppliers;
 
-public interface ISupplierRepository
-{
-    /// <summary>Nhà cung cấp đang hợp tác, để chọn khi lập đơn mua.</summary>
-    Task<IReadOnlyList<Supplier>> ListAsync(CancellationToken cancellationToken);
-
-    Task<SupplierSlice> ListFilteredAsync(SupplierListFilter filter, int pageNumber, int pageSize, CancellationToken cancellationToken);
-
-    /// <summary>Các quốc gia đang có trong danh bạ (mọi trạng thái), để lọc.</summary>
-    Task<IReadOnlyList<string>> ListCountriesAsync(CancellationToken cancellationToken);
-
-    Task<Supplier?> GetActiveReadOnlyAsync(Guid id, CancellationToken cancellationToken);
-
-    /// <summary>Theo mã, kể cả nhà cung cấp đã ngừng hợp tác.</summary>
-    Task<Supplier?> GetAnyReadOnlyAsync(Guid id, CancellationToken cancellationToken);
-
-    /// <summary>Tên nhà cung cấp theo mã, kể cả nhà cung cấp đã ngừng hợp tác, để lịch sử đơn mua luôn hiện đúng tên.</summary>
-    Task<IReadOnlyDictionary<Guid, string>> GetNamesAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
-
-    Task<Supplier?> GetActiveForUpdateAsync(Guid id, CancellationToken cancellationToken);
-
-    Task<Supplier?> GetAnyForUpdateAsync(Guid id, CancellationToken cancellationToken);
-
-    /// <summary>Mã đã được nhà cung cấp đang hợp tác khác dùng chưa.</summary>
-    Task<bool> NormalizedCodeExistsAsync(string normalizedCode, Guid? excludingId, CancellationToken cancellationToken);
-
-    /// <summary>Tên nhà cung cấp đã ngừng hợp tác đang giữ mã này, hoặc null.</summary>
-    Task<string?> InactiveNameWithCodeAsync(string normalizedCode, CancellationToken cancellationToken);
-
-    Task<int> CountActiveBeforeAsync(string name, string code, CancellationToken cancellationToken);
-
-    Task<bool> TryAddAsync(Supplier supplier, CancellationToken cancellationToken);
-
-    Task<bool> TrySaveAsync(CancellationToken cancellationToken);
-}
-
-public interface ISupplierPurchaseStatsReader
-{
-    Task<IReadOnlyDictionary<Guid, SupplierPurchaseStats>> ReadAsync(
-        IReadOnlyCollection<Guid> supplierIds,
-        CancellationToken cancellationToken);
-}
-
 public enum SupplierStatusFilter
 {
     Active = 0,
@@ -52,10 +10,16 @@ public enum SupplierStatusFilter
     All = 2
 }
 
-public sealed record SupplierListFilter(string? Term, SupplierStatusFilter Status = SupplierStatusFilter.Active, string? Country = null)
+public sealed record ListSuppliersQuery(string? Term, SupplierStatusFilter Status = SupplierStatusFilter.Active, string? Country = null, Pancras.Application.Common.ListSort? Sort = null, int PageNumber = 1, int PageSize = Pancras.Application.Common.PageSizes.Default)
 {
-    public static SupplierListFilter From(string? term, SupplierStatusFilter status = SupplierStatusFilter.Active, string? country = null) =>
-        new(Normalize(term), Enum.IsDefined(status) ? status : SupplierStatusFilter.Active, Normalize(country));
+    /// <summary>Cùng bộ lọc, đổi trang và cỡ trang (số trang < 1 về 1, cỡ trang < 1 về mặc định).</summary>
+    public ListSuppliersQuery WithPage(int? number, int? size) =>
+        this with { PageNumber = number is > 0 ? number.Value : 1, PageSize = size is > 0 ? size.Value : Pancras.Application.Common.PageSizes.Default };
+
+    public Pancras.Application.Common.ListSort Order => Sort ?? SupplierOrdering.Parse(null);
+
+    public static ListSuppliersQuery From(string? term, SupplierStatusFilter status = SupplierStatusFilter.Active, string? country = null, string? sort = null) =>
+        new(Normalize(term), Enum.IsDefined(status) ? status : SupplierStatusFilter.Active, Normalize(country), SupplierOrdering.Parse(sort));
 
     public bool HasCriteria => Term is not null || Status != SupplierStatusFilter.Active || Country is not null;
 
@@ -68,16 +32,6 @@ public sealed record SupplierListFilter(string? Term, SupplierStatusFilter Statu
 
         return value.Trim();
     }
-}
-
-public sealed record SupplierPageRequest(int Number, int Size)
-{
-    public const int DefaultSize = 10;
-
-    public static SupplierPageRequest First { get; } = new(1, DefaultSize);
-
-    public static SupplierPageRequest From(int? page) =>
-        new(page is > 0 ? page.Value : 1, DefaultSize);
 }
 
 public sealed record SupplierSlice(IReadOnlyList<Supplier> Items, int TotalCount, int PageNumber);
@@ -109,7 +63,7 @@ public sealed record SupplierCard(
     string AccountMask,
     int PurchaseOrderCount,
     int LotsNotReceived,
-    bool IsInactive = false,
+    bool IsActive = true,
     Pancras.Application.Auditing.AuditStampView? Stamp = null);
 
 public sealed record SupplierPurchaseOption(Guid Id, string Code, string Name);
@@ -128,11 +82,15 @@ public sealed record SupplierProfile(
     string Account,
     string SwiftCode,
     int PurchaseOrderCount = 0,
-    int LotsNotReceived = 0);
+    int LotsNotReceived = 0,
+    int Version = 0);
 
 public sealed class UpdateSupplierCommand
 {
     public Guid Id { get; set; }
+
+    /// <summary>Phiên bản hồ sơ lúc mở form; khác phiên bản hiện tại nghĩa là có người sửa trước.</summary>
+    public int Version { get; set; }
 
     public string? Code { get; set; }
 

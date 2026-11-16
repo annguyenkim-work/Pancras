@@ -2,26 +2,6 @@ using Pancras.Domain.Auditing;
 
 namespace Pancras.Application.Auditing;
 
-public interface IAuditLog
-{
-    /// <summary>Ghi ngay một dòng nhật ký. Lỗi ghi nhật ký không được làm hỏng thao tác chính.</summary>
-    Task RecordAsync(AuditEntry entry, CancellationToken cancellationToken);
-
-    Task<IReadOnlyList<AuditEntry>> ListAsync(string? search, int pageNumber, int pageSize, CancellationToken cancellationToken);
-
-    Task<int> CountAsync(string? search, CancellationToken cancellationToken);
-}
-
-/// <summary>Thông tin yêu cầu hiện tại, do lớp Web cung cấp.</summary>
-public interface IRequestInfo
-{
-    string? IpAddress { get; }
-
-    Guid? ActorId { get; }
-
-    string? ActorCode { get; }
-}
-
 public static class AuditLogExtensions
 {
     public static Task RecordAsync(
@@ -44,17 +24,32 @@ public static class AuditLogExtensions
 
 public sealed class ListAuditHandler(IAuditLog log)
 {
-    public const int PageSize = 50;
-
-    public async Task<(IReadOnlyList<AuditEntry> Entries, int Total)> HandleAsync(
-        string? search,
-        int pageNumber,
+    /// <summary>Một trang nhật ký theo keyset: đọc dư một dòng để biết còn trang tiếp hay không.</summary>
+    public async Task<AuditPage> HandleAsync(
+        AuditQuery query,
+        string? cursorToken,
+        bool backward,
+        int pageSize,
+        bool newestFirst,
         CancellationToken cancellationToken)
     {
-        var page = pageNumber < 1 ? 1 : pageNumber;
-        var total = await log.CountAsync(search, cancellationToken);
-        var entries = await log.ListAsync(search, page, PageSize, cancellationToken);
-        return (entries, total);
+        var size = pageSize < 1 ? Pancras.Application.Common.PageSizes.Default : pageSize;
+        var cursor = AuditCursor.TryParse(cursorToken);
+        backward &= cursor is not null;
+        var rows = await log.ListPageAsync(query, cursor, backward, size + 1, newestFirst, cancellationToken);
+        var hasMore = rows.Count > size;
+        var entries = hasMore
+            ? (backward ? rows.Skip(rows.Count - size).ToArray() : rows.Take(size).ToArray())
+            : rows.ToArray();
+        if (entries.Length == 0)
+        {
+            return new AuditPage(entries, null, null);
+        }
+
+        // Có dấu trang nghĩa là ta đến từ một phía nên phía đó chắc chắn còn dòng; phía kia còn hay không tùy hasMore.
+        var next = backward ? AuditCursor.Of(entries[^1]).Encode() : hasMore ? AuditCursor.Of(entries[^1]).Encode() : null;
+        var previous = backward ? hasMore ? AuditCursor.Of(entries[0]).Encode() : null : cursor is not null ? AuditCursor.Of(entries[0]).Encode() : null;
+        return new AuditPage(entries, next, previous);
     }
 }
 

@@ -6,10 +6,13 @@ namespace Pancras.Application.Inventory;
 
 public sealed class ListStockBalancesHandler(
     IInventoryRepository repository,
-    ILogger<ListStockBalancesHandler> logger)
+    ILogger<ListStockBalancesHandler> logger,
+    TimeProvider? clock = null,
+    Pancras.Application.Auditing.IAuditLog? audit = null,
+    Pancras.Application.Auditing.IRequestInfo? request = null)
 {
     public async Task<IReadOnlyList<StockBalanceRow>> HandleAsync(
-        StockListFilter filter,
+        ListStockBalancesQuery filter,
         EmployeeActor actor,
         CancellationToken cancellationToken)
     {
@@ -19,7 +22,7 @@ public sealed class ListStockBalancesHandler(
     }
 
     public async Task<IReadOnlyList<StockBalanceRow>> ExportAsync(
-        StockListFilter filter,
+        ListStockBalancesQuery filter,
         EmployeeActor actor,
         CancellationToken cancellationToken)
     {
@@ -30,12 +33,13 @@ public sealed class ListStockBalancesHandler(
         }
 
         var rows = await LoadAsync(filter, actor, limitToOwnLocation: true, cancellationToken);
+        await Pancras.Application.Auditing.AuditLogExtensions.RecordAsync(audit, clock ?? TimeProvider.System, request, actor.Id, null, Pancras.Domain.Auditing.AuditActions.StockExported, "stock_balance", null, rows.Count + " dòng", cancellationToken);
         logger.LogInformation("Exported {StockBalanceCount} stock balances.", rows.Count);
         return rows;
     }
 
     private async Task<IReadOnlyList<StockBalanceRow>> LoadAsync(
-        StockListFilter filter,
+        ListStockBalancesQuery filter,
         EmployeeActor actor,
         bool limitToOwnLocation,
         CancellationToken cancellationToken)
@@ -44,7 +48,7 @@ public sealed class ListStockBalancesHandler(
         {
             return [];
         }
-        // Tra cứu tồn: mọi vai trò xem kho thấy mọi kho (giá vốn vẫn ẩn). Chỉ file xuất Excel giữ theo kho của mình.
+        // Tra cứu tồn: mọi vai trò xem kho thấy mọi kho (giá vốn vẫn ẩn). Chỉ file xuất CSV giữ theo kho của mình.
         var scoped = filter;
         if (limitToOwnLocation && InventoryAccess.Scope(actor) is Guid scope)
         {

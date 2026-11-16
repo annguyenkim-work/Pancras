@@ -14,8 +14,8 @@ public class CreateSupplierCommandHandlerTests
     {
         var result = await Handler().HandleAsync(Valid(name: " "), CancellationToken.None);
 
-        Assert.Equal(SupplierError.Incomplete, result.SupplierError);
-        Assert.Contains(result.SupplierIssues, issue => issue.Field == SupplierField.Name && issue.Kind == SupplierIssueKind.Missing);
+        Assert.Equal(SupplierError.Incomplete, result.Error);
+        Assert.Contains(result.IssuesOf<SupplierIssue>(), issue => issue.Field == SupplierField.Name && issue.Kind == SupplierIssueKind.Missing);
         Assert.Empty(_repository.Suppliers);
     }
 
@@ -24,9 +24,9 @@ public class CreateSupplierCommandHandlerTests
     {
         var result = await Handler().HandleAsync(Valid(name: " ", email: "khong-phai-email"), CancellationToken.None);
 
-        Assert.Equal(SupplierError.Incomplete, result.SupplierError);
-        Assert.Contains(result.SupplierIssues, issue => issue.Field == SupplierField.Name && issue.Kind == SupplierIssueKind.Missing);
-        Assert.Contains(result.SupplierIssues, issue => issue.Field == SupplierField.Email && issue.Kind == SupplierIssueKind.InvalidEmail);
+        Assert.Equal(SupplierError.Incomplete, result.Error);
+        Assert.Contains(result.IssuesOf<SupplierIssue>(), issue => issue.Field == SupplierField.Name && issue.Kind == SupplierIssueKind.Missing);
+        Assert.Contains(result.IssuesOf<SupplierIssue>(), issue => issue.Field == SupplierField.Email && issue.Kind == SupplierIssueKind.InvalidEmail);
         Assert.Empty(_repository.Suppliers);
     }
 
@@ -35,7 +35,7 @@ public class CreateSupplierCommandHandlerTests
     {
         var result = await Handler().HandleAsync(Valid(email: "khong-phai-email"), CancellationToken.None);
 
-        Assert.Equal(SupplierError.InvalidEmail, result.SupplierError);
+        Assert.Equal(SupplierError.InvalidEmail, result.Error);
         Assert.Empty(_repository.Suppliers);
     }
 
@@ -46,9 +46,9 @@ public class CreateSupplierCommandHandlerTests
         var tooShort = await Handler().HandleAsync(Valid(phone: "0901"), CancellationToken.None);
         var international = await Handler().HandleAsync(Valid(phone: "+86 138 0000 0000"), CancellationToken.None);
 
-        Assert.Equal(SupplierError.InvalidPhone, letters.SupplierError);
-        Assert.Contains(letters.SupplierIssues, issue => issue.Field == SupplierField.Phone && issue.Kind == SupplierIssueKind.InvalidPhone);
-        Assert.Equal(SupplierError.InvalidPhone, tooShort.SupplierError);
+        Assert.Equal(SupplierError.InvalidPhone, letters.Error);
+        Assert.Contains(letters.IssuesOf<SupplierIssue>(), issue => issue.Field == SupplierField.Phone && issue.Kind == SupplierIssueKind.InvalidPhone);
+        Assert.Equal(SupplierError.InvalidPhone, tooShort.Error);
         Assert.True(international.IsSuccess);
         Assert.Single(_repository.Suppliers);
     }
@@ -86,7 +86,7 @@ public class CreateSupplierCommandHandlerTests
         var code = new string('a', Supplier.CodeMaxLength - 1) + mark;
         var result = await Handler().HandleAsync(Valid(code: code), CancellationToken.None);
 
-        Assert.Equal(SupplierError.TooLong, result.SupplierError);
+        Assert.Equal(SupplierError.TooLong, result.Error);
         Assert.Empty(_repository.Suppliers);
     }
 
@@ -95,7 +95,7 @@ public class CreateSupplierCommandHandlerTests
     {
         var result = await Handler().HandleAsync(Valid(code: new string('A', 33)), CancellationToken.None);
 
-        Assert.Equal(SupplierError.TooLong, result.SupplierError);
+        Assert.Equal(SupplierError.TooLong, result.Error);
         Assert.Empty(_repository.Suppliers);
     }
 
@@ -107,8 +107,8 @@ public class CreateSupplierCommandHandlerTests
         var second = await handler.HandleAsync(Valid(code: "ncc01", name: "Nhà khác"), CancellationToken.None);
 
         Assert.True(first.IsSuccess);
-        Assert.Equal(SupplierError.DuplicateCode, second.SupplierError);
-        Assert.Contains(second.SupplierIssues, issue => issue.Field == SupplierField.Code && issue.Kind == SupplierIssueKind.Duplicate);
+        Assert.Equal(SupplierError.DuplicateCode, second.Error);
+        Assert.Contains(second.IssuesOf<SupplierIssue>(), issue => issue.Field == SupplierField.Code && issue.Kind == SupplierIssueKind.Duplicate);
         Assert.Single(_repository.Suppliers);
     }
 
@@ -130,8 +130,8 @@ public class CreateSupplierCommandHandlerTests
         var keeper = await Handler().HandleAsync(Valid(actor: SupplierActors.Keeper), CancellationToken.None);
         var sales = await Handler().HandleAsync(Valid(actor: SupplierActors.Sales), CancellationToken.None);
 
-        Assert.Equal(SupplierError.Forbidden, keeper.SupplierError);
-        Assert.Equal(SupplierError.Forbidden, sales.SupplierError);
+        Assert.Equal(SupplierError.Forbidden, keeper.Error);
+        Assert.Equal(SupplierError.Forbidden, sales.Error);
         Assert.Empty(_repository.Suppliers);
     }
 
@@ -163,8 +163,8 @@ public class CreateSupplierCommandHandlerTests
         var first = await Handler().HandleAsync(noCountry, CancellationToken.None);
         var second = await Handler().HandleAsync(noContact, CancellationToken.None);
 
-        Assert.Contains(first.SupplierIssues, issue => issue.Field == SupplierField.Country && issue.Kind == SupplierIssueKind.Missing);
-        Assert.Contains(second.SupplierIssues, issue => issue.Field == SupplierField.ContactName && issue.Kind == SupplierIssueKind.Missing);
+        Assert.Contains(first.IssuesOf<SupplierIssue>(), issue => issue.Field == SupplierField.Country && issue.Kind == SupplierIssueKind.Missing);
+        Assert.Contains(second.IssuesOf<SupplierIssue>(), issue => issue.Field == SupplierField.ContactName && issue.Kind == SupplierIssueKind.Missing);
         Assert.Empty(_repository.Suppliers);
     }
 
@@ -174,7 +174,7 @@ public class CreateSupplierCommandHandlerTests
         var bad = Valid();
         bad.SwiftCode = "ABC";
         var rejected = await Handler().HandleAsync(bad, CancellationToken.None);
-        Assert.Equal(SupplierError.InvalidSwift, rejected.SupplierError);
+        Assert.Equal(SupplierError.InvalidSwift, rejected.Error);
         Assert.Empty(_repository.Suppliers);
 
         var good = Valid();

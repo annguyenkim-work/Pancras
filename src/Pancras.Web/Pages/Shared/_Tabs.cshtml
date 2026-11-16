@@ -1,0 +1,13 @@
+@model Pancras.Web.Formatting.TabsModel
+<div class="inline-flex flex-wrap rounded-lg bg-slate-100 p-1" role="tablist" aria-label="@Model.Label">
+    @foreach (var tab in Model.Items)
+    {
+        <a id="@tab.Id" href="@tab.Href" role="tab" aria-selected="@(tab.Active ? "true" : "false")" class="inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium @(tab.Active ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900")">
+            @tab.Label
+            @if (tab.Badge is int count and > 0)
+            {
+                <span class="@Pancras.Web.Formatting.Badge.Classes(Pancras.Web.Formatting.BadgeTone.Info)" title="@tab.BadgeTitle">@count</span>
+            }
+        </a>
+    }
+</div>

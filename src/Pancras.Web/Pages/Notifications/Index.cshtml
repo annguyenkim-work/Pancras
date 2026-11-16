@@ -1,0 +1,47 @@
+@page "/notifications"
+@model Pancras.Web.Pages.Notifications.IndexModel
+@using Pancras.Domain.Inventory
+@using Pancras.Web.Formatting
+@using Pancras.Domain.Notifications
+@{
+    ViewData["Title"] = "Thông báo";
+}
+
+<section class="bg-white rounded-xl border border-slate-200 p-6">
+    <h1 class="font-display text-xl sm:text-2xl font-bold text-slate-900">Thông báo</h1>
+    <p class="mt-1 text-sm text-slate-500">Việc đang chờ bạn xử lý. Bấm "Mở" để tới đúng chứng từ.</p>
+    @if (Model.Notices.Count == 0)
+    {
+        <p class="mt-5 text-sm text-slate-500">Chưa có thông báo nào.</p>
+    }
+    else
+    {
+        <ul class="mt-5 divide-y divide-slate-100">
+            @foreach (var notice in Model.Notices)
+            {
+                var code = IndexModel.NoticeCode(notice);
+                <li class="flex flex-wrap items-center justify-between gap-2 px-3 py-3 text-sm @(notice.Seen ? "" : "border-l-4 border-sky-500 bg-sky-50")">
+                    <div class="min-w-0">
+                        <p class="@(notice.Seen ? "text-slate-500" : "font-semibold text-slate-900")">
+                            @if (!notice.Seen)
+                            {
+                                <span class="@Badge.Classes(BadgeTone.Info)">Mới</span>
+                            }
+                            else
+                            {
+                                <span class="@Badge.Classes(BadgeTone.Neutral)">Đã xem</span>
+                            }
+                            @(code is null ? "" : code + ": ")@notice.Step
+                        </p>
+                        <p class="text-xs text-slate-400">@VietnamTime.Format(notice.CreatedAt)</p>
+                    </div>
+                    <form method="post" asp-page-handler="Open">
+                        <input type="hidden" name="noticeId" value="@notice.Id" />
+                        <button type="submit" class="rounded-lg px-3 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Mở</button>
+                    </form>
+                </li>
+            }
+        </ul>
+        <partial name="_Pager" model="Model.Pager" />
+    }
+</section>

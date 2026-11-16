@@ -1,3 +1,4 @@
+using Pancras.Web.Security;
 using System.Globalization;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
@@ -15,14 +16,15 @@ namespace Pancras.Web.Pages.Catalog;
 [Authorize(Roles = CatalogAccess.ViewRoles)]
 public class IndexModel(
     ListCatalogItemsHandler listHandler,
-    ListMatchingCatalogItemsHandler exportHandler,
+    ExportCatalogItemsHandler exportHandler,
     GetCatalogItemHandler itemHandler,
     CreateCatalogItemCommandHandler createHandler,
     UpdateCatalogPricesCommandHandler priceHandler,
+    SetCatalogItemActiveCommandHandler activeHandler,
     CatalogImageStore images,
     IInventoryRepository stock) : PageModel
 {
-    public CatalogItemPage ItemPage { get; private set; } = new([], 1, CatalogPageRequest.DefaultSize, 0);
+    public CatalogItemPage ItemPage { get; private set; } = new([], 1, Pancras.Application.Common.PageSizes.Default, 0);
 
     public IReadOnlyList<CatalogItemRow> Rows => ItemPage.Rows;
 
@@ -42,7 +44,6 @@ public class IndexModel(
 
     public bool CostLocked { get; private set; }
 
-    public string? Notice { get; private set; }
 
     [BindProperty]
     public CatalogItemForm Form { get; set; } = new();
@@ -61,6 +62,13 @@ public class IndexModel(
     [BindProperty(SupportsGet = true, Name = "category")]
     public string? CategoryToken { get; set; }
 
+    [BindProperty(SupportsGet = true, Name = "status")]
+    public string? StatusToken { get; set; }
+
+    public CatalogStatusFilter StatusFilter => ListCatalogItemsQuery.ParseStatus(StatusToken);
+
+    public bool CanDisable => CatalogAccess.CanDisable(User.FindFirstValue(ClaimTypes.Role));
+
     public int? PageNumber { get; private set; }
 
     public bool HasFilter
@@ -68,13 +76,23 @@ public class IndexModel(
         get
         {
             var filter = CurrentFilter();
-            return filter.Term is not null || filter.Category is not null || filter.CategoryRejected;
+            return filter.Term is not null || filter.Category is not null || filter.CategoryRejected || filter.Status != CatalogStatusFilter.Active;
         }
     }
 
     public string FilteredListUrl => BuildUrl(ItemPage.PageNumber);
 
-    public string PageUrl(int page) => BuildUrl(page);
+    [BindProperty(SupportsGet = true, Name = "sort")]
+    public string? SortToken { get; set; }
+
+    public Pancras.Application.Common.ListSort Sort => CatalogOrdering.Parse(SortToken);
+
+    /// <summary>Địa chỉ khi bấm tiêu đề cột: đổi cột hoặc đảo chiều, về trang 1.</summary>
+    public string SortUrl(string key) => BuildUrl(1, sortToken: Sort.Toggle(key).Token);
+
+    public int RequestedSize => Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
+
+    public Pancras.Web.Formatting.PagerModel Pager => new(ItemPage.PageNumber, ItemPage.PageSize, ItemPage.TotalCount, (page, size) => BuildUrl(page, size: size));
 
     public string AddUrl => BuildUrl(ItemPage.PageNumber, add: true);
 
@@ -92,31 +110,16 @@ public class IndexModel(
         }
     }
 
-    public IReadOnlyList<int> VisiblePages
-    {
-        get
-        {
-            const int window = 5;
-            var total = ItemPage.TotalPages;
-            var current = ItemPage.PageNumber;
-            var start = Math.Max(1, current - window / 2);
-            var end = Math.Min(total, start + window - 1);
-            start = Math.Max(1, end - window + 1);
-            return Enumerable.Range(start, end - start + 1).ToArray();
-        }
-    }
-
     public async Task<IActionResult> OnGetAsync(Guid? detail, Guid? prices, bool add, CancellationToken cancellationToken)
     {
         ReadPage();
-        var requested = CatalogPageRequest.From(PageNumber);
-        ItemPage = await listHandler.HandleAsync(CurrentFilter(), requested, cancellationToken);
-        if (requested.Number != ItemPage.PageNumber)
+        var requested = CurrentFilter().WithPage(PageNumber, RequestedSize);
+        ItemPage = await listHandler.HandleAsync(requested, cancellationToken);
+        if (requested.PageNumber != ItemPage.PageNumber)
         {
             return Redirect(BuildUrl(ItemPage.PageNumber, detail, prices, add));
         }
 
-        Notice = TempData["CatalogNotice"] as string;
         if (add)
         {
             ShowForm = true;
@@ -139,8 +142,13 @@ public class IndexModel(
 
     public async Task<IActionResult> OnGetExportAsync(CancellationToken cancellationToken)
     {
-        var rows = await exportHandler.HandleAsync(CurrentFilter(), cancellationToken);
-        return File(CatalogCsv.Write(rows), "text/csv; charset=utf-8", "catalog.csv");
+        var result = await exportHandler.HandleAsync(CurrentFilter(), User.ToActor(), cancellationToken);
+        if (result.IsFailure)
+        {
+            return Forbid();
+        }
+
+        return File(CatalogCsv.Write(result.Value!), "text/csv; charset=utf-8", "catalog.csv");
     }
 
     public async Task<IActionResult> OnPostCreateAsync(CancellationToken cancellationToken)
@@ -152,7 +160,7 @@ public class IndexModel(
         {
             RememberCombined("Không thêm được mặt hàng", image, parsed, parseIssues, Form.Code);
             ShowForm = true;
-            ItemPage = await listHandler.HandleAsync(CurrentFilter(), CatalogPageRequest.From(PageNumber), cancellationToken);
+            ItemPage = await listHandler.HandleAsync(CurrentFilter().WithPage(PageNumber, RequestedSize), cancellationToken);
             return Page();
         }
 
@@ -165,17 +173,34 @@ public class IndexModel(
         if (result.IsFailure)
         {
             images.Delete(command.ImagePath);
-            RememberFailure("Không thêm được mặt hàng", result.CatalogError, result.CatalogIssues, Form.Code);
+            RememberFailure("Không thêm được mặt hàng", result.Error, result.IssuesOf<CatalogIssue>(), Form.Code);
             ShowForm = true;
-            ItemPage = await listHandler.HandleAsync(CurrentFilter(), CatalogPageRequest.From(PageNumber), cancellationToken);
+            ItemPage = await listHandler.HandleAsync(CurrentFilter().WithPage(PageNumber, RequestedSize), cancellationToken);
             return Page();
         }
 
         var created = result.Value!;
-        TempData["CatalogNotice"] = "Đã thêm mặt hàng.";
+        TempData.Toast("Đã thêm mặt hàng.");
         CategoryToken = ProductCategoryToken.From(created.Category);
         Search = created.Code;
         return Redirect(BuildUrl(1));
+    }
+
+    public async Task<IActionResult> OnPostSetActiveAsync(Guid id, bool active, int version, CancellationToken cancellationToken)
+    {
+        ReadPage();
+        var actor = User.ToActor();
+        var error = await activeHandler.HandleAsync(id, active, version, actor, cancellationToken);
+        if (error == CatalogError.None)
+        {
+            TempData.Toast(active ? "Đã Active mặt hàng." : "Đã Disable mặt hàng. Mặt hàng không còn hiện trong danh sách chọn.");
+        }
+        else
+        {
+            TempData.Toast(string.Join(" ", CatalogErrorMessages.Describe(error, [], null)), ToastLevel.Error);
+        }
+
+        return Redirect(BuildUrl(PageNumber ?? 1));
     }
 
     public async Task<IActionResult> OnPostUpdatePricesAsync(CancellationToken cancellationToken)
@@ -190,7 +215,7 @@ public class IndexModel(
             RememberCombined("Không lưu được sản phẩm", image, parsed, parseIssues, Prices.Code);
             await RefreshCostLockAsync(Prices.Id, cancellationToken);
             ShowPriceForm = true;
-            ItemPage = await listHandler.HandleAsync(CurrentFilter(), CatalogPageRequest.From(PageNumber), cancellationToken);
+            ItemPage = await listHandler.HandleAsync(CurrentFilter().WithPage(PageNumber, RequestedSize), cancellationToken);
             return Page();
         }
 
@@ -206,10 +231,10 @@ public class IndexModel(
         {
             images.Delete(command.ImagePath);
             CurrentImagePath = previousImage;
-            RememberFailure("Không lưu được sản phẩm", result.CatalogError, result.CatalogIssues, Prices.Code);
+            RememberFailure("Không lưu được sản phẩm", result.Error, result.IssuesOf<CatalogIssue>(), Prices.Code);
             await RefreshCostLockAsync(Prices.Id, cancellationToken);
             ShowPriceForm = true;
-            ItemPage = await listHandler.HandleAsync(CurrentFilter(), CatalogPageRequest.From(PageNumber), cancellationToken);
+            ItemPage = await listHandler.HandleAsync(CurrentFilter().WithPage(PageNumber, RequestedSize), cancellationToken);
             return Page();
         }
 
@@ -218,8 +243,8 @@ public class IndexModel(
             images.Delete(previousImage);
         }
 
-        TempData["CatalogNotice"] = "Đã lưu sản phẩm.";
-        return Redirect(BuildUrl(CatalogPageRequest.From(PageNumber).Number));
+        TempData.Toast("Đã lưu sản phẩm.");
+        return Redirect(BuildUrl(CurrentFilter().WithPage(PageNumber, RequestedSize).PageNumber));
     }
 
     private async Task<IActionResult> OpenDetailAsync(Guid id, CancellationToken cancellationToken)
@@ -227,7 +252,7 @@ public class IndexModel(
         var result = await itemHandler.HandleAsync(id, cancellationToken);
         if (result.IsFailure)
         {
-            RememberFailure("Không mở được mặt hàng", result.CatalogError, result.CatalogIssues, null);
+            RememberFailure("Không mở được mặt hàng", result.Error, result.IssuesOf<CatalogIssue>(), null);
             return Page();
         }
 
@@ -241,7 +266,7 @@ public class IndexModel(
         var result = await itemHandler.HandleAsync(id, cancellationToken);
         if (result.IsFailure)
         {
-            RememberFailure("Không mở được bảng giá", result.CatalogError, result.CatalogIssues, null);
+            RememberFailure("Không mở được bảng giá", result.Error, result.IssuesOf<CatalogIssue>(), null);
             return Page();
         }
 
@@ -284,11 +309,11 @@ public class IndexModel(
         Form.WarrantyMonths = string.IsNullOrWhiteSpace(Form.WarrantyMonths) ? "24" : Form.WarrantyMonths;
         Form.WeightKg = string.IsNullOrWhiteSpace(Form.WeightKg) ? "10" : Form.WeightKg;
         Form.MinimumStock = string.IsNullOrWhiteSpace(Form.MinimumStock) ? "5" : Form.MinimumStock;
-        Form.CostPrice = string.IsNullOrWhiteSpace(Form.CostPrice) ? "0 đ" : Form.CostPrice;
-        Form.RetailPrice = string.IsNullOrWhiteSpace(Form.RetailPrice) ? "0 đ" : Form.RetailPrice;
-        Form.DealerPrice = string.IsNullOrWhiteSpace(Form.DealerPrice) ? "0 đ" : Form.DealerPrice;
-        Form.DistributorPrice = string.IsNullOrWhiteSpace(Form.DistributorPrice) ? "0 đ" : Form.DistributorPrice;
-        Form.ProjectPrice = string.IsNullOrWhiteSpace(Form.ProjectPrice) ? "0 đ" : Form.ProjectPrice;
+        Form.CostPrice = string.IsNullOrWhiteSpace(Form.CostPrice) ? "0 VNĐ" : Form.CostPrice;
+        Form.RetailPrice = string.IsNullOrWhiteSpace(Form.RetailPrice) ? "0 VNĐ" : Form.RetailPrice;
+        Form.DealerPrice = string.IsNullOrWhiteSpace(Form.DealerPrice) ? "0 VNĐ" : Form.DealerPrice;
+        Form.DistributorPrice = string.IsNullOrWhiteSpace(Form.DistributorPrice) ? "0 VNĐ" : Form.DistributorPrice;
+        Form.ProjectPrice = string.IsNullOrWhiteSpace(Form.ProjectPrice) ? "0 VNĐ" : Form.ProjectPrice;
     }
 
     private async Task RefreshCostLockAsync(Guid id, CancellationToken cancellationToken)
@@ -331,7 +356,7 @@ public class IndexModel(
         ErrorMessages = messages;
     }
 
-    private CatalogListFilter CurrentFilter() => CatalogListFilter.From(CategoryToken, Search);
+    private ListCatalogItemsQuery CurrentFilter() => ListCatalogItemsQuery.From(CategoryToken, Search, StatusToken, SortToken);
 
     private void ReadPage()
     {
@@ -362,7 +387,7 @@ public class IndexModel(
         ErrorMessages = CatalogErrorMessages.Describe(error, issues, code);
     }
 
-    private string BuildUrl(int page, Guid? detailId = null, Guid? priceId = null, bool add = false)
+    private string BuildUrl(int page, Guid? detailId = null, Guid? priceId = null, bool add = false, int? size = null, string? sortToken = null)
     {
         var parts = new List<string>();
         if (detailId is Guid detail)
@@ -381,6 +406,18 @@ public class IndexModel(
         }
 
         parts.AddRange(FilterParts());
+        var order = CatalogOrdering.Parse(sortToken ?? SortToken);
+        if (order != CatalogOrdering.Parse(null))
+        {
+            parts.Add("sort=" + order.Token);
+        }
+
+        var pageSize = size ?? RequestedSize;
+        if (pageSize != Pancras.Application.Common.PageSizes.Default)
+        {
+            parts.Add("size=" + pageSize.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
         if (page > 1)
         {
             parts.Add("page=" + page.ToString(CultureInfo.InvariantCulture));
@@ -405,6 +442,11 @@ public class IndexModel(
         if (filter.Term is not null)
         {
             parts.Add("q=" + Uri.EscapeDataString(filter.Term));
+        }
+
+        if (filter.Status != CatalogStatusFilter.Active)
+        {
+            parts.Add("status=" + filter.Status.ToString().ToLowerInvariant());
         }
 
         return parts;

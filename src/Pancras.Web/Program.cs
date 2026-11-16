@@ -1,3 +1,4 @@
+using Pancras.Application.Notifications;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
@@ -86,10 +87,14 @@ builder.Services.AddRateLimiter(options =>
     {
         context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
         context.HttpContext.Response.ContentType = "text/html; charset=utf-8";
+        var sensitive = context.HttpContext.GetEndpoint()?.Metadata
+            .GetMetadata<Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute>()?.PolicyName is "sensitive" or "sensitive-post";
         await context.HttpContext.Response.WriteAsync(
             PlainStatusPage(
                 "Thử lại sau",
-                "Bạn thử đăng nhập quá nhiều lần. Vui lòng đợi một phút rồi thử lại."),
+                sensitive
+                    ? "Bạn thao tác quá nhiều lần. Vui lòng đợi một phút rồi thử lại."
+                    : "Bạn thử đăng nhập quá nhiều lần. Vui lòng đợi một phút rồi thử lại."),
             cancellationToken);
     };
     // RemoteIpAddress: khi đứng sau reverse proxy, bật Deployment:BehindReverseProxy và KnownProxies
@@ -99,6 +104,28 @@ builder.Services.AddRateLimiter(options =>
         _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
         {
             PermitLimit = builder.Configuration.GetValue("RateLimiting:LoginPerMinute", 120),
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+    // Thao tác quản trị nhân viên (tạo, sửa, đặt lại mật khẩu, mở khóa, reset 2FA): chỉ giới hạn các yêu cầu ghi, xem danh sách không bị chặn.
+    options.AddPolicy("sensitive-post", context => string.Equals(context.Request.Method, "POST", StringComparison.OrdinalIgnoreCase)
+        ? System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+            context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue("RateLimiting:SensitivePerMinute", 30),
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            })
+        : System.Threading.RateLimiting.RateLimitPartition.GetNoLimiter("read"));
+    // Đổi mật khẩu, bật/tắt 2FA ở trang hồ sơ: tính theo người dùng đang đăng nhập (không có thì theo IP).
+    options.AddPolicy("sensitive", context => System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+        context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+        {
+            PermitLimit = builder.Configuration.GetValue("RateLimiting:SensitivePerMinute", 30),
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0
         }));
@@ -122,6 +149,7 @@ builder.Services.AddScoped<AuditStampInterceptor>();
 builder.Services.AddDbContext<PancrasDbContext>((provider, options) =>
     options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention()
         .AddInterceptors(provider.GetRequiredService<AuditStampInterceptor>()));
+builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);
 builder.Services.AddScoped<IPasswordHasher, Pbkdf2PasswordHasher>();
 builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
 builder.Services.AddScoped<ISupplierRepository, SupplierRepository>();
@@ -130,6 +158,7 @@ builder.Services.AddScoped<IInventoryRepository, InventoryRepository>();
 builder.Services.AddScoped<ILocationRepository, LocationRepository>();
 builder.Services.AddScoped<ILocationManagementRepository, LocationRepository>();
 builder.Services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
+builder.Services.AddScoped<Pancras.Application.Notifications.INoticeStore, NoticeStore>();
 builder.Services.AddScoped<IPurchaseAttachmentRepository, PurchaseAttachmentRepository>();
 builder.Services.AddScoped<ITransferAttachmentRepository, TransferAttachmentRepository>();
 builder.Services.AddScoped<IStockDocumentAttachmentRepository, StockDocumentAttachmentRepository>();
@@ -155,7 +184,7 @@ builder.Services.AddScoped<ChangeOwnPasswordCommandHandler>();
 builder.Services.AddScoped<ListLocationsHandler>();
 builder.Services.AddScoped<CreateLocationCommandHandler>();
 builder.Services.AddScoped<UpdateLocationCommandHandler>();
-builder.Services.AddScoped<DeleteLocationCommandHandler>();
+builder.Services.AddScoped<DisableLocationCommandHandler>();
 builder.Services.AddScoped<ListSupplierCardsHandler>();
 builder.Services.AddScoped<CreateSupplierCommandHandler>();
 builder.Services.AddScoped<ListSuppliersForPurchaseHandler>();
@@ -167,6 +196,8 @@ builder.Services.AddScoped<ListCatalogItemsHandler>();
 builder.Services.AddScoped<GetCatalogItemHandler>();
 builder.Services.AddScoped<GetCatalogMeasuresHandler>();
 builder.Services.AddScoped<ListMatchingCatalogItemsHandler>();
+builder.Services.AddScoped<SetCatalogItemActiveCommandHandler>();
+builder.Services.AddScoped<ExportCatalogItemsHandler>();
 builder.Services.AddSingleton<CatalogImageStore>();
 builder.Services.AddScoped<CreateCatalogItemCommandHandler>();
 builder.Services.AddScoped<UpdateCatalogPricesCommandHandler>();
@@ -175,7 +206,7 @@ builder.Services.AddScoped<ListStockBalancesHandler>();
 builder.Services.AddScoped<GetStockItemDetailHandler>();
 builder.Services.AddScoped<ListStockHistoryHandler>();
 builder.Services.AddScoped<ListInventoryDocumentsHandler>();
-builder.Services.AddScoped<ListStockNoticesHandler>();
+builder.Services.AddScoped<ListNotificationsHandler>();
 builder.Services.AddScoped<CreateTransferRequestCommandHandler>();
 builder.Services.AddScoped<DecideTransferCommandHandler>();
 builder.Services.AddScoped<UpdateTransferRequestCommandHandler>();
@@ -195,7 +226,9 @@ builder.Services.AddScoped<ApproveQuantityAdjustmentCommandHandler>();
 builder.Services.AddScoped<CreateDisposalSlipCommandHandler>();
 builder.Services.AddScoped<ApproveDisposalSlipCommandHandler>();
 builder.Services.AddScoped<ListPurchaseOrdersHandler>();
+builder.Services.AddScoped<FindShipmentDuplicatesHandler>();
 builder.Services.AddScoped<GetPurchaseOrderHandler>();
+builder.Services.AddScoped<GetPurchaseReceiptPreviewHandler>();
 builder.Services.AddScoped<ChangePurchaseStatusCommandHandler>();
 builder.Services.AddScoped<AdjustPurchaseCostCommandHandler>();
 builder.Services.AddScoped<CreatePurchaseOrderCommandHandler>();
@@ -278,9 +311,9 @@ app.Use(async (context, next) =>
     headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()";
     headers["Content-Security-Policy"] =
         "default-src 'self'; "
-        + "script-src 'self' 'unsafe-inline'; "
-        + "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-        + "font-src 'self' https://fonts.gstatic.com; "
+        + "script-src 'self'; "
+        + "style-src 'self'; "
+        + "font-src 'self'; "
         + "img-src 'self' data:; "
         + "connect-src 'self'; "
         + "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
@@ -293,7 +326,26 @@ app.UseExceptionHandler(errorApp =>
     {
         var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Pancras.Unhandled");
         var failure = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
-        logger.LogError(failure?.Error, "Unhandled exception.");
+        var traceId = System.Diagnostics.Activity.Current?.Id ?? context.TraceIdentifier;
+        // Hai người sửa cùng một bản ghi (Version): không phải lỗi hệ thống. Thông báo rõ và không đổi dữ liệu.
+        if (failure?.Error?.GetType().Name == "DbUpdateConcurrencyException")
+        {
+            logger.LogInformation("Rejected a concurrent update. TraceId {TraceId}", traceId);
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            context.Response.ContentType = "text/html; charset=utf-8";
+            await context.Response.WriteAsync(
+                "<!DOCTYPE html><html lang=\"vi\"><head><meta charset=\"utf-8\" /><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />"
+                + "<title>Dữ liệu đã thay đổi - PancrasERP</title><link rel=\"stylesheet\" href=\"/css/site.css\" /></head>"
+                + "<body class=\"min-h-screen bg-slate-100 font-sans text-slate-900\"><main class=\"flex min-h-screen items-center justify-center p-4\">"
+                + "<div class=\"w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-sm\">"
+                + "<h1 class=\"text-xl font-bold\">Dữ liệu vừa được người khác cập nhật</h1>"
+                + "<p class=\"mt-2 text-sm text-slate-600\">Thao tác của bạn chưa được lưu. Hãy tải lại trang để xem dữ liệu mới nhất rồi làm lại.</p>"
+                + "<a href=\"/\" class=\"mt-6 inline-block rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white\">Về trang chủ</a>"
+                + "</div></main></body></html>");
+            return;
+        }
+
+        logger.LogError(failure?.Error, "Unhandled exception. TraceId {TraceId}", traceId);
         context.Response.StatusCode = StatusCodes.Status500InternalServerError;
         context.Response.ContentType = "text/html; charset=utf-8";
         await context.Response.WriteAsync(
@@ -303,6 +355,7 @@ app.UseExceptionHandler(errorApp =>
             + "<div class=\"w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-sm\">"
             + "<h1 class=\"text-xl font-bold\">Đã có lỗi</h1>"
             + "<p class=\"mt-2 text-sm text-slate-600\">Hệ thống chưa xử lý được yêu cầu của bạn. Thử lại sau ít phút. Nếu lỗi lặp lại, báo cho quản trị viên.</p>"
+            + "<p class=\"mt-3 text-xs text-slate-500\">Mã theo dõi: <span class=\"font-mono\">" + System.Net.WebUtility.HtmlEncode(traceId) + "</span></p>"
             + "<a href=\"/\" class=\"mt-6 inline-block rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white\">Về trang chủ</a>"
             + "</div></main></body></html>");
     });
@@ -323,10 +376,28 @@ app.UseStatusCodePages(async statusContext =>
 });
 
 app.UseStaticFiles();
+var uploadsPath = app.Configuration["Storage:UploadsPath"];
+if (!string.IsNullOrWhiteSpace(uploadsPath))
+{
+    // Ảnh sản phẩm nằm ngoài thư mục ứng dụng (để bản mới chép đè không mất ảnh), phục vụ lại ở /uploads.
+    Directory.CreateDirectory(uploadsPath);
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Path.GetFullPath(uploadsPath)),
+        RequestPath = "/uploads"
+    });
+}
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapRazorPages();
+// Giám sát: /health/live chỉ cho biết ứng dụng còn chạy; /health kiểm cả cơ sở dữ liệu. Chỉ trả "Healthy"/"Unhealthy", không chi tiết.
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions { Predicate = _ => false })
+    .AllowAnonymous();
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = registration => registration.Tags.Contains("ready")
+}).AllowAnonymous();
 
 if (args.Length > 0 && string.Equals(args[0], AdminBootstrap.Command, StringComparison.Ordinal))
 {
@@ -347,3 +418,23 @@ static string PlainStatusPage(string title, string message) =>
     + "</div></main></body></html>";
 
 public partial class Program;
+
+/// <summary>Kiểm tra kết nối được tới PostgreSQL; không trả chi tiết lỗi ra ngoài (chuỗi kết nối nằm trong lỗi).</summary>
+internal sealed class DatabaseHealthCheck(PancrasDbContext db) : Microsoft.Extensions.Diagnostics.HealthChecks.IHealthCheck
+{
+    public async Task<Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult> CheckHealthAsync(
+        Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckContext context,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await db.Database.CanConnectAsync(cancellationToken)
+                ? Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy()
+                : Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Unhealthy("Không kết nối được cơ sở dữ liệu.");
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Unhealthy("Không kết nối được cơ sở dữ liệu.");
+        }
+    }
+}

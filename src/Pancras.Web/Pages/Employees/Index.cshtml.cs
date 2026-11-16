@@ -12,6 +12,7 @@ using Pancras.Web.Security;
 namespace Pancras.Web.Pages.Employees;
 
 [Authorize(Roles = EmployeeAccess.ListRoles)]
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("sensitive-post")]
 public class IndexModel(
     ListEmployeesHandler listEmployees,
     CreateEmployeeCommandHandler createEmployee,
@@ -30,6 +31,13 @@ public class IndexModel(
 
     public string? Role { get; private set; }
 
+    public Pancras.Application.Common.ListSort Sort => EmployeeOrdering.Parse(SortToken);
+
+    public string? SortToken => Pancras.Web.Formatting.PagerModel.TokenFrom(Request, "sort");
+
+    /// <summary>Địa chỉ khi bấm tiêu đề cột: đổi cột hoặc đảo chiều, về trang 1.</summary>
+    public string SortUrl(string key) => ListUrl(1, null, Sort.Toggle(key).Token);
+
     public Guid? LocationFilter { get; private set; }
 
     public string? SignedInCode { get; private set; }
@@ -37,6 +45,12 @@ public class IndexModel(
     public int PageNumber { get; private set; } = 1;
 
     public int PageCount { get; private set; } = 1;
+
+    public int PageSize { get; private set; } = Pancras.Application.Common.PageSizes.Default;
+
+    public int Total { get; private set; }
+
+    public Pancras.Web.Formatting.PagerModel Pager => new(PageNumber, PageSize, Total, (page, size) => ListUrl(page, size));
 
     public bool ShowForm { get; private set; }
 
@@ -104,7 +118,7 @@ public class IndexModel(
         if (result.IsFailure)
         {
             ShowForm = true;
-            Error = result.EmployeeError;
+            Error = result.Error;
             await LoadAsync(q, role, location, 1, cancellationToken);
             return Page();
         }
@@ -121,7 +135,7 @@ public class IndexModel(
         if (existing.IsFailure)
         {
             ShowEdit = true;
-            Error = existing.EmployeeError;
+            Error = existing.Error;
             return Page();
         }
 
@@ -129,7 +143,7 @@ public class IndexModel(
         if (result.IsFailure)
         {
             ShowEdit = true;
-            Error = result.EmployeeError;
+            Error = result.Error;
             return Page();
         }
 
@@ -141,7 +155,7 @@ public class IndexModel(
         var result = await setActive.HandleAsync(id, active, Actor, cancellationToken);
         if (result.IsFailure)
         {
-            Error = result.EmployeeError;
+            Error = result.Error;
             await LoadAsync(q, role, location, pageNumber, cancellationToken);
             return Page();
         }
@@ -160,7 +174,7 @@ public class IndexModel(
         AdminActionAsync(resetTwoFactor.HandleAsync(id, Actor, cancellationToken), q, role, location, pageNumber, cancellationToken);
 
     private async Task<IActionResult> AdminActionAsync(
-        Task<Result<EmployeeProfile>> action,
+        Task<Result<EmployeeProfile, EmployeeError>> action,
         string? q,
         string? role,
         Guid? location,
@@ -174,7 +188,7 @@ public class IndexModel(
         PageNumber = pageNumber;
         if (result.IsFailure)
         {
-            Error = result.EmployeeError;
+            Error = result.Error;
             await LoadAsync(q, role, location, pageNumber, cancellationToken);
             return Page();
         }
@@ -187,15 +201,28 @@ public class IndexModel(
     public string PreviewCode =>
         EmployeeCodeGenerator.Attempts(Command.FullName ?? string.Empty).Select(attempt => attempt.Code).FirstOrDefault() ?? string.Empty;
 
-    public string ListUrl()
+    public string ListUrl(int? page = null, int? size = null, string? sort = null)
     {
         var parts = new List<string>();
         Add(parts, "q", Search);
         Add(parts, "role", Role);
         Add(parts, "location", LocationFilter?.ToString("D"));
-        if (PageNumber > 1)
+        var order = EmployeeOrdering.Parse(sort ?? SortToken);
+        if (order != EmployeeOrdering.Parse(null))
         {
-            parts.Add("pageNumber=" + PageNumber.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            parts.Add("sort=" + order.Token);
+        }
+
+        var sizeNow = size ?? Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
+        if (sizeNow != Pancras.Application.Common.PageSizes.Default)
+        {
+            parts.Add("size=" + sizeNow.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        var pageNow = page ?? PageNumber;
+        if (pageNow > 1)
+        {
+            parts.Add("pageNumber=" + pageNow.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
 
         return parts.Count == 0 ? "/employees" : "/employees?" + string.Join("&", parts);
@@ -221,7 +248,7 @@ public class IndexModel(
         ShowEdit = true;
         if (result.IsFailure)
         {
-            Error = result.EmployeeError;
+            Error = result.Error;
             return;
         }
 
@@ -230,6 +257,7 @@ public class IndexModel(
         EditCommand = new UpdateEmployeeCommand
         {
             Id = result.Value.Id,
+            Version = result.Value.Version,
             FullName = result.Value.FullName,
             Role = result.Value.Role,
             Email = result.Value.Email,
@@ -257,8 +285,11 @@ public class IndexModel(
         SignedInCode = User.FindFirstValue(EmployeeSessionClaims.EmployeeCode);
         Locations = await listLocations.HandleAsync(cancellationToken);
         var cards = await listEmployees.HandleAsync(Actor, q, role, location, cancellationToken);
-        PageCount = Math.Max(1, (cards.Count + ListEmployeesHandler.PageSize - 1) / ListEmployeesHandler.PageSize);
+        PageSize = Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
+        cards = EmployeeOrdering.Apply(cards, Sort);
+        Total = cards.Count;
+        PageCount = Math.Max(1, (cards.Count + PageSize - 1) / PageSize);
         PageNumber = page < 1 ? 1 : page > PageCount ? PageCount : page;
-        Cards = cards.Skip((PageNumber - 1) * ListEmployeesHandler.PageSize).Take(ListEmployeesHandler.PageSize).ToArray();
+        Cards = cards.Skip((PageNumber - 1) * PageSize).Take(PageSize).ToArray();
     }
 }

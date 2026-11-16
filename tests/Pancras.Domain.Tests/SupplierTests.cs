@@ -66,7 +66,7 @@ public class SupplierTests
         Assert.Equal("NCC02", supplier.NormalizedCode);
         Assert.Equal("Tên mới", supplier.Name);
         Assert.Equal("b@c.co", supplier.Email);
-        Assert.False(supplier.IsInactive);
+        Assert.True(supplier.IsActive);
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public class SupplierTests
 
         supplier.Deactivate();
 
-        Assert.True(supplier.IsInactive);
+        Assert.False(supplier.IsActive);
         Assert.Equal("NCC01", supplier.Code);
     }
 
@@ -98,7 +98,7 @@ public class SupplierTests
 
         supplier.Reactivate();
 
-        Assert.False(supplier.IsInactive);
+        Assert.True(supplier.IsActive);
     }
 
     [Fact]

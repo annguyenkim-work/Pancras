@@ -204,14 +204,15 @@ public sealed class StockBalance
         return true;
     }
 
-    public bool TryDisposeOne()
+    /// <summary>Trừ <paramref name="quantity"/> khỏi tồn thực; chỉ được khi không vượt tồn khả dụng (tồn thực trừ phần đang giữ chỗ).</summary>
+    public bool TryDispose(int quantity)
     {
-        if (Available < 1)
+        if (quantity < 1 || Available < quantity)
         {
             return false;
         }
 
-        OnHand -= 1;
+        OnHand -= quantity;
         Version++;
         return true;
     }

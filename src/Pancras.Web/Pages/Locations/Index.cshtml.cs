@@ -1,3 +1,4 @@
+using Pancras.Web.Formatting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -13,7 +14,7 @@ public class IndexModel(
     ListLocationsHandler list,
     CreateLocationCommandHandler create,
     UpdateLocationCommandHandler update,
-    DeleteLocationCommandHandler delete) : PageModel
+    DisableLocationCommandHandler disable) : PageModel
 {
     public IReadOnlyList<StockLocation> Locations { get; private set; } = [];
 
@@ -28,7 +29,6 @@ public class IndexModel(
 
     public bool HasAny { get; private set; }
 
-    public string? Notice { get; private set; }
 
     [BindProperty]
     public CreateLocationCommand Command { get; set; } = new();
@@ -43,7 +43,6 @@ public class IndexModel(
     public async Task OnGetAsync(string? form, string? edit, CancellationToken cancellationToken)
     {
         ShowForm = form == "1" && CanManage;
-        Notice = TempData["LocationCreated"] as string;
         if (CanManage && Guid.TryParse(edit, out var editId))
         {
             await LoadAsync(cancellationToken);
@@ -51,7 +50,7 @@ public class IndexModel(
             if (target is not null)
             {
                 EditId = editId;
-                Edit = new UpdateLocationCommand { Id = editId, Name = target.Name, Kind = target.Kind };
+                Edit = new UpdateLocationCommand { Id = editId, Version = target.Version, Name = target.Name, Kind = target.Kind };
             }
         }
 
@@ -69,7 +68,7 @@ public class IndexModel(
             return Page();
         }
 
-        TempData["LocationCreated"] = "Đã thêm kho/showroom.";
+        TempData.Toast("Đã thêm kho/showroom.");
         return RedirectToPage();
     }
 
@@ -84,14 +83,22 @@ public class IndexModel(
             return Page();
         }
 
-        TempData["LocationCreated"] = "Đã cập nhật kho/showroom.";
+        TempData.Toast("Đã cập nhật kho/showroom.");
         return RedirectToPage();
     }
 
-    public async Task<IActionResult> OnPostDeleteAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> OnPostDisableAsync(Guid id, CancellationToken cancellationToken)
     {
-        var error = await delete.HandleAsync(id, User.ToActor(), cancellationToken);
-        TempData["LocationCreated"] = error == LocationManageError.None ? "Đã xóa kho/showroom." : ManageErrorText(error);
+        var error = await disable.HandleAsync(id, User.ToActor(), cancellationToken);
+        if (error == LocationManageError.None)
+        {
+            TempData.Toast("Đã Disable kho/showroom.");
+        }
+        else
+        {
+            TempData.Toast(ManageErrorText(error), ToastLevel.Error);
+        }
+
         return RedirectToPage();
     }
 
@@ -119,13 +126,14 @@ public class IndexModel(
     {
         LocationManageError.Forbidden => "Bạn không có quyền thực hiện thao tác này.",
         LocationManageError.NotFound => "Không tìm thấy kho/showroom.",
+        LocationManageError.VersionConflict => "Kho/showroom vừa được người khác cập nhật. Đóng form, tải lại trang rồi sửa lại.",
         LocationManageError.NameMissing => "Cần nhập tên.",
         LocationManageError.NameTooLong => "Tên quá dài (tối đa 200 ký tự).",
         LocationManageError.InvalidKind => "Loại không hợp lệ.",
         LocationManageError.DuplicateName => "Đã có kho/showroom trùng tên.",
-        LocationManageError.HasStock => "Không xóa được: kho/showroom còn tồn hàng. Hãy chuyển hết hàng đi trước.",
-        LocationManageError.HasActiveEmployees => "Không xóa được: còn nhân viên đang hoạt động gắn với địa điểm này.",
-        LocationManageError.HasOpenDocuments => "Không xóa được: còn đơn mua hoặc phiếu chuyển chưa xử lý liên quan đến kho này.",
+        LocationManageError.HasStock => "Không Disable được: kho/showroom còn tồn hàng. Hãy chuyển hết hàng đi trước.",
+        LocationManageError.HasActiveEmployees => "Không Disable được: còn nhân viên đang hoạt động gắn với địa điểm này.",
+        LocationManageError.HasOpenDocuments => "Không Disable được: còn đơn mua hoặc phiếu chuyển chưa xử lý liên quan đến kho này.",
         _ => "Không thực hiện được. Thử lại sau."
     };
 

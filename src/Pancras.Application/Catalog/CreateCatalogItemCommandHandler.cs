@@ -79,7 +79,7 @@ public sealed class CreateCatalogItemCommandHandler(
 {
     private readonly CreateCatalogItemCommandValidator _validator = new();
 
-    public async Task<Result<CreatedCatalogItem>> HandleAsync(
+    public async Task<Result<CreatedCatalogItem, CatalogError>> HandleAsync(
         CreateCatalogItemCommand command,
         CancellationToken cancellationToken)
     {
@@ -88,15 +88,15 @@ public sealed class CreateCatalogItemCommandHandler(
         {
             var issues = CatalogValidation.IssuesFrom(validation);
             logger.LogInformation("Rejected a catalog item with {IssueCount} problems.", issues.Count);
-            return Result<CreatedCatalogItem>.Fail(CatalogValidation.Primary(issues), issues);
+            return Result<CreatedCatalogItem, CatalogError>.Fail(CatalogValidation.Primary(issues), issues);
         }
 
         var code = command.Code!.Trim();
         var normalizedCode = CatalogItem.NormalizeCode(code);
         if (await repository.NormalizedCodeExistsAsync(normalizedCode, cancellationToken))
         {
-            logger.LogWarning("Rejected a duplicate catalog item.");
-            return Result<CreatedCatalogItem>.Fail(
+            logger.LogInformation("Rejected a duplicate catalog item.");
+            return Result<CreatedCatalogItem, CatalogError>.Fail(
                 CatalogError.DuplicateCode,
                 [new CatalogIssue(CatalogField.Code, CatalogIssueKind.Duplicate)]);
         }
@@ -123,13 +123,13 @@ public sealed class CreateCatalogItemCommandHandler(
             command.ImagePath);
         if (!await repository.TryAddAsync(item, cancellationToken))
         {
-            logger.LogWarning("Rejected a duplicate catalog item.");
-            return Result<CreatedCatalogItem>.Fail(
+            logger.LogInformation("Rejected a duplicate catalog item.");
+            return Result<CreatedCatalogItem, CatalogError>.Fail(
                 CatalogError.DuplicateCode,
                 [new CatalogIssue(CatalogField.Code, CatalogIssueKind.Duplicate)]);
         }
 
         logger.LogInformation("Created catalog item {CatalogItemId}.", item.Id);
-        return Result<CreatedCatalogItem>.Ok(new CreatedCatalogItem(item.Id, item.Code, item.Name, item.Category));
+        return Result<CreatedCatalogItem, CatalogError>.Ok(new CreatedCatalogItem(item.Id, item.Code, item.Name, item.Category));
     }
 }

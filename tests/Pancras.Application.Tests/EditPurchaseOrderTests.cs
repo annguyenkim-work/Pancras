@@ -121,7 +121,7 @@ public class EditPurchaseOrderTests
             CancellationToken.None);
         var repriced = await Update().HandleAsync(Command(Keep(0, 5, 10m), Keep(1, 3, 30m)), CancellationToken.None);
 
-        Assert.Equal(PurchaseError.ManualChargeLocked, added.PurchaseError);
+        Assert.Equal(PurchaseError.ManualChargeLocked, added.Error);
         Assert.Equal(2, _order.Lines.Count);
         Assert.True(repriced.IsSuccess);
         Assert.Equal([15m, 25m], _order.Charges[0].Shares.Select(share => share.Amount).ToArray());
@@ -217,7 +217,7 @@ public class EditPurchaseOrderTests
             WithCharges(new UpdatePurchaseChargeInput { ChargeId = id, Amount = 40m, Label = "THC", Group = ChargeGroup.Logistics, Method = ChargeSplitMethod.Volume }),
             CancellationToken.None);
 
-        Assert.Equal(PurchaseError.MissingMeasure, result.PurchaseError);
+        Assert.Equal(PurchaseError.MissingMeasure, result.Error);
     }
 
     [Fact]
@@ -237,7 +237,7 @@ public class EditPurchaseOrderTests
         var locked = Command(Keep(0, 2, 10m), Keep(1, 3, 30m), withNewLine);
         locked.Charges = [keepManual];
         var refused = await Update().HandleAsync(locked, CancellationToken.None);
-        Assert.Equal(PurchaseError.ManualChargeLocked, refused.PurchaseError);
+        Assert.Equal(PurchaseError.ManualChargeLocked, refused.Error);
 
         var unlocked = Command(Keep(0, 2, 10m), Keep(1, 3, 30m), withNewLine);
         unlocked.Charges = [];
@@ -259,7 +259,7 @@ public class EditPurchaseOrderTests
                 new CreatePurchaseLineInput()),
             CancellationToken.None);
 
-        Assert.Equal(PurchaseError.InvalidQuantity, result.PurchaseError);
+        Assert.Equal(PurchaseError.InvalidQuantity, result.Error);
         Assert.Equal(2, _order.Lines.Count);
         Assert.Equal(2, _order.Lines[0].Quantity);
         Assert.Equal(40m, _order.Charges[0].Shares.Sum(share => share.Amount));
@@ -285,8 +285,8 @@ public class EditPurchaseOrderTests
         var edit = await Update().HandleAsync(Command(Keep(0, 9, 10m), Keep(1, 3, 30m)), CancellationToken.None);
         var delete = await Update().HandleAsync(WithCharges(), CancellationToken.None);
 
-        Assert.Equal(PurchaseError.AlreadyReceived, edit.PurchaseError);
-        Assert.Equal(PurchaseError.AlreadyReceived, delete.PurchaseError);
+        Assert.Equal(PurchaseError.AlreadyReceived, edit.Error);
+        Assert.Equal(PurchaseError.AlreadyReceived, delete.Error);
         Assert.Equal(2, _order.Lines[0].Quantity);
         Assert.Single(_order.Charges);
     }
@@ -302,7 +302,7 @@ public class EditPurchaseOrderTests
         var rejected = await Update().HandleAsync(clash, CancellationToken.None);
         var same = await Update().HandleAsync(Command(Keep(0, 2, 10m), Keep(1, 3, 30m)), CancellationToken.None);
 
-        Assert.Equal(PurchaseError.DuplicateCode, rejected.PurchaseError);
+        Assert.Equal(PurchaseError.DuplicateCode, rejected.Error);
         Assert.True(same.IsSuccess);
         Assert.Equal("PO-1", _order.Code);
     }
@@ -331,7 +331,7 @@ public class EditPurchaseOrderTests
         var rejected = await Update().HandleAsync(second, CancellationToken.None);
 
         Assert.True(saved.IsSuccess);
-        Assert.Equal(PurchaseError.VersionConflict, rejected.PurchaseError);
+        Assert.Equal(PurchaseError.VersionConflict, rejected.Error);
         Assert.Equal(5, _order.Lines[0].Quantity);
     }
 
@@ -344,13 +344,13 @@ public class EditPurchaseOrderTests
         var missing = await status.HandleAsync(
             new ChangePurchaseStatusCommand(_order.Id, TestActors.Accountant, PurchaseStatusAction.ReturnToDraft),
             CancellationToken.None);
-        Assert.Equal(PurchaseError.ReasonRequired, missing.PurchaseError);
+        Assert.Equal(PurchaseError.ReasonRequired, missing.Error);
         Assert.Equal(PurchaseStatus.PendingApproval, _order.Status);
 
         var tooLong = await status.HandleAsync(
             new ChangePurchaseStatusCommand(_order.Id, TestActors.Accountant, PurchaseStatusAction.ReturnToDraft, new string('a', 501)),
             CancellationToken.None);
-        Assert.Equal(PurchaseError.ReasonTooLong, tooLong.PurchaseError);
+        Assert.Equal(PurchaseError.ReasonTooLong, tooLong.Error);
         Assert.Equal(PurchaseStatus.PendingApproval, _order.Status);
 
         var returned = await status.HandleAsync(
@@ -390,7 +390,7 @@ public class EditPurchaseOrderTests
             Reason = "Hóa đơn về muộn"
         }, CancellationToken.None);
 
-        Assert.Equal(PurchaseError.AmountTooLarge, overflow.PurchaseError);
+        Assert.Equal(PurchaseError.AmountTooLarge, overflow.Error);
         Assert.True(stored.IsSuccess);
         Assert.Equal(PurchaseMoney.MaxDong, _order.Adjustments.Single().Amount);
     }

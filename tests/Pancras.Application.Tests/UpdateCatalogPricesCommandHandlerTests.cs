@@ -13,7 +13,6 @@ public class UpdateCatalogPricesCommandHandlerTests
     [InlineData(EmployeeRole.Admin)]
     [InlineData(EmployeeRole.Director)]
     [InlineData(EmployeeRole.Accountant)]
-    [InlineData(EmployeeRole.ShowroomWarehouseLead)]
     public async Task AllowedRole_UpdatesThePrices(string role)
     {
         var repository = new FakeCatalogRepository();
@@ -28,17 +27,19 @@ public class UpdateCatalogPricesCommandHandlerTests
         Assert.Equal(1, repository.SaveCount);
     }
 
-    [Fact]
-    public async Task Sales_CannotChangeThePriceList()
+    [Theory]
+    [InlineData(EmployeeRole.Sales)]
+    [InlineData(EmployeeRole.ShowroomWarehouseLead)]
+    public async Task OtherRoles_CannotChangeThePriceList(string role)
     {
         var repository = new FakeCatalogRepository();
         var item = ListCatalogItemsHandlerTests.Item("SP01", "Vòi", ProductCategory.SanitaryEquipment);
         repository.Items.Add(item);
         var handler = new UpdateCatalogPricesCommandHandler(repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
 
-        var result = await handler.HandleAsync(Command(item.Id, EmployeeRole.Sales, 1m), CancellationToken.None);
+        var result = await handler.HandleAsync(Command(item.Id, role, 1m), CancellationToken.None);
 
-        Assert.Equal(CatalogError.PriceListForbidden, result.CatalogError);
+        Assert.Equal(CatalogError.PriceListForbidden, result.Error);
         Assert.Equal(15000000m, item.RetailPrice);
         Assert.Equal(0, repository.SaveCount);
     }
@@ -121,7 +122,7 @@ public class UpdateCatalogPricesCommandHandlerTests
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(CatalogError.PriceListForbidden, result.CatalogError);
+        Assert.Equal(CatalogError.PriceListForbidden, result.Error);
         Assert.Equal("SP01", item.Code);
         Assert.Equal("Vòi", item.Name);
         Assert.Equal(0, repository.SaveCount);
@@ -138,8 +139,8 @@ public class UpdateCatalogPricesCommandHandlerTests
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(CatalogError.TooLarge, result.CatalogError);
-        Assert.Contains(result.CatalogIssues, issue => issue.Field == CatalogField.RetailPrice && issue.Kind == CatalogIssueKind.TooLarge);
+        Assert.Equal(CatalogError.TooLarge, result.Error);
+        Assert.Contains(result.IssuesOf<CatalogIssue>(), issue => issue.Field == CatalogField.RetailPrice && issue.Kind == CatalogIssueKind.TooLarge);
         Assert.Equal(15000000m, item.RetailPrice);
     }
 
@@ -181,7 +182,7 @@ public class UpdateCatalogPricesCommandHandlerTests
         var rejected = await handler.HandleAsync(second, CancellationToken.None);
 
         Assert.True(saved.IsSuccess);
-        Assert.Equal(CatalogError.VersionConflict, rejected.CatalogError);
+        Assert.Equal(CatalogError.VersionConflict, rejected.Error);
         Assert.Equal("Tên X", item.Name);
         Assert.Equal(300000m, item.RetailPrice);
     }
@@ -203,7 +204,7 @@ public class UpdateCatalogPricesCommandHandlerTests
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(CatalogError.CostLocked, result.CatalogError);
+        Assert.Equal(CatalogError.CostLocked, result.Error);
         Assert.Equal(8000000m, item.CostPrice);
     }
 
@@ -242,9 +243,22 @@ public class UpdateCatalogPricesCommandHandlerTests
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(CatalogError.Incomplete, result.CatalogError);
-        Assert.Contains(result.CatalogIssues, issue => issue.Field == CatalogField.Unit && issue.Kind == CatalogIssueKind.Missing);
+        Assert.Equal(CatalogError.Incomplete, result.Error);
+        Assert.Contains(result.IssuesOf<CatalogIssue>(), issue => issue.Field == CatalogField.Unit && issue.Kind == CatalogIssueKind.Missing);
         Assert.Equal("Cái", item.Unit);
+    }
+
+    [Fact]
+    public async Task ConcurrentSave_IsAVersionConflict()
+    {
+        var repository = new FakeCatalogRepository { NextOutcome = SaveOutcome.Conflict };
+        var item = ListCatalogItemsHandlerTests.Item("SP01", "Vòi", ProductCategory.SanitaryEquipment);
+        repository.Items.Add(item);
+        var handler = new UpdateCatalogPricesCommandHandler(repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
+
+        var result = await handler.HandleAsync(Command(item.Id, EmployeeRole.Admin, 9000000m), CancellationToken.None);
+
+        Assert.Equal(CatalogError.VersionConflict, result.Error);
     }
 
     private static UpdateCatalogPricesCommand Command(Guid id, string role, decimal retail) => new()

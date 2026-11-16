@@ -17,8 +17,8 @@ public class StocktakeHandlerTests
         var missingReason = await handler.HandleAsync(Command(store, 8, reason: " ", document: "BB-01"), CancellationToken.None);
         var missingDocument = await handler.HandleAsync(Command(store, 8, reason: "Đếm lại", document: null), CancellationToken.None);
 
-        Assert.Equal(StockError.MissingEvidence, missingReason.StockError);
-        Assert.Equal(StockError.MissingEvidence, missingDocument.StockError);
+        Assert.Equal(StockError.MissingEvidence, missingReason.Error);
+        Assert.Equal(StockError.MissingEvidence, missingDocument.Error);
         Assert.Empty(store.Stocktakes);
         Assert.Equal(10, store.Balance.OnHand);
     }
@@ -58,7 +58,7 @@ public class StocktakeHandlerTests
 
         var result = await handler.HandleAsync(new ApproveDocumentCommand(created.Value, TestActors.Sales(store.Location.Id)), CancellationToken.None);
 
-        Assert.Equal(StockError.ApprovalForbidden, result.StockError);
+        Assert.Equal(StockError.ApprovalForbidden, result.Error);
         Assert.Equal(ApprovalStatus.Pending, store.Stocktakes[0].Status);
     }
 
@@ -127,7 +127,7 @@ public class StocktakeHandlerTests
 
         var result = await CreateHandler(store).HandleAsync(Command(store, -1, "Lệch", "BB-01"), CancellationToken.None);
 
-        Assert.Equal(StockError.InvalidCount, result.StockError);
+        Assert.Equal(StockError.InvalidCount, result.Error);
         Assert.Empty(store.Stocktakes);
     }
 
@@ -143,6 +143,31 @@ public class StocktakeHandlerTests
         Assert.True(result.IsSuccess);
         Assert.Equal(ApprovalStatus.Approved, store.Stocktakes[0].Status);
         Assert.Equal(3, store.Balance.OnHand);
+    }
+
+    [Fact]
+    public async Task Create_ByStaff_NotifiesTheLocationLeadOnly_AndApprovalClearsTheNotice()
+    {
+        var store = Store(book: 10);
+        var employees = new FakeEmployeeRepository();
+        var lead = Employee.Create("Trưởng kho", "lead", "LEAD", "hash", EmployeeRole.ShowroomWarehouseLead, stockLocationId: store.Location.Id);
+        var otherLead = Employee.Create("Trưởng khác", "lead2", "LEAD2", "hash", EmployeeRole.ShowroomWarehouseLead, stockLocationId: Guid.NewGuid());
+        var director = Employee.Create("Giám đốc", "gd", "GD", "hash", EmployeeRole.Director);
+        employees.Employees.AddRange([lead, otherLead, director]);
+        var create = new CreateStocktakeCommandHandler(store.Store, NullLogger<CreateStocktakeCommandHandler>.Instance, employees: employees);
+
+        var created = await create.HandleAsync(Command(store, 8, "Lệch", "BB-01"), CancellationToken.None);
+
+        var notice = Assert.Single(store.Store.Notices);
+        Assert.Equal(lead.Id, notice.RecipientEmployeeId);
+        Assert.Equal(Pancras.Domain.Notifications.NotificationKind.StocktakePending, notice.Kind);
+        Assert.Equal(created.Value, notice.DocumentId);
+
+        var approve = new ApproveStocktakeCommandHandler(store.Store, NullLogger<ApproveStocktakeCommandHandler>.Instance);
+        var approved = await approve.HandleAsync(new ApproveDocumentCommand(created.Value, TestActors.Lead(store.Location.Id)), CancellationToken.None);
+
+        Assert.True(approved.IsSuccess);
+        Assert.Empty(store.Store.Notices);
     }
 
     private static CreateStocktakeCommandHandler CreateHandler(StocktakeFixture store) =>

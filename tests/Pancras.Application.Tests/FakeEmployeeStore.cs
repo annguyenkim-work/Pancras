@@ -102,6 +102,14 @@ internal sealed class FakeEmployeeRepository : IEmployeeRepository
         return Task.CompletedTask;
     }
 
+    public Pancras.Application.Common.SaveOutcome NextSaveOutcome { get; set; } = Pancras.Application.Common.SaveOutcome.Saved;
+
+    public Task<Pancras.Application.Common.SaveOutcome> TrySaveChangesAsync(CancellationToken cancellationToken)
+    {
+        SaveCount++;
+        return Task.FromResult(NextSaveOutcome);
+    }
+
     public async Task<T> WithinPersonnelRulesAsync<T>(
         Func<CancellationToken, Task<T>> action,
         CancellationToken cancellationToken)

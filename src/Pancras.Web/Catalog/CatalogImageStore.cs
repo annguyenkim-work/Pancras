@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Http;
 
 namespace Pancras.Web.Catalog;
 
-public sealed class CatalogImageStore(IWebHostEnvironment environment)
+public sealed class CatalogImageStore(IWebHostEnvironment environment, Microsoft.Extensions.Configuration.IConfiguration configuration)
 {
     public const long MaxBytes = 5 * 1024 * 1024;
 
@@ -120,16 +120,29 @@ public sealed class CatalogImageStore(IWebHostEnvironment environment)
         return true;
     }
 
-    private string Root()
+    /// <summary>Thư mục gốc của ảnh tải lên: <c>Storage:UploadsPath</c> nếu cấu hình, không thì <c>wwwroot/uploads</c>.</summary>
+    public string UploadsRoot()
     {
-        var webRoot = environment.WebRootPath;
-        if (string.IsNullOrWhiteSpace(webRoot))
+        var configured = configuration["Storage:UploadsPath"];
+        if (!string.IsNullOrWhiteSpace(configured))
         {
-            webRoot = Path.Combine(environment.ContentRootPath, "wwwroot");
+            return configured;
         }
 
-        return Path.Combine(webRoot, "uploads", "catalog");
+        var web = environment.WebRootPath;
+        if (string.IsNullOrWhiteSpace(web))
+        {
+            web = Path.Combine(environment.ContentRootPath, "wwwroot");
+        }
+
+        return Path.Combine(web, "uploads");
     }
+
+    private string Root()
+    {
+        return Path.Combine(UploadsRoot(), "catalog");
+    }
+
 
     private static bool IsAllowed(string extension, string? contentType)
     {

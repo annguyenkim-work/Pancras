@@ -1,0 +1,22 @@
+@model Pancras.Web.Formatting.NoticeModel
+@{
+    var cls = Model.Level switch
+    {
+        Pancras.Web.Formatting.ToastLevel.Warning => "border-amber-200 bg-amber-50 text-amber-800",
+        Pancras.Web.Formatting.ToastLevel.Error => "border-rose-200 bg-rose-50 text-rose-800",
+        _ => "border-emerald-200 bg-emerald-50 text-emerald-800"
+    };
+    var hasItems = Model.Items is { Count: > 0 };
+}
+<div id="@Model.Id" class="rounded-lg border px-4 py-3 text-sm font-medium @cls" role="@(Model.Level == Pancras.Web.Formatting.ToastLevel.Success ? "status" : "alert")">
+    <p class="@(hasItems ? "font-bold" : "")">@Model.Text</p>
+    @if (hasItems)
+    {
+        <ul class="mt-2 list-disc space-y-1 pl-5 font-normal">
+            @foreach (var item in Model.Items!)
+            {
+                <li>@item</li>
+            }
+        </ul>
+    }
+</div>

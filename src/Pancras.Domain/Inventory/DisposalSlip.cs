@@ -16,6 +16,9 @@ public sealed class DisposalSlip : Pancras.Domain.Auditing.AuditStamped
 
     public Guid CatalogItemId { get; private set; }
 
+    /// <summary>Số lượng hủy, từ 1 trở lên. Phiếu cũ được chuyển với số lượng 1.</summary>
+    public int Quantity { get; private set; } = 1;
+
     public string Reason { get; private set; }
 
     public string DocumentRef { get; private set; }
@@ -29,6 +32,7 @@ public sealed class DisposalSlip : Pancras.Domain.Auditing.AuditStamped
     public static StockDecision TryCreate(
         Guid stockLocationId,
         Guid catalogItemId,
+        int quantity,
         string? reason,
         string? documentRef,
         string? imageRef,
@@ -41,6 +45,11 @@ public sealed class DisposalSlip : Pancras.Domain.Auditing.AuditStamped
             return StockDecision.Rejected;
         }
 
+        if (quantity < 1)
+        {
+            return StockDecision.InvalidQuantity;
+        }
+
         if (!StocktakeSheet.TryEvidence(true, reason, documentRef, imageRef, out var storedReason, out var storedDocument, out var storedImage))
         {
             return StocktakeSheet.EvidenceFailure(reason, documentRef, imageRef);
@@ -51,6 +60,7 @@ public sealed class DisposalSlip : Pancras.Domain.Auditing.AuditStamped
             Id = Guid.CreateVersion7(),
             StockLocationId = stockLocationId,
             CatalogItemId = catalogItemId,
+            Quantity = quantity,
             Reason = storedReason,
             DocumentRef = storedDocument,
             ImageRef = storedImage,
@@ -72,7 +82,7 @@ public sealed class DisposalSlip : Pancras.Domain.Auditing.AuditStamped
             return StockDecision.NotPending;
         }
 
-        if (!balance.TryDisposeOne())
+        if (!balance.TryDispose(Quantity))
         {
             return StockDecision.NegativeStock;
         }

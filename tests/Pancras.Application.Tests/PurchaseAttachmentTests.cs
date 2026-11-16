@@ -66,7 +66,7 @@ public class PurchaseAttachmentTests
     private UploadPurchaseAttachmentCommandHandler Upload() =>
         new(_orders, _store, _store, NullLogger<UploadPurchaseAttachmentCommandHandler>.Instance, null, _audit);
 
-    private Task<Result<Guid>> UploadAsync(string name, byte[] bytes, AttachmentKind kind = AttachmentKind.CustomsDeclaration) =>
+    private Task<Result<Guid, PurchaseError>> UploadAsync(string name, byte[] bytes, AttachmentKind kind = AttachmentKind.CustomsDeclaration) =>
         Upload().HandleAsync(
             new UploadPurchaseAttachmentCommand { Actor = TestActors.Accountant, PurchaseOrderId = _order.Id, Kind = kind, FileName = name, Content = new MemoryStream(bytes) },
             CancellationToken.None);
@@ -99,7 +99,7 @@ public class PurchaseAttachmentTests
     {
         var result = await UploadAsync(name, Pdf);
 
-        Assert.Equal(PurchaseError.AttachmentInvalid, result.PurchaseError);
+        Assert.Equal(PurchaseError.AttachmentInvalid, result.Error);
         Assert.Empty(_store.Items);
         Assert.Empty(_store.Files);
     }
@@ -109,7 +109,7 @@ public class PurchaseAttachmentTests
     {
         var result = await UploadAsync("scan.pdf", [0x4D, 0x5A, 0x90, 0x00, 0x03]);
 
-        Assert.Equal(PurchaseError.AttachmentInvalid, result.PurchaseError);
+        Assert.Equal(PurchaseError.AttachmentInvalid, result.Error);
         Assert.Empty(_store.Files);
     }
 
@@ -121,8 +121,8 @@ public class PurchaseAttachmentTests
         Pdf.CopyTo(big, 0);
         var tooLarge = await UploadAsync("b.pdf", big);
 
-        Assert.Equal(PurchaseError.AttachmentInvalid, empty.PurchaseError);
-        Assert.Equal(PurchaseError.AttachmentTooLarge, tooLarge.PurchaseError);
+        Assert.Equal(PurchaseError.AttachmentInvalid, empty.Error);
+        Assert.Equal(PurchaseError.AttachmentTooLarge, tooLarge.Error);
         Assert.Empty(_store.Files);
     }
 
@@ -136,7 +136,7 @@ public class PurchaseAttachmentTests
 
         var extra = await UploadAsync("extra.pdf", Pdf);
 
-        Assert.Equal(PurchaseError.AttachmentLimit, extra.PurchaseError);
+        Assert.Equal(PurchaseError.AttachmentLimit, extra.Error);
     }
 
     [Fact]
@@ -146,7 +146,7 @@ public class PurchaseAttachmentTests
             new UploadPurchaseAttachmentCommand { Actor = TestActors.Accountant, PurchaseOrderId = Guid.CreateVersion7(), Kind = AttachmentKind.Other, FileName = "a.pdf", Content = new MemoryStream(Pdf) },
             CancellationToken.None);
 
-        Assert.Equal(PurchaseError.InvalidOrder, result.PurchaseError);
+        Assert.Equal(PurchaseError.InvalidOrder, result.Error);
     }
 
     [Fact]
@@ -165,7 +165,7 @@ public class PurchaseAttachmentTests
         Assert.Equal(Pdf, stream.ToArray());
         Assert.Equal("a.pdf", opened.Value.FileName);
         Assert.Contains(_audit.Entries, entry => entry.Action == AuditActions.PurchaseAttachmentDownloaded);
-        Assert.Equal(PurchaseError.AttachmentNotFound, missing.PurchaseError);
+        Assert.Equal(PurchaseError.AttachmentNotFound, missing.Error);
     }
 
     [Fact]
@@ -181,9 +181,9 @@ public class PurchaseAttachmentTests
         var approvedMine = await handler.HandleAsync(id, mine, CancellationToken.None);
         var approvedElsewhere = await handler.HandleAsync(id, elsewhere, CancellationToken.None);
 
-        Assert.Equal(PurchaseError.AttachmentNotFound, whileDraft.PurchaseError);
+        Assert.Equal(PurchaseError.AttachmentNotFound, whileDraft.Error);
         Assert.True(approvedMine.IsSuccess);
-        Assert.Equal(PurchaseError.AttachmentNotFound, approvedElsewhere.PurchaseError);
+        Assert.Equal(PurchaseError.AttachmentNotFound, approvedElsewhere.Error);
     }
 
     [Fact]
@@ -197,7 +197,7 @@ public class PurchaseAttachmentTests
         _order.UndoReceipt(undo);
         var removed = await delete.HandleAsync(id, TestActors.Accountant, CancellationToken.None);
 
-        Assert.Equal(PurchaseError.AlreadyReceived, locked.PurchaseError);
+        Assert.Equal(PurchaseError.AlreadyReceived, locked.Error);
         Assert.True(removed.IsSuccess);
         Assert.Empty(_store.Items);
         Assert.Empty(_store.Files);

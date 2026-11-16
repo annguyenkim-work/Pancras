@@ -5,6 +5,12 @@ public static class StockDocumentCode
 {
     public const string Transfer = "CK";
 
+    public const string Stocktake = "KK";
+
+    public const string Adjustment = "DC";
+
+    public const string Disposal = "HY";
+
     public static string Of(string prefix, Guid id)
     {
         Span<byte> bytes = stackalloc byte[16];

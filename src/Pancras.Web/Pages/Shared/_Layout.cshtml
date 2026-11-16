@@ -1,15 +1,14 @@
 @using System.Security.Claims
-@using Pancras.Domain.Catalog
-@using Pancras.Domain.Employees
+@using Pancras.Web.Navigation
+@inject Pancras.Application.Notifications.ListNotificationsHandler Notices
 @{
-    var canViewCatalog = CatalogAccess.CanView(User.FindFirstValue(ClaimTypes.Role));
-    var canPurchase = Pancras.Domain.Purchasing.PurchaseAccess.CanOpenPage(User.FindFirstValue(ClaimTypes.Role));
-    var currentPath = Context.Request.Path.Value ?? "/";
     var roleName = User.FindFirstValue(ClaimTypes.Role);
-    var canViewSuppliers = SupplierAccess.CanView(roleName);
-    var canViewLocations = LocationAccess.CanView(roleName);
-    var canListEmployees = User.IsInRole(EmployeeRole.Admin) || User.IsInRole(EmployeeRole.Director) || User.IsInRole(EmployeeRole.Accountant) || User.IsInRole(EmployeeRole.ShowroomWarehouseLead);
-    bool IsSoon(string path) => Pancras.Web.Pages.ComingSoonModel.Routes.Contains(path, StringComparer.OrdinalIgnoreCase);
+    var currentPath = Context.Request.Path.Value ?? "/";
+    var unseen = User.Identity?.IsAuthenticated == true && Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var meId)
+        ? await Notices.CountUnseenAsync(meId, Context.RequestAborted)
+        : 0;
+    var bellLabel = unseen > 0 ? $"Thông báo, {unseen} chưa xem" : "Thông báo";
+    bool IsSoon(string path) => NavigationMenu.IsComingSoon(path);
     string ItemClass(string path)
     {
         var active = string.Equals(path, "/", StringComparison.Ordinal)
@@ -35,7 +34,7 @@
 </head>
 <body class="min-h-screen bg-slate-100 font-sans text-slate-900">
     <div class="no-print lg:hidden fixed top-0 inset-x-0 z-40 flex items-center h-14 px-4 bg-white border-b border-slate-200">
-        <button type="button" class="p-2 rounded-lg text-slate-700" onclick="document.getElementById('app-sidebar').classList.toggle('-translate-x-full'); document.getElementById('nav-backdrop').classList.toggle('hidden');" aria-label="Mở menu">
+        <button type="button" class="p-2 rounded-lg text-slate-700" data-nav-toggle aria-label="Mở menu">
             <span class="block w-5 h-0.5 bg-slate-800 mb-1"></span>
             <span class="block w-5 h-0.5 bg-slate-800 mb-1"></span>
             <span class="block w-5 h-0.5 bg-slate-800"></span>
@@ -44,13 +43,14 @@
             <img src="~/images/logo-pancras.png" asp-append-version="true" alt="" class="h-10 w-10 rounded-md shrink-0" />
             <span class="font-display font-bold truncate">PancrasERP</span>
         </a>
-        <a href="/profile" class="ml-auto mr-2 text-sm font-medium text-slate-800">Hồ sơ</a>
+        <a href="/notifications" class="relative ml-auto mr-3 p-1 text-slate-700" title="Thông báo" aria-label="@bellLabel"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>@if (unseen > 0) {<span class="absolute -right-1 -top-1 min-w-[1.1rem] rounded-full bg-rose-600 px-1 text-center text-[10px] font-bold leading-4 text-white">@(unseen > 9 ? "9+" : unseen.ToString())</span>}</a>
+        <a href="/profile" class="mr-2 text-sm font-medium text-slate-800">Hồ sơ</a>
         <form method="post" asp-page="/Account/Logout">
-            <button type="submit" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Đăng xuất</button>
+            <button type="submit" class="rounded-lg px-3 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Đăng xuất</button>
         </form>
     </div>
-    <div id="nav-backdrop" class="hidden fixed inset-0 z-40 bg-slate-900/50 lg:hidden" onclick="document.getElementById('app-sidebar').classList.add('-translate-x-full'); this.classList.add('hidden');"></div>
-    <aside id="app-sidebar" class="no-print fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto bg-slate-900 text-slate-300 -translate-x-full lg:translate-x-0 transition-transform">
+    <div id="nav-backdrop" class="hidden fixed inset-0 z-40 bg-slate-900/50 lg:hidden" data-nav-close></div>
+    <aside id="app-sidebar" class="no-print fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto bg-slate-900 text-slate-300 -translate-x-full lg:translate-x-0 transition-transform" data-expanded-class="lg:translate-x-0" data-collapsed-class="lg:-translate-x-full">
         <div class="px-4 py-5 border-b border-slate-800">
             <a href="/" class="flex items-center gap-3">
                 <img src="~/images/logo-pancras.png" asp-append-version="true" alt="Pancras" class="h-12 w-12 shrink-0 rounded-lg bg-white/90 object-contain p-0.5" />
@@ -61,69 +61,35 @@
             </a>
         </div>
         <nav class="px-3 py-4 space-y-5 text-sm">
-            <div>
-                <div class="px-3 mb-1.5 text-[11px] font-bold tracking-wider text-slate-400">HỆ THỐNG</div>
-                <a href="/" class="@ItemClass("/")"><span class="min-w-0 leading-snug">Tổng quan điều hành</span></a>
-            </div>
-            <div>
-                <div class="px-3 mb-1.5 text-[11px] font-bold tracking-wider text-slate-400">VẬN HÀNH KHO BÃI</div>
-                @if (Pancras.Domain.Inventory.InventoryAccess.CanView(roleName))
+            @foreach (var group in NavigationMenu.Groups)
+            {
+                var items = NavigationMenu.VisibleFor(roleName).Where(item => item.Group == group).ToList();
+                if (items.Count == 0)
                 {
-                    <a href="/inventory" class="@ItemClass("/inventory")"><span class="min-w-0 leading-snug">Quản lý Kho &amp; Điều chuyển</span>@SoonBadge("/inventory")</a>
+                    continue;
                 }
-                @if (canPurchase)
-                {
-                    <a href="/purchasing" class="@ItemClass("/purchasing")"><span class="min-w-0 leading-snug">Mua hàng &amp; Container Nhập</span>@SoonBadge("/purchasing")</a>
-                }
-                @if (canViewSuppliers)
-                {
-                    <a href="/suppliers" class="@ItemClass("/suppliers")"><span class="min-w-0 leading-snug">Nhà cung cấp nhập khẩu</span>@SoonBadge("/suppliers")</a>
-                }
-            </div>
-            <div>
-                <div class="px-3 mb-1.5 text-[11px] font-bold tracking-wider text-slate-400">KINH DOANH &amp; PHÂN PHỐI</div>
-                @if (canViewCatalog)
-                {
-                    <a href="/catalog" class="@ItemClass("/catalog")"><span class="min-w-0 leading-snug">Danh mục sản phẩm &amp; giá</span>@SoonBadge("/catalog")</a>
-                }
-                <a href="/customers" class="@ItemClass("/customers")"><span class="min-w-0 leading-snug">Danh bạ khách hàng</span>@SoonBadge("/customers")</a>
-                <a href="/sales" class="@ItemClass("/sales")"><span class="min-w-0 leading-snug">Bán hàng (Lẻ - Đại lý - Dự án)</span>@SoonBadge("/sales")</a>
-                <a href="/quotes" class="@ItemClass("/quotes")"><span class="min-w-0 leading-snug">Báo giá &amp; Catalog</span>@SoonBadge("/quotes")</a>
-                <a href="/combos" class="@ItemClass("/combos")"><span class="min-w-0 leading-snug">Quản lý Combo Sản phẩm</span>@SoonBadge("/combos")</a>
-            </div>
-            <div>
-                <div class="px-3 mb-1.5 text-[11px] font-bold tracking-wider text-slate-400">TÀI CHÍNH</div>
-                <a href="/receivables" class="@ItemClass("/receivables")"><span class="min-w-0 leading-snug">Quản lý Công nợ &amp; Hạn mức</span>@SoonBadge("/receivables")</a>
-            </div>
-            <div>
-                <div class="px-3 mb-1.5 text-[11px] font-bold tracking-wider text-slate-400">DỊCH VỤ KHÁCH HÀNG</div>
-                <a href="/warranty" class="@ItemClass("/warranty")"><span class="min-w-0 leading-snug">Bảo hành Điện tử (Serial/SĐT)</span>@SoonBadge("/warranty")</a>
-            </div>
-            <div>
-                <div class="px-3 mb-1.5 text-[11px] font-bold tracking-wider text-slate-400">QUẢN TRỊ NỘI BỘ</div>
-                @if (canListEmployees)
-                {
-                    <a href="/employees" class="@ItemClass("/employees")"><span class="min-w-0 leading-snug">Nhân sự &amp; Phân quyền</span>@SoonBadge("/employees")</a>
-                }
-                @if (canViewLocations)
-                {
-                    <a href="/locations" class="@ItemClass("/locations")"><span class="min-w-0 leading-snug">Kho &amp; Showroom</span>@SoonBadge("/locations")</a>
-                }
-                @if (roleName is Pancras.Domain.Employees.EmployeeRole.Admin or Pancras.Domain.Employees.EmployeeRole.Director)
-                {
-                    <a href="/audit" class="@ItemClass("/audit")"><span class="min-w-0 leading-snug">Nhật ký Hệ thống (Audit Log)</span>@SoonBadge("/audit")</a>
-                }
-            </div>
+                <div>
+                    <div class="px-3 mb-1.5 text-[11px] font-bold tracking-wider text-slate-400">@group</div>
+                    @foreach (var item in items)
+                    {
+                        <a href="@item.Href" class="@ItemClass(item.Href)"><span class="min-w-0 leading-snug">@item.Label</span>@SoonBadge(item.Href)</a>
+                    }
+                </div>
+            }
         </nav>
     </aside>
-    <div class="lg:pl-72">
+    <div id="app-content" class="lg:pl-72" data-expanded-class="lg:pl-72" data-collapsed-class="lg:pl-0">
         <header class="no-print hidden lg:flex items-center justify-between h-16 px-6 bg-white border-b border-slate-200">
-            <div class="text-sm text-slate-500">PancrasERP / @ViewData["Title"]</div>
+            <div class="flex items-center gap-3 text-sm text-slate-500">
+                <button type="button" class="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100" data-sidebar-toggle aria-controls="app-sidebar" aria-expanded="true" title="Thu gọn/mở menu" aria-label="Thu gọn hoặc mở menu"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+                <span>PancrasERP / @ViewData["Title"]</span>
+            </div>
             <div class="flex items-center gap-3">
+                <a href="/notifications" class="relative p-1 text-slate-600 hover:text-sky-700" title="Thông báo" aria-label="@bellLabel"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>@if (unseen > 0) {<span class="absolute -right-1 -top-1 min-w-[1.1rem] rounded-full bg-rose-600 px-1 text-center text-[10px] font-bold leading-4 text-white">@(unseen > 9 ? "9+" : unseen.ToString())</span>}</a>
                 <a href="/profile" class="text-sm font-medium text-slate-800 hover:text-sky-700" title="Hồ sơ của tôi">@User.Identity?.Name</a>
-                <span class="px-2 py-1 text-xs font-bold rounded-full bg-sky-50 text-sky-700">@User.FindFirstValue(ClaimTypes.Role)</span>
+                <span class="@Pancras.Web.Formatting.Badge.Classes(Pancras.Web.Formatting.BadgeTone.Info)">@User.FindFirstValue(ClaimTypes.Role)</span>
                 <form method="post" asp-page="/Account/Logout">
-                    <button type="submit" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700">Đăng xuất</button>
+                    <button type="submit" class="rounded-lg px-3 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Đăng xuất</button>
                 </form>
             </div>
         </header>
@@ -131,6 +97,10 @@
             @RenderBody()
         </main>
     </div>
+    <partial name="_Toasts" />
+    <script src="~/js/ui.js" asp-append-version="true" defer></script>
     <script src="~/js/live-filter.js" asp-append-version="true" defer></script>
+    <script src="~/js/form-guard.js" asp-append-version="true" defer></script>
+    <script src="~/js/toast.js" asp-append-version="true" defer></script>
 </body>
 </html>

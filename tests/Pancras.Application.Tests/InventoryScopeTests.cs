@@ -29,7 +29,7 @@ public class InventoryScopeTests
 
     private ListStockBalancesHandler List() => new(_store, NullLogger<ListStockBalancesHandler>.Instance);
 
-    private static StockListFilter All() => StockListFilter.From(null, null, null);
+    private static ListStockBalancesQuery All() => ListStockBalancesQuery.From(null, null, null);
 
     [Fact]
     public async Task KeeperSeesStockOfEveryLocation()
@@ -44,7 +44,7 @@ public class InventoryScopeTests
     [Fact]
     public async Task KeeperAskingForAnotherLocation_SeesItsStock_WithoutCost()
     {
-        var rows = await List().HandleAsync(StockListFilter.From(_b.Id.ToString("D"), null, null), TestActors.Keeper(_a.Id), CancellationToken.None);
+        var rows = await List().HandleAsync(ListStockBalancesQuery.From(_b.Id.ToString("D"), null, null), TestActors.Keeper(_a.Id), CancellationToken.None);
 
         var row = Assert.Single(rows);
         Assert.Equal(_b.Id, row.StockLocationId);
@@ -110,9 +110,9 @@ public class InventoryScopeTests
 
         Assert.True(own.IsSuccess);
         Assert.True(asked.IsSuccess);
-        Assert.Equal(StockError.Forbidden, sales.StockError);
-        Assert.Equal(StockError.NotYourLocation, unrelated.StockError);
-        Assert.Equal(StockError.Forbidden, notSource.StockError);
+        Assert.Equal(StockError.Forbidden, sales.Error);
+        Assert.Equal(StockError.NotYourLocation, unrelated.Error);
+        Assert.Equal(StockError.Forbidden, notSource.Error);
     }
 
     [Fact]
@@ -125,7 +125,7 @@ public class InventoryScopeTests
         var byDestination = await receipt.HandleAsync(TransferFlow.FullReceipt(_store, shipped.Value, TestActors.Keeper(_b.Id)), CancellationToken.None);
 
         Assert.True(shipped.IsSuccess);
-        Assert.Equal(StockError.Forbidden, bySource.StockError);
+        Assert.Equal(StockError.Forbidden, bySource.Error);
         Assert.True(byDestination.IsSuccess);
     }
 
@@ -193,8 +193,8 @@ public class InventoryScopeTests
         var ok = await approve.HandleAsync(new ApproveDocumentCommand(byKeeper.Value, TestActors.Lead(_a.Id)), CancellationToken.None);
         var byDirector = await approve.HandleAsync(new ApproveDocumentCommand(byLead.Value, TestActors.Director), CancellationToken.None);
 
-        Assert.Equal(StockError.ApprovalForbidden, otherLead.StockError);
-        Assert.Equal(StockError.ApprovalForbidden, ownSlip.StockError);
+        Assert.Equal(StockError.ApprovalForbidden, otherLead.Error);
+        Assert.Equal(StockError.ApprovalForbidden, ownSlip.Error);
         Assert.True(ok.IsSuccess);
         Assert.True(byDirector.IsSuccess);
     }
@@ -219,7 +219,7 @@ public class InventoryScopeTests
 
         Assert.Equal(ApprovalStatus.Approved, _store.Stocktakes[0].Status);
         Assert.Equal(ApprovalStatus.Pending, _store.Stocktakes[1].Status);
-        Assert.Equal(StockError.Forbidden, salesTry.StockError);
+        Assert.Equal(StockError.Forbidden, salesTry.Error);
     }
 
     private CreateTransferSlipCommand Transfer(EmployeeActor actor, Guid source, Guid destination, int quantity = 1) =>

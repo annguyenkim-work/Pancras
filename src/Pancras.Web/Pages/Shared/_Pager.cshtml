@@ -1,0 +1,53 @@
+@model Pancras.Web.Formatting.PagerModel
+@using Pancras.Application.Common
+@if (Model.Total > 0)
+{
+    const string button = "px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-slate-200 text-slate-700";
+    const string disabled = "px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-slate-200 text-slate-300";
+    <nav class="mt-4 flex flex-wrap items-center justify-between gap-3" aria-label="Phân trang">
+        <p class="text-sm text-slate-500">Hiển thị @Model.First–@Model.Last / @Model.Total</p>
+        <div class="flex flex-wrap items-center gap-2">
+            @if (Model.PageNumber > 1)
+            {
+                <a href="@Model.UrlFor(Model.PageNumber - 1, Model.PageSize)" class="@button">Trước</a>
+            }
+            else
+            {
+                <span class="@disabled">Trước</span>
+            }
+            @foreach (var number in Model.VisiblePages)
+            {
+                if (number == Model.PageNumber)
+                {
+                    <span class="px-3 py-1.5 text-sm font-bold rounded-lg bg-sky-600 text-white" aria-current="page">@number</span>
+                }
+                else
+                {
+                    <a href="@Model.UrlFor(number, Model.PageSize)" class="px-3 py-1.5 text-sm font-bold rounded-lg bg-white border border-slate-200 text-slate-700">@number</a>
+                }
+            }
+            @if (Model.PageNumber < Model.PageCount)
+            {
+                <a href="@Model.UrlFor(Model.PageNumber + 1, Model.PageSize)" class="@button">Sau</a>
+            }
+            else
+            {
+                <span class="@disabled">Sau</span>
+            }
+        </div>
+        <p class="flex items-center gap-1 text-sm text-slate-500">
+            Dòng/trang:
+            @foreach (var size in PageSizes.Allowed)
+            {
+                if (size == Model.PageSize)
+                {
+                    <span class="px-2 py-1 font-bold text-slate-900" aria-current="true">@size</span>
+                }
+                else
+                {
+                    <a href="@Model.UrlFor(1, size)" class="px-2 py-1 font-medium text-sky-700">@size</a>
+                }
+            }
+        </p>
+    </nav>
+}

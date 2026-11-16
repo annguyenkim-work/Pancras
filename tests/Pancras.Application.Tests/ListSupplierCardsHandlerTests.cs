@@ -17,7 +17,7 @@ public class ListSupplierCardsHandlerTests
         _repository.Suppliers.Add(supplier);
         _stats.Stats[supplier.Id] = new SupplierPurchaseStats(2, 1);
 
-        var cards = await List(SupplierListFilter.From(null), SupplierActors.Accountant);
+        var cards = await List(ListSuppliersQuery.From(null), SupplierActors.Accountant);
 
         var card = Assert.Single(cards.Cards);
         Assert.Equal("NCC01", card.Code);
@@ -28,7 +28,7 @@ public class ListSupplierCardsHandlerTests
         Assert.Equal("a@b.co", card.Email);
         Assert.Equal(2, card.PurchaseOrderCount);
         Assert.Equal(1, card.LotsNotReceived);
-        Assert.False(card.IsInactive);
+        Assert.True(card.IsActive);
     }
 
     [Fact]
@@ -36,8 +36,8 @@ public class ListSupplierCardsHandlerTests
     {
         _repository.Suppliers.Add(Sample());
 
-        var manager = Assert.Single((await List(SupplierListFilter.From(null), SupplierActors.Admin)).Cards);
-        var keeper = Assert.Single((await List(SupplierListFilter.From(null), SupplierActors.Keeper)).Cards);
+        var manager = Assert.Single((await List(ListSuppliersQuery.From(null), SupplierActors.Admin)).Cards);
+        var keeper = Assert.Single((await List(ListSuppliersQuery.From(null), SupplierActors.Keeper)).Cards);
 
         Assert.Equal("••••3456", manager.AccountMask);
         Assert.Equal(string.Empty, keeper.AccountMask);
@@ -49,7 +49,7 @@ public class ListSupplierCardsHandlerTests
     {
         _repository.Suppliers.Add(Sample());
 
-        var sales = await List(SupplierListFilter.From(null), SupplierActors.Sales);
+        var sales = await List(ListSuppliersQuery.From(null), SupplierActors.Sales);
 
         Assert.Empty(sales.Cards);
         Assert.Equal(0, sales.TotalCount);
@@ -60,7 +60,7 @@ public class ListSupplierCardsHandlerTests
     {
         _repository.Suppliers.Add(Sample());
 
-        var cards = await List(SupplierListFilter.From(null), SupplierActors.Admin);
+        var cards = await List(ListSuppliersQuery.From(null), SupplierActors.Admin);
 
         var card = Assert.Single(cards.Cards);
         Assert.Equal(0, card.PurchaseOrderCount);
@@ -76,15 +76,15 @@ public class ListSupplierCardsHandlerTests
         inactive.Deactivate();
         _repository.Suppliers.Add(inactive);
 
-        Assert.Equal("NCC01", Assert.Single((await List(SupplierListFilter.From("ncc01"))).Cards).Code);
-        Assert.Equal("NCC02", Assert.Single((await List(SupplierListFilter.From("lan"))).Cards).Code);
-        Assert.Equal(2, (await List(SupplierListFilter.From("kim"))).Cards.Count);
-        Assert.Empty((await List(SupplierListFilter.From("ZZZ"))).Cards);
-        Assert.Equal(2, (await List(SupplierListFilter.From("  "))).Cards.Count);
+        Assert.Equal("NCC01", Assert.Single((await List(ListSuppliersQuery.From("ncc01"))).Cards).Code);
+        Assert.Equal("NCC02", Assert.Single((await List(ListSuppliersQuery.From("lan"))).Cards).Code);
+        Assert.Equal(2, (await List(ListSuppliersQuery.From("kim"))).Cards.Count);
+        Assert.Empty((await List(ListSuppliersQuery.From("ZZZ"))).Cards);
+        Assert.Equal(2, (await List(ListSuppliersQuery.From("  "))).Cards.Count);
 
-        Assert.Equal("NCC02", Assert.Single((await List(SupplierListFilter.From("b@c.co"))).Cards).Code);
-        Assert.Equal("NCC01", Assert.Single((await List(SupplierListFilter.From("0901000001"))).Cards).Code);
-        Assert.Equal("NCC02", Assert.Single((await List(SupplierListFilter.From("việt"))).Cards).Code);
+        Assert.Equal("NCC02", Assert.Single((await List(ListSuppliersQuery.From("b@c.co"))).Cards).Code);
+        Assert.Equal("NCC01", Assert.Single((await List(ListSuppliersQuery.From("0901000001"))).Cards).Code);
+        Assert.Equal("NCC02", Assert.Single((await List(ListSuppliersQuery.From("việt"))).Cards).Code);
     }
 
     [Fact]
@@ -96,9 +96,9 @@ public class ListSupplierCardsHandlerTests
         inactive.Deactivate();
         _repository.Suppliers.Add(inactive);
 
-        Assert.Equal("NCC02", Assert.Single((await List(SupplierListFilter.From(null, SupplierStatusFilter.Active, "Ý"))).Cards).Code);
-        Assert.Equal("NCC03", Assert.Single((await List(SupplierListFilter.From(null, SupplierStatusFilter.Inactive))).Cards).Code);
-        Assert.Equal(3, (await List(SupplierListFilter.From(null, SupplierStatusFilter.All))).Cards.Count);
+        Assert.Equal("NCC02", Assert.Single((await List(ListSuppliersQuery.From(null, SupplierStatusFilter.Active, "Ý"))).Cards).Code);
+        Assert.Equal("NCC03", Assert.Single((await List(ListSuppliersQuery.From(null, SupplierStatusFilter.Inactive))).Cards).Code);
+        Assert.Equal(3, (await List(ListSuppliersQuery.From(null, SupplierStatusFilter.All))).Cards.Count);
 
         var countries = await new ListSupplierCardsHandler(_repository, _stats, NullLogger<ListSupplierCardsHandler>.Instance)
             .ListCountriesAsync(SupplierActors.Admin, CancellationToken.None);
@@ -114,17 +114,17 @@ public class ListSupplierCardsHandlerTests
         _repository.Suppliers.Add(Supplier.Create("A2", "Beta", "Việt Nam", "An", "0902000002", "b@c.co", "2"));
         _repository.Suppliers.Add(Supplier.Create("A3", "Gamma", "Việt Nam", "An", "0903000003", "c@d.co", "3"));
 
-        var first = await List(SupplierListFilter.From(null), SupplierActors.Admin, new SupplierPageRequest(1, 2));
+        var first = await List(ListSuppliersQuery.From(null).WithPage(1, 2), SupplierActors.Admin);
         Assert.Equal(2, first.Cards.Count);
         Assert.Equal("Alpha", first.Cards[0].Name);
         Assert.Equal("Beta", first.Cards[1].Name);
         Assert.Equal(3, first.TotalCount);
         Assert.Equal(2, first.TotalPages);
 
-        var second = await List(SupplierListFilter.From(null), SupplierActors.Admin, new SupplierPageRequest(2, 2));
+        var second = await List(ListSuppliersQuery.From(null).WithPage(2, 2), SupplierActors.Admin);
         Assert.Equal("Gamma", Assert.Single(second.Cards).Name);
 
-        var past = await List(SupplierListFilter.From(null), SupplierActors.Admin, new SupplierPageRequest(9, 2));
+        var past = await List(ListSuppliersQuery.From(null).WithPage(9, 2), SupplierActors.Admin);
         Assert.Equal(2, past.PageNumber);
         Assert.Equal("Gamma", Assert.Single(past.Cards).Name);
     }
@@ -140,7 +140,7 @@ public class ListSupplierCardsHandlerTests
         var keeper = await handler.HandleAsync(supplier.Id, SupplierActors.Keeper, CancellationToken.None);
         var admin = await handler.HandleAsync(supplier.Id, SupplierActors.Admin, CancellationToken.None);
 
-        Assert.Equal(Pancras.Application.Common.SupplierError.Forbidden, keeper.SupplierError);
+        Assert.Equal(Pancras.Application.Common.SupplierError.Forbidden, keeper.Error);
         Assert.Equal("123456", admin.Value!.Account);
         Assert.Equal("Bank of China", admin.Value.BankName);
         Assert.Equal("BKCHCNBJ", admin.Value.SwiftCode);
@@ -148,9 +148,9 @@ public class ListSupplierCardsHandlerTests
         Assert.Equal(1, admin.Value.LotsNotReceived);
     }
 
-    private Task<SupplierCardPage> List(SupplierListFilter filter, EmployeeActor? actor = null, SupplierPageRequest? page = null) =>
+    private Task<SupplierCardPage> List(ListSuppliersQuery query, EmployeeActor? actor = null) =>
         new ListSupplierCardsHandler(_repository, _stats, NullLogger<ListSupplierCardsHandler>.Instance)
-            .HandleAsync(filter, page ?? SupplierPageRequest.First, actor ?? SupplierActors.Admin, CancellationToken.None);
+            .HandleAsync(query, actor ?? SupplierActors.Admin, CancellationToken.None);
 
     private static Supplier Sample() =>
         Supplier.Create("NCC01", "Kim An", "Trung Quốc", "Nguyễn An", "0901000111", "a@b.co", "123456");

@@ -7,74 +7,92 @@ using Pancras.Domain.Employees;
 
 namespace Pancras.Web.Pages.Audit;
 
-[Authorize(Roles = EmployeeRole.Admin + "," + EmployeeRole.Director)]
+[Authorize(Roles = AuditAccess.ViewRoles)]
 public class IndexModel(ListAuditHandler list) : PageModel
 {
     public IReadOnlyList<AuditEntry> Entries { get; private set; } = [];
 
-    public int Total { get; private set; }
+    private string? _next;
 
-    public int PageNumber { get; private set; } = 1;
+    private string? _previous;
 
-    public int PageCount => Math.Max(1, (Total + ListAuditHandler.PageSize - 1) / ListAuditHandler.PageSize);
+    public Pancras.Application.Common.ListSort Sort => Pancras.Web.Formatting.PagerModel.TokenFrom(Request, "sort") is { } token ? Pancras.Application.Common.ListSort.Parse(token, ["time"], "time") : new("time", true);
+
+    public string SortUrl() => PageUrl(null, false, PageSize, Sort.Toggle("time").Token);
+
+    public int PageSize { get; private set; } = Pancras.Application.Common.PageSizes.Default;
+
+    /// <summary>Nhật ký rất lớn nên chuyển trang kiểu keyset: chỉ Trước/Sau, không đánh số trang và không đếm tổng.</summary>
+    public Pancras.Web.Formatting.KeysetPagerModel Pager => new(
+        Entries.Count,
+        PageSize,
+        _previous is null ? null : PageUrl(_previous, true, PageSize),
+        _next is null ? null : PageUrl(_next, false, PageSize),
+        size => PageUrl(null, false, size));
 
     [BindProperty(SupportsGet = true, Name = "q")]
     public string? Search { get; set; }
 
-    public async Task OnGetAsync(int pageNumber = 1, CancellationToken cancellationToken = default)
+    [BindProperty(SupportsGet = true, Name = "actor")]
+    public string? Actor { get; set; }
+
+    [BindProperty(SupportsGet = true, Name = "action")]
+    public string? ActionCode { get; set; }
+
+    [BindProperty(SupportsGet = true, Name = "target")]
+    public string? Target { get; set; }
+
+    [BindProperty(SupportsGet = true, Name = "from")]
+    public DateOnly? From { get; set; }
+
+    [BindProperty(SupportsGet = true, Name = "to")]
+    public DateOnly? To { get; set; }
+
+    private AuditQuery Query => new(Search, Actor, ActionCode, Target, From, To);
+
+    public async Task OnGetAsync(string? after = null, string? before = null, CancellationToken cancellationToken = default)
     {
-        PageNumber = pageNumber < 1 ? 1 : pageNumber;
-        var result = await list.HandleAsync(Search, PageNumber, cancellationToken);
+        PageSize = Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
+        var backward = string.IsNullOrEmpty(after) && !string.IsNullOrEmpty(before);
+        var result = await list.HandleAsync(Query, backward ? before : after, backward, PageSize, Sort.Descending, cancellationToken);
         Entries = result.Entries;
-        Total = result.Total;
+        _next = result.Next;
+        _previous = result.Previous;
     }
 
-    public string PageUrl(int page) =>
-        "/audit?" + (string.IsNullOrWhiteSpace(Search) ? string.Empty : "q=" + Uri.EscapeDataString(Search.Trim()) + "&") + "pageNumber=" + page;
-
-    public static string Label(string action) => action switch
+    private string PageUrl(string? cursor, bool backward, int size, string? sort = null)
     {
-        AuditActions.LoginSucceeded => "Đăng nhập thành công",
-        AuditActions.LoginFailed => "Đăng nhập thất bại",
-        AuditActions.LoginLockedOut => "Khóa tài khoản (sai quá 5 lần)",
-        AuditActions.TwoFactorFailed => "Sai mã 2FA",
-        AuditActions.TwoFactorEnabled => "Bật 2FA",
-        AuditActions.TwoFactorDisabled => "Tắt 2FA",
-        AuditActions.TwoFactorReset => "Admin tắt 2FA của nhân viên",
-        AuditActions.RecoveryCodeUsed => "Dùng mã khôi phục 2FA",
-        AuditActions.PasswordChanged => "Đổi mật khẩu",
-        AuditActions.PasswordReset => "Admin đặt lại mật khẩu",
-        AuditActions.EmployeeCreated => "Tạo nhân viên",
-        AuditActions.EmployeeUpdated => "Sửa nhân viên",
-        AuditActions.EmployeeRoleChanged => "Đổi vai trò hoặc phân công",
-        AuditActions.EmployeeActivated => "Kích hoạt hoặc vô hiệu hóa nhân viên",
-        AuditActions.EmployeeDeactivated => "Ngừng hoạt động nhân viên",
-        AuditActions.EmployeeUnlocked => "Mở khóa tài khoản",
-        AuditActions.AccessDenied => "Bị từ chối do thiếu quyền",
-        AuditActions.LocationCreated => "Thêm kho/showroom",
-        AuditActions.LocationUpdated => "Sửa kho/showroom",
-        AuditActions.LocationDeleted => "Xóa kho/showroom",
-        AuditActions.TransferRequested => "Đề nghị chuyển kho",
-        AuditActions.TransferUpdated => "Sửa phiếu đề nghị chuyển kho",
-        AuditActions.TransferApproved => "Duyệt phiếu chuyển kho",
-        AuditActions.TransferRejected => "Từ chối phiếu chuyển kho",
-        AuditActions.TransferDiscrepancyResolved => "Xử lý chênh lệch chuyển kho",
-        AuditActions.TransferAttachmentAdded => "Đính kèm file phiếu chuyển kho",
-        AuditActions.TransferAttachmentDownloaded => "Tải file phiếu chuyển kho",
-        AuditActions.TransferShipped => "Xuất chuyển kho",
-        AuditActions.TransferReceived => "Nhận hàng chuyển kho",
-        AuditActions.TransferCancelled => "Hủy phiếu chuyển kho",
-        AuditActions.StocktakeApproved => "Duyệt kiểm kê",
-        AuditActions.AdjustmentApproved => "Duyệt điều chỉnh tồn",
-        AuditActions.DisposalApproved => "Duyệt phiếu hủy",
-        AuditActions.PricesChanged => "Đổi giá sản phẩm",
-        AuditActions.PurchaseReceived => "Nhận đơn mua vào kho",
-        AuditActions.PurchaseUpdated => "Sửa đơn mua",
-        AuditActions.PurchaseChargeAdded => "Thêm chi phí đơn mua",
-        AuditActions.PurchaseChargeDeleted => "Xóa chi phí đơn mua",
-        AuditActions.PurchaseAttachmentAdded => "Đính kèm chứng từ đơn mua",
-        AuditActions.PurchaseAttachmentDownloaded => "Tải chứng từ đơn mua",
-        AuditActions.PurchaseAttachmentDeleted => "Xóa chứng từ đơn mua",
-        _ => action
-    };
+        var parts = new List<string>();
+        var order = sort ?? Sort.Token;
+        if (order != "-time")
+        {
+            parts.Add("sort=" + order);
+        }
+
+        Add(parts, "q", Search);
+        Add(parts, "actor", Actor);
+        Add(parts, "action", ActionCode);
+        Add(parts, "target", Target);
+        Add(parts, "from", From?.ToString("yyyy-MM-dd"));
+        Add(parts, "to", To?.ToString("yyyy-MM-dd"));
+        if (size != Pancras.Application.Common.PageSizes.Default)
+        {
+            parts.Add("size=" + size);
+        }
+
+        if (cursor is not null)
+        {
+            parts.Add((backward ? "before=" : "after=") + cursor);
+        }
+
+        return parts.Count == 0 ? "/audit" : "/audit?" + string.Join('&', parts);
+    }
+
+    private static void Add(List<string> parts, string name, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            parts.Add(name + "=" + Uri.EscapeDataString(value.Trim()));
+        }
+    }
 }

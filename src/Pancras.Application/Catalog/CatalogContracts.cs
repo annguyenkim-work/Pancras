@@ -2,33 +2,6 @@ using Pancras.Domain.Catalog;
 
 namespace Pancras.Application.Catalog;
 
-public interface ICatalogItemRepository
-{
-    Task<CatalogSlice> ListAsync(
-        CatalogListFilter filter,
-        int pageNumber,
-        int pageSize,
-        CancellationToken cancellationToken);
-
-    Task<IReadOnlyList<CatalogItem>> ListMatchingAsync(CatalogListFilter filter, CancellationToken cancellationToken);
-
-    Task<CatalogItem?> GetVisibleReadOnlyAsync(Guid id, CancellationToken cancellationToken);
-
-    Task<CatalogItem?> GetVisibleForUpdateAsync(Guid id, CancellationToken cancellationToken);
-
-    Task<CatalogItem?> GetByIdReadOnlyAsync(Guid id, CancellationToken cancellationToken);
-
-    Task<bool> NormalizedCodeExistsAsync(string normalizedCode, CancellationToken cancellationToken);
-
-    Task<bool> TryAddAsync(CatalogItem item, CancellationToken cancellationToken);
-
-    Task<bool> TrySaveAsync(CancellationToken cancellationToken);
-
-    Task<IReadOnlyDictionary<Guid, CatalogItemMeasure>> ListMeasuresAsync(
-        IReadOnlyCollection<Guid> ids,
-        CancellationToken cancellationToken);
-}
-
 public sealed record CatalogSlice(IReadOnlyList<CatalogItem> Items, int TotalCount, int PageNumber);
 
 public sealed record CatalogItemMeasure(Guid Id, decimal? WeightKg, decimal? VolumeM3);
@@ -55,7 +28,8 @@ public sealed record CatalogItemRow(
     int? WidthMm,
     string ImagePath,
     int Version = 0,
-    Pancras.Application.Auditing.AuditStampView? Stamp = null)
+    Pancras.Application.Auditing.AuditStampView? Stamp = null,
+    bool IsActive = true)
 {
     public static CatalogItemRow From(CatalogItem item) =>
         new(
@@ -80,7 +54,8 @@ public sealed record CatalogItemRow(
             item.WidthMm,
             item.ImagePath,
             item.Version,
-            Pancras.Application.Auditing.AuditStampView.From(item));
+            Pancras.Application.Auditing.AuditStampView.From(item),
+            item.IsActive);
 }
 
 public static class ProductCategoryToken
@@ -119,22 +94,51 @@ public static class ProductCategoryToken
     }
 }
 
-public sealed record CatalogListFilter(ProductCategory? Category, bool CategoryRejected, string? Term)
+public enum CatalogStatusFilter
 {
-    public static CatalogListFilter From(string? categoryToken, string? term)
+    Active,
+    Disabled,
+    All
+}
+
+public sealed record ListCatalogItemsQuery(
+    ProductCategory? Category,
+    bool CategoryRejected,
+    string? Term,
+    CatalogStatusFilter Status = CatalogStatusFilter.Active,
+    Pancras.Application.Common.ListSort? Sort = null,
+    int PageNumber = 1,
+    int PageSize = Pancras.Application.Common.PageSizes.Default)
+{
+    /// <summary>Cùng bộ lọc, đổi trang và cỡ trang (số trang < 1 về 1, cỡ trang < 1 về mặc định).</summary>
+    public ListCatalogItemsQuery WithPage(int? number, int? size) =>
+        this with { PageNumber = number is > 0 ? number.Value : 1, PageSize = size is > 0 ? size.Value : Pancras.Application.Common.PageSizes.Default };
+
+    public Pancras.Application.Common.ListSort Order => Sort ?? CatalogOrdering.Parse(null);
+
+    public static CatalogStatusFilter ParseStatus(string? token) => token?.Trim().ToLowerInvariant() switch
+    {
+        "disabled" => CatalogStatusFilter.Disabled,
+        "all" => CatalogStatusFilter.All,
+        _ => CatalogStatusFilter.Active
+    };
+
+    public static ListCatalogItemsQuery From(string? categoryToken, string? term, string? statusToken = null, string? sortToken = null)
     {
         var normalizedTerm = Normalize(term);
+        var status = ParseStatus(statusToken);
+        var sort = CatalogOrdering.Parse(sortToken);
         if (string.IsNullOrWhiteSpace(categoryToken))
         {
-            return new CatalogListFilter(null, false, normalizedTerm);
+            return new ListCatalogItemsQuery(null, false, normalizedTerm, status, sort);
         }
 
         if (ProductCategoryToken.TryParse(categoryToken, out var category))
         {
-            return new CatalogListFilter(category, false, normalizedTerm);
+            return new ListCatalogItemsQuery(category, false, normalizedTerm, status, sort);
         }
 
-        return new CatalogListFilter(null, true, normalizedTerm);
+        return new ListCatalogItemsQuery(null, true, normalizedTerm, status, sort);
     }
 
     public bool Matches(CatalogItem item)
@@ -145,6 +149,11 @@ public sealed record CatalogListFilter(ProductCategory? Category, bool CategoryR
         }
 
         if (Category is ProductCategory category && item.Category != category)
+        {
+            return false;
+        }
+
+        if ((Status == CatalogStatusFilter.Active && !item.IsActive) || (Status == CatalogStatusFilter.Disabled && item.IsActive))
         {
             return false;
         }
@@ -169,16 +178,6 @@ public sealed record CatalogListFilter(ProductCategory? Category, bool CategoryR
         var trimmed = value.Trim();
         return trimmed.Length == 0 ? null : trimmed;
     }
-}
-
-public sealed record CatalogPageRequest(int Number, int Size)
-{
-    public const int DefaultSize = 20;
-
-    public static CatalogPageRequest First { get; } = new(1, DefaultSize);
-
-    public static CatalogPageRequest From(int? page) =>
-        new(page is > 0 ? page.Value : 1, DefaultSize);
 }
 
 public sealed record CatalogItemPage(

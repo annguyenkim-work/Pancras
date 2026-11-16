@@ -28,7 +28,9 @@ public class IndexModel(
     ExportPurchaseOrderHandler exportOrder,
     ListSuppliersForPurchaseHandler listSuppliers,
     ListInventoryDocumentsHandler inventory,
-    Pancras.Application.Catalog.GetCatalogMeasuresHandler catalogMeasures) : PageModel
+    Pancras.Application.Catalog.GetCatalogMeasuresHandler catalogMeasures,
+    FindShipmentDuplicatesHandler findDuplicates,
+    GetPurchaseReceiptPreviewHandler receiptPreview) : PageModel
 {
     /// <summary>Cân nặng và thể tích theo mặt hàng, để bản xem thử trong form chia chi phí theo khối lượng/thể tích đúng như máy chủ.</summary>
     public IReadOnlyDictionary<Guid, Pancras.Application.Catalog.CatalogItemMeasure> ItemMeasures { get; private set; } =
@@ -61,14 +63,14 @@ public class IndexModel(
         _ => "Không rõ"
     };
 
-    public static string StatusClass(PurchaseStatus status) => status switch
+    public static string StatusClass(PurchaseStatus status) => Badge.Colors(status switch
     {
-        PurchaseStatus.Received => "bg-emerald-50 text-emerald-700",
-        PurchaseStatus.Cancelled => "bg-rose-50 text-rose-700",
-        PurchaseStatus.Draft => "bg-slate-100 text-slate-700",
-        PurchaseStatus.PendingApproval => "bg-sky-50 text-sky-700",
-        _ => "bg-amber-50 text-amber-700"
-    };
+        PurchaseStatus.Received => BadgeTone.Success,
+        PurchaseStatus.Cancelled => BadgeTone.Neutral,
+        PurchaseStatus.Draft => BadgeTone.Neutral,
+        PurchaseStatus.PendingApproval => BadgeTone.Warning,
+        _ => BadgeTone.Info
+    });
 
     public static string EventLabel(PurchaseEventKind kind) => kind switch
     {
@@ -93,6 +95,59 @@ public class IndexModel(
     [BindProperty(SupportsGet = true, Name = "q")]
     public string? Search { get; set; }
 
+    [BindProperty(SupportsGet = true, Name = "pageNumber")]
+    public int ListPage { get; set; } = 1;
+
+    public int ListPageSize => Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
+
+    /// <summary>Các đơn của trang danh sách hiện tại; đơn đang chọn nằm ở trang khác vẫn hiện ở khung chi tiết.</summary>
+    public IReadOnlyList<PurchaseOrderSummary> PagedOrders
+    {
+        get
+        {
+            var pages = Math.Max(1, (Orders.Count + ListPageSize - 1) / ListPageSize);
+            var page = Math.Clamp(ListPage, 1, pages);
+            return Orders.Skip((page - 1) * ListPageSize).Take(ListPageSize).ToArray();
+        }
+    }
+
+    public Pancras.Web.Formatting.PagerModel OrdersPager => new(
+        Math.Clamp(ListPage, 1, Math.Max(1, (Orders.Count + ListPageSize - 1) / ListPageSize)),
+        ListPageSize,
+        Orders.Count,
+        (page, size) => OrdersUrl(page, size));
+
+    private string OrdersUrl(int page, int size)
+    {
+        var parts = new List<string>();
+        if (Selected is not null)
+        {
+            parts.Add("order=" + Selected.Id.ToString("D"));
+        }
+
+        if (!string.IsNullOrWhiteSpace(Search))
+        {
+            parts.Add("q=" + Uri.EscapeDataString(Search.Trim()));
+        }
+
+        if (SupplierFilter is Guid supplier)
+        {
+            parts.Add("supplier=" + supplier.ToString("D"));
+        }
+
+        if (size != Pancras.Application.Common.PageSizes.Default)
+        {
+            parts.Add("size=" + size);
+        }
+
+        if (page > 1)
+        {
+            parts.Add("pageNumber=" + page);
+        }
+
+        return parts.Count == 0 ? "/purchasing" : "/purchasing?" + string.Join("&", parts);
+    }
+
     /// <summary>Lọc đơn theo nhà cung cấp (link từ danh bạ nhà cung cấp).</summary>
     [BindProperty(SupportsGet = true, Name = "supplier")]
     public Guid? SupplierFilter { get; set; }
@@ -114,7 +169,9 @@ public class IndexModel(
 
     public PurchaseLineView? FormulaLine { get; private set; }
 
-    public string? Notice { get; private set; }
+    /// <summary>Giá vốn cũ → mới từng dòng nếu nhận đủ phần còn lại; chỉ có khi người xem thấy được giá vốn và đơn còn nhận được.</summary>
+    public IReadOnlyList<PurchaseReceiptPreviewLine> ReceiptPreview { get; private set; } = [];
+
 
     public string? ErrorMessage { get; private set; }
 
@@ -132,7 +189,7 @@ public class IndexModel(
 
         ShowForm = string.Equals(form, "1", StringComparison.Ordinal);
         NeedMeasures = ShowForm || edit is not null;
-        Notice = notice switch
+        var noticeText = notice switch
         {
             "created" => "Đã tạo đơn nhập.",
             "received" => "Đã nhập kho.",
@@ -150,6 +207,10 @@ public class IndexModel(
             "cost-adjusted" => "Đã ghi điều chỉnh chi phí.",
             _ => null
         };
+        if (noticeText is not null)
+        {
+            TempData.Toast(noticeText);
+        }
         if (!string.IsNullOrEmpty(error) && Enum.TryParse<PurchaseError>(error, out var parsed) && parsed != PurchaseError.None)
         {
             ErrorMessage = PurchaseErrorMessages.For(parsed);
@@ -162,6 +223,27 @@ public class IndexModel(
         }
 
         await LoadAsync(selected, formula);
+        if (notice is "created" or "updated" && Selected is not null)
+        {
+            // Cảnh báo, không chặn: container hoặc B/L đã có ở đơn khác còn hiệu lực.
+            var duplicates = await findDuplicates.HandleAsync(Selected.Id, Actor, HttpContext.RequestAborted);
+            if (duplicates.Count > 0)
+            {
+                var codes = string.Join(", ", duplicates.Select(item => $"{item.Code} (trùng {item.Shared})"));
+                TempData.Toast("Đã lưu đơn. Lưu ý: số container hoặc B/L này cũng có ở đơn " + codes + ".", ToastLevel.Warning);
+            }
+        }
+        if (notice is "created" or "updated" && Selected is not null)
+        {
+            // Cảnh báo, không chặn: container hoặc B/L đã có ở đơn khác còn hiệu lực.
+            var duplicates = await findDuplicates.HandleAsync(Selected.Id, Actor, HttpContext.RequestAborted);
+            if (duplicates.Count > 0)
+            {
+                var codes = string.Join(", ", duplicates.Select(item => $"{item.Code} (trùng {item.Shared})"));
+                TempData.Toast("Đã lưu đơn. Lưu ý: số container hoặc B/L này cũng có ở đơn " + codes + ".", ToastLevel.Warning);
+            }
+        }
+
         if (edit is not null && Selected is { } editing && IsEditable(editing.Status) && editing.Id == edit)
         {
             ShowForm = true;
@@ -224,14 +306,7 @@ public class IndexModel(
             {
                 // Giá quá lớn làm phép nhân tràn decimal: gán giá trị tối đa để handler từ chối bằng "vượt giới hạn" thay vì lỗi 500.
                 // Số lượng <= 0 giữ nguyên phép nhân để handler báo đúng lỗi số lượng.
-                try
-                {
-                    lines[index].FobUsd = Form.UnitPrices[index] * lines[index].Quantity;
-                }
-                catch (OverflowException)
-                {
-                    lines[index].FobUsd = decimal.MaxValue;
-                }
+                lines[index].FobUsd = Pancras.Web.Formatting.SafeMath.MultiplyOrMax(Form.UnitPrices[index], lines[index].Quantity);
             }
 
             if (index < Form.DutyPercents.Count)
@@ -272,7 +347,7 @@ public class IndexModel(
             ShowForm = true;
             NeedMeasures = true;
             EditingId = orderId;
-            ErrorMessage = PurchaseErrorMessages.For(result.PurchaseError, PurchaseErrorMessages.UpdateFailed);
+            ErrorMessage = PurchaseErrorMessages.For(result.Error, PurchaseErrorMessages.UpdateFailed);
             KeepDraftLines();
             await LoadAsync(orderId, null);
             return Page();
@@ -293,7 +368,7 @@ public class IndexModel(
             new UploadPurchaseAttachmentCommand { Actor = Actor, PurchaseOrderId = orderId, Kind = kind, FileName = file.FileName, Content = content },
             HttpContext.RequestAborted);
         return result.IsFailure
-            ? Redirect($"/purchasing?order={orderId}&error={result.PurchaseError}")
+            ? Redirect($"/purchasing?order={orderId}&error={result.Error}")
             : Redirect($"/purchasing?order={orderId}&notice=attachment-added");
     }
 
@@ -315,7 +390,7 @@ public class IndexModel(
     {
         var result = await deleteAttachment.HandleAsync(attachmentId, Actor, HttpContext.RequestAborted);
         return result.IsFailure
-            ? Redirect($"/purchasing?order={orderId}&error={result.PurchaseError}")
+            ? Redirect($"/purchasing?order={orderId}&error={result.Error}")
             : Redirect($"/purchasing?order={orderId}&notice=attachment-deleted");
     }
 
@@ -345,7 +420,7 @@ public class IndexModel(
         {
             ShowForm = true;
             NeedMeasures = true;
-            ErrorMessage = PurchaseErrorMessages.For(result.PurchaseError, PurchaseErrorMessages.CreateFailed);
+            ErrorMessage = PurchaseErrorMessages.For(result.Error, PurchaseErrorMessages.CreateFailed);
             KeepDraftLines();
             await LoadAsync(null, null);
             return Page();
@@ -372,7 +447,7 @@ public class IndexModel(
             HttpContext.RequestAborted);
         if (result.IsFailure)
         {
-            return Redirect($"/purchasing?order={orderId}&error={result.PurchaseError}");
+            return Redirect($"/purchasing?order={orderId}&error={result.Error}");
         }
 
         return Redirect($"/purchasing?order={orderId}&notice=received");
@@ -384,7 +459,7 @@ public class IndexModel(
         var result = await changeStatus.HandleAsync(new ChangePurchaseStatusCommand(orderId, Actor, action, note), HttpContext.RequestAborted);
         if (result.IsFailure)
         {
-            return Redirect($"/purchasing?order={orderId}&error={result.PurchaseError}");
+            return Redirect($"/purchasing?order={orderId}&error={result.Error}");
         }
 
         var notice = action switch
@@ -405,7 +480,7 @@ public class IndexModel(
             new AdjustPurchaseCostCommand { Actor = Actor, PurchaseOrderId = orderId, Label = label, Amount = amount, Method = method, Reason = reason },
             HttpContext.RequestAborted);
         return result.IsFailure
-            ? Redirect($"/purchasing?order={orderId}&error={result.PurchaseError}")
+            ? Redirect($"/purchasing?order={orderId}&error={result.Error}")
             : Redirect($"/purchasing?order={orderId}&notice=cost-adjusted");
     }
 
@@ -419,7 +494,7 @@ public class IndexModel(
         var result = await exportOrder.HandleAsync(orderId, Actor, HttpContext.RequestAborted);
         if (result.IsFailure)
         {
-            return Redirect($"/purchasing?error={result.PurchaseError}");
+            return Redirect($"/purchasing?error={result.Error}");
         }
 
         var export = result.Value!;
@@ -479,6 +554,7 @@ public class IndexModel(
             if (Selected is not null)
             {
                 Attachments = await listAttachments.HandleAsync(Selected.Id, cancellationToken);
+                ReceiptPreview = await receiptPreview.HandleAsync(Selected.Id, Actor, cancellationToken);
             }
 
             if (Selected is not null && formula is Guid formulaId)

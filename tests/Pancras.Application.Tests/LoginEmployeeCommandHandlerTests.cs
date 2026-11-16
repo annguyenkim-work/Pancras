@@ -46,7 +46,7 @@ public class LoginEmployeeCommandHandlerTests
             new LoginEmployeeCommand { EmployeeCode = "admin", Password = "wrong" },
             CancellationToken.None);
 
-        Assert.Equal(LoginError.InvalidCredentials, result.LoginError);
+        Assert.Equal(LoginError.InvalidCredentials, result.Error);
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public class LoginEmployeeCommandHandlerTests
             new LoginEmployeeCommand { EmployeeCode = "missing", Password = "Admin@12345" },
             CancellationToken.None);
 
-        Assert.Equal(LoginError.InvalidCredentials, result.LoginError);
+        Assert.Equal(LoginError.InvalidCredentials, result.Error);
     }
 
     [Fact]
@@ -69,8 +69,8 @@ public class LoginEmployeeCommandHandlerTests
             new LoginEmployeeCommand { EmployeeCode = "   ", Password = "Admin@12345" },
             CancellationToken.None);
 
-        Assert.Equal(LoginError.MissingCredentials, missingPassword.LoginError);
-        Assert.Equal(LoginError.MissingCredentials, missingCode.LoginError);
+        Assert.Equal(LoginError.MissingCredentials, missingPassword.Error);
+        Assert.Equal(LoginError.MissingCredentials, missingCode.Error);
     }
 
     [Fact]
@@ -91,6 +91,6 @@ public class LoginEmployeeCommandHandlerTests
             new LoginEmployeeCommand { EmployeeCode = "admin", Password = " Admin@12345" },
             CancellationToken.None);
 
-        Assert.Equal(LoginError.InvalidCredentials, spaced.LoginError);
+        Assert.Equal(LoginError.InvalidCredentials, spaced.Error);
     }
 }
