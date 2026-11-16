@@ -11,11 +11,10 @@ Nguồn code: `src/Pancras.Web/Formatting/` (`VndMoney.cs`, `StockCsv.cs`, `Cata
 | Loại | Hiển thị | Ví dụ |
 | --- | --- | --- |
 | VND | số nhóm theo `vi-VN` (dấu chấm), một dấu cách, hậu tố `VNĐ` | `1.234.567 VNĐ` |
-| USD | số nhóm theo `vi-VN`, tối đa 2 chữ số thập phân (dấu phẩy), một dấu cách, hậu tố `USD` | `1.234,56 USD` |
 
 - VND làm tròn đồng, `MidpointRounding.AwayFromZero`; không hiện số lẻ. Số âm `-1.234 VNĐ`; số 0 là `0 VNĐ`.
 - Không dùng ký hiệu `$`, không dùng `đ` hay `VND` (không dấu). Hậu tố là `VNĐ` và `USD`.
-- Mọi chỗ hiển thị tiền gọi hàm chung (`VndMoney`, thêm hàm USD); không tự `ToString` ở trang.
+- Mọi chỗ hiển thị tiền gọi hàm chung (`VndMoney.FormatDong`, `FormatUsd`, `FormatPercent`); không tự `ToString` ở trang. Giờ hiển thị luôn qua `VietnamTime` (UTC+7 cố định), không dùng `ToLocalTime()`.
 - Tỷ giá: `25.400 VNĐ / USD`.
 - Cột tiền trong bảng căn phải, `font-mono tabular-nums`.
 - Ô nhập tiền (`data-vnd`): nhận số thô khi sửa, hiện số nhóm khi rời ô. Server làm sạch dấu nhóm rồi đọc bằng `InvariantCulture`.
@@ -62,7 +61,4 @@ Nguồn code: `src/Pancras.Web/Formatting/` (`VndMoney.cs`, `StockCsv.cs`, `Cata
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| USD | Tự `ToString("#,##0.##", vi-VN) + " USD"` rải rác (vd. Purchasing/Index.cshtml dòng 234), chưa có hàm chung |
-| Múi giờ | `ToLocalTime()` ở 5+ chỗ (Audit, Employees, Inventory, Purchasing, `_AuditStamp`) phụ thuộc múi giờ máy chủ |
 | Giọng văn nút | `Lưu Biên Bản Kiểm Kê`, `Hủy bỏ`, `Hủy` (vừa đóng modal vừa hủy phiếu) |
-| Phần trăm | `ToString("0.####")` viết tay |

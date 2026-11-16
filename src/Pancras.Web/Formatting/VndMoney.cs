@@ -12,5 +12,11 @@ public static class VndMoney
         return whole.ToString("N0", Vietnamese) + " VNĐ";
     }
 
+    /// <summary>Tiền USD: tối đa 2 số lẻ, dấu phân cách vi-VN, hậu tố <c>USD</c>.</summary>
+    public static string FormatUsd(decimal amount) => amount.ToString("#,##0.##", Vietnamese) + " USD";
+
+    /// <summary>Phần trăm từ một tỷ lệ (0,1 thành 10%), tối đa 4 số lẻ.</summary>
+    public static string FormatPercent(decimal fraction) => (fraction * 100m).ToString("0.####", Vietnamese) + "%";
+
     public static string FormatMeasure(decimal amount) => amount.ToString("0.###", Vietnamese);
 }

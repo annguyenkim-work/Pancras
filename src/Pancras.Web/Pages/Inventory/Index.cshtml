@@ -426,7 +426,7 @@
                                             {
                                                 <li class="relative">
                                                     <span class="absolute -left-[1.4rem] top-1.5 h-2.5 w-2.5 rounded-full bg-sky-500"></span>
-                                                    <p class="text-sm"><span class="font-semibold text-slate-900">@StockLabels.TransferEvent(entry.Kind)</span> <span class="text-slate-500">· @(string.IsNullOrEmpty(entry.ActorCode) ? "không rõ" : entry.ActorCode) · @entry.At.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span></p>
+                                                    <p class="text-sm"><span class="font-semibold text-slate-900">@StockLabels.TransferEvent(entry.Kind)</span> <span class="text-slate-500">· @(string.IsNullOrEmpty(entry.ActorCode) ? "không rõ" : entry.ActorCode) · @VietnamTime.Format(entry.At)</span></p>
                                                     @if (!string.IsNullOrWhiteSpace(entry.Note))
                                                     {
                                                         <p class="mt-0.5 text-sm text-slate-600">@entry.Note</p>
@@ -1111,7 +1111,7 @@
                                 <div>
                                     <span class="rounded-md px-2 py-0.5 text-[11px] font-bold @badge.ClassName">@badge.Label</span>
                                     <p class="mt-1 text-sm font-medium text-slate-900">@Model.Describe(entry)</p>
-                                    <p class="text-xs text-slate-500">@entry.OccurredAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm") · @entry.LocationName</p>
+                                    <p class="text-xs text-slate-500">@VietnamTime.Format(entry.OccurredAt, "yyyy-MM-dd HH:mm") · @entry.LocationName</p>
                                 </div>
                                 <p class="text-sm font-bold @(entry.Quantity < 0 ? "text-rose-600" : "text-emerald-700")">@(entry.Quantity > 0 ? "+" : "")@IndexModel.Count(entry.Quantity)</p>
                             </div>

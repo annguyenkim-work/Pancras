@@ -174,7 +174,7 @@ public class IndexModel(
             }
         }
 
-        var created = StockLabels.Version7Time(slip.Id)?.ToLocalTime().Date;
+        var created = StockLabels.Version7Time(slip.Id) is { } createdAt ? VietnamTime.Of(createdAt).DateTime.Date : (DateTime?)null;
         if (created is DateTime day)
         {
             if (DateTime.TryParse(TransferFrom, CultureInfo.InvariantCulture, DateTimeStyles.None, out var from) && day < from.Date)
@@ -633,7 +633,7 @@ public class IndexModel(
     public static string When(Guid id)
     {
         var time = StockLabels.Version7Time(id);
-        return time is null ? string.Empty : time.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm", Vietnamese);
+        return time is null ? string.Empty : VietnamTime.Format(time.Value, "yyyy-MM-dd HH:mm");
     }
 
     public string PlaceCode(Guid locationId) =>

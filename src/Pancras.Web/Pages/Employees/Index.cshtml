@@ -200,7 +200,7 @@ else
                             }
                         </td>
                         <td class="whitespace-nowrap px-3 py-3 text-slate-700 xl:whitespace-normal">@(card.Stamp?.UpdatedAt is not null && !string.IsNullOrWhiteSpace(card.Stamp.UpdatedBy) ? card.Stamp.UpdatedBy : "—")</td>
-                        <td class="whitespace-nowrap px-3 py-3 tabular-nums text-slate-700 xl:whitespace-normal">@(card.Stamp?.UpdatedAt is DateTimeOffset updated ? updated.ToLocalTime().ToString("dd/MM/yyyy HH:mm") : "—")</td>
+                        <td class="whitespace-nowrap px-3 py-3 tabular-nums text-slate-700 xl:whitespace-normal">@(card.Stamp?.UpdatedAt is DateTimeOffset updated ? VietnamTime.Format(updated) : "—")</td>
                     </tr>
                 }
             </tbody>

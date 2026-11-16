@@ -98,14 +98,14 @@ else
                         <p class="mt-1 text-sm text-slate-500">Cont: @order.ContainerNumber · B/L: @order.BillOfLading · Cảng: @order.Port · Kho nhận: @order.ReceiveLocationName</p>
                         @if (order.CostVisible)
                         {
-                            <p class="mt-1 text-sm text-slate-500">Tỷ giá @VndMoney.FormatDong(order.ExchangeRate) / USD · VAT @((order.VatRate * 100m).ToString("0.####"))% @(order.VatDeductible ? "(được khấu trừ)" : "(không khấu trừ, tính vào giá vốn)")</p>
+                            <p class="mt-1 text-sm text-slate-500">Tỷ giá @VndMoney.FormatDong(order.ExchangeRate) / USD · VAT @VndMoney.FormatPercent(order.VatRate) @(order.VatDeductible ? "(được khấu trừ)" : "(không khấu trừ, tính vào giá vốn)")</p>
                         }
                         @* Lần ghi cuối trên đơn (kể cả lúc tạo) và lần nhận kho. Chi tiết từng bước nằm ở Nhật ký hệ thống. *@
                         <p class="mt-1 text-xs text-slate-500" id="order-stamps">
-                            Cập nhật @order.UpdatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")@(string.IsNullOrEmpty(order.UpdatedBy) ? "" : " bởi " + order.UpdatedBy)
+                            Cập nhật @VietnamTime.Format(order.UpdatedAt)@(string.IsNullOrEmpty(order.UpdatedBy) ? "" : " bởi " + order.UpdatedBy)
                             @if (order.ReceivedAt is DateTimeOffset receivedAt)
                             {
-                                <text>· Nhận kho @receivedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")@(string.IsNullOrEmpty(order.ReceivedBy) ? "" : " bởi " + order.ReceivedBy)</text>
+                                <text>· Nhận kho @VietnamTime.Format(receivedAt)@(string.IsNullOrEmpty(order.ReceivedBy) ? "" : " bởi " + order.ReceivedBy)</text>
                             }
                         </p>
                     </div>
@@ -227,8 +227,8 @@ else
                                     }
                                     @if (order.CostVisible)
                                     {
-                                        <td class="py-2 pr-3 tabular-nums">@((line.Quantity == 0 ? line.FobUsd : line.FobUsd / line.Quantity).ToString("#,##0.##", CultureInfo.GetCultureInfo("vi-VN"))) USD</td>
-                                        <td class="py-2 pr-3 tabular-nums">@((line.DutyRate * 100m).ToString("0.####"))%</td>
+                                        <td class="py-2 pr-3 tabular-nums">@VndMoney.FormatUsd(line.Quantity == 0 ? line.FobUsd : line.FobUsd / line.Quantity)</td>
+                                        <td class="py-2 pr-3 tabular-nums">@VndMoney.FormatPercent(line.DutyRate)</td>
                                         <td class="py-2 pr-3 tabular-nums">@VndMoney.FormatDong(line.Cost.CustomsInUse)</td>
                                         <td class="py-2 pr-3 tabular-nums">@VndMoney.FormatDong(line.Cost.VatBase)</td>
                                         <td class="py-2 pr-3 tabular-nums">@VndMoney.FormatDong(line.Cost.VatInUse)</td>
@@ -410,7 +410,7 @@ else
                                             <td class="py-2 pr-3 tabular-nums">@VndMoney.FormatDong(adjustment.AppliedToStock)</td>
                                             <td class="py-2 pr-3 tabular-nums">@VndMoney.FormatDong(adjustment.Variance)</td>
                                             <td class="py-2 pr-3">@adjustment.Reason</td>
-                                            <td class="py-2 pr-3 text-xs text-slate-500">@adjustment.CreatedBy · @adjustment.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                                            <td class="py-2 pr-3 text-xs text-slate-500">@adjustment.CreatedBy · @VietnamTime.Format(adjustment.CreatedAt)</td>
                                         </tr>
                                     }
                                 </tbody>
@@ -461,7 +461,7 @@ else
                                             AttachmentKind.PackingList => "Packing list",
                                             AttachmentKind.LogisticsInvoice => "Hóa đơn phí logistics",
                                             _ => "Khác"
-                                        }) · @(file.SizeBytes >= 1048576 ? (file.SizeBytes / 1048576m).ToString("0.#", CultureInfo.GetCultureInfo("vi-VN")) + " MB" : Math.Max(1, file.SizeBytes / 1024).ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) + " KB") · @file.UploadedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm") @(string.IsNullOrEmpty(file.UploadedBy) ? "" : "· " + file.UploadedBy)</p>
+                                        }) · @(file.SizeBytes >= 1048576 ? (file.SizeBytes / 1048576m).ToString("0.#", CultureInfo.GetCultureInfo("vi-VN")) + " MB" : Math.Max(1, file.SizeBytes / 1024).ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) + " KB") · @VietnamTime.Format(file.UploadedAt) @(string.IsNullOrEmpty(file.UploadedBy) ? "" : "· " + file.UploadedBy)</p>
                                     </div>
                                     @if (Model.CanManage && Pancras.Web.Pages.Purchasing.IndexModel.IsEditable(order.Status))
                                     {
@@ -510,7 +510,7 @@ else
                             {
                                 <li>
                                     <p class="font-medium text-slate-900">@Pancras.Web.Pages.Purchasing.IndexModel.EventLabel(step.Kind)</p>
-                                    <p class="text-xs text-slate-500">@step.OccurredAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")@(string.IsNullOrEmpty(step.ActorCode) ? "" : " · " + step.ActorCode)@(string.IsNullOrWhiteSpace(step.Note) ? "" : " · " + step.Note)</p>
+                                    <p class="text-xs text-slate-500">@VietnamTime.Format(step.OccurredAt)@(string.IsNullOrEmpty(step.ActorCode) ? "" : " · " + step.ActorCode)@(string.IsNullOrWhiteSpace(step.Note) ? "" : " · " + step.Note)</p>
                                 </li>
                             }
                         </ol>
