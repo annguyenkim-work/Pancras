@@ -88,7 +88,7 @@ Một cách gọi cho mọi đối tượng (nhân viên, nhà cung cấp, mặt
 | --- | --- | --- |
 | Nhật ký hệ thống (audit) | `AuditEntry`, `IAuditLog` | Mã hành động `nhóm.sự_kiện` |
 | Dấu vết bản ghi | `AuditStamped` | Ai ghi lần cuối, lúc nào |
-| Thông báo | `Notification` (hiện `StockNotice`) | Trong phần mềm |
+| Thông báo | `Notification` | Trong phần mềm |
 | Security stamp | `SecurityStamp` | Đổi thì phiên cũ hết hiệu lực |
 | Xác thực hai bước (2FA) | `TwoFactorEnabled`, TOTP | Tùy chọn mọi vai |
 | Mã khôi phục | `RecoveryCodeHashes` | 10 mã dùng một lần |

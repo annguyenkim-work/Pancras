@@ -6,9 +6,17 @@
 @using Pancras.Web.Formatting
 @{
     ViewData["Title"] = "Kho và điều chuyển";
-    string TabClass(string view) => Model.ActiveView == view
-        ? "inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-xl bg-white text-slate-900 shadow-sm border border-slate-200"
-        : "inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-xl text-slate-600 hover:bg-white/70";
+    TabsModel InventoryTabs()
+    {
+        var tabs = new List<TabItem> { new("tab-balances", "Tra cứu tồn kho", Model.ViewUrl("balances"), Model.ActiveView == "balances") };
+        if (Model.CanOperate)
+        {
+            tabs.Add(new("tab-transfers", "Chuyển kho", Model.ViewUrl("transfers"), Model.ActiveView == "transfers", Model.PendingForMeCount, "Phiếu đang chờ bạn xử lý"));
+            tabs.Add(new("tab-stocktakes", "Kiểm kê & điều chỉnh", Model.ViewUrl("stocktakes"), Model.ActiveView == "stocktakes"));
+        }
+
+        return new TabsModel("Màn hình kho", tabs);
+    }
 }
 
 <div class="space-y-4">
@@ -22,19 +30,8 @@
         {
             <p class="mt-3 text-sm font-medium text-rose-700" role="alert">@Model.ErrorMessage</p>
         }
-        <div class="mt-4 flex flex-wrap items-center gap-2">
-            <a id="tab-balances" href="@Model.ViewUrl("balances")" class="@TabClass("balances")">Tra cứu tồn kho</a>
-            @if (Model.CanOperate)
-            {
-                <a id="tab-transfers" href="@Model.ViewUrl("transfers")" class="@TabClass("transfers")">
-                    Chuyển kho
-                    @if (Model.PendingForMeCount > 0)
-                    {
-                        <span class="inline-flex min-w-5 justify-center rounded-full bg-sky-600 px-1.5 text-xs font-bold text-white" title="Phiếu đang chờ bạn xử lý">@Model.PendingForMeCount</span>
-                    }
-                </a>
-                <a id="tab-stocktakes" href="@Model.ViewUrl("stocktakes")" class="@TabClass("stocktakes")">Kiểm kê &amp; điều chỉnh</a>
-            }
+        <div class="mt-4">
+            <partial name="_Tabs" model="InventoryTabs()" />
         </div>
     </section>
     @if (Model.ActiveView == "balances")

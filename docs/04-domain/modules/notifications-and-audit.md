@@ -10,7 +10,7 @@
 
 - **Thông báo dùng chung mọi module** (`Notification`), không riêng module nào. Có **chuông trên header** hiện số chưa xem và trang **`/notifications`** liệt kê.
 - Mỗi thông báo: người nhận, kho/địa điểm liên quan (nếu có), **loại chứng từ + Id chứng từ**, bước, đã xem hay chưa, thời điểm. Bấm vào mở **đúng chứng từ** (đúng tab, đúng phiếu).
-- `StockNotice` hiện tại (chỉ kho, chỉ hiện trong `/inventory`) được chuyển vào cơ chế chung.
+- `Notification` dùng chung (đã chuyển từ `StockNotice` của kho); thông báo mua hàng dùng cùng thực thể.
 - Tạo thông báo là một phần của giao dịch ghi chứng từ (repository), không phải bước riêng dễ sót.
 
 ### A2. Vòng đời

@@ -46,6 +46,8 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
         Assert.Equal(HttpStatusCode.OK, page.StatusCode);
         Assert.Contains("Tồn thực tế", text, StringComparison.Ordinal);
         Assert.Contains("Đang giữ chỗ", text, StringComparison.Ordinal);
+        Assert.Contains("role=\"tablist\"", text, StringComparison.Ordinal);
+        Assert.Contains("id=\"tab-transfers\" href=\"/inventory?view=transfers\"", text, StringComparison.Ordinal);
         Assert.Contains("Khả dụng", text, StringComparison.Ordinal);
         Assert.Contains("Đang chuyển", text, StringComparison.Ordinal);
         Assert.Contains("Quản Lý Đa Kho", text, StringComparison.Ordinal);

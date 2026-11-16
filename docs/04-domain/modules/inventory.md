@@ -16,7 +16,7 @@
 | `StocktakeSheet` | Biên bản kiểm kê: số sổ sách, số đếm, chênh lệch |
 | `QuantityAdjustment` | Phiếu điều chỉnh số lượng (`Delta`) |
 | `DisposalSlip` | Phiếu hủy hàng |
-| `StockNotice` | Thông báo trong phần mềm cho từng người nhận |
+| `Notification` | Thông báo trong phần mềm cho từng người nhận |
 | `StockDocumentAttachment`, `TransferAttachment` | Tệp đính kèm chứng từ |
 
 - Mã hiển thị chứng từ: tiền tố + 8 ký tự đầu của Id, ví dụ `CK-1A2B3C4D` cho phiếu chuyển.

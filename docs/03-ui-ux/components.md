@@ -73,7 +73,7 @@ Ba cỡ rộng, đều `w-[min(<rộng>,calc(100%-2rem))]`:
 - Trạng thái rỗng: partial `_EmptyState`. Dấu vết bản ghi: partial `_AuditStamp`.
 - Hàng lọc/tìm: form GET có `data-live-filter` (script `live-filter.js`), vùng kết quả bọc trong `<div id="live-results">`; không cần nút Lọc.
 
-## 5. Tab (mẫu mới, chưa có trong code)
+## 5. Tab
 
 - Nhóm tab trong viên thuốc `inline-flex rounded-lg bg-slate-100 p-1`.
 - Tab: `rounded-md px-3 py-1.5 text-sm font-medium text-slate-600`; tab đang chọn `bg-white text-slate-900 shadow-sm`.
@@ -133,7 +133,7 @@ Khung chung cho badge trạng thái và badge phân loại: `rounded-full px-2 p
 | Bảng | `thead` lúc có `bg-slate-50`, lúc không; padding ô 3 kiểu (`py-2 pr-3`, `px-3 py-3`, `px-4 py-3`) |
 | Bảng mobile | Đã bọc `overflow-x-auto` nhưng chưa có cột đầu sticky; cột hành động đang ở cuối dòng ở hầu hết bảng, phải dời lên vị trí thứ 2 |
 | Chống bấm đúp | `form-guard.js` chưa kiểm thử trên trình duyệt thật (hộp xác nhận, form tải tệp) |
-| Tab | Chưa có |
+| Tab | Đã có partial `_Tabs` (viên thuốc, `role=tablist`) dùng ở Kho; Mua hàng và Danh mục chưa có tab |
 | Phân trang | Đã có partial `_Pager` (20/50, "Hiển thị X–Y / Z", giữ bộ lọc) ở Danh mục, Nhà cung cấp, Nhân viên, Nhật ký, Thông báo. Chưa có ở Mua hàng, Kho. Nhân viên và Thông báo còn cắt trang trong bộ nhớ |
 | Sắp xếp theo cột, bảng mobile | Đã có (partial `_SortHeader`, `ListSort`, cột đầu sticky, cột Thao tác ở vị trí 2) ở Nhà cung cấp, Danh mục, Nhân viên; Nhật ký sắp theo thời điểm. `size` và `sort` được giữ sau thao tác POST (partial `_ListState`). Chưa có ở Mua hàng, Kho |
 | Toast, banner | Toast đã dùng ở Catalog, Locations, Purchasing, Suppliers, Profile; banner lỗi dùng `_Notice` ở mọi trang. Còn lại: lỗi sau thao tác ở Inventory vẫn là banner (chưa chuyển sang toast); khung cảnh báo `charge-section` (Purchasing) và mã khôi phục 2FA (Profile) viết tay |
