@@ -86,7 +86,6 @@ Requested ──duyệt──▶ Approved ──xuất kho──▶ InTransit �
 | Vấn đề | Hiện trạng |
 | --- | --- |
 | **Phiếu hủy chưa có số lượng** | Bạn chốt phiếu hủy phải có số lượng. Code hiện trừ đúng 1 (`StockBalance.TryDisposeOne`), `DisposalSlip` không có `Quantity`. Cần thêm cột, kiểm ≤ khả dụng, migration, form, test |
-| Query filter địa điểm | `StockLocation` đã dùng `IsActive` nhưng vẫn có `HasQueryFilter(IsActive)` toàn cục; docs quy định lọc tường minh ở truy vấn đọc của từng use case |
 | `StockMovement` đủ chứng từ | Cần rà từng chứng từ (kiểm kê, điều chỉnh, hủy, nhận lệch, trả hàng) đều ghi dòng `StockMovement` đúng loại; hiện chỉ có 4 loại `Receipt/Issue/Transfer/Adjustment` |
 | Enum `Draft` | Còn trong `TransferStatus` dù không dùng |
 | Tệp lớn | `Pages/Inventory/Index.cshtml` hơn 1.000 dòng, 16 `onclick` inline |

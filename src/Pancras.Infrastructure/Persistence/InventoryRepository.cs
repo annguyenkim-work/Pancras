@@ -9,10 +9,10 @@ namespace Pancras.Infrastructure.Persistence;
 public sealed class InventoryRepository(PancrasDbContext context, ILogger<InventoryRepository> logger) : IInventoryRepository
 {
     public async Task<IReadOnlyList<StockLocation>> ListLocationsAsync(CancellationToken cancellationToken) =>
-        await context.StockLocations.AsNoTracking().OrderBy(location => location.Name).ToListAsync(cancellationToken);
+        await context.StockLocations.AsNoTracking().Where(location => location.IsActive).OrderBy(location => location.Name).ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<StockLocation>> ListDeletedLocationsAsync(CancellationToken cancellationToken) =>
-        await context.StockLocations.IgnoreQueryFilters().AsNoTracking().Where(location => !location.IsActive).ToListAsync(cancellationToken);
+        await context.StockLocations.AsNoTracking().Where(location => !location.IsActive).ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<StockItemChoice>> ListItemChoicesAsync(CancellationToken cancellationToken)
     {
@@ -34,7 +34,7 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
         var query =
             from balance in context.StockBalances.AsNoTracking()
             join item in context.CatalogItems.AsNoTracking() on balance.CatalogItemId equals item.Id
-            join location in context.StockLocations.AsNoTracking() on balance.StockLocationId equals location.Id
+            join location in context.StockLocations.AsNoTracking().Where(place => place.IsActive) on balance.StockLocationId equals location.Id
             select new { balance, item, location };
 
         if (filter.LocationId is Guid locationId)
@@ -209,7 +209,7 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
         var rows = await (
             from balance in context.StockBalances.AsNoTracking()
             join item in context.CatalogItems.AsNoTracking() on balance.CatalogItemId equals item.Id
-            join location in context.StockLocations.AsNoTracking() on balance.StockLocationId equals location.Id
+            join location in context.StockLocations.AsNoTracking().Where(place => place.IsActive) on balance.StockLocationId equals location.Id
             where balance.CatalogItemId == catalogItemId
             orderby location.Name
             select new StockBalanceRow(
