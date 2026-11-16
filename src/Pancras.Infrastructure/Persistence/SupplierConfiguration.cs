@@ -10,6 +10,7 @@ public sealed class SupplierConfiguration : IEntityTypeConfiguration<Supplier>
     {
         builder.ToTable("supplier");
         builder.HasKey(supplier => supplier.Id);
+        builder.Property(supplier => supplier.Version).IsConcurrencyToken().IsRequired();
         builder.Property(supplier => supplier.Code).HasMaxLength(Supplier.CodeMaxLength).IsRequired();
         builder.Property(supplier => supplier.NormalizedCode).HasMaxLength(Supplier.CodeMaxLength).IsRequired();
         builder.Property(supplier => supplier.Name).HasMaxLength(Supplier.NameMaxLength).IsRequired();

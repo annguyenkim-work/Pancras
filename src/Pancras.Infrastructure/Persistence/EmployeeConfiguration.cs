@@ -10,6 +10,7 @@ public sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
     {
         builder.ToTable("employee");
         builder.HasKey(employee => employee.Id);
+        builder.Property(employee => employee.Version).IsConcurrencyToken().IsRequired();
         // Bộ đếm đăng nhập sai, khóa tạm và bước TOTP đổi mỗi lần đăng nhập: không tính là "sửa hồ sơ nhân viên".
         builder.HasAnnotation(
             AuditStampInterceptor.IgnoredPropertiesAnnotation,

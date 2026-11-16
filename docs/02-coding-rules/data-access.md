@@ -31,7 +31,7 @@ Công nghệ: PostgreSQL qua Npgsql, EF Core 10, đặt tên `snake_case` (`EFCo
 
 ## 4. Concurrency
 
-- **Mọi thực thể có thể bị hai người sửa cùng lúc phải có `Version`** (số nguyên, `IsConcurrencyToken`). Hiện có ở `StockBalance`, `CatalogItem`, `PurchaseOrder`.
+- **Mọi thực thể có thể bị hai người sửa cùng lúc phải có `Version`** (số nguyên, `IsConcurrencyToken`). Hiện có ở `StockBalance`, `CatalogItem`, `PurchaseOrder`; `Employee`, `Supplier`, `StockLocation`, `TransferSlip` kế thừa `VersionedAuditStamped`, nên `AuditStampInterceptor` tự tăng `Version` mỗi lần có thay đổi thật.
 - Lần ghi thua bị **từ chối, không tự retry**, không đổi số liệu.
 - Repository bắt `DbUpdateConcurrencyException` và trả mã lỗi **Conflict** của module; UI hiện câu tiếng Việt ("Dữ liệu vừa được người khác cập nhật, hãy tải lại trang.", xem `formatting-and-copy.md`).
 - Khi thêm thực thể mới: tự hỏi "hai người có sửa cùng lúc được không?"; nếu có thì thêm `Version`.
@@ -64,7 +64,7 @@ dotnet ef database update --project src/Pancras.Infrastructure --startup-project
 | --- | --- |
 | Xóa mềm | `Location` dùng `IsDeleted` + `HasQueryFilter` (`InventoryConfiguration.cs`); cần đổi sang `IsActive`, kèm migration và sửa truy vấn |
 | Cờ trạng thái Supplier | `Supplier.IsInactive` (phủ định) còn `Employee.IsActive`; thống nhất `IsActive` khi chạm tới |
-| `Version` còn thiếu | Rà `Employee`, `Supplier`, `TransferSlip`, `StockLocation`... xem có cần `Version`; hiện chỉ 3 thực thể có |
+| `Version` chưa trọn vẹn | `Employee`, `Supplier`, `StockLocation`, `TransferSlip` đã có `Version` (interceptor tự tăng), nhưng form chưa gửi `Version` để handler so sánh, và `DbUpdateConcurrencyException` chưa chuyển thành `Conflict` ở repository (hiện trang 409 chung trong `Program.cs` bắt lỗi). `DisposalSlip` đã có; rà các thực thể còn lại |
 | Conflict | Mới `CatalogItemRepository` bắt `DbUpdateConcurrencyException`; cần thống nhất mã lỗi Conflict ở mọi module |
 | Gạch dưới tên | Bảng "đọc không tracking" (`...ReadOnlyAsync`) chưa nhất quán ở mọi repository |
 

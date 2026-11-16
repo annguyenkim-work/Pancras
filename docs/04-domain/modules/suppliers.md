@@ -54,7 +54,7 @@
 | --- | --- |
 | Phân trang | Mới có 9 mục/trang theo spec cũ (nếu còn), chưa có chọn 20/50 và sắp xếp theo cột |
 | Tên cờ trạng thái | `Supplier.IsInactive` (đã đổi từ `is_deleted`), trong khi `Employee.IsActive`; cần thống nhất một kiểu (xem [data-access.md](../../02-coding-rules/data-access.md) mục 5) |
-| `Version` | `Supplier` chưa có concurrency token |
+| `Version` | `Supplier` đã có token (interceptor tự tăng); form sửa chưa gửi `Version` để so sánh, lỗi xung đột hiện là trang 409 chung |
 | Mã lỗi | `SupplierError`/`SupplierIssue` còn nằm trong `Common/Result.cs` |
 | Menu | Đã bỏ nhãn "Sắp có" cho `/suppliers`; kiểm lại khi menu chuyển thành danh sách dữ liệu |
 

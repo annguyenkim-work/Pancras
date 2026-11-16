@@ -81,6 +81,31 @@ public class AuditStampTests
     }
 
     [Fact]
+    public async Task Update_AdvancesVersion_AndAStaleSaveIsRejected()
+    {
+        var at = new DateTimeOffset(2026, 11, 13, 8, 0, 0, TimeSpan.Zero);
+        var supplier = NewSupplier();
+        await using (var context = NewContext("AnNK", new FakeClock(at)))
+        {
+            context.Add(supplier);
+            await context.SaveChangesAsync();
+        }
+
+        await using var first = NewContext("A", new FakeClock(at));
+        await using var second = NewContext("B", new FakeClock(at));
+        var one = await first.Set<Supplier>().SingleAsync(s => s.Id == supplier.Id);
+        var two = await second.Set<Supplier>().SingleAsync(s => s.Id == supplier.Id);
+        Assert.Equal(0, one.Version);
+
+        one.Update("NCC1", "Tên A", "VN", "A", "0900000000", "a@example.com", "123");
+        await first.SaveChangesAsync();
+        Assert.Equal(1, one.Version);
+
+        two.Update("NCC1", "Tên B", "VN", "A", "0900000000", "a@example.com", "123");
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => second.SaveChangesAsync());
+    }
+
+    [Fact]
     public async Task NoActor_IsStampedAsSystem()
     {
         var supplier = NewSupplier();

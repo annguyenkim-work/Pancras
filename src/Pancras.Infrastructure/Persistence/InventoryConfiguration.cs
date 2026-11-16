@@ -11,6 +11,7 @@ public sealed class StockLocationConfiguration : IEntityTypeConfiguration<StockL
     {
         builder.ToTable("stock_location");
         builder.HasKey(location => location.Id);
+        builder.Property(location => location.Version).IsConcurrencyToken().IsRequired();
         builder.Property(location => location.Name).HasMaxLength(StockLocation.NameMaxLength).IsRequired();
         builder.Property(location => location.Kind).HasConversion<int>().IsRequired();
         builder.Property(location => location.IsDeleted).IsRequired();
@@ -60,6 +61,7 @@ public sealed class TransferSlipConfiguration : IEntityTypeConfiguration<Transfe
     {
         builder.ToTable("transfer_slip");
         builder.HasKey(slip => slip.Id);
+        builder.Property(slip => slip.Version).IsConcurrencyToken().IsRequired();
         builder.Property(slip => slip.SourceLocationId).IsRequired();
         builder.Property(slip => slip.DestinationLocationId).IsRequired();
         builder.Property(slip => slip.Note).HasMaxLength(TransferSlip.NoteMaxLength).IsRequired();

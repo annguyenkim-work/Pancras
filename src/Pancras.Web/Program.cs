@@ -294,6 +294,24 @@ app.UseExceptionHandler(errorApp =>
         var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Pancras.Unhandled");
         var failure = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
         var traceId = System.Diagnostics.Activity.Current?.Id ?? context.TraceIdentifier;
+        // Hai người sửa cùng một bản ghi (Version): không phải lỗi hệ thống. Thông báo rõ và không đổi dữ liệu.
+        if (failure?.Error?.GetType().Name == "DbUpdateConcurrencyException")
+        {
+            logger.LogInformation("Rejected a concurrent update. TraceId {TraceId}", traceId);
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            context.Response.ContentType = "text/html; charset=utf-8";
+            await context.Response.WriteAsync(
+                "<!DOCTYPE html><html lang=\"vi\"><head><meta charset=\"utf-8\" /><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />"
+                + "<title>Dữ liệu đã thay đổi - PancrasERP</title><link rel=\"stylesheet\" href=\"/css/site.css\" /></head>"
+                + "<body class=\"min-h-screen bg-slate-100 font-sans text-slate-900\"><main class=\"flex min-h-screen items-center justify-center p-4\">"
+                + "<div class=\"w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-sm\">"
+                + "<h1 class=\"text-xl font-bold\">Dữ liệu vừa được người khác cập nhật</h1>"
+                + "<p class=\"mt-2 text-sm text-slate-600\">Thao tác của bạn chưa được lưu. Hãy tải lại trang để xem dữ liệu mới nhất rồi làm lại.</p>"
+                + "<a href=\"/\" class=\"mt-6 inline-block rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white\">Về trang chủ</a>"
+                + "</div></main></body></html>");
+            return;
+        }
+
         logger.LogError(failure?.Error, "Unhandled exception. TraceId {TraceId}", traceId);
         context.Response.StatusCode = StatusCodes.Status500InternalServerError;
         context.Response.ContentType = "text/html; charset=utf-8";

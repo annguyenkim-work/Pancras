@@ -48,7 +48,7 @@ public sealed class TransferLine
         };
 }
 
-public sealed class TransferSlip : Pancras.Domain.Auditing.AuditStamped
+public sealed class TransferSlip : Pancras.Domain.Auditing.VersionedAuditStamped
 {
     public const int NoteMaxLength = 500;
 

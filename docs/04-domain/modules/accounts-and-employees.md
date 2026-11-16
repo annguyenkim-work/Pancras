@@ -68,7 +68,7 @@ Ghi `IAuditLog` (mã hành động dạng `nhóm.sự_kiện`, hiển thị ti�
 | Vấn đề | Hiện trạng |
 | --- | --- |
 | Danh sách | Spec cũ nói dạng thẻ; code là bảng nhưng chưa phân trang 20/50, hành động chưa ở cột thứ 2 |
-| `Version` | `Employee` chưa có concurrency token (hai Admin sửa cùng lúc ghi đè) |
+| `Version` | `Employee` đã có token (interceptor tự tăng); form sửa chưa gửi `Version` để so sánh, lỗi xung đột hiện là trang 409 chung |
 | Mã lỗi | `EmployeeError`, `LoginError` còn trong `Common/Result.cs` |
 | Handler gộp | `TwoFactorHandlers.cs` gộp 5 handler |
 

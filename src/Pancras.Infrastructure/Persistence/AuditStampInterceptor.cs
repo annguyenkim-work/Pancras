@@ -76,6 +76,11 @@ public sealed class AuditStampInterceptor(IRequestInfo? request = null, TimeProv
             {
                 entry.Property(nameof(AuditStamped.UpdatedAt)).CurrentValue = now;
                 entry.Property(nameof(AuditStamped.UpdatedBy)).CurrentValue = actor;
+                if (entry.Entity is VersionedAuditStamped)
+                {
+                    var version = entry.Property(nameof(VersionedAuditStamped.Version));
+                    version.CurrentValue = (int)version.OriginalValue! + 1;
+                }
             }
         }
     }
