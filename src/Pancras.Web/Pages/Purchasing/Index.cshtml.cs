@@ -93,6 +93,59 @@ public class IndexModel(
     [BindProperty(SupportsGet = true, Name = "q")]
     public string? Search { get; set; }
 
+    [BindProperty(SupportsGet = true, Name = "pageNumber")]
+    public int ListPage { get; set; } = 1;
+
+    public int ListPageSize => Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
+
+    /// <summary>Các đơn của trang danh sách hiện tại; đơn đang chọn nằm ở trang khác vẫn hiện ở khung chi tiết.</summary>
+    public IReadOnlyList<PurchaseOrderSummary> PagedOrders
+    {
+        get
+        {
+            var pages = Math.Max(1, (Orders.Count + ListPageSize - 1) / ListPageSize);
+            var page = Math.Clamp(ListPage, 1, pages);
+            return Orders.Skip((page - 1) * ListPageSize).Take(ListPageSize).ToArray();
+        }
+    }
+
+    public Pancras.Web.Formatting.PagerModel OrdersPager => new(
+        Math.Clamp(ListPage, 1, Math.Max(1, (Orders.Count + ListPageSize - 1) / ListPageSize)),
+        ListPageSize,
+        Orders.Count,
+        (page, size) => OrdersUrl(page, size));
+
+    private string OrdersUrl(int page, int size)
+    {
+        var parts = new List<string>();
+        if (Selected is not null)
+        {
+            parts.Add("order=" + Selected.Id.ToString("D"));
+        }
+
+        if (!string.IsNullOrWhiteSpace(Search))
+        {
+            parts.Add("q=" + Uri.EscapeDataString(Search.Trim()));
+        }
+
+        if (SupplierFilter is Guid supplier)
+        {
+            parts.Add("supplier=" + supplier.ToString("D"));
+        }
+
+        if (size != Pancras.Application.Common.PageSizes.Default)
+        {
+            parts.Add("size=" + size);
+        }
+
+        if (page > 1)
+        {
+            parts.Add("pageNumber=" + page);
+        }
+
+        return parts.Count == 0 ? "/purchasing" : "/purchasing?" + string.Join("&", parts);
+    }
+
     /// <summary>Lọc đơn theo nhà cung cấp (link từ danh bạ nhà cung cấp).</summary>
     [BindProperty(SupportsGet = true, Name = "supplier")]
     public Guid? SupplierFilter { get; set; }

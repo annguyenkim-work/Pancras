@@ -44,6 +44,29 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
     }
 
     [Fact]
+    public async Task OrderList_IsPaged_With20Or50PerPage()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var location = Guid.CreateVersion7();
+        for (var index = 1; index <= 25; index++)
+        {
+            orders.Orders.Add(NewOrder("PO-" + index.ToString("00"), location));
+        }
+
+        await SignInAsync(client);
+
+        var first = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing")).Content.ReadAsStringAsync());
+        var second = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?pageNumber=2")).Content.ReadAsStringAsync());
+        var wide = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?size=50")).Content.ReadAsStringAsync());
+
+        Assert.Contains("Hiển thị 1–20 / 25", first, StringComparison.Ordinal);
+        Assert.Contains("Hiển thị 21–25 / 25", second, StringComparison.Ordinal);
+        Assert.Contains("Hiển thị 1–25 / 25", wide, StringComparison.Ordinal);
+        Assert.Contains("pageNumber=2", first, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ReceivedOrder_HidesTheReceiveButton()
     {
         using var client = _factory.CreateClient(NoRedirect);

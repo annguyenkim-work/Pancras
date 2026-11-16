@@ -236,18 +236,18 @@
                     <table id="transfer-table" class="w-full whitespace-nowrap text-left text-sm">
                         <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                             <tr>
-                                <th class="px-3 py-3 font-semibold">Mã phiếu</th>
+                                <th class="sticky left-0 z-10 bg-slate-50 px-3 py-3 font-semibold">Mã phiếu</th>
+                                <th class="px-3 py-3"></th>
                                 <th class="px-3 py-3 font-semibold">Kho xuất → Nơi nhận</th>
                                 <th class="px-3 py-3 font-semibold">Hàng</th>
                                 <th class="px-3 py-3 font-semibold">Trạng thái</th>
                                 <th class="px-3 py-3 font-semibold">Người lập</th>
                                 <th class="px-3 py-3 font-semibold">Ngày lập</th>
                                 <th class="px-3 py-3 font-semibold">Việc của bạn</th>
-                                <th class="px-3 py-3"></th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var slip in Model.FilteredTransfers.Skip((Model.CurrentTransferPage - 1) * IndexModel.TransferPageSize).Take(IndexModel.TransferPageSize))
+                            @foreach (var slip in Model.FilteredTransfers.Skip((Model.CurrentTransferPage - 1) * Model.TransferPageSize).Take(Model.TransferPageSize))
                             {
                                 var flow = slip.Flow;
                                 var todo = flow is null ? null
@@ -256,36 +256,21 @@
                                     : flow.CanReceive ? "Chờ bạn nhận hàng"
                                     : flow.CanResolve ? "Chờ bạn xử lý chênh lệch"
                                     : null;
-                                <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer" data-open-transfer="@slip.Id">
-                                    <td class="px-3 py-3 font-mono text-xs font-bold text-slate-900">@StockLabels.DocumentCode("CK", slip.Id)</td>
+                                <tr class="group border-t border-slate-100 hover:bg-slate-50 cursor-pointer" data-open-transfer="@slip.Id">
+                                    <td class="sticky left-0 z-10 bg-white px-3 py-3 font-mono text-xs font-bold text-slate-900 group-hover:bg-slate-50">@StockLabels.DocumentCode("CK", slip.Id)</td>
+                                    <td class="px-3 py-3 text-right"><button type="button" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-white" data-open-transfer="@slip.Id">Chi tiết</button></td>
                                     <td class="px-3 py-3">@slip.SourceName <span class="text-slate-400">→</span> @slip.DestinationName</td>
                                     <td class="px-3 py-3 text-slate-600">@slip.Lines.Count mặt hàng · @IndexModel.Count(slip.Lines.Sum(line => line.Quantity)) sản phẩm</td>
                                     <td class="px-3 py-3"><span class="@Badge.Frame @StockLabels.TransferPillClass(slip.Status)">@StockLabels.TransferPill(slip.Status)</span></td>
                                     <td class="px-3 py-3 text-slate-600">@(string.IsNullOrEmpty(slip.Stamp?.UpdatedBy) ? "—" : slip.Stamp!.UpdatedBy)</td>
                                     <td class="px-3 py-3 text-slate-600">@(IndexModel.When(slip.Id) is { Length: > 0 } created ? created : "—")</td>
                                     <td class="px-3 py-3">@if (todo is not null) { <span class="@Badge.Classes(BadgeTone.Info)">@todo</span> } else { <span class="text-slate-400">—</span> }</td>
-                                    <td class="px-3 py-3 text-right"><button type="button" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-white" data-open-transfer="@slip.Id">Chi tiết</button></td>
                                 </tr>
                             }
                         </tbody>
                     </table>
                 </div>
-                @if (Model.TransferPageCount > 1)
-                {
-                    <nav class="flex flex-wrap items-center justify-between gap-2 text-sm" aria-label="Phân trang phiếu chuyển">
-                        <p class="text-slate-500">Trang @Model.CurrentTransferPage / @Model.TransferPageCount · @Model.TransferTotal phiếu</p>
-                        <div class="flex gap-2">
-                            @if (Model.CurrentTransferPage > 1)
-                            {
-                                <a class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-semibold text-sky-700" href="@Model.TransferUrl(activeQuick, Model.CurrentTransferPage - 1)">Trước</a>
-                            }
-                            @if (Model.CurrentTransferPage < Model.TransferPageCount)
-                            {
-                                <a class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-semibold text-sky-700" href="@Model.TransferUrl(activeQuick, Model.CurrentTransferPage + 1)">Sau</a>
-                            }
-                        </div>
-                    </nav>
-                }
+                <partial name="_Pager" model="Model.TransferPager(activeQuick)" />
             }
 
             @foreach (var slip in Model.PagedTransfers)

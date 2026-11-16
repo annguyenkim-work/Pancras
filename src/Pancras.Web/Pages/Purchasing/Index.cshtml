@@ -67,7 +67,7 @@ else
     <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[22rem_minmax(0,1fr)]">
         <section class="space-y-3">
             <h2 class="text-xs font-bold tracking-wide text-slate-500">DANH SÁCH ĐƠN MUA CONTAINER (@Model.Orders.Count)</h2>
-            @foreach (var card in Model.Orders)
+            @foreach (var card in Model.PagedOrders)
             {
                 var selected = Model.Selected?.Id == card.Id;
                 <a href="/purchasing?order=@card.Id" class="block rounded-xl border bg-white p-4 @(selected ? "border-sky-500 shadow-sm" : "border-slate-200")">
@@ -84,6 +84,7 @@ else
                     </div>
                 </a>
             }
+            <partial name="_Pager" model="Model.OrdersPager" />
         </section>
 
         @if (Model.Selected is { } order)

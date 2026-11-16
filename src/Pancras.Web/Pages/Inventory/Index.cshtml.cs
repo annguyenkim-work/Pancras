@@ -96,7 +96,11 @@ public class IndexModel(
 
     public bool ShowStocktakeDialog { get; private set; }
 
-    public const int TransferPageSize = 10;
+    /// <summary>Cỡ trang danh sách phiếu chuyển: 20 hoặc 50 (query `size`).</summary>
+    public int TransferPageSize => Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
+
+    public Pancras.Web.Formatting.PagerModel TransferPager(string? quick) =>
+        new(CurrentTransferPage, TransferPageSize, TransferTotal, (page, size) => TransferUrl(quick, page, true, size));
 
     /// <summary>Số phiếu đang chờ chính người dùng xử lý (duyệt, xuất, nhận hoặc xử lý chênh lệch), hiện trên tab Chuyển kho.</summary>
     public int PendingForMeCount => Transfers.Count(slip => Waiting(slip, "all-mine"));
@@ -548,7 +552,7 @@ public class IndexModel(
             : Task.FromResult<IActionResult>(Forbid());
 
     /// <summary>Địa chỉ trang Chuyển kho với bộ lọc hiện tại, đổi một vài tham số (null thì bỏ tham số đó).</summary>
-    public string TransferUrl(string? quick = null, int? page = null, bool keepFilters = true)
+    public string TransferUrl(string? quick = null, int? page = null, bool keepFilters = true, int? size = null)
     {
         var parts = new List<string> { "view=transfers" };
         if (keepFilters)
@@ -563,6 +567,11 @@ public class IndexModel(
         if (!string.IsNullOrEmpty(quick) && quick != "all")
         {
             parts.Add("tf=" + Uri.EscapeDataString(quick));
+        }
+
+        if (size is { } pageSize && pageSize != Pancras.Application.Common.PageSizes.Default)
+        {
+            parts.Add("size=" + pageSize.ToString(CultureInfo.InvariantCulture));
         }
 
         if (page is > 1)
