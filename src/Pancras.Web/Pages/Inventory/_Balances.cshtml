@@ -1,0 +1,114 @@
+@model Pancras.Web.Pages.Inventory.IndexModel
+@using Pancras.Application.Catalog
+@using Pancras.Domain.Catalog
+@using Pancras.Domain.Inventory
+@using Pancras.Web.Formatting
+
+<section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5">
+    <form method="get" action="/inventory" data-live-filter class="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <input type="search" name="q" value="@Model.Search" placeholder="Tìm theo mã SKU, tên thiết bị, thương hiệu..." aria-label="Tìm kiếm" class="w-full border px-3 py-2 lg:max-w-md rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" />
+        @if (Model.AllLocations.Count > 1)
+        {
+            <select name="location" aria-label="Kho hoặc showroom" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                <option value="">@Model.LocationOptionLabel</option>
+                @foreach (var location in Model.AllLocations)
+                {
+                    if (string.Equals(Model.Location, location.Id.ToString(), StringComparison.OrdinalIgnoreCase))
+                    {
+                        <option value="@location.Id" selected>@location.Name</option>
+                    }
+                    else
+                    {
+                        <option value="@location.Id">@location.Name</option>
+                    }
+                }
+            </select>
+        }
+        <select name="category" aria-label="Ngành hàng" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+            <option value="">Tất cả ngành hàng</option>
+            @foreach (var category in Enum.GetValues<ProductCategory>())
+            {
+                var token = ProductCategoryToken.From(category);
+                if (string.Equals(Model.Category, token, StringComparison.Ordinal))
+                {
+                    <option value="@token" selected>@CatalogLabels.Category(category)</option>
+                }
+                else
+                {
+                    <option value="@token">@CatalogLabels.Category(category)</option>
+                }
+            }
+        </select>
+        @if (Model.CanExport)
+        {
+            @Html.AntiForgeryToken()
+            <button type="submit" formmethod="post" formaction="/inventory?handler=Export" class="lg:ml-auto rounded-lg bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700">Xuất Excel</button>
+        }
+    </form>
+    <div id="live-results">
+        <p class="mt-3 text-sm text-slate-500">@Model.Groups.Count mặt hàng</p>
+        <div class="mt-4 max-w-full overflow-x-auto">
+        <table class="min-w-[960px] w-full whitespace-nowrap text-left text-sm">
+            <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                    <th class="px-3 py-2 font-semibold">Mã SKU</th>
+                    <th class="px-3 py-2 font-semibold">Tên hàng hóa &amp; Quy cách</th>
+                    <th class="px-3 py-2 font-semibold">ĐVT</th>
+                    @if (Model.CanSeeCost)
+                    {
+                        <th class="px-3 py-2 font-semibold">Giá vốn niên yết</th>
+                    }
+                    <th class="px-3 py-2 font-semibold">Tồn thực tế</th>
+                    <th class="px-3 py-2 font-semibold">Đang giữ chỗ</th>
+                    <th class="px-3 py-2 font-semibold">Khả dụng</th>
+                    <th class="px-3 py-2 font-semibold">Đang chuyển</th>
+                    <th class="px-3 py-2 font-semibold">Tồn tại các điểm</th>
+                    <th class="py-2 font-semibold">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Groups.Count == 0)
+                {
+                    <tr>
+                        <td colspan="10" class="py-8 text-center text-slate-500">Không có kết quả.</td>
+                    </tr>
+                }
+                @foreach (var group in Model.Groups)
+                {
+                    <tr class="border-t border-slate-100 align-top">
+                        <td class="px-3 py-3 font-mono text-xs font-semibold text-slate-800">@group.Code</td>
+                        <td class="px-3 py-3">
+                            <div class="font-medium text-slate-900">@group.Name</div>
+                            @if (!string.IsNullOrWhiteSpace(group.Brand) || !string.IsNullOrWhiteSpace(group.Origin))
+                            {
+                                <div class="text-xs text-slate-500">@group.Brand@(!string.IsNullOrWhiteSpace(group.Brand) && !string.IsNullOrWhiteSpace(group.Origin) ? " · " : "")@group.Origin</div>
+                            }
+                        </td>
+                        <td class="px-3 py-3 text-slate-600">@(string.IsNullOrWhiteSpace(group.Unit) ? "—" : group.Unit)</td>
+                        @if (Model.CanSeeCost)
+                        {
+                            <td class="px-3 py-3 text-slate-700">@VndMoney.FormatDong(group.CostPrice)</td>
+                        }
+                        <td class="px-3 py-3 font-semibold text-slate-900">@IndexModel.Count(group.OnHand)</td>
+                        <td class="px-3 py-3 font-semibold text-amber-600">@IndexModel.Count(group.Reserved)</td>
+                        <td class="px-3 py-3 font-semibold text-emerald-600">@IndexModel.Count(group.Available)</td>
+                        <td class="px-3 py-3 font-semibold text-sky-700">@IndexModel.Count(group.InTransit)</td>
+                        <td class="px-3 py-3">
+                            <div class="flex flex-nowrap gap-1">
+                                @foreach (var place in group.Places)
+                                {
+                                    var code = Model.PlaceCode(place.LocationId);
+                                    <span class="@Badge.Classes(BadgeTone.Neutral)" title="@place.Name">@code @IndexModel.Count(place.OnHand)</span>
+                                }
+                            </div>
+                        </td>
+                        <td class="py-3">
+                            <a class="text-sm font-semibold text-sky-700" href="@Model.ItemUrl(group.CatalogItemId)">Chi tiết</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    </div>
+</section>

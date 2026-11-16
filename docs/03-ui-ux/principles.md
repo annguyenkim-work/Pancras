@@ -27,7 +27,7 @@
 
 | Nguyên tắc | Hiện trạng | Việc cần làm |
 | --- | --- | --- |
-| 12 (toast) | Toast đã có; lỗi sau thao tác ở Inventory vẫn là banner | Chuyển nếu chủ dự án đồng ý |
+| 12 (toast) | Toast cho kết quả sau POST; lỗi của Kho là `_Notice` trong trang vì phải giữ hộp thoại và dữ liệu đã nhập | Giữ nguyên trừ khi chủ dự án muốn đổi |
 
 ## Chờ chốt (chưa có hiệu lực)
 

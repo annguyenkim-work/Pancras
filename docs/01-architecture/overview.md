@@ -63,7 +63,7 @@ Xem [../00-overview/product.md](../00-overview/product.md).
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Trang to | Mỗi module một trang `Index` rất dài (Inventory hơn 1.000 dòng) với script inline; cần tách thành các phần/partial hoặc nhiều trang theo tab |
+| Trang to | `Pages/Inventory` và `Pages/Purchasing` đã tách thành partial (`_Balances`, `_Transfers`, `_Stocktakes`, `_Dialogs`, `_ItemDetail`; `_OrderDetail`, `_OrderForm`); Catalog, Suppliers, Employees còn một file mỗi trang |
 | Domain/Application dùng chung | `Auditing` có ở cả Domain và Application nhưng `Locations` chỉ có ở Application; cân nhắc thống nhất khi làm lại module Kho & Showroom |
 
 ## Chờ chốt (chưa có hiệu lực)

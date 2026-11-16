@@ -127,12 +127,12 @@ Khung chung cho badge trạng thái và badge phân loại: `rounded-full px-2 p
 
 | Thành phần | Hiện trạng |
 | --- | --- |
-| Bảng mobile | Đã bọc `overflow-x-auto` nhưng chưa có cột đầu sticky; cột hành động đang ở cuối dòng ở hầu hết bảng, phải dời lên vị trí thứ 2 |
+| Bảng mobile | Cột đầu sticky và cột Thao tác ở vị trí 2 đã có ở Nhà cung cấp, Danh mục, Nhân viên, bảng phiếu chuyển; còn các bảng chi tiết nhỏ trong thẻ (không cần) |
 | Chống bấm đúp | `form-guard.js` chưa kiểm thử trên trình duyệt thật (hộp xác nhận, form tải tệp) |
 | Tab | Đã có partial `_Tabs` (viên thuốc, `role=tablist`) dùng ở Kho; Mua hàng và Danh mục chưa có tab |
-| Phân trang | Đã có partial `_Pager` (20/50, "Hiển thị X–Y / Z", giữ bộ lọc) ở Danh mục, Nhà cung cấp, Nhân viên, Nhật ký, Thông báo. Chưa có ở Mua hàng, Kho. Nhân viên và Thông báo còn cắt trang trong bộ nhớ |
-| Sắp xếp theo cột, bảng mobile | Đã có (partial `_SortHeader`, `ListSort`, cột đầu sticky, cột Thao tác ở vị trí 2) ở Nhà cung cấp, Danh mục, Nhân viên; Nhật ký sắp theo thời điểm. `size` và `sort` được giữ sau thao tác POST (partial `_ListState`). Chưa có ở Mua hàng, Kho |
-| Toast, banner | Toast đã dùng ở Catalog, Locations, Purchasing, Suppliers, Profile; banner lỗi dùng `_Notice` ở mọi trang. Còn lại: lỗi sau thao tác ở Inventory vẫn là banner (chưa chuyển sang toast); khung cảnh báo `charge-section` (Purchasing) và mã khôi phục 2FA (Profile) viết tay |
+| Phân trang | Partial `_Pager` (20/50, "Hiển thị X–Y / Z", giữ bộ lọc) ở Danh mục, Nhà cung cấp, Nhân viên, Nhật ký, Thông báo, danh sách đơn mua và phiếu chuyển. Nhân viên, Thông báo, đơn mua và phiếu chuyển còn cắt trang trong bộ nhớ. Lịch sử tồn của mặt hàng giữ bộ chọn cỡ trang riêng |
+| Sắp xếp theo cột | Đã có (`_SortHeader`, `ListSort`) ở Nhà cung cấp, Danh mục, Nhân viên; Nhật ký sắp theo thời điểm. Chưa có ở đơn mua (thẻ), phiếu chuyển |
+| Toast, banner | Toast sau thao tác POST ở Catalog, Locations, Purchasing, Suppliers, Profile; lỗi cần giữ form dùng `_Notice` ở mọi trang (kể cả Kho). Chưa chuyển lỗi của Kho sang toast vì lỗi đi cùng hộp thoại đang mở |
 | Badge | Đã dùng `Badge` ở mọi bảng và danh sách, kể cả chip kho và bộ đếm của Kho |
 
 ## Chờ chốt (chưa có hiệu lực)

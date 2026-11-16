@@ -1,0 +1,239 @@
+@model Pancras.Web.Pages.Inventory.IndexModel
+@using Pancras.Application.Catalog
+@using Pancras.Domain.Catalog
+@using Pancras.Domain.Inventory
+@using Pancras.Web.Formatting
+
+<dialog id="transfer-dialog" class="m-auto w-[min(40rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50 open:flex">
+    <form method="post" asp-antiforgery="true" action="/inventory?handler=RequestTransfer" class="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <input type="hidden" name="Transfer.RequestKey" value="@Model.Transfer.RequestKey" />
+        <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 p-5">
+            <div>
+                <h2 class="font-display text-lg font-bold">Tạo Phiếu Đề Nghị Chuyển Kho</h2>
+                <p class="mt-1 text-xs text-slate-500">Chọn kho nào cũng được, miễn kho xuất hoặc nơi nhận là kho/showroom của bạn. Phiếu chờ duyệt, chưa trừ tồn.</p>
+            </div>
+            <button type="button" class="text-2xl leading-none text-slate-400" data-close-dialog aria-label="Đóng">×</button>
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto p-5">
+            @if (Model.ShowTransferDialog && !string.IsNullOrEmpty(Model.ErrorMessage))
+            {
+                <div class="mb-4"><partial name="_Notice" model="new NoticeModel(Model.ErrorMessage, ToastLevel.Error)" /></div>
+            }
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <label class="text-sm font-medium text-slate-700">Kho xuất
+                    <select id="transfer-source" name="Transfer.SourceLocationId" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+                        <option value="">Chọn kho xuất</option>
+                        @foreach (var location in Model.AllLocations)
+                        {
+                            <option value="@location.Id" selected="@(location.Id == Model.Transfer.SourceLocationId)">@location.Name</option>
+                        }
+                    </select>
+                </label>
+                <label class="text-sm font-medium text-slate-700">Nơi nhận (kho / showroom)
+                    <select name="Transfer.DestinationLocationId" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+                        <option value="">Chọn nơi nhận</option>
+                        @foreach (var location in Model.AllLocations)
+                        {
+                            <option value="@location.Id" selected="@(location.Id == Model.Transfer.DestinationLocationId)">@location.Name</option>
+                        }
+                    </select>
+                </label>
+            </div>
+            <div class="mt-4 flex items-center justify-between">
+                <p class="text-sm font-semibold text-slate-800">Danh sách thiết bị chuyển</p>
+                <button id="add-transfer-line" type="button" class="text-sm font-semibold text-sky-700">+ Thêm mặt hàng</button>
+            </div>
+            <datalist id="transfer-items">
+                @foreach (var item in Model.Items)
+                {
+                    <option value="@item.Code — @item.Name" data-id="@item.Id"></option>
+                }
+            </datalist>
+            <div id="transfer-lines" class="mt-2 space-y-3">
+                @for (var index = 0; index < Model.Transfer.Lines.Count; index++)
+                {
+                    var chosen = Model.Items.FirstOrDefault(item => item.Id == Model.Transfer.Lines[index].CatalogItemId);
+                    <div class="transfer-line grid grid-cols-1 gap-1 md:grid-cols-[1fr_8rem] md:gap-x-2">
+                        <input type="text" list="transfer-items" autocomplete="off" value="@(chosen is null ? "" : chosen.Code + " — " + chosen.Name)" placeholder="Gõ mã SKU hoặc tên để tìm..." aria-label="Mặt hàng" class="transfer-item-search rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+                        <input type="hidden" class="transfer-item" name="Transfer.Lines[@index].CatalogItemId" value="@(chosen?.Id.ToString() ?? "")" />
+                        <input name="Transfer.Lines[@index].Quantity" type="number" min="1" value="@(Model.Transfer.Lines[index].Quantity == 0 ? "" : Model.Transfer.Lines[index].Quantity)" placeholder="Số lượng" aria-label="Số lượng" class="transfer-qty rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+                        <p class="transfer-stock text-xs text-slate-500 md:col-span-2"></p>
+                    </div>
+                }
+            </div>
+            <label class="mt-4 block text-sm font-medium text-slate-700">Lý do / ghi chú
+                <textarea name="Transfer.Note" rows="3" maxlength="500" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" placeholder="Ví dụ: chuyển mẫu trưng bày hoặc bù tồn kho.">@Model.Transfer.Note</textarea>
+            </label>
+        </div>
+        <div class="flex shrink-0 justify-end gap-2 border-t border-slate-100 p-4">
+            <button type="button" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60" data-close-dialog>Hủy bỏ</button>
+            <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Gửi Đề Nghị Chuyển Kho</button>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="confirm-dialog" class="m-auto w-[min(28rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50 open:flex">
+    <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 p-5">
+            <h2 id="confirm-title" class="font-display text-lg font-bold text-slate-900">Xác nhận</h2>
+            <button type="button" id="confirm-close" class="text-2xl leading-none text-slate-400" aria-label="Đóng">×</button>
+        </div>
+        <div class="min-h-0 flex-1 space-y-3 overflow-y-auto p-5">
+            <p id="confirm-message" class="text-sm text-slate-600"></p>
+            <div id="confirm-reason-box" class="hidden">
+                <label class="block text-sm font-medium text-slate-700"><span id="confirm-reason-label">Lý do</span>
+                    <textarea id="confirm-reason" rows="3" maxlength="500" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none"></textarea>
+                </label>
+                <p id="confirm-reason-error" class="mt-1 hidden text-xs font-medium text-rose-700" role="alert">Cần nhập lý do.</p>
+            </div>
+        </div>
+        <div class="flex shrink-0 justify-end gap-2 border-t border-slate-100 p-4">
+            <button type="button" id="confirm-cancel" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Quay lại</button>
+            <button type="button" id="confirm-ok" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Xác nhận</button>
+        </div>
+    </div>
+</dialog>
+
+<dialog id="stocktake-dialog" class="m-auto w-[min(40rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50 open:flex">
+    <form method="post" asp-antiforgery="true" action="/inventory?handler=CreateStocktake" enctype="multipart/form-data" class="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 p-5">
+            <div>
+                <h2 class="font-display text-lg font-bold">Lập Biên Bản Kiểm Kê Kho</h2>
+                <p class="mt-1 text-sm text-slate-500">Kiểm đếm mặt hàng để ghi nhận chênh lệch với tồn sổ sách.</p>
+            </div>
+            <button type="button" class="text-slate-400" data-close-dialog aria-label="Đóng">×</button>
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto p-5">
+        <label class="mt-4 block text-sm font-medium text-slate-700">Chọn địa điểm kiểm kê
+            <select id="stocktake-location" name="Stocktake.StockLocationId" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+                <option value="">Chọn địa điểm</option>
+                @foreach (var location in Model.Locations)
+                {
+                    <option value="@location.Id">@location.Name</option>
+                }
+            </select>
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Mặt hàng kiểm đếm
+            <select id="stocktake-item" name="Stocktake.CatalogItemId" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+                <option value="">Chọn mặt hàng</option>
+                @foreach (var item in Model.Items)
+                {
+                    <option value="@item.Id">@item.Code — @item.Name</option>
+                }
+            </select>
+        </label>
+        <p id="stocktake-book" class="mt-2 text-sm text-slate-500">Tồn sổ sách: —</p>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Số lượng thực tế kiểm đếm được
+            <input name="Stocktake.CountedQuantity" type="number" min="0" step="1" required class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" />
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Lý do giải trình chênh lệch
+            <input name="Stocktake.Reason" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" />
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Chứng từ
+            <input name="Stocktake.DocumentRef" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" />
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Ảnh hàng, chứng từ (file đính kèm)
+            <input type="file" name="files" multiple accept="image/*,.pdf,.jpg,.jpeg,.png,.xlsx,.docx" class="mt-1 block w-full text-xs text-slate-600" />
+            <span class="mt-1 block text-xs font-normal text-slate-500">Tối đa 10 MB mỗi file. Trên điện thoại có thể chụp ảnh trực tiếp.</span>
+        </label>
+        </div>
+        <div class="flex shrink-0 justify-end gap-2 border-t border-slate-100 p-4">
+            <button type="button" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60" data-close-dialog>Hủy</button>
+            <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-60">Lưu Biên Bản Kiểm Kê</button>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="adjustment-dialog" class="m-auto w-[min(40rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50 open:flex">
+    <form method="post" asp-antiforgery="true" action="/inventory?handler=CreateAdjustment" enctype="multipart/form-data" class="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 p-5">
+            <h2 class="font-display text-lg font-bold">Phiếu điều chỉnh số lượng</h2>
+            <button type="button" class="text-slate-400" data-close-dialog aria-label="Đóng">×</button>
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto p-5">
+        <p class="mt-1 text-sm text-slate-500">Thủ kho và trưởng kho lập phiếu chờ duyệt. Admin, Giám đốc và Kế toán ghi thẳng vào tồn.</p>
+        <label class="mt-4 block text-sm font-medium text-slate-700">Địa điểm
+            <select name="Adjustment.StockLocationId" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+                <option value="">Chọn địa điểm</option>
+                @foreach (var location in Model.Locations)
+                {
+                    <option value="@location.Id">@location.Name</option>
+                }
+            </select>
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Mặt hàng
+            <select name="Adjustment.CatalogItemId" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+                <option value="">Chọn mặt hàng</option>
+                @foreach (var item in Model.Items)
+                {
+                    <option value="@item.Id">@item.Code — @item.Name</option>
+                }
+            </select>
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Chênh lệch
+            <input name="Adjustment.Delta" type="number" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" />
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Lý do
+            <input name="Adjustment.Reason" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" />
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Chứng từ
+            <input name="Adjustment.DocumentRef" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" />
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Ảnh hàng, chứng từ (file đính kèm)
+            <input type="file" name="files" multiple accept="image/*,.pdf,.jpg,.jpeg,.png,.xlsx,.docx" class="mt-1 block w-full text-xs text-slate-600" />
+            <span class="mt-1 block text-xs font-normal text-slate-500">Tối đa 10 MB mỗi file. Trên điện thoại có thể chụp ảnh trực tiếp.</span>
+        </label>
+        </div>
+        <div class="flex shrink-0 justify-end gap-2 border-t border-slate-100 p-4">
+            <button type="button" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60" data-close-dialog>Hủy</button>
+            <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white">Lưu điều chỉnh</button>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="disposal-dialog" class="m-auto w-[min(40rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50 open:flex">
+    <form method="post" asp-antiforgery="true" action="/inventory?handler=CreateDisposal" enctype="multipart/form-data" class="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 p-5">
+            <h2 class="font-display text-lg font-bold">Phiếu hủy một sản phẩm</h2>
+            <button type="button" class="text-slate-400" data-close-dialog aria-label="Đóng">×</button>
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto p-5">
+        <label class="mt-4 block text-sm font-medium text-slate-700">Địa điểm
+            <select name="Disposal.StockLocationId" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+                <option value="">Chọn địa điểm</option>
+                @foreach (var location in Model.Locations)
+                {
+                    <option value="@location.Id">@location.Name</option>
+                }
+            </select>
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Mặt hàng
+            <select name="Disposal.CatalogItemId" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none">
+                <option value="">Chọn mặt hàng</option>
+                @foreach (var item in Model.Items)
+                {
+                    <option value="@item.Id">@item.Code — @item.Name</option>
+                }
+            </select>
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Số lượng hủy
+            <input name="Disposal.Quantity" type="number" min="1" step="1" value="1" required class="mt-1 w-full border px-3 py-2 font-mono tabular-nums rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" />
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Lý do
+            <input name="Disposal.Reason" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" />
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Chứng từ
+            <input name="Disposal.DocumentRef" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" />
+        </label>
+        <label class="mt-3 block text-sm font-medium text-slate-700">Ảnh hàng hỏng, chứng từ (file đính kèm)
+            <input type="file" name="files" multiple accept="image/*,.pdf,.jpg,.jpeg,.png,.xlsx,.docx" class="mt-1 block w-full text-xs text-slate-600" />
+            <span class="mt-1 block text-xs font-normal text-slate-500">Tối đa 10 MB mỗi file. Trên điện thoại có thể chụp ảnh trực tiếp.</span>
+        </label>
+        </div>
+        <div class="flex shrink-0 justify-end gap-2 border-t border-slate-100 p-4">
+            <button type="button" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60" data-close-dialog>Hủy</button>
+            <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-60">Lưu phiếu hủy</button>
+        </div>
+    </form>
+</dialog>
+

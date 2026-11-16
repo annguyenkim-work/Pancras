@@ -92,8 +92,6 @@ Dùng cho hóa đơn về muộn, tờ khai điều chỉnh:
 | Nút xuất | Nhãn "Xuất Excel" nhưng tệp CSV; đổi nhãn hoặc xuất `.xlsx` thật |
 | Thứ tự enum | `PurchaseStatus` đánh số theo thời điểm thêm (`Received = 2`, `PendingApproval = 3`...), không theo vòng đời; chỉ đổi khi có migration |
 | Hiển thị giá vốn đơn chưa nhập | Cần phân biệt số dự toán và số đã ghi nhận |
-| Modal | Một số modal còn kiểu cũ; xem [components.md](../../03-ui-ux/components.md) |
-| Tệp lớn | `Pages/Purchasing/Index.cshtml` hơn 1.000 dòng; JS đã chuyển sang `wwwroot/js/purchasing-form.js`, `purchasing-page.js` |
 
 ## Chờ chốt (chưa có hiệu lực)
 
