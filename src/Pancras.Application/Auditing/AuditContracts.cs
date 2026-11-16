@@ -7,7 +7,7 @@ public interface IAuditLog
     /// <summary>Ghi ngay một dòng nhật ký. Lỗi ghi nhật ký không được làm hỏng thao tác chính.</summary>
     Task RecordAsync(AuditEntry entry, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<AuditEntry>> ListAsync(string? search, int pageNumber, int pageSize, CancellationToken cancellationToken);
+    Task<IReadOnlyList<AuditEntry>> ListAsync(string? search, int pageNumber, int pageSize, bool newestFirst, CancellationToken cancellationToken);
 
     Task<int> CountAsync(string? search, CancellationToken cancellationToken);
 }
@@ -48,11 +48,12 @@ public sealed class ListAuditHandler(IAuditLog log)
         string? search,
         int pageNumber,
         int pageSize,
+        bool newestFirst,
         CancellationToken cancellationToken)
     {
         var page = pageNumber < 1 ? 1 : pageNumber;
         var total = await log.CountAsync(search, cancellationToken);
-        var entries = await log.ListAsync(search, page, pageSize, cancellationToken);
+        var entries = await log.ListAsync(search, page, pageSize, newestFirst, cancellationToken);
         return (entries, total);
     }
 }

@@ -175,6 +175,7 @@ else
             <input type="hidden" name="q" value="@Model.Search" />
             <input type="hidden" name="category" value="@Model.CategoryToken" />
             <input type="hidden" name="page" value="@Model.ItemPage.PageNumber" />
+            <partial name="_ListState" model="(Model.RequestedSize, Model.SortToken)" />
             @if (Model.ShowForm && Model.ErrorMessages.Count > 0)
             {
                 <div class="mb-4"><partial name="_Notice" model="new NoticeModel(Model.ErrorTitle, ToastLevel.Error, Model.ErrorMessages)" /></div>
@@ -327,6 +328,7 @@ else
             <input type="hidden" name="q" value="@Model.Search" />
             <input type="hidden" name="category" value="@Model.CategoryToken" />
             <input type="hidden" name="page" value="@Model.ItemPage.PageNumber" />
+            <partial name="_ListState" model="(Model.RequestedSize, Model.SortToken)" />
             @if (Model.ShowPriceForm && Model.ErrorMessages.Count > 0)
             {
                 <div class="mb-4"><partial name="_Notice" model="new NoticeModel(Model.ErrorTitle, ToastLevel.Error, Model.ErrorMessages)" /></div>

@@ -97,6 +97,7 @@ else
                                                 <input type="hidden" name="status" value="@Model.Status" />
                                                 <input type="hidden" name="country" value="@Model.Country" />
                                                 <input type="hidden" name="page" value="@Model.CardPage.PageNumber" />
+                                                <partial name="_ListState" model="(Model.RequestedSize, Model.SortToken)" />
                                                 <button type="submit" class="px-3 py-1.5 text-sm font-bold rounded-lg bg-slate-100 text-slate-700">Active</button>
                                             </form>
                                         }
@@ -185,6 +186,7 @@ else
             <input type="hidden" name="status" value="@Model.Status" />
             <input type="hidden" name="country" value="@Model.Country" />
             <input type="hidden" name="page" value="@Model.CardPage.PageNumber" />
+            <partial name="_ListState" model="(Model.RequestedSize, Model.SortToken)" />
             <input type="hidden" asp-for="Form.Id" />
             <input type="hidden" asp-for="Form.Version" />
             <div class="mt-4">
@@ -276,6 +278,7 @@ else
             <input type="hidden" name="status" value="@Model.Status" />
             <input type="hidden" name="country" value="@Model.Country" />
             <input type="hidden" name="page" value="@Model.CardPage.PageNumber" />
+            <partial name="_ListState" model="(Model.RequestedSize, Model.SortToken)" />
             <input type="hidden" asp-for="StopId" />
             <p class="mt-3 text-sm text-slate-600"><span class="font-medium text-slate-900">@stop.Name</span> (@stop.Code) sẽ không còn xuất hiện khi lập đơn mua mới.</p>
             <ul class="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-600">

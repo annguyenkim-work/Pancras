@@ -64,3 +64,31 @@ public class ListSortTests
         Assert.Equal(["SP02", "SP01"], CatalogOrdering.Apply(items, new ListSort("code", true)).Select(i => i.Code));
     }
 }
+
+public class EmployeeOrderingTests
+{
+    private static Pancras.Application.Employees.EmployeeCard Card(string name, string code, string role, string location) =>
+        new(Guid.NewGuid(), name, code, role, string.Empty, string.Empty, null, location, string.Empty, string.Empty, string.Empty, true);
+
+    private static readonly Pancras.Application.Employees.EmployeeCard[] Cards =
+    [
+        Card("Bình", "b01", "Kế toán", "Kho 2"),
+        Card("An", "c02", "Admin", "Kho 1"),
+        Card("An", "a03", "Thủ kho", "Kho 3")
+    ];
+
+    [Fact]
+    public void Apply_SortsByTheChosenColumn_ThenByCode()
+    {
+        Assert.Equal(["a03", "c02", "b01"], Pancras.Application.Employees.EmployeeOrdering.Apply(Cards, new ListSort("name", false)).Select(c => c.Code));
+        Assert.Equal(["c02", "b01", "a03"], Pancras.Application.Employees.EmployeeOrdering.Apply(Cards, new ListSort("code", true)).Select(c => c.Code));
+        Assert.Equal(["c02", "b01", "a03"], Pancras.Application.Employees.EmployeeOrdering.Apply(Cards, new ListSort("role", false)).Select(c => c.Code));
+        Assert.Equal(["a03", "b01", "c02"], Pancras.Application.Employees.EmployeeOrdering.Apply(Cards, new ListSort("location", true)).Select(c => c.Code));
+    }
+
+    [Fact]
+    public void Parse_FallsBackToName()
+    {
+        Assert.Equal("name", Pancras.Application.Employees.EmployeeOrdering.Parse("password").Key);
+    }
+}

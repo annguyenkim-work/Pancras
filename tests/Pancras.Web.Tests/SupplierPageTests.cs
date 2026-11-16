@@ -143,6 +143,20 @@ public class SupplierPageTests : IClassFixture<PancrasWebFactory>
         Assert.Contains("▼", sorted, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Forms_CarryTheChosenPageSizeAndSort_ThroughPosts()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var supplier = Seed(EmployeeRole.Admin);
+        supplier.Deactivate();
+        await SignInAsync(client);
+
+        var html = WebUtility.HtmlDecode(await (await client.GetAsync("/suppliers?status=inactive&sort=-code&size=50")).Content.ReadAsStringAsync());
+
+        Assert.Contains("name=\"size\" value=\"50\"", html, StringComparison.Ordinal);
+        Assert.Contains("name=\"sort\" value=\"-code\"", html, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData(EmployeeRole.WarehouseKeeper)]
     [InlineData(EmployeeRole.ShowroomWarehouseLead)]

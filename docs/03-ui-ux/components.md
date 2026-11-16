@@ -134,8 +134,8 @@ Khung chung cho badge trạng thái và badge phân loại: `rounded-full px-2 p
 | Bảng mobile | Đã bọc `overflow-x-auto` nhưng chưa có cột đầu sticky; cột hành động đang ở cuối dòng ở hầu hết bảng, phải dời lên vị trí thứ 2 |
 | Chống bấm đúp | `form-guard.js` chưa kiểm thử trên trình duyệt thật (hộp xác nhận, form tải tệp) |
 | Tab | Chưa có |
-| Phân trang | Đã có partial `_Pager` (20/50, "Hiển thị X–Y / Z", giữ bộ lọc) ở Danh mục, Nhà cung cấp, Nhân viên, Nhật ký, Thông báo. Chưa có ở Mua hàng, Kho. Nhân viên và Thông báo còn cắt trang trong bộ nhớ; đổi cỡ trang sau thao tác POST quay về 20 |
-| Sắp xếp theo cột, bảng mobile | Đã có (partial `_SortHeader`, `ListSort`, cột đầu sticky, cột Thao tác ở vị trí 2) ở Nhà cung cấp và Danh mục. Chưa có ở Nhân viên, Nhật ký, Mua hàng, Kho; sắp xếp chưa giữ sau thao tác POST |
+| Phân trang | Đã có partial `_Pager` (20/50, "Hiển thị X–Y / Z", giữ bộ lọc) ở Danh mục, Nhà cung cấp, Nhân viên, Nhật ký, Thông báo. Chưa có ở Mua hàng, Kho. Nhân viên và Thông báo còn cắt trang trong bộ nhớ |
+| Sắp xếp theo cột, bảng mobile | Đã có (partial `_SortHeader`, `ListSort`, cột đầu sticky, cột Thao tác ở vị trí 2) ở Nhà cung cấp, Danh mục, Nhân viên; Nhật ký sắp theo thời điểm. `size` và `sort` được giữ sau thao tác POST (partial `_ListState`). Chưa có ở Mua hàng, Kho |
 | Toast, banner | Toast đã dùng ở Catalog, Locations, Purchasing, Suppliers, Profile; banner lỗi dùng `_Notice` ở mọi trang. Còn lại: lỗi sau thao tác ở Inventory vẫn là banner (chưa chuyển sang toast); khung cảnh báo `charge-section` (Purchasing) và mã khôi phục 2FA (Profile) viết tay |
 | Banner | ~10 kiểu: `rounded-lg`/`rounded-xl`, chữ -700/-800, nơi là khối, nơi chỉ là dòng chữ |
 | Badge | Đã dùng `Badge` ở Mua hàng, Kho, Nhân sự, Nhà cung cấp, pill vai trò. Còn chip kho trong bảng tồn (`Inventory`) và bộ đếm nền sky-600 viết tay |

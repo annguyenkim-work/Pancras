@@ -23,6 +23,17 @@ public sealed record PagerModel(int PageNumber, int PageSize, int Total, Func<in
         }
     }
 
+    /// <summary>Giá trị tham số từ query, không có thì từ form (để giữ sau thao tác POST).</summary>
+    public static string? TokenFrom(HttpRequest request, string name)
+    {
+        if (request.Query.TryGetValue(name, out var fromQuery) && !string.IsNullOrEmpty(fromQuery))
+        {
+            return fromQuery.ToString();
+        }
+
+        return request.HasFormContentType && request.Form.TryGetValue(name, out var fromForm) ? fromForm.ToString() : null;
+    }
+
     public static int SizeFrom(HttpRequest request) =>
-        PageSizes.Normalize(int.TryParse(request.Query["size"], out var size) ? size : null);
+        PageSizes.Normalize(int.TryParse(TokenFrom(request, "size"), out var size) ? size : null);
 }

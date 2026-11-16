@@ -41,9 +41,8 @@ public sealed class AuditLog(PancrasDbContext context, ILogger<AuditLog> logger)
     }
 
 
-    public async Task<IReadOnlyList<AuditEntry>> ListAsync(string? search, int pageNumber, int pageSize, CancellationToken cancellationToken) =>
-        await Filter(search)
-            .OrderByDescending(entry => entry.OccurredAt)
+    public async Task<IReadOnlyList<AuditEntry>> ListAsync(string? search, int pageNumber, int pageSize, bool newestFirst, CancellationToken cancellationToken) =>
+        await (newestFirst ? Filter(search).OrderByDescending(entry => entry.OccurredAt) : Filter(search).OrderBy(entry => entry.OccurredAt))
             .Skip((Math.Max(1, pageNumber) - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);

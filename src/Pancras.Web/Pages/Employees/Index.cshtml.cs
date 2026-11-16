@@ -30,6 +30,13 @@ public class IndexModel(
 
     public string? Role { get; private set; }
 
+    public Pancras.Application.Common.ListSort Sort => EmployeeOrdering.Parse(SortToken);
+
+    public string? SortToken => Pancras.Web.Formatting.PagerModel.TokenFrom(Request, "sort");
+
+    /// <summary>Địa chỉ khi bấm tiêu đề cột: đổi cột hoặc đảo chiều, về trang 1.</summary>
+    public string SortUrl(string key) => ListUrl(1, null, Sort.Toggle(key).Token);
+
     public Guid? LocationFilter { get; private set; }
 
     public string? SignedInCode { get; private set; }
@@ -193,13 +200,19 @@ public class IndexModel(
     public string PreviewCode =>
         EmployeeCodeGenerator.Attempts(Command.FullName ?? string.Empty).Select(attempt => attempt.Code).FirstOrDefault() ?? string.Empty;
 
-    public string ListUrl(int? page = null, int? size = null)
+    public string ListUrl(int? page = null, int? size = null, string? sort = null)
     {
         var parts = new List<string>();
         Add(parts, "q", Search);
         Add(parts, "role", Role);
         Add(parts, "location", LocationFilter?.ToString("D"));
-        var sizeNow = size ?? PageSize;
+        var order = EmployeeOrdering.Parse(sort ?? SortToken);
+        if (order != EmployeeOrdering.Parse(null))
+        {
+            parts.Add("sort=" + order.Token);
+        }
+
+        var sizeNow = size ?? Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
         if (sizeNow != Pancras.Application.Common.PageSizes.Default)
         {
             parts.Add("size=" + sizeNow.ToString(System.Globalization.CultureInfo.InvariantCulture));
@@ -272,6 +285,7 @@ public class IndexModel(
         Locations = await listLocations.HandleAsync(cancellationToken);
         var cards = await listEmployees.HandleAsync(Actor, q, role, location, cancellationToken);
         PageSize = Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
+        cards = EmployeeOrdering.Apply(cards, Sort);
         Total = cards.Count;
         PageCount = Math.Max(1, (cards.Count + PageSize - 1) / PageSize);
         PageNumber = page < 1 ? 1 : page > PageCount ? PageCount : page;

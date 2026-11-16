@@ -67,7 +67,7 @@ Ghi `IAuditLog` (mã hành động dạng `nhóm.sự_kiện`, hiển thị ti�
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Danh sách | Là bảng, đã phân trang 20/50 (`_Pager`); hành động chưa ở cột thứ 2 |
+| Danh sách | Là bảng, phân trang 20/50, sắp xếp theo tên, mã, vai trò, kho; cột đầu sticky, hành động ở cột thứ 2 |
 | `Version` | Form sửa gửi `Version`, handler từ chối bằng `EmployeeError.VersionConflict`; hai lần lưu chồng nhau thật sự hiện trang 409 chung |
 | Mã lỗi | `EmployeeError`, `LoginError` còn trong `Common/Result.cs` |
 | Handler gộp | `TwoFactorHandlers.cs` gộp 5 handler |
