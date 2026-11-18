@@ -496,6 +496,25 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
     private static StockBalanceRow Row(string code, string name, ProductCategory category, Guid locationId) =>
         new(Guid.CreateVersion7(), code, name, "Toto", category, locationId, "Kho A", 3, 1, 2, 4);
 
+    [Theory]
+    [InlineData("balances", "help-inventory-balances", "Tra cứu tồn kho")]
+    [InlineData("transfers", "help-inventory-transfers", "In phiếu xuất kho")]
+    [InlineData("stocktakes", "help-inventory-stocktakes", "Kiểm kê, điều chỉnh và hủy hàng")]
+    public async Task EachInventoryTab_HasItsOwnHelpGuide(string view, string dialogId, string expectedText)
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        Reset();
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+
+        var text = Decode(await (await client.GetAsync("/inventory?view=" + view)).Content.ReadAsStringAsync());
+
+        Assert.Contains("data-open-dialog=\"" + dialogId + "\"", text, StringComparison.Ordinal);
+        Assert.Contains("id=\"" + dialogId + "\"", text, StringComparison.Ordinal);
+        Assert.Contains(expectedText, text, StringComparison.Ordinal);
+        Assert.Contains("4. Phân quyền", text, StringComparison.Ordinal);
+        Assert.Single(Regex.Matches(text, "data-open-dialog=\"help-"));
+    }
+
     [Fact]
     public async Task TransferPrint_AnonymousIsRedirectedToLogin()
     {

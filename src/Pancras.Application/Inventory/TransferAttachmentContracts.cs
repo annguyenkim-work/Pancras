@@ -23,9 +23,13 @@ public static class TransferAccess
     /// Phiếu phải từ đã duyệt trở đi (<see cref="TransferSlip.CanPrint(TransferStatus)"/>).
     /// </summary>
     public static bool CanPrint(EmployeeActor actor, TransferSlip slip) =>
-        TransferSlip.CanPrint(slip.Status)
+        CanPrint(actor, slip.Status, slip.SourceLocationId);
+
+    /// <summary>Cùng quy tắc in theo trạng thái và kho xuất, để bảng hướng dẫn tính quyền mà không cần dựng phiếu.</summary>
+    public static bool CanPrint(EmployeeActor actor, TransferStatus status, Guid sourceLocationId) =>
+        TransferSlip.CanPrint(status)
         && InventoryAccess.CanOperate(actor.Role)
-        && InventoryAccess.CanAccessLocation(actor, slip.SourceLocationId);
+        && InventoryAccess.CanAccessLocation(actor, sourceLocationId);
 
     /// <summary>
     /// Người lập phiếu: chỉ người này được sửa hoặc hủy phiếu (người duyệt chỉ duyệt hoặc từ chối).

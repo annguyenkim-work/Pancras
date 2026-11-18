@@ -1,6 +1,6 @@
 # Hướng dẫn sử dụng tích hợp (modal trợ giúp)
 
-> Trạng thái: **Đã chốt** (UAT sprint 1, 2026-11-18). **Chưa làm** (chưa có code). Quyền theo vai lấy từ [../04-domain/roles-and-permissions.md](../04-domain/roles-and-permissions.md), không chép lại.
+> Trạng thái: **Đã chốt** và **đã làm** (UAT sprint 1, 2026-11-18). Quyền theo vai lấy từ [../04-domain/roles-and-permissions.md](../04-domain/roles-and-permissions.md), không chép lại.
 
 **Mục đích:** Mỗi màn hình nghiệp vụ có nút trợ giúp mở modal giải thích mục tiêu, chức năng, quy trình và phân quyền, để người dùng không phải hỏi người khác.
 
@@ -49,3 +49,10 @@ Bốn mục, theo thứ tự:
 
 - Có làm hướng dẫn cho các màn hình ngoài bảng mục 1 (Nhân viên, Nhà cung cấp, Danh mục, Kho & Showroom...) không.
 - Có cần hình minh họa hoặc video về sau không.
+
+## Cài đặt (đã làm)
+
+- Nội dung: `Web/Help/HelpTopics.cs` (mỗi chủ đề một `HelpTopic`; thêm màn hình = thêm một chủ đề và một dòng trong `HelpTopics.All`). Bảng phân quyền: `HelpCapability` tính bằng cách gọi các hàm Access (`HelpProbe`), không gõ tay.
+- Giao diện: `Pages/Shared/_HelpButton.cshtml` (nút, đặt ở đầu trang hoặc tab) và `_HelpDialog.cshtml` (hộp thoại, đặt **cuối trang** để không chen vào các hộp thoại khác); mở bằng `data-open-dialog` của `ui.js`.
+- Trong lời hướng dẫn, nhắc tên nút bằng chữ thường (ví dụ "nút duyệt đơn") để không trùng nhãn nút thật mà các test giao diện dùng để kiểm nút nào hiện theo vai và trạng thái.
+- Test: `HelpTopicsTests` (đủ bốn mục, bảng quyền khớp Access), kiểm hiển thị ở `InventoryPageTests`, `PurchasingPageTests`.

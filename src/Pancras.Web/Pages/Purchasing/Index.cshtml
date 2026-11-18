@@ -13,10 +13,16 @@
             <h1 class="font-display text-xl sm:text-2xl font-bold text-slate-900">Mua Hàng, Container Nhập Khẩu &amp; Phân Bổ Giá Vốn (Landed Cost)</h1>
             <p class="mt-1 text-sm text-slate-500">Hỗ trợ lập phiếu mua nhiều mặt hàng trong cùng 1 container, tự động phân bổ chi phí logistics và thuế nhập khẩu vào giá vốn từng sản phẩm.</p>
         </div>
-        @if (Model.CanManage)
-        {
-            <a href="/purchasing?form=1" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">+ Tạo Đơn Mua Hàng &amp; Container</a>
-        }
+        <div class="flex flex-wrap items-center gap-2">
+            @if (Pancras.Web.Help.HelpTopics.Find(Pancras.Web.Help.HelpTopics.Purchasing) is { } help)
+            {
+                <partial name="_HelpButton" model="help" />
+            }
+            @if (Model.CanManage)
+            {
+                <a href="/purchasing?form=1" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">+ Tạo Đơn Mua Hàng &amp; Container</a>
+            }
+        </div>
     </div>
     @* Khi modal đang mở, lỗi hiện trong modal (bên dưới); hiện ở đây sẽ nằm sau lớp phủ và người dùng không thấy. *@
     @if (!string.IsNullOrEmpty(Model.ErrorMessage) && !Model.ShowForm)
@@ -112,4 +118,8 @@ else
         <button type="button" id="confirm-ok" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Xác nhận</button>
     </div>
 </dialog>
+@if (Pancras.Web.Help.HelpTopics.Find(Pancras.Web.Help.HelpTopics.Purchasing) is { } helpTopic)
+{
+    <partial name="_HelpDialog" model="helpTopic" />
+}
 <script src="~/js/purchasing-page.js" asp-append-version="true" defer></script>

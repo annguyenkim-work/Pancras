@@ -21,8 +21,16 @@
 
 <div class="space-y-4">
     <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6">
-        <h1 class="font-display text-xl sm:text-2xl font-bold text-slate-900">Quản Lý Đa Kho &amp; Điều Chuyển Hàng Hóa</h1>
-        <p class="mt-1 text-sm text-slate-500">@Model.Subtitle</p>
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <h1 class="font-display text-xl sm:text-2xl font-bold text-slate-900">Quản Lý Đa Kho &amp; Điều Chuyển Hàng Hóa</h1>
+                <p class="mt-1 text-sm text-slate-500">@Model.Subtitle</p>
+            </div>
+            @if (Pancras.Web.Help.HelpTopics.Find("inventory." + Model.ActiveView) is { } help)
+            {
+                <partial name="_HelpButton" model="help" />
+            }
+        </div>
         @* Lỗi hiện ở đầu trang cả khi thao tác trên phiếu bị chặn. Người không thấy phiếu (không có trong danh sách) không nhận thông báo. *@
         @if (!string.IsNullOrEmpty(Model.ErrorMessage)
             && !Model.ShowTransferDialog
@@ -50,6 +58,10 @@
 
 <partial name="_Dialogs" model="Model" />
 <partial name="_ItemDetail" model="Model" />
+@if (Pancras.Web.Help.HelpTopics.Find("inventory." + Model.ActiveView) is { } helpTopic)
+{
+    <partial name="_HelpDialog" model="helpTopic" />
+}
 
 <script type="application/json" id="stock-map">@Html.Raw(Model.BalanceJson)</script>
 <div id="inventory-boot" hidden data-show-transfer-dialog="@(Model.ShowTransferDialog ? "true" : "false")" data-open-transfer="@(Model.OpenTransferId is Guid openId ? openId.ToString("D") : "")" data-show-stocktake-dialog="@(Model.ShowStocktakeDialog ? "true" : "false")"></div>

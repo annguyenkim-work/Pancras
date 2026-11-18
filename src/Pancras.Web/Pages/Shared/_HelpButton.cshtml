@@ -1,0 +1,4 @@
+@using Pancras.Web.Help
+@model HelpTopic
+@* Nút mở hộp thoại hướng dẫn; hộp thoại (_HelpDialog) đặt cuối trang để không chen vào các hộp thoại khác của trang. *@
+<button type="button" data-open-dialog="help-@Model.Key.Replace('.', '-')" aria-haspopup="dialog" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-bold text-slate-700 hover:bg-slate-50">Hướng dẫn sử dụng</button>
