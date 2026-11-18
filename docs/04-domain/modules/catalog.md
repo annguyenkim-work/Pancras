@@ -65,10 +65,23 @@ Năm mức: **giá vốn**, **giá lẻ (niêm yết)**, **giá đại lý**, **
 - **Ngừng:** combo có cờ `IsActive` như mặt hàng, không xóa. Thành phần bị ngừng thì combo hiển thị cảnh báo và không bán được cho đến khi sửa.
 - **Cần làm khi triển khai (chưa quyết, hỏi chủ dự án):** địa chỉ màn hình (hiện menu "Combo" ở `/combos` là "Sắp có"); cách lưu thành phần (bảng `catalog_combo_line`); ghi audit mỗi lần sửa thành phần và giá. Mọi chỗ hiện đang loại combo khỏi danh sách (`!IsCombo`: đơn mua, kho, bảng giá hiện tại) giữ nguyên.
 
+## Chiết khấu theo mức giá (spec đã chốt 2026-11-18, chưa làm)
+
+Nguồn: UAT sprint 1. **Chỉ làm phần cấu hình** trong bảng giá; việc tính giá khi bán thuộc module Bán hàng và Báo giá (chưa làm), cả hai sẽ lấy giá và chiết khấu từ bảng giá này.
+
+- **Giá niêm yết** là giá bán lẻ mặc định, **không có chiết khấu**.
+- Mỗi mức **giá đại lý, giá nhà phân phối, giá dự án** có hai thông tin: **giá** (số tiền nhập tay, đã có) và **% chiết khấu mặc định** (mới, bỏ trống được).
+- **% chiết khấu:** từ 0 đến 100, tối đa 2 chữ số thập phân, **tính trên giá niêm yết**. Ví dụ niêm yết 1.000.000 VNĐ, chiết khấu 20% thì giá sau chiết khấu 800.000 VNĐ.
+- **Không có `DiscountType`.** "Chiết khấu theo giá" chính là ô giá của mức đó (ví dụ giá đại lý đã nhập tay), "chiết khấu theo %" là ô % này.
+- **Khi bán (ghi nhận cho module sau, chưa làm):** người bán chọn tính theo % hoặc theo giá; ô % lấy mặc định từ cấu hình sản phẩm và sửa được trên đơn. Theo % thì giá = giá niêm yết × (1 − %), làm tròn đồng nguyên theo quy ước giá (`AwayFromZero`).
+- **Quyền sửa:** Admin, Giám đốc, Kế toán (cùng nhóm sửa giá). **Audit:** ghi mỗi lần đổi %, như đổi giá. Dùng chung `Version` của mặt hàng khi sửa.
+- **Cột dự kiến:** ba cột `numeric(5,2)` có thể null (đại lý, nhà phân phối, dự án) trên `CatalogItem`, ràng buộc 0–100 ở Domain và database.
+
 ## Nợ lệch so với luật
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
+| Chiết khấu | Chưa có ba ô % chiết khấu và migration; spec ở mục "Chiết khấu theo mức giá" |
 | Pickers | Đơn mua đang sửa có mặt hàng đã Disable thì ô chọn dòng đó không còn mặt hàng (danh sách chọn chỉ có mặt hàng Active); dòng đã lưu vẫn hiện đúng tên |
 | Tài liệu cũ | Spec 004 ghi "ai sửa bảng giá" khác; docs mới thay thế |
 
@@ -79,3 +92,4 @@ Năm mức: **giá vốn**, **giá lẻ (niêm yết)**, **giá đại lý**, **
 ## Chờ chốt (chưa có hiệu lực)
 
 - Giá nhà phân phối và giá dự án dùng khi bán cho ai và theo quy tắc nào (chờ spec Bán hàng/Báo giá).
+- Khi bán: ô mặc định hiện trước trên dòng hàng là theo % hay theo giá; combo có chiết khấu riêng không (chờ spec Bán hàng, Báo giá, Combo).

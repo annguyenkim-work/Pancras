@@ -29,7 +29,7 @@
 
 - **Handler loại dữ liệu theo vai** trước khi trả về (DTO không chứa trường đó khi thiếu quyền; trường là `null`/vắng, không phải chỉ bị ẩn). View không có gì để lộ.
 - View chỉ kiểm `Model.CanSeeCost` (hoặc tương đương) để quyết định có vẽ cột/ô hay không.
-- Quy tắc này ở mức handler; chưa quy định riêng cho xuất file, in, nhật ký (xem "Chờ chốt").
+- Quy tắc này ở mức handler; chưa quy định chung cho xuất file, in, nhật ký (xem "Chờ chốt"). Riêng bản in phiếu chuyển kho **không chứa giá vốn** ([inventory.md](../04-domain/modules/inventory.md) mục "Phiếu chuyển kho in được").
 
 ## 4. Mẫu code
 
