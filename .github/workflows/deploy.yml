@@ -46,6 +46,10 @@ jobs:
           rm -f out/app/appsettings.Development.json
 
       - name: Build migrations bundle (linux-x64)
+        # Bundle chỉ build, không kết nối DB. Program.cs đòi chuỗi kết nối khi khởi động,
+        # nên đặt giá trị giả ở đây. Chuỗi thật vẫn nằm trên VPS (/etc/pancras.env).
+        env:
+          ConnectionStrings__DefaultConnection: "Host=localhost;Database=pancras;Username=ci;Password=ci-placeholder"
         run: |
           dotnet tool install --global dotnet-ef --version "10.*"
           export PATH="$HOME/.dotnet/tools:$PATH"
