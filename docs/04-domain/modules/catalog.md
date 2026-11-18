@@ -65,7 +65,7 @@ Năm mức: **giá vốn**, **giá lẻ (niêm yết)**, **giá đại lý**, **
 - **Ngừng:** combo có cờ `IsActive` như mặt hàng, không xóa. Thành phần bị ngừng thì combo hiển thị cảnh báo và không bán được cho đến khi sửa.
 - **Cần làm khi triển khai (chưa quyết, hỏi chủ dự án):** địa chỉ màn hình (hiện menu "Combo" ở `/combos` là "Sắp có"); cách lưu thành phần (bảng `catalog_combo_line`); ghi audit mỗi lần sửa thành phần và giá. Mọi chỗ hiện đang loại combo khỏi danh sách (`!IsCombo`: đơn mua, kho, bảng giá hiện tại) giữ nguyên.
 
-## Chiết khấu theo mức giá (spec đã chốt 2026-11-18, chưa làm)
+## Chiết khấu theo mức giá (đã làm 2026-11-18, chỉ phần cấu hình)
 
 Nguồn: UAT sprint 1. **Chỉ làm phần cấu hình** trong bảng giá; việc tính giá khi bán thuộc module Bán hàng và Báo giá (chưa làm), cả hai sẽ lấy giá và chiết khấu từ bảng giá này.
 
@@ -75,13 +75,12 @@ Nguồn: UAT sprint 1. **Chỉ làm phần cấu hình** trong bảng giá; vi�
 - **Không có `DiscountType`.** "Chiết khấu theo giá" chính là ô giá của mức đó (ví dụ giá đại lý đã nhập tay), "chiết khấu theo %" là ô % này.
 - **Khi bán (ghi nhận cho module sau, chưa làm):** người bán chọn tính theo % hoặc theo giá; ô % lấy mặc định từ cấu hình sản phẩm và sửa được trên đơn. Theo % thì giá = giá niêm yết × (1 − %), làm tròn đồng nguyên theo quy ước giá (`AwayFromZero`).
 - **Quyền sửa:** Admin, Giám đốc, Kế toán (cùng nhóm sửa giá). **Audit:** ghi mỗi lần đổi %, như đổi giá. Dùng chung `Version` của mặt hàng khi sửa.
-- **Cột dự kiến:** ba cột `numeric(5,2)` có thể null (đại lý, nhà phân phối, dự án) trên `CatalogItem`, ràng buộc 0–100 ở Domain và database.
+- **Cột:** `dealer_discount_percent`, `distributor_discount_percent`, `project_discount_percent` (`numeric(5,2)`, null được) trên `catalog_item`, có check 0–100 ở database; kiểm 0–100 và tối đa 2 chữ số thập phân ở Domain (`CatalogItem.IsValidDiscountPercent`) và validator. Nhập trong form thêm và form sửa giá; số thập phân nhập bằng dấu phẩy hoặc chấm.
 
 ## Nợ lệch so với luật
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Chiết khấu | Chưa có ba ô % chiết khấu và migration; spec ở mục "Chiết khấu theo mức giá" |
 | Pickers | Đơn mua đang sửa có mặt hàng đã Disable thì ô chọn dòng đó không còn mặt hàng (danh sách chọn chỉ có mặt hàng Active); dòng đã lưu vẫn hiện đúng tên |
 | Tài liệu cũ | Spec 004 ghi "ai sửa bảng giá" khác; docs mới thay thế |
 

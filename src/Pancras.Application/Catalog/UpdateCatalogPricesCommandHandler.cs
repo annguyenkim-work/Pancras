@@ -16,6 +16,9 @@ public sealed class UpdateCatalogPricesCommandValidator : AbstractValidator<Upda
         Price(command => command.DealerPrice, CatalogField.DealerPrice);
         Price(command => command.DistributorPrice, CatalogField.DistributorPrice);
         Price(command => command.ProjectPrice, CatalogField.ProjectPrice);
+        Percent(command => command.DealerDiscountPercent, CatalogField.DealerDiscountPercent);
+        Percent(command => command.DistributorDiscountPercent, CatalogField.DistributorDiscountPercent);
+        Percent(command => command.ProjectDiscountPercent, CatalogField.ProjectDiscountPercent);
 
         When(command => command.IncludeDetails, () =>
         {
@@ -66,6 +69,18 @@ public sealed class UpdateCatalogPricesCommandValidator : AbstractValidator<Upda
             RuleFor(command => command.ImagePath).Must(value => CatalogValidation.Fits(value, CatalogItem.ImagePathMaxLength))
                 .WithState(_ => new CatalogIssue(CatalogField.Image, CatalogIssueKind.TooLong, CatalogItem.ImagePathMaxLength));
         });
+    }
+
+    private void Percent(
+        System.Linq.Expressions.Expression<Func<UpdateCatalogPricesCommand, decimal?>> property,
+        CatalogField field)
+    {
+        RuleFor(property).Must(CatalogValidation.PercentNotNegative)
+            .WithState(_ => new CatalogIssue(field, CatalogIssueKind.Negative));
+        RuleFor(property).Must(CatalogValidation.PercentFitsMax)
+            .WithState(_ => new CatalogIssue(field, CatalogIssueKind.TooLarge));
+        RuleFor(property).Must(CatalogValidation.PercentFitsDecimals)
+            .WithState(_ => new CatalogIssue(field, CatalogIssueKind.InvalidNumber));
     }
 
     private void Price(
@@ -171,6 +186,7 @@ public sealed class UpdateCatalogPricesCommandHandler(
             command.DealerPrice!.Value,
             command.DistributorPrice!.Value,
             command.ProjectPrice!.Value);
+        item.SetDiscountPercents(command.DealerDiscountPercent, command.DistributorDiscountPercent, command.ProjectDiscountPercent);
         item.AdvanceVersion();
         if (await repository.TrySaveAsync(cancellationToken) != SaveOutcome.Saved)
         {

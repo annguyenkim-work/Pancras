@@ -38,6 +38,13 @@ internal static class CatalogValidation
         return CatalogError.Incomplete;
     }
 
+    public static bool PercentNotNegative(decimal? value) => value is null || value >= 0;
+
+    public static bool PercentFitsMax(decimal? value) => value is null || value <= CatalogItem.MaxDiscountPercent;
+
+    public static bool PercentFitsDecimals(decimal? value) =>
+        value is null || decimal.Round(value.Value, CatalogItem.DiscountPercentDecimals, MidpointRounding.AwayFromZero) == value.Value;
+
     public static bool HasText(string? value) => !string.IsNullOrWhiteSpace(value);
 
     public static bool Fits(string? value, int maxLength) =>

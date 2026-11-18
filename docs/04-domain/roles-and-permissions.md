@@ -88,7 +88,7 @@ Quy tắc luồng (luật nghiệp vụ chi tiết ở [modules/inventory.md](mo
 | --- | --- |
 | Nhà cung cấp (`/suppliers`) | Admin, Giám đốc, Kế toán: xem, tạo, sửa, Disable (thay cho xóa mềm), thấy tài khoản ngân hàng (che 4 số cuối ở danh sách, đầy đủ trong form sửa). Chỉ Admin khôi phục nhà cung cấp Disabled. Thủ kho, Trưởng Showroom/Kho: chỉ xem danh bạ, không thấy ngân hàng, không sửa. Vai khác: không vào. Không Disable được khi còn đơn mua chưa nhập kho |
 | Mua hàng và container (`/purchasing`) | Quản lý (tạo, sửa, đổi trạng thái, hủy, điều chỉnh chi phí, chứng từ, xem FOB/thuế/giá vốn): Admin, Giám đốc, Kế toán. Thủ kho, Trưởng Showroom/Kho: vào trang để xem **đơn đã duyệt trở đi của kho mình** và nhận hàng, không thấy giá |
-| Danh mục sản phẩm và giá (`/catalog`) | Admin, Giám đốc, Kế toán: xem, thêm/sửa mặt hàng, sửa giá, Disable. Trưởng Showroom/Kho không sửa giá. Cấu hình % chiết khấu theo mức giá (chưa làm) cùng nhóm với sửa giá. Sales và CSKH chưa vào được; quyền Sales xem giá bán sẽ định nghĩa khi làm module Bán hàng/Báo giá |
+| Danh mục sản phẩm và giá (`/catalog`) | Admin, Giám đốc, Kế toán: xem, thêm/sửa mặt hàng, sửa giá, Disable. Trưởng Showroom/Kho không sửa giá. Cấu hình % chiết khấu theo mức giá cùng nhóm với sửa giá. Sales và CSKH chưa vào được; quyền Sales xem giá bán sẽ định nghĩa khi làm module Bán hàng/Báo giá |
 | Kho & Showroom (`/locations`) | Xem: Admin, Giám đốc, Kế toán. Quản lý: Admin, Giám đốc |
 | Nhật ký hệ thống (`/audit`) | Admin, Giám đốc |
 | Bán hàng (`/sales`) | "Sắp có". **Đã chốt một phần:** Kế toán, Giám đốc, Admin được sửa đơn bán **trước khi xuất chứng từ**. Các quyền bán hàng còn lại **chưa chốt**, định nghĩa khi làm module (không đoán) |

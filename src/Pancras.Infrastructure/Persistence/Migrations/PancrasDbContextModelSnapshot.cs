@@ -115,10 +115,20 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(18,0)")
                         .HasColumnName("cost_price");
 
+                    b.Property<decimal?>("DealerDiscountPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("dealer_discount_percent");
+
                     b.Property<decimal>("DealerPrice")
                         .HasPrecision(18)
                         .HasColumnType("numeric(18,0)")
                         .HasColumnName("dealer_price");
+
+                    b.Property<decimal?>("DistributorDiscountPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("distributor_discount_percent");
 
                     b.Property<decimal>("DistributorPrice")
                         .HasPrecision(18)
@@ -173,6 +183,11 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("origin");
+
+                    b.Property<decimal?>("ProjectDiscountPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("project_discount_percent");
 
                     b.Property<decimal>("ProjectPrice")
                         .HasPrecision(18)
@@ -230,7 +245,14 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_catalog_item_normalized_code");
 
-                    b.ToTable("catalog_item", (string)null);
+                    b.ToTable("catalog_item", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_catalog_item_dealer_discount_percent", "dealer_discount_percent IS NULL OR (dealer_discount_percent >= 0 AND dealer_discount_percent <= 100)");
+
+                            t.HasCheckConstraint("ck_catalog_item_distributor_discount_percent", "distributor_discount_percent IS NULL OR (distributor_discount_percent >= 0 AND distributor_discount_percent <= 100)");
+
+                            t.HasCheckConstraint("ck_catalog_item_project_discount_percent", "project_discount_percent IS NULL OR (project_discount_percent >= 0 AND project_discount_percent <= 100)");
+                        });
                 });
 
             modelBuilder.Entity("Pancras.Domain.Employees.Employee", b =>

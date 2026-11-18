@@ -19,4 +19,7 @@ public static class VndMoney
     public static string FormatPercent(decimal fraction) => (fraction * 100m).ToString("0.####", Vietnamese) + "%";
 
     public static string FormatMeasure(decimal amount) => amount.ToString("0.###", Vietnamese);
+
+    /// <summary>% chiết khấu: bỏ số 0 thừa, dùng dấu phẩy thập phân (20 hoặc 12,5); trống nếu chưa cấu hình.</summary>
+    public static string FormatPercent(decimal? percent) => percent is null ? string.Empty : percent.Value.ToString("0.##", Vietnamese);
 }

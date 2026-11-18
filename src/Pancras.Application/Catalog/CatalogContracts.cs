@@ -29,7 +29,10 @@ public sealed record CatalogItemRow(
     string ImagePath,
     int Version = 0,
     Pancras.Application.Auditing.AuditStampView? Stamp = null,
-    bool IsActive = true)
+    bool IsActive = true,
+    decimal? DealerDiscountPercent = null,
+    decimal? DistributorDiscountPercent = null,
+    decimal? ProjectDiscountPercent = null)
 {
     public static CatalogItemRow From(CatalogItem item) =>
         new(
@@ -55,7 +58,10 @@ public sealed record CatalogItemRow(
             item.ImagePath,
             item.Version,
             Pancras.Application.Auditing.AuditStampView.From(item),
-            item.IsActive);
+            item.IsActive,
+            item.DealerDiscountPercent,
+            item.DistributorDiscountPercent,
+            item.ProjectDiscountPercent);
 }
 
 public static class ProductCategoryToken
@@ -232,6 +238,13 @@ public sealed class CreateCatalogItemCommand
     public decimal? DistributorPrice { get; set; }
 
     public decimal? ProjectPrice { get; set; }
+
+    /// <summary>% chiết khấu mặc định (0–100, tối đa 2 chữ số thập phân, tính trên giá niêm yết); null là bỏ trống.</summary>
+    public decimal? DealerDiscountPercent { get; set; }
+
+    public decimal? DistributorDiscountPercent { get; set; }
+
+    public decimal? ProjectDiscountPercent { get; set; }
 }
 
 public sealed record CreatedCatalogItem(Guid Id, string Code, string Name, ProductCategory Category);
@@ -251,6 +264,13 @@ public sealed class UpdateCatalogPricesCommand
     public decimal? DistributorPrice { get; set; }
 
     public decimal? ProjectPrice { get; set; }
+
+    /// <summary>% chiết khấu mặc định (0–100, tối đa 2 chữ số thập phân, tính trên giá niêm yết); null là bỏ trống.</summary>
+    public decimal? DealerDiscountPercent { get; set; }
+
+    public decimal? DistributorDiscountPercent { get; set; }
+
+    public decimal? ProjectDiscountPercent { get; set; }
 
     public bool IncludeDetails { get; set; }
 
