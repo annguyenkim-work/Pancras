@@ -15,6 +15,9 @@ public class IndexModel(ListNotificationsHandler handler) : PageModel
 {
     public IReadOnlyList<Notification> Notices { get; private set; } = [];
 
+    /// <summary>Số thứ tự phiếu chuyển theo Id chứng từ, để thông báo hiện cùng mã CK với màn Kho.</summary>
+    public IReadOnlyDictionary<Guid, int> TransferNumbers { get; private set; } = new Dictionary<Guid, int>();
+
     public int PageNumber { get; private set; } = 1;
 
     public int PageSize { get; private set; } = Pancras.Application.Common.PageSizes.Default;
@@ -33,6 +36,7 @@ public class IndexModel(ListNotificationsHandler handler) : PageModel
 
         var page = await handler.HandleAsync(employeeId, pageNumber, PageSize, cancellationToken);
         Notices = page.Items;
+        TransferNumbers = await handler.TransferNumbersAsync(page.Items, cancellationToken);
         Total = page.Total;
         PageNumber = page.PageNumber;
     }
@@ -50,9 +54,11 @@ public class IndexModel(ListNotificationsHandler handler) : PageModel
     }
 
     /// <summary>Mã phiếu hiện cạnh thông báo, cùng mã với thẻ phiếu ở màn Kho; đơn mua chưa có mã (chỉ có Id chứng từ).</summary>
-    public static string? NoticeCode(Notification notice) => notice.Kind switch
+    public static string? NoticeCode(Notification notice, IReadOnlyDictionary<Guid, int>? transferNumbers = null) => notice.Kind switch
     {
-        NotificationKind.Transfer => StockDocumentCode.Of(StockDocumentCode.Transfer, notice.DocumentId),
+        NotificationKind.Transfer => transferNumbers is not null && transferNumbers.TryGetValue(notice.DocumentId, out var number)
+            ? StockDocumentCode.ForTransfer(number)
+            : StockDocumentCode.Of(StockDocumentCode.Transfer, notice.DocumentId),
         NotificationKind.StocktakePending => StockDocumentCode.Of(StockDocumentCode.Stocktake, notice.DocumentId),
         NotificationKind.AdjustmentPending => StockDocumentCode.Of(StockDocumentCode.Adjustment, notice.DocumentId),
         NotificationKind.DisposalApproved => StockDocumentCode.Of(StockDocumentCode.Disposal, notice.DocumentId),

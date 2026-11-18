@@ -1,0 +1,31 @@
+/* Bản in phiếu xuất kho (Pages/Inventory/TransferPrint). CSP chỉ cho style từ 'self', nên không dùng style nội tuyến. */
+body.print-page { margin: 0; background: #f1f5f9; color: #0f172a; font: 14px/1.5 "Segoe UI", Arial, sans-serif; }
+.print-toolbar { max-width: 210mm; margin: 12px auto 0; padding: 0 12px; display: flex; justify-content: flex-end; gap: 8px; }
+.print-toolbar button { border: 0; border-radius: 8px; background: #0284c7; color: #fff; padding: 8px 16px; font-weight: 700; cursor: pointer; }
+.print-sheet { max-width: 210mm; margin: 12px auto; background: #fff; padding: 16mm 14mm; border: 1px solid #e2e8f0; }
+.print-sheet h1 { margin: 0; text-align: center; text-transform: uppercase; letter-spacing: .02em; }
+.print-sub { margin: 2px 0 14px; text-align: center; color: #475569; }
+.print-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; margin-bottom: 12px; }
+.print-meta span { color: #475569; }
+.print-meta .full { grid-column: 1 / -1; }
+.print-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.print-table th, .print-table td { border: 1px solid #94a3b8; padding: 6px 8px; text-align: left; vertical-align: top; }
+.print-table th { background: #f1f5f9; }
+.print-table .num { text-align: right; }
+.print-table .col-stt { width: 40px; }
+.print-table .col-code { width: 110px; }
+.print-table .col-unit { width: 70px; }
+.print-table .col-qty { width: 90px; }
+.print-table .col-received { width: 110px; }
+.print-table td.blank { height: 28px; }
+.print-signs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 28px; text-align: center; }
+.print-signs .role { font-weight: 700; }
+.print-signs .hint { color: #64748b; font-size: 12px; }
+.print-signs .space { height: 72px; }
+.print-foot { margin-top: 16px; color: #64748b; font-size: 12px; text-align: right; }
+@media print {
+    body.print-page { background: #fff; }
+    .print-toolbar { display: none; }
+    .print-sheet { margin: 0; border: 0; padding: 0; max-width: none; }
+    @page { size: A4; margin: 14mm; }
+}

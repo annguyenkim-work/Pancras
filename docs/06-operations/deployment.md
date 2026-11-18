@@ -185,7 +185,30 @@ rclone copy "$DEST" offsite:pancras-backup --max-age 2d   # remote đã cấu h�
 
 ## 9. Cập nhật phiên bản và kiểm tra
 
-Cập nhật:
+### Tự động qua GitHub Actions
+
+- `.github/workflows/ci.yml`: build và test mọi push và pull request.
+- `.github/workflows/deploy.yml`: khi merge vào `main`, sau khi test xanh, workflow publish, build migrations bundle, chép lên `/opt/pancras/incoming/<tên-bản>` và chạy `deploy/pancras-deploy.sh` trên VPS.
+- Script trên VPS sao lưu DB, áp migration, đổi thư mục app, khởi động và kiểm tra `/health/live`. Nếu lỗi thì khôi phục thư mục app cũ. **Migration không tự đảo**; nếu cần, khôi phục DB từ bản `pg_dump` vừa tạo.
+- Chạy lại bản cũ: tab Actions, chọn workflow Deploy, "Run workflow" trên commit mong muốn.
+
+Cài đặt một lần trên VPS (làm bằng tay, theo thứ tự):
+
+```bash
+# Người dùng deploy riêng, không có mật khẩu, chỉ có khóa SSH
+sudo adduser --disabled-password deploy
+sudo mkdir -p /opt/pancras/incoming && sudo chown deploy:deploy /opt/pancras/incoming
+# Khóa SSH chỉ dùng cho deploy: thêm khóa công khai vào /home/deploy/.ssh/authorized_keys
+sudo install -m 755 -o root -g root /path/to/deploy/pancras-deploy.sh /usr/local/bin/pancras-deploy.sh
+echo 'deploy ALL=(root) NOPASSWD: /usr/local/bin/pancras-deploy.sh' | sudo tee /etc/sudoers.d/pancras-deploy
+sudo chmod 440 /etc/sudoers.d/pancras-deploy && sudo visudo -cf /etc/sudoers.d/pancras-deploy
+```
+
+Sau khi đổi `deploy/pancras-deploy.sh` trong repo, phải chép lại lên `/usr/local/bin/` (lệnh `install` ở trên). Workflow không tự cập nhật script này.
+
+GitHub Secrets cần có: `DEPLOY_HOST` (IP VPS), `DEPLOY_USER` (`deploy`), `DEPLOY_SSH_KEY` (khóa riêng), `DEPLOY_KNOWN_HOSTS` (kết quả `ssh-keyscan -H <IP>`, kiểm tra vân tay trước khi dán).
+
+Cập nhật thủ công (dự phòng):
 1. **`pg_dump` trước.**
 2. Publish bản mới (đã `npm run build:css`), chép đè `/opt/pancras/app`.
 3. Áp **migrations bundle** nếu có migration mới.

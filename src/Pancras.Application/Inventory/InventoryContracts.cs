@@ -221,7 +221,10 @@ public sealed record TransferSlipRow(
     AuditStampView? Stamp = null,
     TransferFlowRow? Flow = null,
     Guid SourceId = default,
-    Guid DestinationId = default);
+    Guid DestinationId = default,
+    int Number = 0);
+
+public sealed record GetTransferPrintQuery(Guid TransferSlipId, EmployeeActor Actor);
 
 /// <summary>Thông tin quy trình của phiếu chuyển: ai làm bước nào, số seal, lý do chênh lệch, file đính kèm và nút nào được phép bấm.</summary>
 public sealed record TransferFlowRow(
@@ -247,7 +250,8 @@ public sealed record TransferFlowRow(
     bool CanAttach,
     IReadOnlyList<TransferAttachmentView> Attachments,
     bool CanReturn = false,
-    IReadOnlyList<TransferEventView>? History = null);
+    IReadOnlyList<TransferEventView>? History = null,
+    bool CanPrint = false);
 
 /// <summary>Một dòng lịch sử phiếu chuyển: ai làm gì, lúc nào, lý do nếu có.</summary>
 public sealed record TransferEventView(TransferEventKind Kind, string ActorCode, DateTimeOffset At, string Note);

@@ -76,6 +76,7 @@ Phiếu đề nghị: kho xuất và nơi nhận chọn tùy ý, miễn **kho xu
 | Nhận hàng (nhập số thực nhận từng dòng) | Admin, Giám đốc, Kế toán, Trưởng kho và Thủ kho của nơi nhận |
 | Xử lý chênh lệch khi nhận | Admin, Giám đốc, Kế toán |
 | Trả hàng đang vận chuyển về kho xuất (bắt buộc lý do) | Admin, Giám đốc, Kế toán |
+| In phiếu xuất kho (chỉ khi phiếu từ `Approved` trở đi, không in `Requested`, `Rejected`, `Cancelled`) | Admin, Giám đốc, Kế toán: mọi phiếu; Trưởng kho và Thủ kho: chỉ khi thuộc kho xuất của phiếu. Kho nhận xem được nhưng không in |
 
 Quy tắc luồng (luật nghiệp vụ chi tiết ở [modules/inventory.md](modules/inventory.md)):
 - Không áp dụng tách nhiệm vụ: một người có thể lập, duyệt, xuất và nhận cùng một phiếu nếu có quyền ở mỗi bước (Product Owner đã chấp nhận). Bù lại mọi bước đều ghi lịch sử.
@@ -87,7 +88,7 @@ Quy tắc luồng (luật nghiệp vụ chi tiết ở [modules/inventory.md](mo
 | --- | --- |
 | Nhà cung cấp (`/suppliers`) | Admin, Giám đốc, Kế toán: xem, tạo, sửa, Disable (thay cho xóa mềm), thấy tài khoản ngân hàng (che 4 số cuối ở danh sách, đầy đủ trong form sửa). Chỉ Admin khôi phục nhà cung cấp Disabled. Thủ kho, Trưởng Showroom/Kho: chỉ xem danh bạ, không thấy ngân hàng, không sửa. Vai khác: không vào. Không Disable được khi còn đơn mua chưa nhập kho |
 | Mua hàng và container (`/purchasing`) | Quản lý (tạo, sửa, đổi trạng thái, hủy, điều chỉnh chi phí, chứng từ, xem FOB/thuế/giá vốn): Admin, Giám đốc, Kế toán. Thủ kho, Trưởng Showroom/Kho: vào trang để xem **đơn đã duyệt trở đi của kho mình** và nhận hàng, không thấy giá |
-| Danh mục sản phẩm và giá (`/catalog`) | Admin, Giám đốc, Kế toán: xem, thêm/sửa mặt hàng, sửa giá, Disable. Trưởng Showroom/Kho không sửa giá. Sales và CSKH chưa vào được; quyền Sales xem giá bán sẽ định nghĩa khi làm module Bán hàng/Báo giá |
+| Danh mục sản phẩm và giá (`/catalog`) | Admin, Giám đốc, Kế toán: xem, thêm/sửa mặt hàng, sửa giá, Disable. Trưởng Showroom/Kho không sửa giá. Cấu hình % chiết khấu theo mức giá cùng nhóm với sửa giá. Sales và CSKH chưa vào được; quyền Sales xem giá bán sẽ định nghĩa khi làm module Bán hàng/Báo giá |
 | Kho & Showroom (`/locations`) | Xem: Admin, Giám đốc, Kế toán. Quản lý: Admin, Giám đốc |
 | Nhật ký hệ thống (`/audit`) | Admin, Giám đốc |
 | Bán hàng (`/sales`) | "Sắp có". **Đã chốt một phần:** Kế toán, Giám đốc, Admin được sửa đơn bán **trước khi xuất chứng từ**. Các quyền bán hàng còn lại **chưa chốt**, định nghĩa khi làm module (không đoán) |

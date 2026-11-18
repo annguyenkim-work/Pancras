@@ -47,6 +47,7 @@ PancrasERP là ERP tiếng Việt cho doanh nghiệp thương mại thiết bị
 | Nút, form, modal, bảng, tab, phân trang, toast, badge | [components.md](03-ui-ux/components.md) |
 | Tiền, ngày, số, giọng văn, thông điệp | [formatting-and-copy.md](03-ui-ux/formatting-and-copy.md) |
 | Ẩn/hiện theo vai, 403, dữ liệu nhạy cảm | [role-based-ui.md](03-ui-ux/role-based-ui.md) |
+| Nút trợ giúp và modal hướng dẫn sử dụng | [in-app-guide.md](03-ui-ux/in-app-guide.md) |
 
 ### 04 — Nghiệp vụ (luật)
 | Việc | Đọc |

@@ -33,6 +33,9 @@ public interface IInventoryRepository
 
     Task<IReadOnlyList<TransferSlip>> ListTransfersAsync(CancellationToken cancellationToken);
 
+    /// <summary>Số thứ tự (mã CK-000123) của các phiếu chuyển; phiếu không tồn tại thì không có trong kết quả. Chỉ đọc.</summary>
+    Task<IReadOnlyDictionary<Guid, int>> ListTransferNumbersAsync(IReadOnlyCollection<Guid> transferSlipIds, CancellationToken cancellationToken);
+
     Task AddTransferEventAsync(TransferEvent transferEvent, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<TransferEvent>> ListTransferEventsAsync(IReadOnlyCollection<Guid> transferSlipIds, CancellationToken cancellationToken);

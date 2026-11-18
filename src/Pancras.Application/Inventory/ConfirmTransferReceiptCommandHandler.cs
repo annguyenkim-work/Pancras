@@ -124,7 +124,7 @@ public sealed class ConfirmTransferReceiptCommandHandler(
     /// </summary>
     private async Task RecordVarianceAsync(TransferSlip slip, string? reason, CancellationToken cancellationToken)
     {
-        var code = StockDocumentCode.Of(StockDocumentCode.Transfer, slip.Id);
+        var code = StockDocumentCode.ForTransfer(slip.Number);
         foreach (var group in slip.Lines.GroupBy(line => line.CatalogItemId))
         {
             var delta = group.Sum(line => (line.ReceivedQuantity ?? line.Quantity) - line.Quantity);

@@ -293,6 +293,9 @@ public class IndexModel(
             DealerPrice = VndMoney.FormatDong(row.DealerPrice),
             DistributorPrice = VndMoney.FormatDong(row.DistributorPrice),
             ProjectPrice = VndMoney.FormatDong(row.ProjectPrice),
+            DealerDiscountPercent = VndMoney.FormatPercent(row.DealerDiscountPercent),
+            DistributorDiscountPercent = VndMoney.FormatPercent(row.DistributorDiscountPercent),
+            ProjectDiscountPercent = VndMoney.FormatPercent(row.ProjectDiscountPercent),
             Version = row.Version
         };
         await RefreshCostLockAsync(row.Id, cancellationToken);

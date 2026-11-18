@@ -22,6 +22,18 @@ public sealed class CatalogItem : Pancras.Domain.Auditing.AuditStamped
 
     public const bool SellingPricesIncludeVat = true;
 
+    /// <summary>% chiết khấu mặc định tối đa; cột <c>numeric(5,2)</c> nên tối đa 2 chữ số thập phân.</summary>
+    public const decimal MaxDiscountPercent = 100m;
+
+    public const int DiscountPercentDecimals = 2;
+
+    /// <summary>% hợp lệ: từ 0 đến 100, tối đa 2 chữ số thập phân. Bỏ trống (null) là hợp lệ.</summary>
+    public static bool IsValidDiscountPercent(decimal? percent) =>
+        percent is null
+        || (percent.Value >= 0
+            && percent.Value <= MaxDiscountPercent
+            && decimal.Round(percent.Value, DiscountPercentDecimals, MidpointRounding.AwayFromZero) == percent.Value);
+
     private CatalogItem()
     {
         Code = string.Empty;
@@ -80,7 +92,28 @@ public sealed class CatalogItem : Pancras.Domain.Auditing.AuditStamped
 
     public decimal ProjectPrice { get; private set; }
 
+    /// <summary>% chiết khấu mặc định trên giá niêm yết khi bán theo giá đại lý; null là chưa cấu hình. Giá niêm yết không có chiết khấu.</summary>
+    public decimal? DealerDiscountPercent { get; private set; }
+
+    public decimal? DistributorDiscountPercent { get; private set; }
+
+    public decimal? ProjectDiscountPercent { get; private set; }
+
     public bool IsCombo { get; private set; }
+
+    /// <summary>Đặt % chiết khấu mặc định của ba mức giá. Có giá trị không hợp lệ thì không đổi gì và trả false.</summary>
+    public bool SetDiscountPercents(decimal? dealer, decimal? distributor, decimal? project)
+    {
+        if (!IsValidDiscountPercent(dealer) || !IsValidDiscountPercent(distributor) || !IsValidDiscountPercent(project))
+        {
+            return false;
+        }
+
+        DealerDiscountPercent = dealer;
+        DistributorDiscountPercent = distributor;
+        ProjectDiscountPercent = project;
+        return true;
+    }
 
     public static string NormalizeCode(string code) => code.Trim().ToUpperInvariant();
 

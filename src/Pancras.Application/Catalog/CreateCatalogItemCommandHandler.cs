@@ -59,6 +59,21 @@ public sealed class CreateCatalogItemCommandValidator : AbstractValidator<Create
         Price(command => command.DealerPrice, CatalogField.DealerPrice);
         Price(command => command.DistributorPrice, CatalogField.DistributorPrice);
         Price(command => command.ProjectPrice, CatalogField.ProjectPrice);
+        Percent(command => command.DealerDiscountPercent, CatalogField.DealerDiscountPercent);
+        Percent(command => command.DistributorDiscountPercent, CatalogField.DistributorDiscountPercent);
+        Percent(command => command.ProjectDiscountPercent, CatalogField.ProjectDiscountPercent);
+    }
+
+    private void Percent(
+        System.Linq.Expressions.Expression<Func<CreateCatalogItemCommand, decimal?>> property,
+        CatalogField field)
+    {
+        RuleFor(property).Must(CatalogValidation.PercentNotNegative)
+            .WithState(_ => new CatalogIssue(field, CatalogIssueKind.Negative));
+        RuleFor(property).Must(CatalogValidation.PercentFitsMax)
+            .WithState(_ => new CatalogIssue(field, CatalogIssueKind.TooLarge));
+        RuleFor(property).Must(CatalogValidation.PercentFitsDecimals)
+            .WithState(_ => new CatalogIssue(field, CatalogIssueKind.InvalidNumber));
     }
 
     private void Price(
@@ -121,6 +136,7 @@ public sealed class CreateCatalogItemCommandHandler(
             command.LengthMm,
             command.WidthMm,
             command.ImagePath);
+        item.SetDiscountPercents(command.DealerDiscountPercent, command.DistributorDiscountPercent, command.ProjectDiscountPercent);
         if (!await repository.TryAddAsync(item, cancellationToken))
         {
             logger.LogInformation("Rejected a duplicate catalog item.");

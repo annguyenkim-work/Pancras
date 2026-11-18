@@ -18,6 +18,9 @@ public static class CatalogLabels
 
     public static string Text(string? value) => string.IsNullOrWhiteSpace(value) ? Missing : value;
 
+    /// <summary>% chiết khấu mặc định, hoặc dấu gạch khi chưa cấu hình.</summary>
+    public static string Percent(decimal? value) => value is null ? Missing : VndMoney.FormatPercent(value) + " %";
+
     public static string Measure(decimal? value) => value is null ? Missing : VndMoney.FormatMeasure(value.Value);
 
     public static string Months(int? value) => value is null ? Missing : value.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);

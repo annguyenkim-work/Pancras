@@ -37,7 +37,10 @@ public enum CatalogField
     RetailPrice,
     DealerPrice,
     DistributorPrice,
-    ProjectPrice
+    ProjectPrice,
+    DealerDiscountPercent,
+    DistributorDiscountPercent,
+    ProjectDiscountPercent
 }
 
 public enum CatalogIssueKind

@@ -47,6 +47,9 @@ public static class CatalogFormReader
         command.DealerPrice = Optional(form.DealerPrice, CatalogField.DealerPrice, true, found);
         command.DistributorPrice = Optional(form.DistributorPrice, CatalogField.DistributorPrice, true, found);
         command.ProjectPrice = Optional(form.ProjectPrice, CatalogField.ProjectPrice, true, found);
+        command.DealerDiscountPercent = Optional(form.DealerDiscountPercent, CatalogField.DealerDiscountPercent, false, found);
+        command.DistributorDiscountPercent = Optional(form.DistributorDiscountPercent, CatalogField.DistributorDiscountPercent, false, found);
+        command.ProjectDiscountPercent = Optional(form.ProjectDiscountPercent, CatalogField.ProjectDiscountPercent, false, found);
         issues = found;
         return found.Count == 0;
     }
@@ -73,6 +76,9 @@ public static class CatalogFormReader
             DealerPrice = Optional(form.DealerPrice, CatalogField.DealerPrice, true, found),
             DistributorPrice = Optional(form.DistributorPrice, CatalogField.DistributorPrice, true, found),
             ProjectPrice = Optional(form.ProjectPrice, CatalogField.ProjectPrice, true, found),
+            DealerDiscountPercent = Optional(form.DealerDiscountPercent, CatalogField.DealerDiscountPercent, false, found),
+            DistributorDiscountPercent = Optional(form.DistributorDiscountPercent, CatalogField.DistributorDiscountPercent, false, found),
+            ProjectDiscountPercent = Optional(form.ProjectDiscountPercent, CatalogField.ProjectDiscountPercent, false, found),
             Version = form.Version
         };
         if (form.IncludeDetails)
@@ -263,6 +269,12 @@ public sealed class CatalogItemForm
 
     public string? ProjectPrice { get; set; }
 
+    public string? DealerDiscountPercent { get; set; }
+
+    public string? DistributorDiscountPercent { get; set; }
+
+    public string? ProjectDiscountPercent { get; set; }
+
     public int Version { get; set; }
 }
 
@@ -307,6 +319,12 @@ public sealed class CatalogPriceForm
     public string? DistributorPrice { get; set; }
 
     public string? ProjectPrice { get; set; }
+
+    public string? DealerDiscountPercent { get; set; }
+
+    public string? DistributorDiscountPercent { get; set; }
+
+    public string? ProjectDiscountPercent { get; set; }
 
     public int Version { get; set; }
 }

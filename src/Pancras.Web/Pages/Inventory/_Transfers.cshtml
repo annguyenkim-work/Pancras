@@ -114,7 +114,7 @@
                             : flow.CanResolve ? "Chờ bạn xử lý chênh lệch"
                             : null;
                         <tr class="group border-t border-slate-100 hover:bg-slate-50 cursor-pointer" data-open-transfer="@slip.Id">
-                            <td class="sticky left-0 z-10 bg-white px-3 py-3 font-mono text-xs font-bold text-slate-900 group-hover:bg-slate-50">@StockLabels.DocumentCode("CK", slip.Id)</td>
+                            <td class="sticky left-0 z-10 bg-white px-3 py-3 font-mono text-xs font-bold text-slate-900 group-hover:bg-slate-50">@StockLabels.TransferCode(slip.Number)</td>
                             <td class="px-3 py-3 text-right"><button type="button" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-white" data-open-transfer="@slip.Id">Chi tiết</button></td>
                             <td class="px-3 py-3">@slip.SourceName <span class="text-slate-400">→</span> @slip.DestinationName</td>
                             <td class="px-3 py-3 text-slate-600">@slip.Lines.Count mặt hàng · @IndexModel.Count(slip.Lines.Sum(line => line.Quantity)) sản phẩm</td>
@@ -133,7 +133,7 @@
     @foreach (var slip in Model.PagedTransfers)
     {
         var flow = slip.Flow;
-        var slipCode = StockLabels.DocumentCode("CK", slip.Id);
+        var slipCode = StockLabels.TransferCode(slip.Number);
         var hasDiscrepancy = flow?.HasDiscrepancy == true || slip.Status == TransferStatus.ReceivedWithDiscrepancy;
         var stepTotal = hasDiscrepancy ? StockLabels.TransferSteps.Count : StockLabels.TransferSteps.Count - 1;
         var stepsDone = slip.Status == TransferStatus.Received ? stepTotal : StockLabels.TransferProgress(slip.Status);
@@ -366,9 +366,13 @@
                             </form>
                         }
 
-                        if (flow.CanDecide || flow.CanShip || flow.CanCancel || flow.CanReturn)
+                        if (flow.CanDecide || flow.CanShip || flow.CanCancel || flow.CanReturn || flow.CanPrint)
                         {
                             <div class="flex flex-wrap items-start justify-end gap-2 border-t border-slate-100 pt-4">
+                                @if (flow.CanPrint)
+                                {
+                                    <a href="/inventory/transfers/@slip.Id/print" target="_blank" rel="noopener" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">In phiếu xuất kho</a>
+                                }
                                 @if (flow.CanDecide)
                                 {
                                     <form method="post" asp-antiforgery="true" action="/inventory?handler=DecideTransfer" data-confirm class="flex flex-wrap gap-2">

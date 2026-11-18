@@ -26,6 +26,15 @@ public sealed class CatalogItemConfiguration : IEntityTypeConfiguration<CatalogI
         builder.Property(item => item.DealerPrice).HasPrecision(18, 0);
         builder.Property(item => item.DistributorPrice).HasPrecision(18, 0);
         builder.Property(item => item.ProjectPrice).HasPrecision(18, 0);
+        builder.Property(item => item.DealerDiscountPercent).HasPrecision(5, 2);
+        builder.Property(item => item.DistributorDiscountPercent).HasPrecision(5, 2);
+        builder.Property(item => item.ProjectDiscountPercent).HasPrecision(5, 2);
+        builder.ToTable(table =>
+        {
+            table.HasCheckConstraint("ck_catalog_item_dealer_discount_percent", "dealer_discount_percent IS NULL OR (dealer_discount_percent >= 0 AND dealer_discount_percent <= 100)");
+            table.HasCheckConstraint("ck_catalog_item_distributor_discount_percent", "distributor_discount_percent IS NULL OR (distributor_discount_percent >= 0 AND distributor_discount_percent <= 100)");
+            table.HasCheckConstraint("ck_catalog_item_project_discount_percent", "project_discount_percent IS NULL OR (project_discount_percent >= 0 AND project_discount_percent <= 100)");
+        });
         builder.Property(item => item.IsCombo).IsRequired().HasDefaultValue(false);
         builder.Property(item => item.IsActive).IsRequired().HasDefaultValue(true);
         builder.Property(item => item.Version).IsConcurrencyToken().IsRequired();

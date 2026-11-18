@@ -87,6 +87,9 @@ public static class CatalogErrorMessages
         CatalogField.DealerPrice => "Giá đại lý",
         CatalogField.DistributorPrice => "Giá nhà phân phối",
         CatalogField.ProjectPrice => "Giá dự án",
+        CatalogField.DealerDiscountPercent => "% chiết khấu giá đại lý",
+        CatalogField.DistributorDiscountPercent => "% chiết khấu giá nhà phân phối",
+        CatalogField.ProjectDiscountPercent => "% chiết khấu giá dự án",
         _ => "Mục"
     };
 }

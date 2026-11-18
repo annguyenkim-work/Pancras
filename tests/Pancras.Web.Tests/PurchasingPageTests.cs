@@ -44,6 +44,24 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
     }
 
     [Fact]
+    public async Task Purchasing_HasAHelpButton_OpeningTheFourSectionGuide()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        Reset();
+        await SignInAsync(client);
+
+        var text = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing")).Content.ReadAsStringAsync());
+
+        Assert.Contains("data-open-dialog=\"help-purchasing\"", text, StringComparison.Ordinal);
+        Assert.Contains("id=\"help-purchasing\"", text, StringComparison.Ordinal);
+        Assert.Contains("1. Mục tiêu", text, StringComparison.Ordinal);
+        Assert.Contains("2. Các chức năng", text, StringComparison.Ordinal);
+        Assert.Contains("3. Quy trình thực hiện", text, StringComparison.Ordinal);
+        Assert.Contains("4. Phân quyền", text, StringComparison.Ordinal);
+        Assert.Contains("Nhập Kho & Cập Nhật Giá Vốn", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task OrderList_IsPaged_With20Or50PerPage()
     {
         using var client = _factory.CreateClient(NoRedirect);

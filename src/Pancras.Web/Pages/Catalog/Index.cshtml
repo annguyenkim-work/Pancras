@@ -260,6 +260,21 @@ else
                     <input asp-for="Form.ProjectPrice" id="Form_ProjectPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
                 </div>
             </div>
+            <p class="mt-4 text-xs font-medium text-slate-500">Chiết khấu mặc định tính trên giá niêm yết (giá lẻ), từ 0 đến 100 %. Bỏ trống nếu chưa cấu hình.</p>
+            <div class="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                    <label class="@labelClass" for="Form_DealerDiscountPercent">% chiết khấu giá đại lý</label>
+                    <input asp-for="Form.DealerDiscountPercent" id="Form_DealerDiscountPercent" inputmode="decimal" placeholder="Ví dụ 20" class="@fieldClass font-mono tabular-nums" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Form_DistributorDiscountPercent">% chiết khấu giá nhà phân phối</label>
+                    <input asp-for="Form.DistributorDiscountPercent" id="Form_DistributorDiscountPercent" inputmode="decimal" placeholder="Ví dụ 12,5" class="@fieldClass font-mono tabular-nums" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Form_ProjectDiscountPercent">% chiết khấu giá dự án</label>
+                    <input asp-for="Form.ProjectDiscountPercent" id="Form_ProjectDiscountPercent" inputmode="decimal" placeholder="Ví dụ 5" class="@fieldClass font-mono tabular-nums" />
+                </div>
+            </div>
             <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
                     <label class="@labelClass" for="Form_WeightKg">Khối lượng (kg)</label>
@@ -421,6 +436,21 @@ else
                     <input asp-for="Prices.ProjectPrice" id="Prices_ProjectPrice" data-vnd="true" inputmode="decimal" class="@fieldClass font-mono tabular-nums" />
                 </div>
             </div>
+            <p class="mt-4 text-xs font-medium text-slate-500">Chiết khấu mặc định tính trên giá niêm yết (giá lẻ), từ 0 đến 100 %. Bỏ trống nếu chưa cấu hình.</p>
+            <div class="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                    <label class="@labelClass" for="Prices_DealerDiscountPercent">% chiết khấu giá đại lý</label>
+                    <input asp-for="Prices.DealerDiscountPercent" id="Prices_DealerDiscountPercent" inputmode="decimal" placeholder="Ví dụ 20" class="@fieldClass font-mono tabular-nums" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Prices_DistributorDiscountPercent">% chiết khấu giá nhà phân phối</label>
+                    <input asp-for="Prices.DistributorDiscountPercent" id="Prices_DistributorDiscountPercent" inputmode="decimal" placeholder="Ví dụ 12,5" class="@fieldClass font-mono tabular-nums" />
+                </div>
+                <div>
+                    <label class="@labelClass" for="Prices_ProjectDiscountPercent">% chiết khấu giá dự án</label>
+                    <input asp-for="Prices.ProjectDiscountPercent" id="Prices_ProjectDiscountPercent" inputmode="decimal" placeholder="Ví dụ 5" class="@fieldClass font-mono tabular-nums" />
+                </div>
+            </div>
             <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
                     <label class="@labelClass" for="Prices_WeightKg">Khối lượng (kg)</label>
@@ -503,6 +533,9 @@ else
                 <div><dt class="text-slate-500">Giá đại lý</dt><dd class="font-mono tabular-nums text-slate-900">@VndMoney.FormatDong(detail.DealerPrice)</dd></div>
                 <div><dt class="text-slate-500">Giá nhà phân phối</dt><dd class="font-mono tabular-nums text-slate-900">@VndMoney.FormatDong(detail.DistributorPrice)</dd></div>
                 <div><dt class="text-slate-500">Giá dự án</dt><dd class="font-mono tabular-nums text-slate-900">@VndMoney.FormatDong(detail.ProjectPrice)</dd></div>
+                <div><dt class="text-slate-500">% chiết khấu giá đại lý</dt><dd class="font-mono tabular-nums text-slate-900">@CatalogLabels.Percent(detail.DealerDiscountPercent)</dd></div>
+                <div><dt class="text-slate-500">% chiết khấu giá nhà phân phối</dt><dd class="font-mono tabular-nums text-slate-900">@CatalogLabels.Percent(detail.DistributorDiscountPercent)</dd></div>
+                <div><dt class="text-slate-500">% chiết khấu giá dự án</dt><dd class="font-mono tabular-nums text-slate-900">@CatalogLabels.Percent(detail.ProjectDiscountPercent)</dd></div>
             </dl>
             <p class="mt-6 text-sm font-medium text-slate-700">@CatalogLabels.PricesIncludeVat</p>
         </div>

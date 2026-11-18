@@ -1,0 +1,88 @@
+@using System.Security.Claims
+@using Pancras.Web.Help
+@model HelpTopic
+@{
+    var role = User.FindFirstValue(ClaimTypes.Role);
+    var dialogId = "help-" + Model.Key.Replace('.', '-');
+}
+<dialog id="@dialogId" aria-labelledby="@(dialogId)-title" class="m-auto w-[min(48rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50 open:flex">
+    <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 p-5">
+        <div>
+            <p class="text-xs font-bold uppercase tracking-wide text-sky-700">Hướng dẫn sử dụng</p>
+            <h2 id="@(dialogId)-title" class="font-display text-lg font-bold text-slate-900">@Model.Title</h2>
+        </div>
+        <button type="button" class="text-2xl leading-none text-slate-400" data-close-dialog aria-label="Đóng">×</button>
+    </div>
+    <div class="min-h-0 flex-1 space-y-5 overflow-y-auto p-5 text-sm text-slate-700">
+        <section>
+            <h3 class="font-bold text-slate-900">1. Mục tiêu</h3>
+            <p class="mt-1">@Model.Objective</p>
+        </section>
+        <section>
+            <h3 class="font-bold text-slate-900">2. Các chức năng</h3>
+            <ul class="mt-1 list-disc space-y-1 pl-5">
+                @foreach (var feature in Model.Features)
+                {
+                    <li>@feature</li>
+                }
+            </ul>
+        </section>
+        <section>
+            <h3 class="font-bold text-slate-900">3. Quy trình thực hiện</h3>
+            <ol class="mt-1 list-decimal space-y-1 pl-5">
+                @foreach (var step in Model.Workflow)
+                {
+                    <li>@step</li>
+                }
+            </ol>
+        </section>
+        <section>
+            <h3 class="font-bold text-slate-900">4. Phân quyền</h3>
+            <p class="mt-1 text-xs text-slate-500">Bảng tính từ chính quyền đang áp dụng trong phần mềm. Cột của bạn được đánh dấu.</p>
+            <div class="mt-2 overflow-x-auto">
+                <table class="w-full min-w-[34rem] border-collapse text-left text-xs">
+                    <thead>
+                        <tr class="bg-slate-50 text-slate-600">
+                            <th scope="col" class="border border-slate-200 px-2 py-2 font-bold">Chức năng</th>
+                            @foreach (var column in HelpRoles.Columns)
+                            {
+                                var mine = string.Equals(column.Role, role, StringComparison.Ordinal);
+                                <th scope="col" class="border border-slate-200 px-2 py-2 text-center font-bold @(mine ? "bg-sky-100 text-sky-800" : "")">@column.Label@(mine ? " (bạn)" : "")</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var capability in Model.Permissions)
+                        {
+                            <tr>
+                                <th scope="row" class="border border-slate-200 px-2 py-2 font-medium text-slate-800">@capability.Name</th>
+                                @foreach (var column in HelpRoles.Columns)
+                                {
+                                    var grant = capability.For(column.Role);
+                                    var mine = string.Equals(column.Role, role, StringComparison.Ordinal);
+                                    <td class="border border-slate-200 px-2 py-2 text-center @(mine ? "bg-sky-50" : "")">
+                                        @if (grant.Allowed)
+                                        {
+                                            <span class="font-bold text-emerald-700" aria-label="Có quyền">✓</span>
+                                            @if (!string.IsNullOrEmpty(grant.Note))
+                                            {
+                                                <span class="block text-[11px] text-slate-500">@grant.Note</span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-slate-400" aria-label="Không có quyền">—</span>
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+    <div class="flex shrink-0 justify-end border-t border-slate-100 p-4">
+        <button type="button" data-close-dialog class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">Đóng</button>
+    </div>
+</dialog>

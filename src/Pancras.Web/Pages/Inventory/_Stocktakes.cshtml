@@ -101,7 +101,7 @@
                 <p class="mt-1 text-slate-600">Chênh lệch @sheet.Delta. @sheet.Reason. @StockLabels.Approval(sheet.Status)</p>
                 @if (sheet.TransferSlipId is Guid fromTransfer)
                 {
-                    <p class="mt-1 text-xs text-slate-500">Ghi nhận tự động khi nhận hàng chuyển kho <a class="font-mono font-semibold text-sky-700" href="/inventory?view=transfers&open=@fromTransfer">@StockLabels.DocumentCode("CK", fromTransfer)</a>. Tồn kho đã đúng số thực nhận, phiếu này không cộng trừ thêm.</p>
+                    <p class="mt-1 text-xs text-slate-500">Ghi nhận tự động khi nhận hàng chuyển kho <a class="font-mono font-semibold text-sky-700" href="/inventory?view=transfers&open=@fromTransfer">@Model.TransferCodeOf(fromTransfer)</a>. Tồn kho đã đúng số thực nhận, phiếu này không cộng trừ thêm.</p>
                 }
                 @if (sheet.Files is { Count: > 0 })
                 {

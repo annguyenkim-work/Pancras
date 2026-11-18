@@ -25,6 +25,12 @@ public sealed class ListNotificationsHandler(IInventoryRepository repository)
         return (page.Items, page.Total, Math.Max(1, pageNumber));
     }
 
+    /// <summary>Số thứ tự của các phiếu chuyển mà thông báo nhắc tới, để hiện mã CK-000123 thay cho mã cũ.</summary>
+    public async Task<IReadOnlyDictionary<Guid, int>> TransferNumbersAsync(IEnumerable<Notification> notices, CancellationToken cancellationToken) =>
+        await repository.ListTransferNumbersAsync(
+            notices.Where(notice => notice.Kind == NotificationKind.Transfer).Select(notice => notice.DocumentId).Distinct().ToArray(),
+            cancellationToken);
+
     public Task<int> CountUnseenAsync(Guid employeeId, CancellationToken cancellationToken) =>
         repository.CountUnseenNoticesAsync(employeeId, cancellationToken);
 
