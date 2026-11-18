@@ -67,9 +67,20 @@ public sealed class TransferSlip : Pancras.Domain.Auditing.VersionedAuditStamped
 
     public Guid Id { get; private set; }
 
+    /// <summary>Số thứ tự duy nhất của phiếu, do database cấp từ sequence khi lưu (0 khi chưa lưu). Mã hiển thị: <see cref="StockDocumentCode.ForTransfer"/>.</summary>
+    public int Number { get; private set; }
+
     public Guid SourceLocationId { get; private set; }
 
     public Guid DestinationLocationId { get; private set; }
+
+    /// <summary>Phiếu in được từ khi đã duyệt; phiếu chờ duyệt, bị từ chối hoặc đã hủy thì không.</summary>
+    public static bool CanPrint(TransferStatus status) =>
+        status is TransferStatus.Approved
+            or TransferStatus.InTransit
+            or TransferStatus.Received
+            or TransferStatus.ReceivedWithDiscrepancy
+            or TransferStatus.Returned;
 
     /// <summary>Nhân viên lập phiếu; chỉ người này được sửa hoặc hủy phiếu. Rỗng với phiếu cũ.</summary>
     public Guid RequestedById { get; private set; }

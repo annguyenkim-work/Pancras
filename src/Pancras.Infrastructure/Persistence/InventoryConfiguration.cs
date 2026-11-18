@@ -76,6 +76,9 @@ public sealed class TransferSlipConfiguration : IEntityTypeConfiguration<Transfe
         builder.Property(slip => slip.ResolvedBy).HasMaxLength(64).IsRequired();
         builder.Property(slip => slip.RequestedById).IsRequired();
         builder.HasIndex(slip => slip.RequestKey).IsUnique();
+        // Số thứ tự duy nhất do database cấp (CK-000123); sequence có thể bỏ số nhưng không bao giờ trùng.
+        builder.Property(slip => slip.Number).UseSequence("transfer_slip_number_seq").IsRequired();
+        builder.HasIndex(slip => slip.Number).IsUnique();
         builder.Property(slip => slip.StockReserved).IsRequired();
         builder.HasMany(slip => slip.Lines).WithOne().HasForeignKey(line => line.TransferSlipId).OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(slip => slip.Lines).UsePropertyAccessMode(PropertyAccessMode.Field);

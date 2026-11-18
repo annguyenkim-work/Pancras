@@ -235,7 +235,7 @@ public class IndexModel(
         if (!string.IsNullOrWhiteSpace(TransferSearch))
         {
             var term = TransferSearch.Trim();
-            var code = StockLabels.DocumentCode("CK", slip.Id);
+            var code = StockLabels.TransferCode(slip.Number);
             if (!code.Contains(term, StringComparison.OrdinalIgnoreCase)
                 && !slip.Lines.Any(line => line.Code.Contains(term, StringComparison.OrdinalIgnoreCase) || line.Name.Contains(term, StringComparison.OrdinalIgnoreCase)))
             {
@@ -266,6 +266,10 @@ public class IndexModel(
     public string? EchoReceiveNote { get; private set; }
 
     public Guid? OpenTransferId { get; private set; }
+
+    /// <summary>Mã phiếu chuyển theo Id (dùng cho dòng điều chỉnh tự sinh khi nhận lệch); phiếu ngoài phạm vi người xem thì chỉ hiện tiền tố.</summary>
+    public string TransferCodeOf(Guid transferId) =>
+        Transfers.FirstOrDefault(slip => slip.Id == transferId) is { } slip ? StockLabels.TransferCode(slip.Number) : StockDocumentCode.Transfer;
 
     public string ActiveView => !CanOperate ? "balances" : View switch
     {
@@ -669,7 +673,7 @@ public class IndexModel(
         var transfer = Transfers.FirstOrDefault(slip => slip.Id == entry.DocumentId);
         if (transfer is not null)
         {
-            var code = StockDocumentCode.Of(StockDocumentCode.Transfer, transfer.Id);
+            var code = StockLabels.TransferCode(transfer.Number);
             var route = entry.Quantity < 0
                 ? $"{code}: Chuyển sang {transfer.DestinationName}"
                 : $"{code}: Nhận từ {transfer.SourceName}";

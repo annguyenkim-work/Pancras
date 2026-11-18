@@ -24,6 +24,7 @@ public static class StockErrorMessages
         StockError.ApprovalRejected => "Không thực hiện được: phiếu không ở trạng thái phù hợp.",
         StockError.ReceiptRejected => "Không nhận được hàng: kiểm tra lại số thực nhận của từng mặt hàng.",
         StockError.TransferNotFound => "Không tìm thấy phiếu chuyển.",
+        StockError.TransferNotPrintable => "Chỉ in được phiếu đã duyệt trở đi (không in phiếu chờ duyệt, bị từ chối hoặc đã hủy).",
         StockError.AttachmentInvalid => "File không hợp lệ. Chỉ nhận PDF, JPG, PNG, Excel, Word.",
         StockError.AttachmentTooLarge => "File quá lớn (tối đa 10 MB).",
         StockError.AttachmentLimit => "Phiếu đã có quá nhiều file đính kèm.",

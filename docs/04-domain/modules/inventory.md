@@ -19,7 +19,7 @@
 | `Notification` | Thông báo trong phần mềm cho từng người nhận |
 | `StockDocumentAttachment`, `TransferAttachment` | Tệp đính kèm chứng từ |
 
-- Mã hiển thị chứng từ: tiền tố + 8 ký tự hex lấy từ phần ngẫu nhiên của Id, ví dụ `CK-1A2B3C4D` (`StockDocumentCode`). Mã này không có ràng buộc duy nhất ở database. **Phiếu chuyển kho sẽ đổi sang số tuần tự duy nhất** (xem mục "Phiếu chuyển kho in được" bên dưới); kiểm kê `KK`, điều chỉnh `DC`, hủy `HY` giữ nguyên.
+- Mã hiển thị chứng từ: tiền tố + 8 ký tự hex lấy từ phần ngẫu nhiên của Id, ví dụ `KK-1A2B3C4D` (`StockDocumentCode`), không có ràng buộc duy nhất ở database. **Phiếu chuyển kho dùng số tuần tự duy nhất** `CK-000123` (xem mục "Phiếu chuyển kho in được" bên dưới); kiểm kê `KK`, điều chỉnh `DC`, hủy `HY` giữ nguyên.
 - Chứng từ kế thừa dấu vết bản ghi (`AuditStamped`): ai ghi lần cuối và lúc nào.
 
 ## 2. Luật tồn kho (bất biến)
@@ -55,7 +55,7 @@ Requested ──duyệt──▶ Approved ──xuất kho──▶ InTransit �
 - **Lịch sử:** mỗi bước ghi người làm, thời điểm, lý do; không ghi nội dung đã sửa (chi tiết ở nhật ký audit).
 - **Chống lập trùng:** phiếu mang khóa yêu cầu (`RequestKey`) để gửi lặp không tạo hai phiếu.
 
-### Phiếu chuyển kho in được (spec đã chốt 2026-11-18, chưa làm)
+### Phiếu chuyển kho in được (đã làm 2026-11-18)
 
 Nguồn: UAT sprint 1. Thay quyết định 2026-11-16 "chưa cần phiếu giao in được" **chỉ cho phiếu chuyển kho `CK`**. Kiểm kê (`KK`), điều chỉnh (`DC`), hủy (`HY`) vẫn chỉ lưu dữ liệu, không in.
 
@@ -65,7 +65,7 @@ Nguồn: UAT sprint 1. Thay quyết định 2026-11-16 "chưa cần phiếu giao
 - **Nội dung bản in (mẫu đơn giản, chưa có mẫu chuẩn của công ty):** một bản khổ A4; tiêu đề phiếu xuất kho (chuyển kho nội bộ), mã phiếu, ngày, kho xuất, nơi nhận, ghi chú, người vận chuyển (`Carrier`, ô ghi chú tự do, giữ nguyên), số seal nếu có, bảng hàng (STT, mã, tên, đơn vị, số lượng, ghi chú, cột "Thực nhận" để trống cho người nhận ghi tay), khối chữ ký: Người lập, Thủ kho xuất, Người vận chuyển, Người nhận. **Không in giá vốn** (và không đưa giá vốn vào dữ liệu của trang in).
 - **Không có:** mã vạch/QR, chữ ký số, ghi nhận số lần in hay người in.
 - **Mã phiếu tuần tự:** thêm số thứ tự duy nhất cho phiếu chuyển lấy từ sequence PostgreSQL, có unique index; mã hiển thị dạng `CK-000123` (số có đệm 0). Sequence có thể bỏ số nếu một giao dịch thất bại nhưng không bao giờ trùng. Migration gán số cho phiếu cũ theo thứ tự thời gian tạo, nên **mã hiển thị của phiếu chuyển cũ đổi**; thông báo cũ đã ghi mã cũ sẽ không còn khớp. Không xóa dữ liệu.
-- **Cách làm:** trang Razor in được (CSS `@media print`, người dùng dùng "Lưu thành PDF" của trình duyệt nếu cần), không thêm thư viện PDF.
+- **Cách làm (đã làm):** trang Razor `/inventory/transfers/{id}/print` (`TransferPrint`, `GetTransferPrintHandler`, CSS `print.css`, in bằng nút "In phiếu"; nút "In phiếu xuất kho" ở chi tiết phiếu); trang Razor in được (CSS `@media print`, người dùng dùng "Lưu thành PDF" của trình duyệt nếu cần), không thêm thư viện PDF.
 
 ## 4. Kiểm kê, điều chỉnh, hủy
 
@@ -97,7 +97,6 @@ Nguồn: UAT sprint 1. Thay quyết định 2026-11-16 "chưa cần phiếu giao
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Phiếu chuyển in được | Chưa có trang in, `CanPrint`, số tuần tự `CK-000123` và migration; spec ở mục "Phiếu chuyển kho in được" |
 | `StockMovement` đủ chứng từ | Cần rà từng chứng từ (kiểm kê, điều chỉnh, hủy, nhận lệch, trả hàng) đều ghi dòng `StockMovement` đúng loại; hiện chỉ có 4 loại `Receipt/Issue/Transfer/Adjustment` |
 
 ## Quyết định đã chốt (2026-11-16)

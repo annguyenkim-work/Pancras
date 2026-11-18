@@ -19,7 +19,7 @@
         <ul class="mt-5 divide-y divide-slate-100">
             @foreach (var notice in Model.Notices)
             {
-                var code = IndexModel.NoticeCode(notice);
+                var code = IndexModel.NoticeCode(notice, Model.TransferNumbers);
                 <li class="flex flex-wrap items-center justify-between gap-2 px-3 py-3 text-sm @(notice.Seen ? "" : "border-l-4 border-sky-500 bg-sky-50")">
                     <div class="min-w-0">
                         <p class="@(notice.Seen ? "text-slate-500" : "font-semibold text-slate-900")">

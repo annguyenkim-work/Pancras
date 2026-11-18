@@ -19,6 +19,15 @@ public static class TransferAccess
         && (InventoryAccess.CanAccessLocation(actor, slip.SourceLocationId) || InventoryAccess.CanAccessLocation(actor, slip.DestinationLocationId));
 
     /// <summary>
+    /// In phiếu xuất kho: tài chính in mọi phiếu; Thủ kho, Trưởng kho chỉ in phiếu của kho xuất (kho nhận xem được nhưng không in).
+    /// Phiếu phải từ đã duyệt trở đi (<see cref="TransferSlip.CanPrint(TransferStatus)"/>).
+    /// </summary>
+    public static bool CanPrint(EmployeeActor actor, TransferSlip slip) =>
+        TransferSlip.CanPrint(slip.Status)
+        && InventoryAccess.CanOperate(actor.Role)
+        && InventoryAccess.CanAccessLocation(actor, slip.SourceLocationId);
+
+    /// <summary>
     /// Người lập phiếu: chỉ người này được sửa hoặc hủy phiếu (người duyệt chỉ duyệt hoặc từ chối).
     /// Phiếu cũ chưa ghi người lập thì giữ quy tắc trước đây (nhân viên kho nguồn hoặc kho đích).
     /// </summary>

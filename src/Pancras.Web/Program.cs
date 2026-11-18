@@ -206,6 +206,7 @@ builder.Services.AddScoped<ListStockBalancesHandler>();
 builder.Services.AddScoped<GetStockItemDetailHandler>();
 builder.Services.AddScoped<ListStockHistoryHandler>();
 builder.Services.AddScoped<ListInventoryDocumentsHandler>();
+builder.Services.AddScoped<GetTransferPrintHandler>();
 builder.Services.AddScoped<ListNotificationsHandler>();
 builder.Services.AddScoped<CreateTransferRequestCommandHandler>();
 builder.Services.AddScoped<DecideTransferCommandHandler>();

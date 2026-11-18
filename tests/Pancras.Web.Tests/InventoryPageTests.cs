@@ -496,6 +496,69 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
     private static StockBalanceRow Row(string code, string name, ProductCategory category, Guid locationId) =>
         new(Guid.CreateVersion7(), code, name, "Toto", category, locationId, "Kho A", 3, 1, 2, 4);
 
+    [Fact]
+    public async Task TransferPrint_AnonymousIsRedirectedToLogin()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+
+        var response = await client.GetAsync("/inventory/transfers/" + Guid.NewGuid() + "/print");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Contains("/login", response.Headers.Location?.OriginalString, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TransferPrint_ShowsAnApprovedSlip_AndHidesRequestedOnes()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        var source = StockLocation.Create("Kho tổng", StockLocationKind.Warehouse);
+        var destination = StockLocation.Create("Showroom Q1", StockLocationKind.Showroom);
+        inventory.Locations.Add(source);
+        inventory.Locations.Add(destination);
+        var item = Guid.CreateVersion7();
+        var approved = TransferSlip.Create(source.Id, destination.Id, "Xe sáng", [(item, 3)])!;
+        var balance = StockBalance.Create(item, source.Id, 10, 0, 0);
+        Assert.True(approved.TryApprove(new Dictionary<Guid, StockBalance> { [item] = balance }));
+        var requested = TransferSlip.Create(source.Id, destination.Id, null, [(item, 1)])!;
+        inventory.Transfers.Add(approved);
+        inventory.Transfers.Add(requested);
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+
+        var printed = await client.GetAsync("/inventory/transfers/" + approved.Id + "/print");
+        var text = Decode(await printed.Content.ReadAsStringAsync());
+        var hidden = await client.GetAsync("/inventory/transfers/" + requested.Id + "/print");
+
+        Assert.Equal(HttpStatusCode.OK, printed.StatusCode);
+        Assert.Contains("Phiếu xuất kho", text, StringComparison.Ordinal);
+        Assert.Contains("Kho tổng", text, StringComparison.Ordinal);
+        Assert.Contains("Showroom Q1", text, StringComparison.Ordinal);
+        Assert.Contains("Thực nhận", text, StringComparison.Ordinal);
+        Assert.Contains("Thủ kho xuất", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Giá vốn", text, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.NotFound, hidden.StatusCode);
+    }
+
+    [Fact]
+    public async Task TransferPrint_AKeeperWithoutAnAssignedLocation_SeesNothing()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        var source = StockLocation.Create("Kho tổng", StockLocationKind.Warehouse);
+        var destination = StockLocation.Create("Showroom Q1", StockLocationKind.Showroom);
+        inventory.Locations.Add(source);
+        inventory.Locations.Add(destination);
+        var item = Guid.CreateVersion7();
+        var slip = TransferSlip.Create(source.Id, destination.Id, null, [(item, 3)])!;
+        Assert.True(slip.TryApprove(new Dictionary<Guid, StockBalance> { [item] = StockBalance.Create(item, source.Id, 10, 0, 0) }));
+        inventory.Transfers.Add(slip);
+        await SignInAsync(client, EmployeeRole.WarehouseKeeper, "kho");
+
+        var response = await client.GetAsync("/inventory/transfers/" + slip.Id + "/print");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
     private InventoryDirectoryDouble Reset()
     {
         var inventory = _factory.Services.GetRequiredService<InventoryDirectoryDouble>();
@@ -595,6 +658,9 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
         TransferEvents.Add(transferEvent);
         return Task.CompletedTask;
     }
+
+    public Task<IReadOnlyDictionary<Guid, int>> ListTransferNumbersAsync(IReadOnlyCollection<Guid> transferSlipIds, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyDictionary<Guid, int>>(Transfers.Where(slip => transferSlipIds.Contains(slip.Id)).ToDictionary(slip => slip.Id, slip => slip.Number));
 
     public Task<IReadOnlyList<TransferEvent>> ListTransferEventsAsync(IReadOnlyCollection<Guid> transferSlipIds, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<TransferEvent>>(TransferEvents.Where(item => transferSlipIds.Contains(item.TransferSlipId)).ToArray());

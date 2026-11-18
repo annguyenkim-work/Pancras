@@ -22,6 +22,8 @@ namespace Pancras.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.HasSequence("transfer_slip_number_seq");
+
             modelBuilder.Entity("Pancras.Domain.Auditing.AuditEntry", b =>
                 {
                     b.Property<Guid>("Id")
@@ -934,6 +936,14 @@ namespace Pancras.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("note");
 
+                    b.Property<int>("Number")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("number")
+                        .HasDefaultValueSql("nextval('transfer_slip_number_seq')");
+
+                    NpgsqlPropertyBuilderExtensions.UseSequence(b.Property<int>("Number"), "transfer_slip_number_seq");
+
                     b.Property<string>("ReceiveNote")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -1022,6 +1032,10 @@ namespace Pancras.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DestinationLocationId")
                         .HasDatabaseName("ix_transfer_slip_destination_location_id");
+
+                    b.HasIndex("Number")
+                        .IsUnique()
+                        .HasDatabaseName("ix_transfer_slip_number");
 
                     b.HasIndex("RequestKey")
                         .IsUnique()

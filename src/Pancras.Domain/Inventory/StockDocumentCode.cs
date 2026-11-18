@@ -11,6 +11,9 @@ public static class StockDocumentCode
 
     public const string Disposal = "HY";
 
+    /// <summary>Mã phiếu chuyển kho theo số thứ tự duy nhất, ví dụ CK-000123.</summary>
+    public static string ForTransfer(int number) => Transfer + "-" + number.ToString("D6", System.Globalization.CultureInfo.InvariantCulture);
+
     public static string Of(string prefix, Guid id)
     {
         Span<byte> bytes = stackalloc byte[16];

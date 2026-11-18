@@ -74,7 +74,8 @@ public sealed class ListInventoryDocumentsHandler(
             AuditStampView.From(slip),
             FlowOf(slip, actor, files.TryGetValue(slip.Id, out var attached) ? attached : [], events.TryGetValue(slip.Id, out var trail) ? trail : []),
             slip.SourceLocationId,
-            slip.DestinationLocationId))
+            slip.DestinationLocationId,
+            slip.Number))
             .ToArray();
     }
 
@@ -107,7 +108,8 @@ public sealed class ListInventoryDocumentsHandler(
             touch && slip.Status is not (TransferStatus.Cancelled or TransferStatus.Rejected),
             files.OrderBy(file => file.UploadedAt).Select(file => new TransferAttachmentView(file.Id, file.FileName, file.SizeBytes, file.UploadedAt, file.UploadedBy)).ToArray(),
             slip.Status == TransferStatus.InTransit && InventoryRoles.IsFinance(actor.Role),
-            HistoryOf(slip, trail));
+            HistoryOf(slip, trail),
+            TransferAccess.CanPrint(actor, slip));
     }
 
     /// <summary>

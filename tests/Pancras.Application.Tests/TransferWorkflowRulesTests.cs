@@ -174,7 +174,7 @@ public class TransferWorkflowRulesTests
         Assert.Equal(_destination.Id, record.StockLocationId);
         Assert.Equal(_item, record.CatalogItemId);
         Assert.Equal("Đếm lại hai lần", record.Reason);
-        Assert.Equal(StockDocumentCode.Of(StockDocumentCode.Transfer, id), record.DocumentRef);
+        Assert.Equal(StockDocumentCode.ForTransfer(_store.Transfers.Single(slip => slip.Id == id).Number), record.DocumentRef);
         Assert.Equal(id, record.TransferSlipId);
         Assert.Equal(actual, DestinationBalance.OnHand);
         Assert.Equal(0, DestinationBalance.InTransit);

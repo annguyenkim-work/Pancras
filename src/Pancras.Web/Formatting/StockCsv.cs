@@ -181,6 +181,9 @@ public static class StockLabels
     }
 
     public static string DocumentCode(string prefix, Guid id) => StockDocumentCode.Of(prefix, id);
+
+    /// <summary>Mã phiếu chuyển kho theo số thứ tự duy nhất (CK-000123).</summary>
+    public static string TransferCode(int number) => StockDocumentCode.ForTransfer(number);
 }
 
 public static class StockCsv

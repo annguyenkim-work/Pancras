@@ -30,5 +30,6 @@ public enum StockError
     InvalidQuantity,
     EvidenceTooLong,
     CountRequired,
-    InvalidCount
+    InvalidCount,
+    TransferNotPrintable
 }

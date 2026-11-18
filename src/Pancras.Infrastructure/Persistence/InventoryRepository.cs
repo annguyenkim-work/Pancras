@@ -175,6 +175,13 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
     public Task AddTransferEventAsync(TransferEvent transferEvent, CancellationToken cancellationToken) =>
         context.TransferEvents.AddAsync(transferEvent, cancellationToken).AsTask();
 
+    public async Task<IReadOnlyDictionary<Guid, int>> ListTransferNumbersAsync(IReadOnlyCollection<Guid> transferSlipIds, CancellationToken cancellationToken) =>
+        transferSlipIds.Count == 0
+            ? new Dictionary<Guid, int>()
+            : await context.TransferSlips.AsNoTracking()
+                .Where(slip => transferSlipIds.Contains(slip.Id))
+                .ToDictionaryAsync(slip => slip.Id, slip => slip.Number, cancellationToken);
+
     public async Task<IReadOnlyList<TransferEvent>> ListTransferEventsAsync(IReadOnlyCollection<Guid> transferSlipIds, CancellationToken cancellationToken) =>
         transferSlipIds.Count == 0
             ? []
