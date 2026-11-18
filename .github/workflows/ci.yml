@@ -1,0 +1,33 @@
+name: CI
+
+# Build và test mọi push và pull request. Không deploy ở đây (xem docs/06-operations/deployment.md).
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore Pancras.slnx
+
+      - name: Build (không cảnh báo)
+        run: dotnet build Pancras.slnx --no-restore --warnaserror
+
+      - name: Test
+        run: dotnet test Pancras.slnx --no-build --warnaserror --nologo

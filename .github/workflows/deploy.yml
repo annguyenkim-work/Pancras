@@ -1,0 +1,84 @@
+name: Deploy
+
+# Tự động triển khai lên VPS khi merge vào main (sau khi test xanh).
+# Cần GitHub Secrets: DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS.
+# Chạy lại bản cũ: dùng "Run workflow" (workflow_dispatch) trên tab Actions, chọn đúng commit trước đó.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet restore Pancras.slnx
+      - run: dotnet build Pancras.slnx --no-restore --warnaserror
+      - run: dotnet test Pancras.slnx --no-build --warnaserror --nologo
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Build bản publish (framework-dependent, khớp aspnetcore-runtime trên VPS)
+        run: |
+          dotnet publish src/Pancras.Web/Pancras.Web.csproj -c Release -o out/app --nologo
+          # File phát triển có mật khẩu (xem docs); không bao giờ đưa lên production.
+          rm -f out/app/appsettings.Development.json
+
+      - name: Build migrations bundle (linux-x64)
+        run: |
+          dotnet tool install --global dotnet-ef --version "10.*"
+          export PATH="$HOME/.dotnet/tools:$PATH"
+          dotnet ef migrations bundle \
+            --project src/Pancras.Infrastructure \
+            --startup-project src/Pancras.Infrastructure \
+            --configuration Release \
+            --target-runtime linux-x64 --self-contained \
+            --force -o out/efbundle
+
+      - name: Đặt khóa SSH và host đã biết
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Chép và triển khai trên VPS
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          TAG="$(date +%Y%m%d%H%M%S)-${GITHUB_SHA::7}"
+          REMOTE="$DEPLOY_USER@$DEPLOY_HOST"
+          SSH="ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes"
+          $SSH "$REMOTE" "mkdir -p /opt/pancras/incoming/$TAG"
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -r out/app out/efbundle \
+            "$REMOTE:/opt/pancras/incoming/$TAG/"
+          $SSH "$REMOTE" "sudo /usr/local/bin/pancras-deploy.sh /opt/pancras/incoming/$TAG"
+
+      - name: Dọn khóa SSH
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
