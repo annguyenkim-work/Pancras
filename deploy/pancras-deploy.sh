@@ -32,6 +32,8 @@ set +a
 HEALTH_URL="${ASPNETCORE_URLS:-http://127.0.0.1:5000}/health/live"
 HEALTH_URL="${HEALTH_URL//+/127.0.0.1}"
 HEALTH_URL="${HEALTH_URL//\*/127.0.0.1}"
+# Kestrel chỉ nhận Host nằm trong AllowedHosts; kiểm tra bằng tên miền thật, không dùng IP.
+HEALTH_HOST="${PANCRAS_PUBLIC_HOST:-pancraserp.duckdns.org}"
 
 # 1. Sao lưu cơ sở dữ liệu trước mọi thay đổi.
 mkdir -p "$BACKUP_DIR"
@@ -73,7 +75,7 @@ chown -R pancras:pancras "$APP_DIR"
 # 5. Khởi động và kiểm tra (tối đa 60 giây).
 systemctl start "$SERVICE"
 for _ in $(seq 1 30); do
-    if curl -fsS --max-time 3 "$HEALTH_URL" >/dev/null 2>&1; then
+    if curl -fsS --max-time 3 -H "Host: $HEALTH_HOST" "$HEALTH_URL" >/dev/null 2>&1; then
         echo "Triển khai thành công: $(basename "$INCOMING")"
         rm -rf "$INCOMING"
         exit 0
