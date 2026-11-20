@@ -1,10 +1,9 @@
-using Pancras.Web.Formatting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Pancras.Application.Locations;
-using Pancras.Domain.Employees;
 using Pancras.Domain.Inventory;
+using Pancras.Web.Formatting;
 using Pancras.Web.Security;
 
 namespace Pancras.Web.Pages.Locations;

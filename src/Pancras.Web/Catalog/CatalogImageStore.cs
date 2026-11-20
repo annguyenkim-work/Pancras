@@ -1,6 +1,3 @@
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
-
 namespace Pancras.Web.Catalog;
 
 public sealed class CatalogImageStore(IWebHostEnvironment environment, Microsoft.Extensions.Configuration.IConfiguration configuration)

@@ -1,8 +1,8 @@
-using Pancras.Domain.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Pancras.Domain.Catalog;
 using Pancras.Domain.Employees;
 using Pancras.Domain.Inventory;
+using Pancras.Domain.Notifications;
 using Pancras.Domain.Purchasing;
 using Pancras.Domain.Suppliers;
 

@@ -1,7 +1,7 @@
-using Pancras.Domain.Notifications;
 using Pancras.Application.Inventory;
 using Pancras.Domain.Catalog;
 using Pancras.Domain.Inventory;
+using Pancras.Domain.Notifications;
 
 namespace Pancras.Application.Tests;
 

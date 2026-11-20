@@ -2,7 +2,6 @@ using System.Net;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
-using Pancras.Application.Employees;
 using Pancras.Domain.Employees;
 using Pancras.Domain.Suppliers;
 

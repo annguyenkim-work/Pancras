@@ -4,7 +4,6 @@ using Pancras.Application.Common;
 using Pancras.Application.Inventory;
 using Pancras.Domain.Auditing;
 using Pancras.Domain.Catalog;
-using Pancras.Domain.Employees;
 
 namespace Pancras.Application.Tests;
 

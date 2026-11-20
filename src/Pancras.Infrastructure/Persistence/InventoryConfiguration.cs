@@ -1,8 +1,8 @@
-using Pancras.Domain.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Pancras.Domain.Catalog;
 using Pancras.Domain.Inventory;
+using Pancras.Domain.Notifications;
 
 namespace Pancras.Infrastructure.Persistence;
 

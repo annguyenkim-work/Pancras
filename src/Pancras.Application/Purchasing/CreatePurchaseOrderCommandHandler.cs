@@ -1,5 +1,5 @@
-using Pancras.Application.Auditing;
 using Microsoft.Extensions.Logging;
+using Pancras.Application.Auditing;
 using Pancras.Application.Catalog;
 using Pancras.Application.Common;
 using Pancras.Application.Inventory;

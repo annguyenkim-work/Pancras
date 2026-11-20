@@ -1,9 +1,6 @@
 using System.Linq.Expressions;
-using Pancras.Domain.Notifications;
-using Pancras.Application.Auditing;
-using Pancras.Domain.Catalog;
-using Pancras.Domain.Employees;
 using Pancras.Domain.Inventory;
+using Pancras.Domain.Notifications;
 
 namespace Pancras.Application.Inventory;
 

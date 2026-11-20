@@ -3,7 +3,6 @@ using Pancras.Application.Auditing;
 using Pancras.Application.Common;
 using Pancras.Application.Purchasing;
 using Pancras.Domain.Auditing;
-using Pancras.Domain.Employees;
 using Pancras.Domain.Inventory;
 using Pancras.Domain.Purchasing;
 

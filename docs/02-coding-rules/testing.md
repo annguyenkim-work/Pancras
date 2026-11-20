@@ -50,6 +50,8 @@ Quy tắc đã chốt, **làm sau** khi dọn nợ UI (chưa tự động hóa �
 - `.cshtml` không dùng `IsInRole`, không `onclick` inline, không dùng class màu ngoài palette.
 - Tiền không `ToString` tự do ở trang; chỉ dùng hàm chung (`VndMoney`).
 
+- **Regex trong test quét viết bằng chuỗi nguyên văn** (`@"..."`, nháy kép gấp đôi): trong chuỗi thường `""` là ký tự xóa lùi, không phải ranh giới từ, nên test không bao giờ khớp và xanh giả (đã xảy ra với `UiStandardsTests`). Mỗi test quét phải có ít nhất một ca chứng minh nó **tìm được** đối tượng (đếm số mẫu quét được, hoặc một test đối chứng).
+
 Test quét mã nguồn mới sẽ đỏ ngay với nợ hiện có, nên cần danh sách ngoại lệ tạm có hạn xử lý.
 
 ## 6. Lệnh

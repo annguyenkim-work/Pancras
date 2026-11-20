@@ -1,10 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Auditing;
-using Pancras.Application.Catalog;
 using Pancras.Application.Common;
-using Pancras.Application.Inventory;
 using Pancras.Domain.Auditing;
-using Pancras.Domain.Catalog;
 using Pancras.Domain.Purchasing;
 
 namespace Pancras.Application.Purchasing;

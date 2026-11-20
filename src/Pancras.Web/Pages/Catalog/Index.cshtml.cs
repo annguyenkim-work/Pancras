@@ -1,4 +1,3 @@
-using Pancras.Web.Security;
 using System.Globalization;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
@@ -10,6 +9,7 @@ using Pancras.Application.Inventory;
 using Pancras.Domain.Catalog;
 using Pancras.Web.Catalog;
 using Pancras.Web.Formatting;
+using Pancras.Web.Security;
 
 namespace Pancras.Web.Pages.Catalog;
 

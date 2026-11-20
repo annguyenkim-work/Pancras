@@ -7,8 +7,8 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Pancras.Application.Common;
 using Pancras.Application.Inventory;
 using Pancras.Domain.Inventory;
-using Pancras.Web.Security;
 using Pancras.Web.Formatting;
+using Pancras.Web.Security;
 
 namespace Pancras.Web.Pages.Inventory;
 

@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Pancras.Application.Auditing;
 using Pancras.Domain.Auditing;
-using Pancras.Domain.Employees;
 
 namespace Pancras.Web.Pages.Audit;
 

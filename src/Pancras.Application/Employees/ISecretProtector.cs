@@ -1,5 +1,3 @@
-using Pancras.Domain.Employees;
-
 namespace Pancras.Application.Employees;
 
 public interface ISecretProtector

@@ -1,6 +1,6 @@
+using Microsoft.Extensions.Logging;
 using Pancras.Application.Auditing;
 using Pancras.Application.Common;
-using Microsoft.Extensions.Logging;
 using Pancras.Domain.Employees;
 using Pancras.Domain.Inventory;
 

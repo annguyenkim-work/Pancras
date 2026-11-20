@@ -23,6 +23,18 @@ public class UiStandardsTests
     }
 
     [Fact]
+    public void ScanPatterns_ActuallyFindButtonsDialogsAndTables()
+    {
+        // Test đối chứng: các test quét ở trên từng xanh giả vì regex không khớp gì (xem testing.md mục 5).
+        var views = Views().ToArray();
+
+        Assert.True(views.Sum(view => Regex.Matches(view.Text, @"<(?:button|a)\b[^>]*?\bclass=""([^""]*)""").Count) > 50);
+        Assert.True(views.Sum(view => Regex.Matches(view.Text, @"<dialog\b[^>]*?\bclass=""([^""]*)""").Count) > 5);
+        Assert.True(views.Sum(view => Regex.Matches(view.Text, @"<thead class=""([^""]*)""").Count) > 3);
+        Assert.True(views.Sum(view => Regex.Matches(view.Text, @"<t[dh]\b[^>]*?\bclass=""([^""]*)""").Count) > 50);
+    }
+
+    [Fact]
     public void SolidButtons_UseTheStandardSizeWeightAndHover()
     {
         var offenders = new List<string>();

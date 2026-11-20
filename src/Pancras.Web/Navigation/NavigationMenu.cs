@@ -1,9 +1,9 @@
-using Pancras.Domain.Suppliers;
 using Pancras.Domain.Auditing;
 using Pancras.Domain.Catalog;
 using Pancras.Domain.Employees;
 using Pancras.Domain.Inventory;
 using Pancras.Domain.Purchasing;
+using Pancras.Domain.Suppliers;
 
 namespace Pancras.Web.Navigation;
 
