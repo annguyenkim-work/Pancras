@@ -25,6 +25,15 @@ Mọi nút `rounded-lg`. Hai cỡ.
 - Nút chỉ có icon phải có `aria-label`.
 - Mỗi màn có đúng một nút Chính nổi bật.
 
+**Cụm nút thao tác** (nhiều nút cạnh nhau ở đầu khung chi tiết, ví dụ khung chi tiết đơn mua) là biến thể riêng của cỡ Chuẩn, để các nút đều nhau:
+
+- Cùng chiều cao `h-10`, cùng độ rộng `w-44`, `inline-flex items-center justify-center whitespace-nowrap rounded-lg px-4 text-sm font-bold`; chữ không bao giờ xuống dòng hay bị cắt.
+- Nút có nhãn dài (ví dụ `Nhập Kho & Cập Nhật Giá Vốn (N món)`) là ngoại lệ duy nhất được rộng theo chữ (bỏ `w-44`, thêm `px-5`); các nút còn lại giữ `w-44`.
+- Tối đa **2 hàng** (`flex flex-wrap gap-2`): hàng 1 là xuất/sửa/nhận hàng, hàng 2 là các bước luồng đơn (gửi duyệt, duyệt, trả về nháp, đang về, hủy).
+- **Trạng thái của đối tượng nằm ở hàng tiêu đề, sát phải, cạnh tên/mã** (`flex items-start justify-between`), không đặt lẫn trong cụm nút.
+- Màu theo biến thể ở bảng trên (Chính, Phụ, Hoàn tất; Nguy hiểm dạng viền `border-rose-200 text-rose-700` cho nút "Hủy đơn" cần hộp xác nhận).
+- Khai báo các chuỗi class một lần ở đầu partial (`const string actionButton = "..."`) rồi dùng lại; test `UiStandardsTests` đọc cả class nằm trong biến Razor.
+
 ```html
 <button type="submit" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white hover:bg-sky-700 disabled:opacity-60">Lưu</button>
 <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200">Quay lại</button>
@@ -35,7 +44,7 @@ Mọi nút `rounded-lg`. Hai cỡ.
 - Nhãn: `block text-sm font-medium text-slate-700`.
 - Ô nhập / chọn: `mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-600 focus:outline-none`.
 - Lỗi: ô thêm `border-rose-500` + `aria-invalid="true"`; câu lỗi `mt-1 text-xs font-medium text-rose-700` ngay dưới ô.
-- Ô tiền: nhận số thô khi sửa, hiện số nhóm theo `vi-VN` khi rời ô (xem `formatting-and-copy.md`).
+- Ô tiền VNĐ: luôn có `data-vnd`, hiện số nhóm `200.000` khi gõ và khi mở form (xem `formatting-and-copy.md` mục 1; `MoneyInputsTests` quét mọi view).
 - Dùng một nguồn class chung (`inputClass`, `labelClass`), không viết tay lại ở từng trang.
 
 ## 3. Modal (`<dialog>`)
@@ -64,6 +73,8 @@ Bốn cỡ rộng (S, M, L, XL), đều `w-[min(<rộng>,calc(100%-2rem))]`. H�
 
 - Header (tiêu đề + nút đóng) và footer nút là `shrink-0`, nằm ngoài vùng cuộn.
 - Hộp xác nhận chung: partial `_ConfirmDialog`, kích hoạt bằng `data-confirm` trên form (`data-confirm-title`, `-message`, `-label`, `-tone="danger"`).
+- **Hộp thoại lập phiếu bị từ chối** (kiểm kê, điều chỉnh, hủy, chuyển kho): máy chủ trả lại trang với **chính hộp thoại đó mở lại** (một cờ `Show<Loại>Dialog` riêng cho từng loại), câu lỗi hiện bằng `_Notice` **ở đầu thân hộp thoại**, và mọi ô đã nhập được điền lại (kho, mặt hàng, số lượng, lý do, chứng từ). Chỉ tệp đính kèm phải chọn lại (trình duyệt không cho điền lại), nói điều đó trong hộp thoại. Banner ở đầu trang **không** hiện thêm câu lỗi này.
+- Các hộp thoại lập phiếu dùng chung các partial (`_DialogError`, ô chọn kho/mặt hàng, ô lý do/chứng từ/tệp) thay vì chép từng hộp; thêm loại phiếu mới là thêm tham số, không chép hộp cũ.
 
 ## 4. Trang, thẻ, bảng
 
@@ -123,6 +134,17 @@ Khung chung cho badge trạng thái và badge phân loại: `rounded-full px-2 p
 - **Client:** script chung `wwwroot/js/form-guard.js`. Khi một form POST được gửi: vô hiệu mọi nút submit của form, đổi nhãn nút thành "Đang xử lý…", gắn `aria-busy="true"`; mở lại khi trang hiện lại từ cache (`pageshow`). Không tự viết xử lý riêng ở từng trang. Form xác nhận qua `_ConfirmDialog` dùng chung cơ chế này.
 - **Server:** lệnh quan trọng (nhận hàng, xuất kho, duyệt, tạo phiếu) phải an toàn khi bị gửi lặp: kiểm tra trạng thái hiện tại hoặc concurrency token, gửi hai lần không được ghi hai lần. Chặn ở client chỉ để tiện, không thay thế kiểm tra ở server.
 
+## 10. Trạng thái danh sách và điều hướng
+
+Trạng thái danh sách gồm: từ khóa, mọi bộ lọc (trạng thái, ngành, nhà cung cấp, kho...), sắp xếp, cỡ trang và số trang.
+
+- **Mọi đường quay lại danh sách đều giữ trạng thái đó:** nút chuyển trang, link mở chi tiết (thẻ đơn, nút "Chi tiết", link công thức), link sửa và nút đóng, và **chuyển trang sau POST** (Active/Disable, lưu, thêm, duyệt, nhận hàng...). Chỉ nút "Bỏ lọc" được phép xóa trạng thái.
+- **Dựng URL ở đúng một nơi của mỗi trang** (`ListUrl` ở Mua hàng, `BuildUrl` ở Danh mục): mọi link trong trang gọi hàm đó, **không viết chuỗi URL cứng có tham số** trong `.cshtml`. Thêm bộ lọc mới thì sửa một hàm, mọi link tự mang theo.
+- **Form POST từ trang danh sách gửi kèm trạng thái** bằng partial dùng chung của trang (`Catalog/_FilterFields`: từ khóa, ngành, trạng thái, trang, cỡ trang, sắp xếp) để redirect dựng lại đúng danh sách. Thêm bộ lọc mới thì thêm vào partial đó, **không** thêm ô ẩn rời vào từng form.
+- Bộ lọc không hợp lệ hoặc không nhận ra được coi như "không lọc", không báo lỗi.
+- Mở một đối tượng từ danh sách (chọn đơn) giữ nguyên danh sách bên cạnh; đối tượng đang chọn nằm ở trang khác của danh sách vẫn hiện ở khung chi tiết.
+- Kiểm bằng test: link/redirect phải chứa đủ tham số lọc (xem [testing.md](../02-coding-rules/testing.md) mục 3), và bằng tay: lọc rồi chọn rồi thao tác, bộ lọc vẫn còn.
+
 ## Nợ lệch so với components
 
 | Thành phần | Hiện trạng |
@@ -132,7 +154,7 @@ Khung chung cho badge trạng thái và badge phân loại: `rounded-full px-2 p
 | Tab | Đã có partial `_Tabs` (viên thuốc, `role=tablist`) dùng ở Kho; Mua hàng và Danh mục chưa có tab |
 | Phân trang | Partial `_Pager` (20/50, "Hiển thị X–Y / Z", giữ bộ lọc) ở Danh mục, Nhà cung cấp, Nhân viên, Nhật ký, Thông báo, danh sách đơn mua và phiếu chuyển. Thông báo cắt trang ở truy vấn (cả số chưa xem trên chuông). Kho: tab Tra cứu tồn cắt theo mặt hàng (`bp`, trong bộ nhớ vì trang vẫn cần toàn bộ số dư cho hộp thoại phiếu); tab Kiểm kê và điều chỉnh gộp kiểm kê, điều chỉnh, phiếu hủy thành một danh sách (`sp`; mỗi loại mới nhất trước; thông báo mở phiếu bằng `doc` để nhảy đúng trang), đếm và cắt trong database (`StockDocumentWindow`). Đơn mua và phiếu chuyển lọc, đếm, cắt trang trong database (quyền xem: `PurchaseAccess.Visible`, `TransferWorkflowAccess`). Nhân viên cắt trong bộ nhớ. Lịch sử tồn của mặt hàng giữ bộ chọn cỡ trang riêng |
 | Sắp xếp theo cột | Đã có (`_SortHeader`, `ListSort`) ở Nhà cung cấp, Danh mục, Nhân viên; Nhật ký sắp theo thời điểm. Chưa có ở đơn mua (thẻ), phiếu chuyển |
-| Toast, banner | Toast sau thao tác POST ở Catalog, Locations, Purchasing, Suppliers, Profile; lỗi cần giữ form dùng `_Notice` ở mọi trang (kể cả Kho). Chưa chuyển lỗi của Kho sang toast vì lỗi đi cùng hộp thoại đang mở |
+| Toast, banner | Toast sau thao tác POST ở Catalog, Locations, Purchasing, Suppliers, Profile; lỗi cần giữ form dùng `_Notice` ở mọi trang (kể cả Kho). Lỗi thao tác bấm nút trong trang: toast lỗi; lỗi của hộp thoại đang mở: `_Notice` trong hộp thoại (xem mục 3). Cấm banner đầu trang sau redirect. Nợ: Kho còn ba hộp thoại lập phiếu chép tay, chuyển sang partial dùng chung |
 | Badge | Đã dùng `Badge` ở mọi bảng và danh sách, kể cả chip kho và bộ đếm của Kho |
 
 ## Quyết định đã chốt (2026-11-16)

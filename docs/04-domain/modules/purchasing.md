@@ -103,4 +103,5 @@ Dùng cho hóa đơn về muộn, tờ khai điều chỉnh:
 
 Các mục từ review 14/11/2026 chưa xác minh trạng thái trong code, chờ rà khi làm lại module:
 - Nối đơn mua với công nợ phải trả nhà cung cấp và thanh toán.
-- Lọc danh sách đơn theo trạng thái/kho/ngày (phân trang 20/50 đã có).
+- Lọc danh sách đơn theo kho nhận và ngày (phân trang 20/50, ô tìm kiếm và lọc theo trạng thái đã có; trạng thái dùng `?status=`, giá trị lạ coi như không lọc, giữ nguyên khi chọn đơn, chuyển trang và sau thao tác).
+- Nhận vượt số đặt: hiện chỉ lần nhận **chốt** (đóng đơn) mới được vượt số đặt, lần nhận một phần thì không; lỗi hiện bằng toast nêu mặt hàng, số nhập và giới hạn. Chủ dự án chưa chốt quy tắc này, nên chưa coi là luật.

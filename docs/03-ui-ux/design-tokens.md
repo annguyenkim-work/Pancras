@@ -53,7 +53,7 @@ Font **tự host** trong `wwwroot/fonts` (không dùng Google Fonts, xem [tech-s
 
 ## 5. Khung
 
-- Nội dung `max-w-7xl`; padding `p-4 sm:p-6 lg:p-8`.
+- Nội dung `mx-auto w-full max-w-screen-2xl lg:min-w-[40rem]`; padding `p-4 sm:p-6 lg:p-8`.
 - Sidebar `w-72`; modal xác nhận rộng `min(30rem, 100% - 2rem)`; nền mờ modal/sidebar `bg-slate-900/50`.
 - Bóng: dùng `shadow-sm`/`shadow-xl` (modal); không dùng `shadow-xs`.
 

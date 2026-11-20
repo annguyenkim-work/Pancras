@@ -9,7 +9,7 @@
 - **`_Layout`** cho mọi trang trong ứng dụng; **`_AuthLayout`** cho trang đăng nhập và xác thực hai bước (không sidebar, nền `bg-slate-100`).
 - Cả hai nạp `_Head` (font, CSS, favicon) và dùng `lang="vi"`.
 - Nền app `bg-slate-100`, chữ `text-slate-900`, font `font-sans` (xem [design-tokens.md](design-tokens.md)).
-- Vùng nội dung `max-w-7xl`, padding `p-4 sm:p-6 lg:p-8`; trên mobile thêm `pt-20` để tránh thanh trên cùng cố định.
+- Vùng nội dung `mx-auto w-full max-w-screen-2xl lg:min-w-[40rem]` (căn giữa, có độ rộng tối thiểu và tối đa trên laptop/desktop; không dùng `max-w-*` mà thiếu `mx-auto`, vì thu nhỏ menu sẽ làm nội dung dính trái), padding `p-4 sm:p-6 lg:p-8`; trên mobile thêm `pt-20` để tránh thanh trên cùng cố định.
 
 ## 2. Sidebar
 

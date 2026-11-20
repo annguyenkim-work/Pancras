@@ -29,7 +29,7 @@ Test Domain, Application và Web không được phụ thuộc cơ sở dữ li�
 1. **Mọi handler mới:** có test thành công, test cho **từng mã lỗi** nó có thể trả, và test thiếu quyền.
 2. **Mọi bất biến Domain** (tồn không âm, luôn còn Admin hoạt động, mỗi kho một Trưởng...) có test ở `Domain.Tests`.
 3. **Sửa lỗi:** viết test tái hiện lỗi trước, thấy nó fail, rồi mới sửa. Test hồi quy đặt cạnh test của handler liên quan.
-4. **Trang có phân quyền:** test ở `Web.Tests` rằng vai không được phép **không thấy nút** và **bị chặn khi POST trực tiếp**, và dữ liệu nhạy cảm không nằm trong HTML trả về.
+. **Test giao diện kiểm vị trí và hành vi, không chỉ sự có mặt:** lỗi phải nằm **trong** `<dialog>` hoặc toast (không chỉ "có trong trang"); link và redirect phải chứa đủ tham số lọc; lớp CSS dùng phải có trong `site.css`. Tự kiểm: bỏ tính năng đi mà test vẫn xanh thì test yếu. Hộp thoại lập phiếu thì test theo từng loại phiếu (theory), không chỉ một loại.
 
 ## 4. Cơ sở dữ liệu trong test
 
@@ -42,7 +42,7 @@ Test Domain, Application và Web không được phụ thuộc cơ sở dữ li�
 
 ## 5. Luật viết thành test quét mã nguồn
 
-Đã có: `NoNativeDialogTests` quét `.cshtml`, cấm `confirm()/alert()/prompt()`.
+Đã có: `NoNativeDialogTests` quét `.cshtml`, cấm `confirm()/alert()/prompt()`; `UiStandardsTests` quét nút (đọc cả class trong biến Razor `const string`); `MoneyInputsTests` quét ô tiền VNĐ phải có `data-vnd` (ngoại lệ USD/phần trăm/số lượng có danh sách chú thích); `SidebarCollapseTests` kiểm khung nội dung căn giữa có min/max width.
 
 Quy tắc đã chốt, **làm sau** khi dọn nợ UI (chưa tự động hóa ở thời điểm này):
 

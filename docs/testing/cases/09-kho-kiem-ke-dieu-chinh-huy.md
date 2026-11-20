@@ -167,5 +167,6 @@ Quy tắc chung:
 | DOC-02 | P1 | 2 người thao tác cùng mặt hàng, cùng kho, gần như cùng lúc (duyệt kiểm kê + xuất chuyển kho) | Một bên bị từ chối với thông báo rõ; tồn cuối khớp với đúng 1 thao tác thành công; không âm | ☐ |
 | DOC-03 | P1 | Sau toàn bộ file này: mở tab Tra cứu tồn | Không có số âm; cộng dồn lịch sử từng mặt hàng = tồn hiện tại | ☐ |
 | DOC-04 | P1 | `/audit` | Có dòng duyệt kiểm kê / điều chỉnh / hủy | ☐ |
-| DOC-05 | P2 | Hộp thoại lập phiếu khi lỗi | Mở lại, dữ liệu còn (trừ file phải chọn lại) | ☐ |
+| DOC-05 | P1 | Hộp thoại lập phiếu khi lỗi | Mở lại, dữ liệu còn (trừ file phải chọn lại) | ☐ |
+| DOC-06 | P1 | Lập phiếu kiểm kê, điều chỉnh, hủy với số liệu sai (số đếm âm, vượt tồn, thiếu lý do) | Hộp thoại mở lại với lỗi hiện **trong hộp thoại**, không có banner phía sau lớp phủ; kho, mặt hàng, số lượng, lý do còn nguyên | ☐ |
 | DOC-06 | P2 | Gửi form thiếu token chống giả mạo | 400 | ☐ |

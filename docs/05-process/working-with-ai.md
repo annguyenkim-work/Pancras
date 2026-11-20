@@ -46,7 +46,7 @@ Khi chủ dự án gửi một lỗi, AI **không sửa ngay**. Làm theo hai gi
 **Giai đoạn 1 — điều tra, chưa đổi mã:**
 1. **Tái hiện** lỗi (bằng test, lệnh hoặc xem trang); nêu rõ đã tái hiện được hay chưa và cách làm.
 2. **Xác định có phải lỗi không:** đối chiếu với docs (luật nghiệp vụ, UI) và code; có thể là đúng theo docs, hành vi đã chốt, hoặc docs/code lệch nhau.
-3. **Tìm nguyên nhân gốc** và phạm vi ảnh hưởng (chỗ khác có cùng lỗi không).
+3. **Tìm nguyên nhân gốc** và phạm vi ảnh hưởng (chỗ khác có cùng lỗi không). **Bắt buộc quét toàn repo** tìm cùng mẫu lỗi ở các màn khác (lệnh quét ở [ui-checklist.md](../03-ui-ux/ui-checklist.md)), liệt kê từng chỗ tìm thấy; sửa một chỗ mà bỏ sót chỗ cùng mẫu là chưa xong.
 4. **Đề xuất các hướng sửa** kèm ưu nhược điểm và khuyến nghị; nêu cả việc docs hay test case cần đổi gì.
 
 **Giai đoạn 2 — sau khi chủ dự án chọn hướng, làm theo đúng thứ tự:**
@@ -54,6 +54,8 @@ Khi chủ dự án gửi một lỗi, AI **không sửa ngay**. Làm theo hai gi
 2. **Cập nhật/viết test tự động**; chạy để thấy đỏ đúng lý do.
 3. **Sửa lỗi.**
 4. **Chạy lại test** (build với `--warnaserror` và toàn bộ test), báo số đạt/đỏ trong chat; nêu mức đã kiểm chứng (docs / test tự động / xem bằng trình duyệt).
+
+**Mẫu lỗi mới** thì thêm một dòng vào ui-checklist (quy tắc, thành phần dùng chung, cách kiểm) trước khi coi là xong. Làm màn hoặc tính năng có giao diện: đi hết [ui-checklist.md](../03-ui-ux/ui-checklist.md) và ghi mục nào kiểm bằng cách nào. Chưa xem bằng trình duyệt thật thì nói rõ, không viết "đã kiểm".
 
 Vòng sửa tối đa 3 lần như mục 6. Lỗi nhỏ, hiển nhiên (chính tả, lệch thuật ngữ so với docs đã chốt) vẫn phải nêu rõ nguyên nhân và hướng sửa trước khi làm.
 

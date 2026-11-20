@@ -1,0 +1,31 @@
+# Danh sách kiểm UI khi làm tính năng
+
+> Trạng thái: **Đã chốt** (phiên 2026-11-21, rút từ đợt UAT tháng 11/2026). Quy tắc chi tiết nằm ở [components.md](components.md), [formatting-and-copy.md](formatting-and-copy.md), [app-shell.md](app-shell.md); file này là **danh sách kiểm** để đi qua trước khi báo "xong" một màn hình hay tính năng có giao diện.
+
+**Mục đích:** Mỗi mục dưới đây là một lỗi **đã xảy ra thật** ở UAT. Làm màn mới hoặc sửa màn cũ thì đi hết danh sách, ghi vào báo cáo mục nào đã kiểm bằng cách nào (test tự động, xem bằng trình duyệt, hay chưa kiểm).
+
+## Cách dùng
+
+1. **Trước khi viết code:** đọc cột "Quy tắc". Có quy tắc nào chưa rõ với tính năng này thì hỏi chủ dự án, không đoán.
+2. **Khi viết code:** dùng thành phần dùng chung ở cột "Dùng", không viết tay lại. Chưa có thành phần dùng chung thì **thêm thành phần, đừng chép mẫu**.
+3. **Trước khi báo xong:** chạy cột "Kiểm bằng". Mục ghi "trình duyệt" là mục test tự động **không** thay được.
+4. **Sửa lỗi UAT:** tìm cùng mẫu lỗi ở các màn khác bằng lệnh ở cột "Quét", rồi mới sửa ([working-with-ai.md](../05-process/working-with-ai.md) mục 5b).
+
+## Danh sách
+
+| # | Quy tắc | Lỗi đã gặp | Dùng | Kiểm bằng | Quét toàn repo |
+| --- | --- | --- | --- | --- | --- |
+| U1 | **Ô nhập tiền VNĐ** luôn có `data-vnd` và hiện dạng `200.000` khi gõ và khi mở form; gửi lên bỏ dấu chấm. Tiền USD, phần trăm, số lượng không dùng hook này | Ô "Thuế khác (VNĐ)" hiện `200000` vì thiếu hook | `data-vnd` ([formatting-and-copy.md](formatting-and-copy.md) mục 1) | Test `MoneyInputsTests` (tự động); gõ thử một số lớn (trình duyệt) | `MoneyInputsTests` tự quét mọi `.cshtml` (không cần lệnh tay) |
+| U2 | **Lỗi sau thao tác POST phải hiện nơi người dùng đang làm việc.** Có modal đang mở: lỗi **trong modal**, modal mở lại, giữ giá trị đã nhập (trừ tệp). Thao tác bấm nút trong trang: **toast lỗi** góc dưới phải. **Cấm** banner ở đầu trang sau redirect | Lỗi nhận hàng hiện ở đầu trang, người dùng đang ở giữa trang nên "không thấy gì"; lỗi lập phiếu kiểm kê/điều chỉnh/hủy hiện sau lớp phủ modal | Toast `TempData.Toast(..., ToastLevel.Error)`; `_Notice` **bên trong** `<dialog>`; `_DialogError` | Test: câu lỗi nằm **trong** phần tử `<dialog>` hoặc toast (không chỉ "có trong trang"); xem bằng trình duyệt khi đang cuộn giữa trang | `rg 'ErrorMessage' src/Pancras.Web/Pages`; mỗi chỗ phải có nơi hiện đúng |
+| U3 | **Thông báo lỗi nói rõ đối tượng và cách sửa**: mặt hàng nào, nhập bao nhiêu, giới hạn bao nhiêu, làm gì tiếp. Enum lỗi mà mã Application không mang chi tiết thì thêm chi tiết (`Detail`), đừng để câu chung chung | "Số thực nhận không hợp lệ." không nói mặt hàng hay giới hạn | `Result<T, TError>.Detail`, map câu ở `<Module>ErrorMessages` | Test nội dung câu lỗi cho từng mã lỗi | `rg 'không hợp lệ\.' src/Pancras.Web` |
+| U4 | **Mọi đường quay lại danh sách giữ trạng thái danh sách** (từ khóa, bộ lọc, sắp xếp, cỡ trang, trang): nút chuyển trang, link tới chi tiết, link sửa/đóng, và **redirect sau POST**. Form POST gửi kèm trạng thái bằng `_FilterFields` (hoặc partial tương đương của trang) | Chọn đơn mua mất từ khóa/bộ lọc; Active/Disable ở Danh mục đưa về bộ lọc mặc định; form thêm/sửa giá không giữ bộ lọc trạng thái | Hàm dựng URL **một** nơi của trang (`ListUrl`, `BuildUrl`) và `_FilterFields`; **không viết chuỗi URL cứng** có tham số | Test: link/redirect chứa đủ tham số lọc; thử trên trình duyệt: lọc → bấm chi tiết → thao tác → vẫn còn lọc | `rg 'href="/[a-z]+\?' src/Pancras.Web/Pages` (link cứng có query) |
+| U5 | **Danh sách có bộ lọc phải liệt kê đủ bộ lọc ở docs module** trước khi làm (ô tìm, trạng thái, kho, ngày...). Thiếu bộ lọc nào cũng là thiếu tính năng, không phải việc "làm sau" | Đơn mua thiếu lọc theo trạng thái dù người dùng cần; docs chỉ ghi ở mục "Chờ chốt" | Mục "Danh sách và bộ lọc" trong docs module | Docs module có mục này; test tự động cho từng bộ lọc | — |
+| U6 | **Bố cục kiểm ở các trạng thái ghép**, không chỉ trạng thái mặc định: menu **mở và thu nhỏ**; màn **hẹp (1024px) và rộng (1920px)**; đang **cuộn giữa trang**; có dữ liệu dài. Khung nội dung căn giữa (`mx-auto`), có độ rộng tối thiểu và tối đa | Thu nhỏ menu thì nội dung dính trái, hở khoảng trống bên phải | Khung `_Layout` ([app-shell.md](app-shell.md) mục 1) | Xem bằng trình duyệt ở hai độ rộng × hai trạng thái menu | — |
+| U7 | **Cụm nút thao tác** (nhiều nút cạnh nhau ở đầu khung chi tiết): cùng chiều cao, cùng độ rộng, chữ không xuống dòng, tối đa 2 hàng; **trạng thái đặt cạnh tiêu đề, sát phải**, không nằm lẫn trong cụm nút | Nút mỗi nhóm một kích cỡ, trạng thái nằm giữa hàng nút | Biến thể "cụm nút thao tác" ([components.md](components.md) mục 1) | Test quét nút (`UiStandardsTests`); xem bằng trình duyệt với mọi trạng thái đơn | — |
+| U8 | **Hộp thoại lập phiếu dùng thành phần chung** (khung, vùng lỗi, ô chọn kho/mặt hàng điền lại giá trị). Không chép một hộp thoại rồi sửa tay | Hộp thoại Chuyển kho làm đúng, ba hộp thoại kia chép tay và thiếu vùng lỗi, thiếu cờ mở lại, thiếu điền lại giá trị | `_DialogError`, `_LocationItemFields`, `_ReasonAndFiles` (Kho) | Test đã nêu ở U2 cho **từng** hộp thoại (theory theo loại phiếu) | `rg '<dialog id=' src/Pancras.Web/Pages` rồi đối chiếu từng hộp |
+| U9 | **Test giao diện kiểm vị trí và hành vi, không chỉ sự có mặt**: lỗi nằm trong modal (không chỉ "có trong trang"), link mang tham số, lớp CSS thực sự sinh ra ở `site.css` | Test cũ `CreateStocktake_WithABadCount...` chỉ kiểm câu lỗi có trong trang nên xanh khi lỗi nằm sau lớp phủ | [testing.md](../02-coding-rules/testing.md) mục 3 | Đọc lại test vừa viết: nếu bỏ tính năng đi mà test vẫn xanh thì test yếu | — |
+| U10 | **Đổi class Tailwind thì build lại `site.css`** và commit; class nằm trong biến Razor (`const string`) vẫn được quét | — | `npm run build:css` | Test quét nút đọc cả class trong biến Razor | — |
+
+## Cách thêm một mục mới
+
+Khi UAT hoặc review tìm ra một mẫu lỗi mới: thêm một dòng ở bảng trên (quy tắc, lỗi đã gặp, thành phần dùng chung, cách kiểm, lệnh quét), ghi quy tắc chi tiết vào đúng file ở mục "Quy tắc", và thêm test case thủ công tương ứng ([docs/testing/cases](../testing/cases/README.md)). Lỗi chỉ được coi là "đã xử lý xong" khi quy tắc, test và (nếu cần) thành phần dùng chung cùng có mặt.

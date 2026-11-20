@@ -232,6 +232,12 @@ Mã `action` nằm trong hidden input của từng form. Đổi giá trị rồi
 | PUR-P20 | P1 | KT đang mở đơn; AD đổi KT thành Thủ kho kho A | KT bấm Duyệt đơn → bị từ chối | ☐ |
 | PUR-P21 | P1 | ThK kho A đang thấy đơn Đang về; KT đổi kho nhận sang B | ThK tải lại: đơn biến mất; bấm Nhập kho trên trang cũ → bị từ chối | ☐ |
 | PUR-P22 | P2 | Mọi vai trò | Gửi form thiếu token chống giả mạo | 400 | ☐ |
+| PUR-U01 | P1 | KT mở form lập đơn, nhập "Thuế khác (VNĐ)" = 200000, tab ra ngoài; lưu rồi sửa lại | Ô hiện `200.000` khi gõ và khi mở lại; lưu đúng 200000 | ☐ |
+| PUR-U02 | P1 | Gõ từ khóa và chọn bộ lọc trạng thái trong danh sách, bấm chọn một đơn | Từ khóa, trạng thái và trang vẫn còn; thẻ đơn đang chọn được tô | ☐ |
+| PUR-U03 | P1 | Sau PUR-U02 thực hiện một thao tác (gửi duyệt, duyệt, hủy) | Quay lại đúng đơn, danh sách vẫn giữ bộ lọc | ☐ |
+| PUR-U04 | P1 | Lọc theo từng trạng thái (Nháp, Chờ duyệt, Đã duyệt, Đang về, Đã nhận, Đã hủy); thử `?status=abc` | Chỉ ra đơn đúng trạng thái; giá trị lạ coi như không lọc | ☐ |
+| PUR-U05 | P1 | Nhận hàng với số thực nhận vượt số đặt ở lần nhận một phần; cuộn giữa trang trước khi bấm | Toast lỗi góc dưới phải nêu mặt hàng, số nhập, giới hạn; không có banner ở đầu trang | ☐ |
+| PUR-U06 | P2 | Mở chi tiết đơn ở mọi trạng thái, menu mở và thu nhỏ, màn 1024 và 1920 | Trạng thái nằm cạnh mã đơn sát phải; các nút cùng cỡ, chữ không xuống dòng, tối đa 2 hàng | ☐ |
 
 ---
 
