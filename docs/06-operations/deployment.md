@@ -187,7 +187,7 @@ rclone copy "$DEST" offsite:pancras-backup --max-age 2d   # remote đã cấu h�
 
 ### Tự động qua GitHub Actions
 
-- `.github/workflows/ci.yml`: build và test mọi push và pull request.
+- `.github/workflows/ci.yml`: build và test mọi push và pull request. Trước bước test, CI cài Chromium cho smoke test trình duyệt (Playwright, xem `02-coding-rules/testing.md` mục 7).
 - `.github/workflows/deploy.yml`: khi merge vào `main`, sau khi test xanh, workflow publish, build migrations bundle, chép lên `/opt/pancras/incoming/<tên-bản>` và chạy `deploy/pancras-deploy.sh` trên VPS.
 - Script trên VPS sao lưu DB, áp migration, đổi thư mục app, khởi động và kiểm tra `/health/live`. Nếu lỗi thì khôi phục thư mục app cũ. **Migration không tự đảo**; nếu cần, khôi phục DB từ bản `pg_dump` vừa tạo.
 - Chạy lại bản cũ: tab Actions, chọn workflow Deploy, "Run workflow" trên commit mong muốn.

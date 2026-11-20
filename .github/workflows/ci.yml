@@ -29,5 +29,8 @@ jobs:
       - name: Build (không cảnh báo)
         run: dotnet build Pancras.slnx --no-restore --warnaserror
 
+      - name: Cài Chromium cho smoke test trình duyệt (Playwright)
+        run: pwsh tests/Pancras.Web.Tests/bin/Debug/net10.0/playwright.ps1 install --with-deps chromium
+
       - name: Test
         run: dotnet test Pancras.slnx --no-build --warnaserror --nologo
