@@ -42,7 +42,7 @@ Test Domain, Application và Web không được phụ thuộc cơ sở dữ li�
 
 ## 5. Luật viết thành test quét mã nguồn
 
-Đã có: `NoNativeDialogTests` quét `.cshtml`, cấm `confirm()/alert()/prompt()`; `UiStandardsTests` quét nút (đọc cả class trong biến Razor `const string`); `MoneyInputsTests` quét ô tiền VNĐ phải có `data-vnd` (ngoại lệ USD/phần trăm/số lượng có danh sách chú thích); `SidebarCollapseTests` kiểm khung nội dung căn giữa có min/max width.
+Đã có: `NoNativeDialogTests` quét `.cshtml`, cấm `confirm()/alert()/prompt()`; `UiStandardsTests` quét nút (đọc cả class trong biến Razor `const string`); `MoneyInputsTests` quét ô tiền VNĐ phải có `data-vnd` (USD, phần trăm, số lượng không nằm trong danh sách tên trường tiền VNĐ); `SidebarCollapseTests` kiểm khung nội dung căn giữa có min/max width.
 
 Quy tắc đã chốt, **làm sau** khi dọn nợ UI (chưa tự động hóa ở thời điểm này):
 

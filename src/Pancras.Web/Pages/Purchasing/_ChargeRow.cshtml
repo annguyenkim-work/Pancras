@@ -16,7 +16,7 @@
         <input name="Form.Charges[@i].Label" value="@row.Label" maxlength="200" placeholder="Tên khoản chi phí" readonly="@manual" class="charge-label w-full rounded-lg border border-slate-300 bg-white px-2 py-2" />
     </td>
     <td class="px-3 py-2">
-        <input name="Form.Charges[@i].Amount" value="@row.Amount.ToString("0", CultureInfo.InvariantCulture)" inputmode="numeric" readonly="@manual" aria-label="Số tiền (VNĐ)" class="charge-amount vnd draft w-36 rounded-lg border border-slate-300 bg-white px-2 py-2 text-right tabular-nums" />
+        <input name="Form.Charges[@i].Amount" value="@row.Amount.ToString("0", CultureInfo.InvariantCulture)" inputmode="numeric" readonly="@manual" aria-label="Số tiền (VNĐ)" data-vnd="true" class="charge-amount draft w-36 rounded-lg border border-slate-300 bg-white px-2 py-2 text-right tabular-nums" />
     </td>
     <td class="px-3 py-2">
         @* Nhãn ngắn để không bị cắt; giải thích đầy đủ nằm ở title (rê chuột) và phần "Các nhóm chi phí" dưới bảng. *@

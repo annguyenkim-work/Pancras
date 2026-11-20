@@ -254,7 +254,7 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         var actions = html.IndexOf("id=\"order-actions\"", StringComparison.Ordinal);
         Assert.True(title > 0 && badge > title && actions > badge, "Huy hiệu trạng thái phải đứng ngay sau mã đơn, trước khối nút thao tác.");
         var toolbar = html[actions..html.IndexOf("DANH SÁCH MẶT HÀNG", actions, StringComparison.Ordinal)];
-        var controls = System.Text.RegularExpressions.Regex.Matches(toolbar, "<(?:button type=\"submit\"|a href=\"/purchasing\\?edit)[^>]*class=\"([^\"]*)\"")
+        var controls = System.Text.RegularExpressions.Regex.Matches(toolbar, "<(?:button type=\"submit\"|a href=\"/purchasing\\?[^\"]*edit=)[^>]*class=\"([^\"]*)\"")
             .Select(match => match.Groups[1].Value).ToArray();
         Assert.True(controls.Length >= 5, "Xuất CSV, Sửa đơn, Nhập kho, Hàng đang về, Hủy đơn.");
         Assert.All(controls, classes =>
@@ -270,7 +270,7 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
     [Fact]
     public async Task TheOtherTaxInput_IsAMoneyInput_LikeTheChargeAmounts()
     {
-        // Lỗi UAT: ô "Thuế khác (VNĐ)" hiện số thô 200000 thay vì 200.000 vì thiếu lớp vnd (script định dạng tiền chỉ xử lý ô có lớp này).
+        // Lỗi UAT: ô "Thuế khác (VNĐ)" hiện số thô 200000 thay vì 200.000 vì thiếu hook data-vnd (script định dạng tiền chỉ xử lý ô có thuộc tính này).
         using var client = _factory.CreateClient(NoRedirect);
         Reset();
         await SignInAsync(client);
@@ -281,7 +281,7 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         Assert.True(input.Success, "Phải có ô Thuế khác của dòng đầu.");
         var classes = System.Text.RegularExpressions.Regex.Match(input.Value, "class=\"([^\"]*)\"").Groups[1].Value.Split(' ');
         Assert.Contains("line-other", classes);
-        Assert.Contains("vnd", classes);
+        Assert.Contains("data-vnd=", input.Value, StringComparison.Ordinal);
     }
 
     [Fact]

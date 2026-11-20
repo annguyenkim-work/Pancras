@@ -12,7 +12,7 @@
             const dong = (value) => money.format(Math.round(value)) + " VNĐ";
             const roundDong = (value) => Math.sign(value) * Math.round(Math.abs(value));
             const plainNumber = (input) => {
-                if (input.classList.contains("vnd")) {
+                if (input.hasAttribute("data-vnd")) {
                     const digits = String(input.value).replace(/\D/g, "");
                     return digits === "" ? 0 : Number(digits);
                 }
@@ -29,7 +29,7 @@
             const BY_FOB = 1, BY_QUANTITY = 2, BY_WEIGHT = 3, BY_VOLUME = 4, BY_MANUAL = 5;
 
             function formatVndInputs() {
-                document.querySelectorAll(".vnd").forEach((input) => {
+                document.querySelectorAll("[data-vnd]").forEach((input) => {
                     const formatted = money.format(plainNumber(input));
                     if (input.value !== formatted) {
                         input.value = formatted;
@@ -280,7 +280,7 @@
             form.addEventListener("input", () => { dirty = true; });
             form.addEventListener("submit", () => {
                 dirty = false;
-                document.querySelectorAll(".vnd").forEach((input) => {
+                document.querySelectorAll("[data-vnd]").forEach((input) => {
                     input.value = String(plainNumber(input));
                 });
             });

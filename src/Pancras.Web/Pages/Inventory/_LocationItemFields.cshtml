@@ -1,0 +1,23 @@
+@using Pancras.Web.Pages.Inventory
+@model LocationItemFields
+@{
+    const string field = "mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none";
+}
+<label class="mt-4 block text-sm font-medium text-slate-700">@Model.LocationLabel
+    <select @(Model.LocationSelectId is null ? "" : Html.Raw($"id=\"{Model.LocationSelectId}\"")) name="@(Model.Prefix).StockLocationId" class="@field">
+        <option value="">Chọn địa điểm</option>
+        @foreach (var location in Model.Locations)
+        {
+            <option value="@location.Id" selected="@(Model.SelectedLocation == location.Id)">@location.Name</option>
+        }
+    </select>
+</label>
+<label class="mt-3 block text-sm font-medium text-slate-700">Mặt hàng
+    <select @(Model.ItemSelectId is null ? "" : Html.Raw($"id=\"{Model.ItemSelectId}\"")) name="@(Model.Prefix).CatalogItemId" class="@field">
+        <option value="">Chọn mặt hàng</option>
+        @foreach (var item in Model.Items)
+        {
+            <option value="@item.Id" selected="@(Model.SelectedItem == item.Id)">@item.Code — @item.Name</option>
+        }
+    </select>
+</label>

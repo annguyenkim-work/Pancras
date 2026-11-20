@@ -17,7 +17,7 @@ Nguồn code: `src/Pancras.Web/Formatting/` (`VndMoney.cs`, `StockCsv.cs`, `Cata
 - Mọi chỗ hiển thị tiền gọi hàm chung (`VndMoney.FormatDong`, `FormatUsd`, `FormatPercent`); không tự `ToString` ở trang. Giờ hiển thị luôn qua `VietnamTime` (UTC+7 cố định), không dùng `ToLocalTime()`.
 - Tỷ giá: `25.400 VNĐ / USD`.
 - Cột tiền trong bảng căn phải, `font-mono tabular-nums`.
-- Ô nhập tiền VNĐ: **một hook duy nhất `data-vnd`** (không dùng class `vnd` hay hook riêng của từng module). Hiện số nhóm `200.000` khi mở form (giá trị đổ sẵn từ server cũng phải đã nhóm) và khi gõ; ô cho phép số âm (ví dụ chênh lệch giá vốn) thêm `data-vnd-signed`. Tiền USD, phần trăm và số lượng không dùng hook này; `MoneyInputsTests` quét mọi view và có danh sách ngoại lệ có chú thích. Server làm sạch dấu nhóm rồi đọc bằng `InvariantCulture`.
+- Ô nhập tiền VNĐ: **một hook duy nhất `data-vnd`** (không dùng class `vnd` hay hook riêng của từng module). Hiện số nhóm `200.000` khi mở form (giá trị đổ sẵn từ server cũng phải đã nhóm) và khi gõ; ô cho phép số âm (ô "Số tiền" của điều chỉnh chi phí) hiện chưa có hook (`MoneyInputsTests` không quét được ô này vì tên trường không mang dấu hiệu tiền); muốn gom về `data-vnd` thì hook phải hỗ trợ dấu âm (chờ chủ dự án chọn). Tiền USD, phần trăm và số lượng không dùng hook này; `MoneyInputsTests` quét mọi view. Server làm sạch dấu nhóm rồi đọc bằng `InvariantCulture`.
 - Xuất CSV: số thuần `InvariantCulture`, không hậu tố, không dấu nhóm.
 
 > **Đảo quy tắc cũ (đã xác nhận):** CLAUDE.md và spec 005 ghi `đ` và cấm `VND/VNĐ`. Quy tắc mới là `VNĐ`; hàm `FormatDong`, các test liên quan và mọi chỗ đang hiện `đ` phải đổi theo (xem "Nợ lệch"). Khi viết lại CLAUDE.md và glossary, bỏ dòng cấm `VND/VNĐ`.

@@ -51,7 +51,7 @@
                 <label class="flex flex-col justify-between gap-1 text-sm">
                     <span>Tỷ giá (VNĐ / USD)</span>
                     <span class="relative block">
-                        <input name="Form.ExchangeRate" value="@Model.Form.ExchangeRate.ToString("0", CultureInfo.InvariantCulture)" id="rate" inputmode="numeric" class="vnd draft w-full rounded-lg border border-slate-300 py-2 pl-3 pr-8" />
+                        <input name="Form.ExchangeRate" value="@Model.Form.ExchangeRate.ToString("0", CultureInfo.InvariantCulture)" id="rate" data-vnd="true" inputmode="numeric" class="draft w-full rounded-lg border border-slate-300 py-2 pl-3 pr-8" />
                         <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-slate-500">VNĐ</span>
                     </span>
                 </label>
@@ -104,7 +104,7 @@
                                 <td class="px-3 py-2"><input name="Form.Lines[@index].Quantity" value="@line.Quantity.ToString(CultureInfo.InvariantCulture)" class="line-qty draft w-20 rounded-lg border border-slate-300 px-2 py-2" /></td>
                                 <td class="px-3 py-2"><input name="Form.UnitPrices[@index]" value="@unitPrice.ToString("0.####", CultureInfo.InvariantCulture)" class="line-unit draft w-24 rounded-lg border border-slate-300 px-2 py-2" /></td>
                                 <td class="px-3 py-2"><input name="Form.DutyPercents[@index]" value="@dutyPercent.ToString("0.####", CultureInfo.InvariantCulture)" class="line-duty draft w-16 rounded-lg border border-amber-200 bg-amber-50 px-2 py-2" /></td>
-                                <td class="px-3 py-2"><input name="Form.Lines[@index].SupplementalDuty" value="@line.SupplementalDuty.ToString("0", CultureInfo.InvariantCulture)" inputmode="numeric" class="line-other vnd draft w-28 rounded-lg border border-slate-300 px-2 py-2" /></td>
+                                <td class="px-3 py-2"><input name="Form.Lines[@index].SupplementalDuty" value="@line.SupplementalDuty.ToString("0", CultureInfo.InvariantCulture)" inputmode="numeric" data-vnd="true" class="line-other draft w-28 rounded-lg border border-slate-300 px-2 py-2" /></td>
                                 <td class="out-unit px-3 py-2 text-right font-bold tabular-nums">0 VNĐ</td>
                                 <td class="py-2 text-right">
                                     <button type="button" class="remove-line rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600" aria-label="Xóa mặt hàng" title="Xóa mặt hàng">

@@ -1,0 +1,15 @@
+@using Pancras.Web.Pages.Inventory
+@model ReasonAndFiles
+@{
+    const string field = "mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none";
+}
+<label class="mt-3 block text-sm font-medium text-slate-700">@Model.ReasonLabel
+    <input name="@(Model.Prefix).Reason" value="@Model.Reason" class="@field" />
+</label>
+<label class="mt-3 block text-sm font-medium text-slate-700">Chứng từ
+    <input name="@(Model.Prefix).DocumentRef" value="@Model.DocumentRef" class="@field" />
+</label>
+<label class="mt-3 block text-sm font-medium text-slate-700">@Model.FilesLabel
+    <input type="file" name="files" multiple accept="image/*,.pdf,.jpg,.jpeg,.png,.xlsx,.docx" class="mt-1 block w-full text-xs text-slate-600" />
+    <span class="mt-1 block text-xs font-normal text-slate-500">Tối đa 10 MB mỗi file. Trên điện thoại có thể chụp ảnh trực tiếp. Tệp đính kèm phải chọn lại nếu hộp thoại mở lại vì lỗi.</span>
+</label>
