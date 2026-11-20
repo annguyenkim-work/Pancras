@@ -236,6 +236,38 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
     }
 
     [Fact]
+    public async Task OrderDetail_PutsTheStatusInTheTitleRow_AndGivesEveryActionTheSameSize()
+    {
+        // UAT: trạng thái phải nằm cạnh mã đơn (sát phải) và các nút thao tác cùng chiều cao, cùng độ rộng, đủ chữ, tối đa 2 hàng.
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var order = NewOrder("PO-BTN", Guid.CreateVersion7());
+        Assert.True(order.TrySubmit());
+        Assert.True(order.TryApprove());
+        orders.Orders.Add(order);
+        await SignInAsync(client);
+
+        var html = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?order=" + order.Id)).Content.ReadAsStringAsync());
+
+        var title = html.IndexOf("PO-BTN ·", StringComparison.Ordinal);
+        var badge = html.IndexOf("Đã duyệt</span>", title, StringComparison.Ordinal);
+        var actions = html.IndexOf("id=\"order-actions\"", StringComparison.Ordinal);
+        Assert.True(title > 0 && badge > title && actions > badge, "Huy hiệu trạng thái phải đứng ngay sau mã đơn, trước khối nút thao tác.");
+        var toolbar = html[actions..html.IndexOf("DANH SÁCH MẶT HÀNG", actions, StringComparison.Ordinal)];
+        var controls = System.Text.RegularExpressions.Regex.Matches(toolbar, "<(?:button type=\"submit\"|a href=\"/purchasing\\?edit)[^>]*class=\"([^\"]*)\"")
+            .Select(match => match.Groups[1].Value).ToArray();
+        Assert.True(controls.Length >= 5, "Xuất CSV, Sửa đơn, Nhập kho, Hàng đang về, Hủy đơn.");
+        Assert.All(controls, classes =>
+        {
+            Assert.Contains("h-10", classes, StringComparison.Ordinal);
+            Assert.Contains("whitespace-nowrap", classes, StringComparison.Ordinal);
+            Assert.DoesNotContain("py-2", classes, StringComparison.Ordinal);
+        });
+        // Các nút thường cùng độ rộng; riêng nút Nhập kho có nhãn dài nên rộng theo chữ.
+        Assert.Equal(1, controls.Count(classes => !classes.Contains("w-44", StringComparison.Ordinal)));
+    }
+
+    [Fact]
     public async Task TheOtherTaxInput_IsAMoneyInput_LikeTheChargeAmounts()
     {
         // Lỗi UAT: ô "Thuế khác (VNĐ)" hiện số thô 200000 thay vì 200.000 vì thiếu lớp vnd (script định dạng tiền chỉ xử lý ô có lớp này).
