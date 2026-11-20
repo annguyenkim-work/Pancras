@@ -104,11 +104,14 @@ public enum ReceiptDecision
     Ok = 0,
     WrongStatus,
 
-    /// <summary>Số âm, nhận lố khi chưa phải lần cuối, hoặc không có gì để nhận.</summary>
+    /// <summary>Số âm, dòng không thuộc đơn, hoặc không có gì để nhận.</summary>
     InvalidQuantity,
 
-    /// <summary>Lần nhận cuối lệch với số đặt thì phải có ghi chú lý do.</summary>
-    NoteRequired
+    /// <summary>Lần cuối nhận thiếu (đóng đơn khi chưa đủ) thì phải có ghi chú lý do.</summary>
+    NoteRequired,
+
+    /// <summary>Có dòng nhận lần này nhiều hơn số còn phải nhận (số đặt − đã nhận). Không bao giờ được nhận quá số đặt.</summary>
+    ExceedsOrdered
 }
 
 /// <summary>Kết quả tính cho một dòng trong một lần nhận.</summary>
@@ -169,9 +172,9 @@ public sealed partial class PurchaseOrder
 
     /// <summary>
     /// Ghi một lần nhận hàng theo số thực nhận từng dòng (dòng không có trong <paramref name="actualByLine"/> coi là 0).
-    /// Chưa phải lần cuối: mỗi món vào kho theo giá vốn dự toán (giá vốn dòng ÷ số đặt) và không được nhận lố số đặt.
+    /// Không lần nào được nhận quá số còn phải nhận (số đặt − đã nhận). Chưa phải lần cuối: mỗi món vào kho theo giá vốn dự toán (giá vốn dòng ÷ số đặt).
     /// Lần cuối (<paramref name="final"/>): phần giá vốn còn lại của dòng dồn hết vào số nhận lần này, nên tổng giá vốn
-    /// vào kho bằng đúng giá vốn dòng dù nhận thiếu hay thừa.
+    /// vào kho bằng đúng giá vốn dòng dù nhận thiếu.
     /// </summary>
     public ReceiptDecision TryRecordReceipt(
         IReadOnlyDictionary<Guid, int> actualByLine,
@@ -191,9 +194,15 @@ public sealed partial class PurchaseOrder
         foreach (var line in _lines)
         {
             var quantity = actualByLine.GetValueOrDefault(line.Id);
-            if (quantity < 0 || (long)line.ReceivedQuantity + quantity > int.MaxValue || (!final && line.ReceivedQuantity + quantity > line.Quantity))
+            if (quantity < 0)
             {
                 return ReceiptDecision.InvalidQuantity;
+            }
+
+            // Không bao giờ nhận quá số đặt, kể cả lần cuối (chủ dự án chốt 2026-11-21).
+            if ((long)line.ReceivedQuantity + quantity > line.Quantity)
+            {
+                return ReceiptDecision.ExceedsOrdered;
             }
 
             quantities[line.Id] = quantity;

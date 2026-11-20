@@ -72,8 +72,7 @@ public class UiStandardsTests
     [Fact]
     public void Dialogs_UseTheAllowedWidths_AndAFlexColumnFrame()
     {
-        // 48rem: hộp thoại hướng dẫn (_HelpDialog), chưa có trong bảng cỡ của components.md (Chờ chốt).
-        var allowed = new[] { "28rem", "40rem", "48rem", "56rem", "72rem" };
+        var allowed = new[] { "28rem", "40rem", "56rem", "72rem" };
         var offenders = new List<string>();
         foreach (var (file, text) in Views())
         {

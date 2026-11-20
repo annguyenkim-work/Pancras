@@ -64,6 +64,15 @@ dotnet test tests/Pancras.Domain.Tests --filter "FullyQualifiedName~SomeTest"
 - Mỗi lần gọi `dotnet test` chỉ truyền một đường dẫn dự án (hai csproj cùng lúc lỗi MSB1008).
 - Không để cảnh báo biên dịch (`--warnaserror`).
 
+## 7. Smoke test trình duyệt (Playwright)
+
+Chủ dự án duyệt 2026-11-21 (gói `Microsoft.Playwright`).
+
+- Nằm trong `Pancras.Web.Tests`, lớp có `[Trait("Category", "Browser")]`. App chạy thật trên Kestrel (cổng ngẫu nhiên, `WebApplicationFactory.UseKestrel`) với cùng các test double như test trang, nên **không cần DB, không cần tài khoản thật**; đăng nhập bằng nhân viên giả tạo trong test.
+- Trình duyệt: Windows dùng Microsoft Edge có sẵn (`channel: msedge`), máy khác dùng Chromium của Playwright. CI cài Chromium trước khi chạy test (`playwright.ps1 install --with-deps chromium`). Đổi bằng biến môi trường `PANCRAS_BROWSER_CHANNEL` (`msedge`, `chrome`, hoặc `chromium`).
+- Chỉ viết smoke test cho hành vi mà test HTML không thấy được: JS định dạng, vị trí và kích thước trên màn hình, hộp thoại mở, cuộn trang. Mỗi lỗi UAT loại này thêm một smoke test.
+- Chạy riêng: `dotnet test tests/Pancras.Web.Tests --filter Category=Browser`.
+
 ## Nợ lệch so với quy định
 
 | Vấn đề | Hiện trạng |

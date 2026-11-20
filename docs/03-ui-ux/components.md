@@ -58,9 +58,10 @@ Bốn cỡ rộng (S, M, L, XL), đều `w-[min(<rộng>,calc(100%-2rem))]`. H�
 | --- | --- | --- |
 | S | `28rem` | Xác nhận, form 1–3 ô |
 | M | `40rem` | Form thường |
-| L | `56rem` | Form nhiều cột hoặc bảng dòng |
+| L | `56rem` | Form nhiều cột, bảng dòng, hộp thoại hướng dẫn sử dụng (`_HelpDialog`, có bảng quyền theo vai) |
 | XL | `72rem` | Form lập đơn mua (bảng dòng và chi phí) |
 
+Chỉ dùng bốn cỡ này; test `UiStandardsTests` từ chối cỡ khác (chủ dự án chốt 2026-11-21: hộp thoại hướng dẫn chuyển từ 48rem sang L).
 ```html
 <dialog class="m-auto !flex w-[min(40rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
   <div class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">

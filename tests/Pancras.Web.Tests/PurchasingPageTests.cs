@@ -3,8 +3,11 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Pancras.Application.Purchasing;
+using Pancras.Application.Common;
+using Pancras.Domain.Catalog;
 using Pancras.Domain.Employees;
 using Pancras.Domain.Purchasing;
+using Pancras.Web.Pages.Purchasing;
 
 namespace Pancras.Web.Tests;
 
@@ -186,6 +189,49 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         Assert.Contains(text, System.Net.WebUtility.HtmlDecode(toast.Value), StringComparison.Ordinal);
         Assert.Single(System.Text.RegularExpressions.Regex.Matches(System.Net.WebUtility.HtmlDecode(html), System.Text.RegularExpressions.Regex.Escape(text)));
     }
+
+    [Fact]
+    public async Task ReceivingMoreThanStillToReceive_IsRejected_WithAToastNamingTheItem_AndTheInputCapsTheQuantity()
+    {
+        // Chủ dự án chốt 2026-11-21: không bao giờ nhận quá số đặt, kể cả khi đóng đơn.
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var catalog = _factory.Services.GetRequiredService<CatalogDirectoryDouble>();
+        var item = CatalogItem.Create("SPVUOT", "Bồn", ProductCategory.SanitaryEquipment, "Toto", "Việt Nam", "Cái", null, null, null, null, 9m, 1m, 1m, 1m, 1m);
+        catalog.Items.Add(item);
+        var order = PurchaseOrder.TryCreate("PO-VUOT", Guid.CreateVersion7(), Guid.CreateVersion7(), "CONT", null, null, null, 1m, 0m, [(item.Id, 4, 10m, 0m, 0m, 0m, 0m)])!;
+        Assert.True(order.TrySubmit());
+        Assert.True(order.TryApprove());
+        orders.Orders.Add(order);
+        await SignInAsync(client);
+
+        var page = await (await client.GetAsync("/purchasing?order=" + order.Id)).Content.ReadAsStringAsync();
+        Assert.Matches(@"name=""actuals\[" + order.Lines[0].Id + @"\]""[^>]*max=""4""", page);
+        var token = Regex.Match(page, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+
+        var response = await client.PostAsync("/purchasing?handler=Receive", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = token,
+            ["orderId"] = order.Id.ToString(),
+            ["closeOrder"] = "true",
+            ["note"] = "thừa hàng",
+            ["actuals[" + order.Lines[0].Id + "]"] = "6"
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal(PurchaseStatus.Approved, order.Status);
+
+        var after = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync(response.Headers.Location!.OriginalString)).Content.ReadAsStringAsync());
+        var toast = Regex.Match(after, "<div[^>]*data-tone=\"rose\"[^>]*>.*?</div>", RegexOptions.Singleline).Value;
+        Assert.Contains("SPVUOT", toast, StringComparison.Ordinal);
+        Assert.Contains("6", toast, StringComparison.Ordinal);
+        Assert.Contains("còn phải nhận 4", toast, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("SP01|12|10", "Mặt hàng SP01: nhập 12 nhưng chỉ còn phải nhận 10. Không được nhận quá số đặt; sửa số thực nhận rồi thử lại.")]
+    [InlineData(null, "Có mặt hàng nhận nhiều hơn số còn phải nhận. Không được nhận quá số đặt; sửa số thực nhận rồi thử lại.")]
+    public void ExceedsOrderedMessage_NamesItemAndLimit(string? detail, string expected) =>
+        Assert.Equal(expected, PurchaseErrorMessages.Describe(PurchaseError.ReceiptExceedsOrdered, detail));
 
     [Fact]
     public async Task OpeningAnOrderFromTheFilteredList_KeepsTheFilters()

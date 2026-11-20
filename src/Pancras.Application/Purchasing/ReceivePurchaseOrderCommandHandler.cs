@@ -110,6 +110,15 @@ public sealed class ReceivePurchaseOrderCommandHandler(
         if (decision != ReceiptDecision.Ok)
         {
             logger.LogInformation("Receipt rejected for purchase order {PurchaseOrderId}: {Decision}.", order.Id, decision);
+            if (decision == ReceiptDecision.ExceedsOrdered)
+            {
+                var over = order.Lines.First(line => (long)line.ReceivedQuantity + actuals.GetValueOrDefault(line.Id) > line.Quantity);
+                var code = items.TryGetValue(over.CatalogItemId, out var overItem) ? overItem.Code : over.CatalogItemId.ToString("D");
+                return Result<Guid, PurchaseError>.Fail(
+                    PurchaseError.ReceiptExceedsOrdered,
+                    string.Join('|', code, actuals.GetValueOrDefault(over.Id), over.Quantity - over.ReceivedQuantity));
+            }
+
             return Result<Guid, PurchaseError>.Fail(decision switch
             {
                 ReceiptDecision.NoteRequired => PurchaseError.ReceiptNoteRequired,

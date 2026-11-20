@@ -54,7 +54,8 @@ Với **dữ liệu bị ẩn** (giá vốn, ngân hàng nhà cung cấp, tiền
 
 ## Quyết định đã chốt (2026-11-16)
 
-- Chưa cần tự động hóa test thủ công bằng Playwright.
+- Chưa cần tự động hóa toàn bộ test thủ công bằng Playwright.
+- (2026-11-21, thay một phần quyết định trên) **Có bộ smoke test trình duyệt bằng Playwright** cho các lỗi chỉ thấy được trên trình duyệt thật (định dạng tiền khi gõ, header cố định, bố cục khi thu gọn menu, lỗi hiện trong hộp thoại, khối nút nhận hàng). Xem [testing.md](../02-coding-rules/testing.md) mục 7.
 
 ## Chờ chốt (chưa có hiệu lực)
 

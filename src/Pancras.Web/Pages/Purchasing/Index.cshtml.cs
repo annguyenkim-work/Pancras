@@ -478,6 +478,13 @@ public class IndexModel(
             HttpContext.RequestAborted);
         if (result.IsFailure)
         {
+            if (result.Error == PurchaseError.ReceiptExceedsOrdered)
+            {
+                // Câu lỗi cần mặt hàng và số lượng (Detail) nên ghi toast ngay, không đi qua tham số error=.
+                TempData.Toast(PurchaseErrorMessages.Describe(result.Error, result.Detail), ToastLevel.Error);
+                return Redirect($"/purchasing?order={orderId}");
+            }
+
             return Redirect($"/purchasing?order={orderId}&error={result.Error}");
         }
 

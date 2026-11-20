@@ -12,6 +12,22 @@ public static class PurchaseErrorMessages
 
     private const string Generic = "Không thực hiện được thao tác này. Đơn có thể đã bị xóa hoặc số liệu không hợp lệ. Tải lại trang rồi thử lại.";
 
+    /// <summary>Câu lỗi kèm chi tiết thô từ Application (nếu có).</summary>
+    public static string Describe(PurchaseError error, string? detail)
+    {
+        if (error == PurchaseError.ReceiptExceedsOrdered)
+        {
+            var parts = detail?.Split('|');
+            return parts is { Length: 3 }
+                ? $"Mặt hàng {parts[0]}: nhập {parts[1]} nhưng chỉ còn phải nhận {parts[2]}. {ExceedsTail}"
+                : $"Có mặt hàng nhận nhiều hơn số còn phải nhận. {ExceedsTail}";
+        }
+
+        return For(error);
+    }
+
+    private const string ExceedsTail = "Không được nhận quá số đặt; sửa số thực nhận rồi thử lại.";
+
     /// <param name="invalidOrderText">Câu riêng cho InvalidOrder theo thao tác (tạo, sửa); bỏ trống thì dùng câu chung.</param>
     public static string For(PurchaseError error, string? invalidOrderText = null) => error switch
     {
@@ -32,7 +48,8 @@ public static class PurchaseErrorMessages
         PurchaseError.AttachmentLimit => "Đơn đã đủ số file đính kèm tối đa (30).",
         PurchaseError.NotReceivable => "Đơn chưa được duyệt, đã nhận đủ hoặc đã hủy nên chưa nhận hàng được.",
         PurchaseError.InvalidReceiptQuantity => "Số thực nhận không hợp lệ.",
-        PurchaseError.ReceiptNoteRequired => "Lần nhận cuối lệch số đặt: cần ghi lý do.",
+        PurchaseError.ReceiptExceedsOrdered => Describe(error, null),
+        PurchaseError.ReceiptNoteRequired => "Đóng đơn khi chưa nhận đủ: cần ghi lý do.",
         PurchaseError.InvalidTransition => "Trạng thái hiện tại của đơn không cho phép bước này. Tải lại trang để xem trạng thái mới nhất.",
         PurchaseError.ReasonRequired => "Cần ghi lý do.",
         PurchaseError.ReasonTooLong => "Lý do chỉ được tối đa 500 ký tự.",

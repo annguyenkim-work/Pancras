@@ -55,5 +55,8 @@ public enum PurchaseError
     Forbidden,
 
     /// <summary>Đơn đã hủy nên không nhận thêm file đính kèm.</summary>
-    OrderCancelled
+    OrderCancelled,
+
+    /// <summary>Có dòng nhận nhiều hơn số còn phải nhận. Detail: <c>mã SKU|số nhập|số còn phải nhận</c>.</summary>
+    ReceiptExceedsOrdered
 }
