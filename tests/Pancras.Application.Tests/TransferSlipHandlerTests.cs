@@ -38,7 +38,7 @@ internal static class TransferFlow
         new(slipId, actor, store.Transfers.Single(slip => slip.Id == slipId).Lines.Select(line => new ReceivedLineInput(line.Id, line.Quantity)).ToArray());
 
     public static async Task<Result<Guid, StockError>> RequestAsync(FakeInventoryStore store, CreateTransferSlipCommand command) =>
-        await new CreateTransferRequestCommandHandler(store, NullLogger<CreateTransferRequestCommandHandler>.Instance)
+        await new CreateTransferRequestCommandHandler(store, store, NullLogger<CreateTransferRequestCommandHandler>.Instance)
             .HandleAsync(command, CancellationToken.None);
 
     public static async Task<Result<Guid, StockError>> ShipAsync(FakeInventoryStore store, CreateTransferSlipCommand command)
@@ -49,14 +49,14 @@ internal static class TransferFlow
             return requested;
         }
 
-        var approved = await new DecideTransferCommandHandler(store, NullLogger<DecideTransferCommandHandler>.Instance)
+        var approved = await new DecideTransferCommandHandler(store, store, NullLogger<DecideTransferCommandHandler>.Instance)
             .HandleAsync(new DecideTransferCommand(requested.Value, TestActors.Admin, true), CancellationToken.None);
         if (approved.IsFailure)
         {
             return approved;
         }
 
-        return await new ShipTransferCommandHandler(store, NullLogger<ShipTransferCommandHandler>.Instance)
+        return await new ShipTransferCommandHandler(store, store, NullLogger<ShipTransferCommandHandler>.Instance)
             .HandleAsync(new ShipTransferCommand(requested.Value, command.Actor, "SEAL-1", "Anh Bình"), CancellationToken.None);
     }
 }
@@ -97,14 +97,14 @@ public class TransferSlipHandlerTests
     {
         var store = Store(onHand: 20);
         var handler = new UploadTransferAttachmentCommandHandler(
-            store.Store, new FakeTransferAttachments(), null!, NullLogger<UploadTransferAttachmentCommandHandler>.Instance);
+            store.Store, new FakeTransferAttachments(), null!, new NoopUnitOfWork(), NullLogger<UploadTransferAttachmentCommandHandler>.Instance);
         byte[] pdf = [0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34];
         var file = new PendingTransferFile("a.pdf", 100, pdf);
 
         var cancelled = (await TransferFlow.RequestAsync(store.Store, Command(store.Source.Id, store.Destination.Id, store.ItemId, 1))).Value;
         await Cancel(store.Store).HandleAsync(new ConfirmTransferCommand(cancelled, TestActors.Admin, null, "Hủy"), CancellationToken.None);
         var rejected = (await TransferFlow.RequestAsync(store.Store, Command(store.Source.Id, store.Destination.Id, store.ItemId, 1))).Value;
-        await new DecideTransferCommandHandler(store.Store, NullLogger<DecideTransferCommandHandler>.Instance)
+        await new DecideTransferCommandHandler(store.Store, store.Store, NullLogger<DecideTransferCommandHandler>.Instance)
             .HandleAsync(new DecideTransferCommand(rejected, TestActors.Admin, false, "Không đủ"), CancellationToken.None);
         var inTransit = (await TransferFlow.ShipAsync(store.Store, Command(store.Source.Id, store.Destination.Id, store.ItemId, 1))).Value;
 
@@ -131,7 +131,7 @@ public class TransferSlipHandlerTests
     {
         var store = Store(onHand: 10, reserved: 8);
         var id = (await TransferFlow.RequestAsync(store.Store, Command(store.Source.Id, store.Destination.Id, store.ItemId, 3))).Value;
-        var handler = new DecideTransferCommandHandler(store.Store, NullLogger<DecideTransferCommandHandler>.Instance);
+        var handler = new DecideTransferCommandHandler(store.Store, store.Store, NullLogger<DecideTransferCommandHandler>.Instance);
 
         var shortage = await handler.HandleAsync(new DecideTransferCommand(id, TestActors.Admin, true), CancellationToken.None);
         store.SourceBalance.TryAdjust(5);
@@ -151,7 +151,7 @@ public class TransferSlipHandlerTests
     {
         var store = Store();
         var id = (await TransferFlow.RequestAsync(store.Store, Command(store.Source.Id, store.Destination.Id, store.ItemId, 1))).Value;
-        var handler = new DecideTransferCommandHandler(store.Store, NullLogger<DecideTransferCommandHandler>.Instance);
+        var handler = new DecideTransferCommandHandler(store.Store, store.Store, NullLogger<DecideTransferCommandHandler>.Instance);
 
         var keeper = await handler.HandleAsync(new DecideTransferCommand(id, TestActors.Keeper(store.Source.Id), true), CancellationToken.None);
         var otherLead = await handler.HandleAsync(new DecideTransferCommand(id, TestActors.Lead(store.Destination.Id), true), CancellationToken.None);
@@ -168,7 +168,7 @@ public class TransferSlipHandlerTests
         var store = Store();
         var id = (await TransferFlow.RequestAsync(store.Store, Command(store.Source.Id, store.Destination.Id, store.ItemId, 1))).Value;
 
-        var result = await new DecideTransferCommandHandler(store.Store, NullLogger<DecideTransferCommandHandler>.Instance)
+        var result = await new DecideTransferCommandHandler(store.Store, store.Store, NullLogger<DecideTransferCommandHandler>.Instance)
             .HandleAsync(new DecideTransferCommand(id, TestActors.Admin, false, "Chưa cần"), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -182,10 +182,10 @@ public class TransferSlipHandlerTests
     {
         var store = Store(onHand: 115);
         var id = (await TransferFlow.RequestAsync(store.Store, Command(store.Source.Id, store.Destination.Id, store.ItemId, 2))).Value;
-        var ship = new ShipTransferCommandHandler(store.Store, NullLogger<ShipTransferCommandHandler>.Instance);
+        var ship = new ShipTransferCommandHandler(store.Store, store.Store, NullLogger<ShipTransferCommandHandler>.Instance);
 
         var early = await ship.HandleAsync(new ShipTransferCommand(id, TestActors.Admin), CancellationToken.None);
-        await new DecideTransferCommandHandler(store.Store, NullLogger<DecideTransferCommandHandler>.Instance)
+        await new DecideTransferCommandHandler(store.Store, store.Store, NullLogger<DecideTransferCommandHandler>.Instance)
             .HandleAsync(new DecideTransferCommand(id, TestActors.Admin, true), CancellationToken.None);
         var first = await ship.HandleAsync(new ShipTransferCommand(id, TestActors.Admin, "SEAL-9", "Chú Ba"), CancellationToken.None);
         var second = await ship.HandleAsync(new ShipTransferCommand(id, TestActors.Admin), CancellationToken.None);
@@ -205,10 +205,10 @@ public class TransferSlipHandlerTests
     {
         var store = Store();
         var id = (await TransferFlow.RequestAsync(store.Store, Command(store.Source.Id, store.Destination.Id, store.ItemId, 1))).Value;
-        await new DecideTransferCommandHandler(store.Store, NullLogger<DecideTransferCommandHandler>.Instance)
+        await new DecideTransferCommandHandler(store.Store, store.Store, NullLogger<DecideTransferCommandHandler>.Instance)
             .HandleAsync(new DecideTransferCommand(id, TestActors.Admin, true), CancellationToken.None);
 
-        var result = await new ShipTransferCommandHandler(store.Store, NullLogger<ShipTransferCommandHandler>.Instance)
+        var result = await new ShipTransferCommandHandler(store.Store, store.Store, NullLogger<ShipTransferCommandHandler>.Instance)
             .HandleAsync(new ShipTransferCommand(id, TestActors.Keeper(store.Destination.Id)), CancellationToken.None);
 
         Assert.Equal(StockError.Forbidden, result.Error);
@@ -280,7 +280,7 @@ public class TransferSlipHandlerTests
         await Receipt(store.Store, attachments).HandleAsync(
             new ConfirmTransferCommand(id, TestActors.Admin, [new ReceivedLineInput(store.Store.Transfers[0].Lines[0].Id, 3)], "Thiếu 1"),
             CancellationToken.None);
-        var resolve = new ResolveTransferDiscrepancyCommandHandler(store.Store, NullLogger<ResolveTransferDiscrepancyCommandHandler>.Instance);
+        var resolve = new ResolveTransferDiscrepancyCommandHandler(store.Store, store.Store, NullLogger<ResolveTransferDiscrepancyCommandHandler>.Instance);
 
         var keeper = await resolve.HandleAsync(new ResolveTransferCommand(id, TestActors.Keeper(store.Destination.Id), "OK"), CancellationToken.None);
         var empty = await resolve.HandleAsync(new ResolveTransferCommand(id, TestActors.Accountant, " "), CancellationToken.None);
@@ -375,7 +375,7 @@ public class TransferSlipHandlerTests
         var store = Store(onHand: 20);
         var id = (await TransferFlow.ShipAsync(store.Store, Command(store.Source.Id, store.Destination.Id, store.ItemId, 3))).Value;
         var handler = new UploadTransferAttachmentCommandHandler(
-            store.Store, new FakeTransferAttachments(), null!, NullLogger<UploadTransferAttachmentCommandHandler>.Instance);
+            store.Store, new FakeTransferAttachments(), null!, new NoopUnitOfWork(), NullLogger<UploadTransferAttachmentCommandHandler>.Instance);
         byte[] pdf = [0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34];
         var good = new PendingTransferFile("a.pdf", 100, pdf);
 
@@ -391,10 +391,10 @@ public class TransferSlipHandlerTests
     }
 
     private static ConfirmTransferReceiptCommandHandler Receipt(FakeInventoryStore store, FakeTransferAttachments? attachments = null) =>
-        new(store, NullLogger<ConfirmTransferReceiptCommandHandler>.Instance, attachments: attachments);
+        new(store, store, NullLogger<ConfirmTransferReceiptCommandHandler>.Instance, attachments: attachments);
 
     private static CancelTransferCommandHandler Cancel(FakeInventoryStore store) =>
-        new(store, NullLogger<CancelTransferCommandHandler>.Instance);
+        new(store, store, NullLogger<CancelTransferCommandHandler>.Instance);
 
     private static CreateTransferSlipCommand Command(Guid sourceId, Guid destinationId, Guid itemId, int quantity) =>
         new()
@@ -461,7 +461,7 @@ public class TransferRequestUpdateTests
     }
 
     private static UpdateTransferRequestCommandHandler Handler(FakeInventoryStore store) =>
-        new(store, NullLogger<UpdateTransferRequestCommandHandler>.Instance);
+        new(store, store, NullLogger<UpdateTransferRequestCommandHandler>.Instance);
 
     private static UpdateTransferRequestCommand Update(Guid id, Guid source, Guid destination, Guid item, int quantity, Pancras.Domain.Employees.EmployeeActor actor) =>
         new() { TransferSlipId = id, SourceLocationId = source, DestinationLocationId = destination, Note = "mới", Actor = actor, Lines = [new TransferLineInput(item, quantity)] };
@@ -487,7 +487,7 @@ public class TransferRequestUpdateTests
         var sameLocation = await Handler(store).HandleAsync(Update(id, b.Id, b.Id, item, 3, maker), CancellationToken.None);
         var zero = await Handler(store).HandleAsync(Update(id, a.Id, b.Id, item, 0, maker), CancellationToken.None);
         var notCreator = await Handler(store).HandleAsync(Update(id, a.Id, b.Id, item, 3, TestActors.Admin), CancellationToken.None);
-        await new DecideTransferCommandHandler(store, NullLogger<DecideTransferCommandHandler>.Instance)
+        await new DecideTransferCommandHandler(store, store, NullLogger<DecideTransferCommandHandler>.Instance)
             .HandleAsync(new DecideTransferCommand(id, TestActors.Admin, true), CancellationToken.None);
 
         var afterApproval = await Handler(store).HandleAsync(Update(id, a.Id, b.Id, item, 3, maker), CancellationToken.None);
@@ -505,7 +505,7 @@ public class TransferRequestUpdateTests
     {
         var (store, _, _, _, id, _) = Setup();
 
-        var result = await new DecideTransferCommandHandler(store, NullLogger<DecideTransferCommandHandler>.Instance)
+        var result = await new DecideTransferCommandHandler(store, store, NullLogger<DecideTransferCommandHandler>.Instance)
             .HandleAsync(new DecideTransferCommand(id, TestActors.Admin, false, "  "), CancellationToken.None);
 
         Assert.Equal(StockError.ReasonRequired, result.Error);

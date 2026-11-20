@@ -8,6 +8,7 @@ namespace Pancras.Application.Employees;
 
 public sealed class ConfirmTwoFactorSetupCommandHandler(
     IEmployeeRepository repository,
+    IUnitOfWork unitOfWork,
     ISecretProtector protector,
     ILogger<ConfirmTwoFactorSetupCommandHandler> logger,
     TimeProvider? clock = null,
@@ -21,6 +22,7 @@ public sealed class ConfirmTwoFactorSetupCommandHandler(
         EmployeeActor actor,
         CancellationToken cancellationToken)
     {
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var employee = await repository.GetByIdAsync(actor.Id, cancellationToken);
         if (employee is null)
         {
@@ -43,9 +45,9 @@ public sealed class ConfirmTwoFactorSetupCommandHandler(
 
         var codes = RecoveryCodes.Generate();
         employee.EnableTwoFactor(command.ProtectedSecret!, codes.Select(RecoveryCodes.Hash), step.Value);
-        await repository.SaveChangesAsync(cancellationToken);
+        audit.Stage(_clock, request, employee.Id, employee.Code, AuditActions.TwoFactorEnabled, "employee", employee.Id.ToString("D"), null);
+        (await scope.CommitAsync(cancellationToken)).EnsureSaved();
         logger.LogInformation("Employee {EmployeeId} enabled two-factor.", employee.Id);
-        await audit.RecordAsync(_clock, request, employee.Id, employee.Code, AuditActions.TwoFactorEnabled, "employee", employee.Id.ToString("D"), null, cancellationToken);
         return Result<TwoFactorEnabledResult, EmployeeError>.Ok(
             new TwoFactorEnabledResult(codes, LoginEmployeeCommandHandler.ToSession(employee, requiresTwoFactor: false)));
     }

@@ -13,6 +13,7 @@ public sealed class CreatePurchaseOrderCommandHandler(
     ISupplierRepository suppliers,
     IInventoryRepository inventory,
     ICatalogItemRepository catalog,
+    IUnitOfWork unitOfWork,
     ILogger<CreatePurchaseOrderCommandHandler> logger,
     GetCatalogMeasuresHandler? measures = null,
     TimeProvider? clock = null,
@@ -21,6 +22,7 @@ public sealed class CreatePurchaseOrderCommandHandler(
 {
     public async Task<Result<Guid, PurchaseError>> HandleAsync(CreatePurchaseOrderCommand command, CancellationToken cancellationToken)
     {
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         if (!Pancras.Domain.Purchasing.PurchaseAccess.CanManage(command.Actor))
         {
             logger.LogWarning("Purchase order creation forbidden for role {Role}.", command.Actor.Role);
@@ -134,14 +136,22 @@ public sealed class CreatePurchaseOrderCommandHandler(
             }
         }
 
-        if (!await orders.TryAddAsync(order, cancellationToken))
+        await orders.AddAsync(order, cancellationToken);
+        audit.Stage(clock ?? TimeProvider.System, request, command.Actor.Id, null, Pancras.Domain.Auditing.AuditActions.PurchaseCreated, "purchase_order", order.Id.ToString("D"), null);
+        var outcome = await scope.CommitAsync(cancellationToken);
+        if (outcome == SaveOutcome.Duplicate)
         {
             logger.LogInformation("Purchase order code is already used.");
             return Result<Guid, PurchaseError>.Fail(PurchaseError.DuplicateCode);
         }
 
+        if (outcome != SaveOutcome.Saved)
+        {
+            logger.LogWarning("Purchase order commit failed.");
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.SaveFailed);
+        }
+
         logger.LogInformation("Created purchase order {PurchaseOrderId}.", order.Id);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, Pancras.Domain.Auditing.AuditActions.PurchaseCreated, "purchase_order", order.Id.ToString("D"), null, cancellationToken);
         return Result<Guid, PurchaseError>.Ok(order.Id);
     }
 

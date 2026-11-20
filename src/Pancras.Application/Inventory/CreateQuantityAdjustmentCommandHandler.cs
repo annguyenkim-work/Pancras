@@ -9,11 +9,13 @@ namespace Pancras.Application.Inventory;
 
 public sealed class CreateQuantityAdjustmentCommandHandler(
     IInventoryRepository repository,
+    IUnitOfWork unitOfWork,
     IEmployeeRepository employees,
     ILogger<CreateQuantityAdjustmentCommandHandler> logger)
 {
     public async Task<Result<Guid, StockError>> HandleAsync(CreateQuantityAdjustmentCommand command, CancellationToken cancellationToken)
     {
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         if (!InventoryAccess.CanOperate(command.Actor.Role) || !InventoryAccess.CanAccessLocation(command.Actor, command.StockLocationId))
         {
             logger.LogWarning("Quantity adjustment forbidden for employee {EmployeeId}.", command.Actor.Id);
@@ -28,13 +30,9 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
 
         if (InventoryRoles.CanPostAdjustment(command.Actor.Role))
         {
-            return await PostDirectAsync(command, cancellationToken);
+            return await PostDirectAsync(command, scope, cancellationToken);
         }
 
-        var before = await repository.FindBalanceForUpdateAsync(command.CatalogItemId, command.StockLocationId, cancellationToken);
-        var onHand = before?.OnHand;
-        var reserved = before?.Reserved;
-        var inTransit = before?.InTransit;
         var decision = QuantityAdjustment.TryCreate(
             command.Actor.Role,
             command.StockLocationId,
@@ -50,14 +48,9 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
             return Result<Guid, StockError>.Fail(StockDecisionErrors.ToError(decision));
         }
 
-        if (before is not null && (before.OnHand != onHand || before.Reserved != reserved || before.InTransit != inTransit))
-        {
-            before.RestoreUncommitted(onHand ?? 0, reserved ?? 0, inTransit ?? 0);
-        }
-
         await repository.AddAdjustmentAsync(adjustment, cancellationToken);
         await NotifyFinanceAsync(adjustment, cancellationToken);
-        if (!await repository.CommitAsync(cancellationToken))
+        if (await scope.CommitAsync(cancellationToken) != SaveOutcome.Saved)
         {
             logger.LogWarning("Quantity adjustment commit failed for {CatalogItemId}.", command.CatalogItemId);
             return Result<Guid, StockError>.Fail(StockError.MissingEvidence);
@@ -67,7 +60,7 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
         return Result<Guid, StockError>.Ok(adjustment.Id);
     }
 
-    private async Task<Result<Guid, StockError>> PostDirectAsync(CreateQuantityAdjustmentCommand command, CancellationToken cancellationToken)
+    private async Task<Result<Guid, StockError>> PostDirectAsync(CreateQuantityAdjustmentCommand command, IUnitOfWorkScope scope, CancellationToken cancellationToken)
     {
         var balance = await repository.FindBalanceForUpdateAsync(command.CatalogItemId, command.StockLocationId, cancellationToken);
         var created = false;
@@ -77,7 +70,6 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
             created = true;
         }
 
-        var snapshot = BalanceSnapshot.Take(balance);
         var decision = QuantityAdjustment.TryApplyDirect(
             command.Actor.Role,
             command.StockLocationId,
@@ -90,7 +82,6 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
             out var adjustment);
         if (decision != StockDecision.Accepted || adjustment is null)
         {
-            snapshot.Restore();
             logger.LogInformation("Direct quantity adjustment rejected for {CatalogItemId}.", command.CatalogItemId);
             return decision == StockDecision.NegativeStock
                 ? Result<Guid, StockError>.Fail(StockError.NegativeStock, StockDecisionErrors.AvailabilityDetail(balance))
@@ -112,9 +103,8 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
             await repository.AddBalanceAsync(balance, cancellationToken);
         }
 
-        if (!await repository.CommitAsync(cancellationToken))
+        if (await scope.CommitAsync(cancellationToken) != SaveOutcome.Saved)
         {
-            snapshot.Restore();
             logger.LogWarning("Direct quantity adjustment commit failed for {CatalogItemId}.", command.CatalogItemId);
             return Result<Guid, StockError>.Fail(StockError.NegativeStock);
         }

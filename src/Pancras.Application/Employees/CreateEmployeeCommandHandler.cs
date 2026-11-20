@@ -87,6 +87,7 @@ public sealed class CreateEmployeeCommandValidator : AbstractValidator<CreateEmp
 
 public sealed class CreateEmployeeCommandHandler(
     IEmployeeRepository repository,
+    IUnitOfWork unitOfWork,
     ILocationRepository locations,
     IPasswordHasher passwordHasher,
     ILogger<CreateEmployeeCommandHandler> logger,
@@ -162,13 +163,16 @@ public sealed class CreateEmployeeCommandHandler(
                 command.JobTitle,
                 command.Department,
                 command.Address);
-            if (!await repository.TryAddAsync(employee, cancellationToken))
+            await using var scope = await unitOfWork.BeginAsync(cancellationToken);
+            await repository.AddAsync(employee, cancellationToken);
+            audit.Stage(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.EmployeeCreated, "employee", employee.Id.ToString("D"), $"role={employee.Role}");
+            if ((await scope.CommitAsync(cancellationToken)).ThrowIfFailed() != SaveOutcome.Saved)
             {
+                // Trùng mã (có người vừa lấy mã này): thử mã kế tiếp trong một giao dịch mới.
                 continue;
             }
 
             logger.LogInformation("Created employee {EmployeeId} by {ActorId}.", employee.Id, actor.Id);
-            await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.EmployeeCreated, "employee", employee.Id.ToString("D"), $"role={employee.Role}", cancellationToken);
             return Result<CreatedEmployee, EmployeeError>.Ok(
                 new CreatedEmployee(employee.Id, employee.Code, employee.FullName, employee.Role));
         }

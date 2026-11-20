@@ -33,11 +33,8 @@ public sealed class PurchaseAttachmentRepository(PancrasDbContext context) : IPu
     public Task<PurchaseAttachment?> FindAsync(Guid id, CancellationToken cancellationToken) =>
         context.PurchaseAttachments.AsNoTracking().FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
 
-    public async Task AddAsync(PurchaseAttachment attachment, CancellationToken cancellationToken)
-    {
-        await context.PurchaseAttachments.AddAsync(attachment, cancellationToken);
-        await context.SaveChangesAsync(cancellationToken);
-    }
+    public Task AddAsync(PurchaseAttachment attachment, CancellationToken cancellationToken) =>
+        context.PurchaseAttachments.AddAsync(attachment, cancellationToken).AsTask();
 
     public async Task RemoveAsync(Guid id, CancellationToken cancellationToken) =>
         await context.PurchaseAttachments.Where(item => item.Id == id).ExecuteDeleteAsync(cancellationToken);

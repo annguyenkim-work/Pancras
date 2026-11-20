@@ -174,5 +174,4 @@ public sealed class QuantityAdjustment : Pancras.Domain.Auditing.AuditStamped
         return StockDecision.Accepted;
     }
 
-    public void RestoreUncommitted(ApprovalStatus status) => Status = status;
 }

@@ -10,6 +10,7 @@ namespace Pancras.Application.Inventory;
 
 public sealed class ApproveDisposalSlipCommandHandler(
     IInventoryRepository repository,
+    IUnitOfWork unitOfWork,
     IEmployeeRepository employees,
     ILogger<ApproveDisposalSlipCommandHandler> logger,
     TimeProvider? clock = null,
@@ -18,6 +19,7 @@ public sealed class ApproveDisposalSlipCommandHandler(
 {
     public async Task<Result<Guid, StockError>> HandleAsync(ApproveDocumentCommand command, CancellationToken cancellationToken)
     {
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var slip = await repository.FindDisposalForUpdateAsync(command.Id, cancellationToken);
         if (slip is null)
         {
@@ -25,14 +27,14 @@ public sealed class ApproveDisposalSlipCommandHandler(
             return Result<Guid, StockError>.Fail(StockError.DisposalRejected);
         }
 
-        return await ApplyAsync(slip, command.Actor, isNew: false, cancellationToken);
+        return await ApplyAsync(slip, command.Actor, isNew: false, scope, cancellationToken);
     }
 
     /// <summary>
     /// Duyệt một phiếu hủy. Với phiếu mới (<paramref name="isNew"/>), phiếu chưa có trong DB: chỉ khi duyệt được
     /// mới ghi phiếu, phiếu trừ tồn và biến động trong cùng một lần lưu. Duyệt không được thì không để lại gì.
     /// </summary>
-    public async Task<Result<Guid, StockError>> ApplyAsync(DisposalSlip slip, EmployeeActor actor, bool isNew, CancellationToken cancellationToken)
+    public async Task<Result<Guid, StockError>> ApplyAsync(DisposalSlip slip, EmployeeActor actor, bool isNew, IUnitOfWorkScope scope, CancellationToken cancellationToken)
     {
         var command = new ApproveDocumentCommand(slip.Id, actor);
         if (!InventoryAccess.CanApprove(command.Actor, slip.CreatedByRole, slip.StockLocationId))
@@ -50,8 +52,6 @@ public sealed class ApproveDisposalSlipCommandHandler(
                 : Result<Guid, StockError>.Fail(StockError.DisposalRejected, StockDecisionErrors.AvailabilityDetail(null));
         }
 
-        var snapshot = BalanceSnapshot.Take(balance);
-        var status = slip.Status;
         var decision = slip.Approve(command.Actor.Role, balance);
         if (decision != StockDecision.Accepted)
         {
@@ -75,16 +75,14 @@ public sealed class ApproveDisposalSlipCommandHandler(
             cancellationToken);
         await repository.RemoveNoticesAsync(slip.Id, cancellationToken);
         await NotifyWarehouseAsync(slip.StockLocationId, slip.Id, occurredAt, cancellationToken);
-        if (!await repository.CommitAsync(cancellationToken))
+        audit.Stage(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.DisposalApproved, "disposal", slip.Id.ToString("D"), null);
+        if (await scope.CommitAsync(cancellationToken) != SaveOutcome.Saved)
         {
-            snapshot.Restore();
-            slip.RestoreUncommitted(status);
             logger.LogWarning("Disposal approval commit failed for {DisposalSlipId}.", slip.Id);
             return Result<Guid, StockError>.Fail(StockError.DisposalRejected);
         }
 
         logger.LogInformation("Approved disposal slip {DisposalSlipId} at {StockLocationId}.", slip.Id, slip.StockLocationId);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.DisposalApproved, "disposal", slip.Id.ToString("D"), null, cancellationToken);
         return Result<Guid, StockError>.Ok(slip.Id);
     }
 

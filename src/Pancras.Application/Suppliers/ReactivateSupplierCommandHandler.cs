@@ -10,6 +10,7 @@ namespace Pancras.Application.Suppliers;
 /// <summary>Khôi phục nhà cung cấp đã ngừng hợp tác. Chỉ Admin.</summary>
 public sealed class ReactivateSupplierCommandHandler(
     ISupplierRepository repository,
+    IUnitOfWork unitOfWork,
     ILogger<ReactivateSupplierCommandHandler> logger,
     TimeProvider? clock = null,
     IRequestInfo? request = null,
@@ -23,6 +24,7 @@ public sealed class ReactivateSupplierCommandHandler(
             return Result<Guid, SupplierError>.Fail(SupplierError.Forbidden);
         }
 
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var supplier = await repository.GetAnyForUpdateAsync(id, cancellationToken);
         if (supplier is null)
         {
@@ -43,7 +45,8 @@ public sealed class ReactivateSupplierCommandHandler(
         }
 
         supplier.Reactivate();
-        var saved = await repository.TrySaveAsync(cancellationToken);
+        audit.Stage(clock ?? TimeProvider.System, request, actor.Id, null, AuditActions.SupplierReactivated, "supplier", supplier.Id.ToString("D"), supplier.Code);
+        var saved = (await scope.CommitAsync(cancellationToken)).ThrowIfFailed();
         if (saved == SaveOutcome.Conflict)
         {
             return Result<Guid, SupplierError>.Fail(SupplierError.VersionConflict);
@@ -55,7 +58,6 @@ public sealed class ReactivateSupplierCommandHandler(
         }
 
         logger.LogInformation("Reactivated supplier {SupplierId}.", supplier.Id);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, actor.Id, null, AuditActions.SupplierReactivated, "supplier", supplier.Id.ToString("D"), supplier.Code, cancellationToken);
         return Result<Guid, SupplierError>.Ok(supplier.Id);
     }
 

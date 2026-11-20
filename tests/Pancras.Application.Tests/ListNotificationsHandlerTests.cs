@@ -14,7 +14,7 @@ public class ListNotificationsHandlerTests
             inventory.Notices.Add(Notification.Create(me, null, Guid.CreateVersion7(), NotificationKind.Purchase, "step", new DateTimeOffset(2026, 11, 1, 8, i, 0, TimeSpan.Zero)));
         }
 
-        return (new ListNotificationsHandler(inventory), me, inventory);
+        return (new ListNotificationsHandler(inventory, inventory), me, inventory);
     }
 
     [Fact]

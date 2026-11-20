@@ -15,8 +15,8 @@ internal static class PurchaseOrderTestExtensions
         Assert.True(order.TryApprove());
     }
 
-    /// <summary>Duyệt (nếu cần) rồi nhận đủ số đặt của mọi dòng, lần cuối. Trả về bản hoàn tác của lần nhận.</summary>
-    public static ReceiptUndo ReceiveAll(this PurchaseOrder order, DateTimeOffset? at = null, string? by = null)
+    /// <summary>Duyệt (nếu cần) rồi nhận đủ số đặt của mọi dòng, lần cuối.</summary>
+    public static void ReceiveAll(this PurchaseOrder order, DateTimeOffset? at = null, string? by = null)
     {
         if (order.Status is PurchaseStatus.Draft or PurchaseStatus.PendingApproval)
         {
@@ -24,8 +24,7 @@ internal static class PurchaseOrderTestExtensions
         }
 
         var actual = order.Lines.ToDictionary(line => line.Id, line => line.Quantity - line.ReceivedQuantity);
-        var decision = order.TryRecordReceipt(actual, true, null, at ?? DateTimeOffset.UtcNow, by, out _, out var undo);
+        var decision = order.TryRecordReceipt(actual, true, null, at ?? DateTimeOffset.UtcNow, by, out _);
         Assert.Equal(ReceiptDecision.Ok, decision);
-        return undo!;
     }
 }

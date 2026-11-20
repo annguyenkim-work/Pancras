@@ -16,6 +16,7 @@ namespace Pancras.Application.Inventory;
 /// </summary>
 public sealed class ConfirmTransferReceiptCommandHandler(
     IInventoryRepository repository,
+    IUnitOfWork unitOfWork,
     ILogger<ConfirmTransferReceiptCommandHandler> logger,
     TimeProvider? clock = null,
     IAuditLog? audit = null,
@@ -29,13 +30,14 @@ public sealed class ConfirmTransferReceiptCommandHandler(
     /// </summary>
     public async Task<Result<Guid, StockError>> CheckAsync(ConfirmTransferCommand command, int newFileCount, CancellationToken cancellationToken)
     {
-        var checkedSlip = await ValidateAsync(command, newFileCount, cancellationToken);
+        var checkedSlip = await ValidateAsync(command, newFileCount, forUpdate: false, cancellationToken);
         return checkedSlip.Failure is { } failure ? failure : Result<Guid, StockError>.Ok(command.TransferSlipId);
     }
 
     public async Task<Result<Guid, StockError>> HandleAsync(ConfirmTransferCommand command, CancellationToken cancellationToken)
     {
-        var (slip, failure, actuals) = await ValidateAsync(command, 0, cancellationToken);
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
+        var (slip, failure, actuals) = await ValidateAsync(command, 0, forUpdate: true, cancellationToken);
         if (failure is not null || slip is null)
         {
             return failure ?? Result<Guid, StockError>.Fail(StockError.ReceiptRejected);
@@ -54,15 +56,9 @@ public sealed class ConfirmTransferReceiptCommandHandler(
             destinations[itemId] = destination;
         }
 
-        var snapshots = destinations.Values.Select(BalanceSnapshot.Take).ToArray();
         var status = slip.Status;
         if (!slip.TryConfirmReceipt(destinations, actuals, command.Note))
         {
-            foreach (var snapshot in snapshots)
-            {
-                snapshot.Restore();
-            }
-
             logger.LogInformation("Receipt rejected for {TransferSlipId}.", slip.Id);
             return Result<Guid, StockError>.Fail(StockError.ReceiptRejected);
         }
@@ -101,20 +97,14 @@ public sealed class ConfirmTransferReceiptCommandHandler(
             slip.HasDiscrepancy ? TransferAudience.Creator | TransferAudience.Finance : TransferAudience.Creator,
             clock,
             cancellationToken);
-        if (!await repository.CommitAsync(cancellationToken))
+        audit.Stage(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.TransferReceived, "transfer_slip", slip.Id.ToString("D"), slip.HasDiscrepancy ? "discrepancy" : null);
+        if (await scope.CommitAsync(cancellationToken) != SaveOutcome.Saved)
         {
-            foreach (var snapshot in snapshots)
-            {
-                snapshot.Restore();
-            }
-
-            slip.RestoreUncommitted(status);
             logger.LogWarning("Receipt commit failed for {TransferSlipId}.", slip.Id);
             return Result<Guid, StockError>.Fail(StockError.ReceiptRejected);
         }
 
         logger.LogInformation("Confirmed receipt {TransferSlipId}.", slip.Id);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.TransferReceived, "transfer_slip", slip.Id.ToString("D"), slip.HasDiscrepancy ? "discrepancy" : null, cancellationToken);
         return Result<Guid, StockError>.Ok(slip.Id);
     }
 
@@ -144,9 +134,13 @@ public sealed class ConfirmTransferReceiptCommandHandler(
     private async Task<(TransferSlip? Slip, Result<Guid, StockError>? Failure, Dictionary<Guid, int>? Actuals)> ValidateAsync(
         ConfirmTransferCommand command,
         int newFileCount,
+        bool forUpdate,
         CancellationToken cancellationToken)
     {
-        var slip = await repository.FindTransferForUpdateAsync(command.TransferSlipId, cancellationToken);
+        // Kiểm tra trước (trang gọi trước khi lưu file) chỉ đọc; chỉ lần xác nhận thật mới khóa dòng phiếu trong scope.
+        var slip = forUpdate
+            ? await repository.FindTransferForUpdateAsync(command.TransferSlipId, cancellationToken)
+            : await repository.FindTransferReadOnlyAsync(command.TransferSlipId, cancellationToken);
         if (slip is not null
             && (!InventoryAccess.CanOperate(command.Actor.Role) || !InventoryAccess.CanAccessLocation(command.Actor, slip.DestinationLocationId)))
         {

@@ -37,10 +37,10 @@ public class TransferPrintTests
     public async Task Rejected_And_Cancelled_CannotBePrinted()
     {
         var rejected = await RequestAsync();
-        await new DecideTransferCommandHandler(_store, NullLogger<DecideTransferCommandHandler>.Instance)
+        await new DecideTransferCommandHandler(_store, _store, NullLogger<DecideTransferCommandHandler>.Instance)
             .HandleAsync(new DecideTransferCommand(rejected, TestActors.Admin, false, "Không đủ"), CancellationToken.None);
         var cancelled = await RequestAsync();
-        await new CancelTransferCommandHandler(_store, NullLogger<CancelTransferCommandHandler>.Instance)
+        await new CancelTransferCommandHandler(_store, _store, NullLogger<CancelTransferCommandHandler>.Instance)
             .HandleAsync(new ConfirmTransferCommand(cancelled, TestActors.Admin, null, "Hủy"), CancellationToken.None);
 
         Assert.Equal(StockError.TransferNotPrintable, (await PrintAsync(rejected, TestActors.Admin)).Error);
@@ -137,7 +137,7 @@ public class TransferPrintTests
     private async Task<Guid> ApproveAsync()
     {
         var id = await RequestAsync();
-        await new DecideTransferCommandHandler(_store, NullLogger<DecideTransferCommandHandler>.Instance)
+        await new DecideTransferCommandHandler(_store, _store, NullLogger<DecideTransferCommandHandler>.Instance)
             .HandleAsync(new DecideTransferCommand(id, TestActors.Admin, true), CancellationToken.None);
         return id;
     }
@@ -145,7 +145,7 @@ public class TransferPrintTests
     private async Task<Guid> ShipAsync()
     {
         var id = await ApproveAsync();
-        await new ShipTransferCommandHandler(_store, NullLogger<ShipTransferCommandHandler>.Instance)
+        await new ShipTransferCommandHandler(_store, _store, NullLogger<ShipTransferCommandHandler>.Instance)
             .HandleAsync(new ShipTransferCommand(id, TestActors.Admin, "SEAL-1", "Anh Bình"), CancellationToken.None);
         return id;
     }

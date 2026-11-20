@@ -1,6 +1,5 @@
 using Pancras.Application.Common;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 using Pancras.Application.Suppliers;
 using Pancras.Domain.Suppliers;
 
@@ -117,43 +116,6 @@ public sealed class SupplierRepository(PancrasDbContext context) : ISupplierRepo
             .Select(supplier => (string?)supplier.Name)
             .FirstOrDefaultAsync(cancellationToken);
 
-    public async Task<bool> TryAddAsync(Supplier supplier, CancellationToken cancellationToken)
-    {
-        await context.Suppliers.AddAsync(supplier, cancellationToken);
-        try
-        {
-            await context.SaveChangesAsync(cancellationToken);
-            return true;
-        }
-        catch (DbUpdateException exception) when (IsUniqueViolation(exception))
-        {
-            context.Entry(supplier).State = EntityState.Detached;
-            return false;
-        }
-    }
-
-    public async Task<SaveOutcome> TrySaveAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            await context.SaveChangesAsync(cancellationToken);
-            return SaveOutcome.Saved;
-        }
-        catch (DbUpdateException exception) when (IsUniqueViolation(exception) || exception is DbUpdateConcurrencyException)
-        {
-            foreach (var entry in context.ChangeTracker.Entries<Supplier>().ToList())
-            {
-                if (entry.State == EntityState.Modified)
-                {
-                    await entry.ReloadAsync(cancellationToken);
-                }
-            }
-
-            return exception is DbUpdateConcurrencyException ? SaveOutcome.Conflict : SaveOutcome.Duplicate;
-        }
-    }
-
-    private static bool IsUniqueViolation(DbUpdateException exception) =>
-        exception.InnerException is PostgresException postgres
-        && postgres.SqlState == PostgresErrorCodes.UniqueViolation;
+    public Task AddAsync(Supplier supplier, CancellationToken cancellationToken) =>
+        context.Suppliers.AddAsync(supplier, cancellationToken).AsTask();
 }

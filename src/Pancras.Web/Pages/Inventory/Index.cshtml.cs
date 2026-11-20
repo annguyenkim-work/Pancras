@@ -46,13 +46,23 @@ public class IndexModel(
 
     public IReadOnlyList<StockItemChoice> Items { get; private set; } = [];
 
-    public IReadOnlyList<TransferSlipRow> Transfers { get; private set; } = [];
+    /// <summary>Phiếu chuyển của trang hiện tại (lọc, sắp xếp, cắt trang trong database). Chỉ nạp ở tab Chuyển kho.</summary>
+    public IReadOnlyList<TransferSlipRow> TransferRows { get; private set; } = [];
 
-    public IReadOnlyList<StocktakeRow> Stocktakes { get; private set; } = [];
+    /// <summary>Phiếu của trang hiện tại, kèm phiếu đang được mở (sau thao tác lỗi hoặc mở từ thông báo) dù nó nằm ở trang khác.</summary>
+    public IReadOnlyList<TransferSlipRow> PagedTransfers { get; private set; } = [];
 
-    public IReadOnlyList<AdjustmentRow> Adjustments { get; private set; } = [];
+    /// <summary>Tổng số phiếu khớp bộ lọc.</summary>
+    public int TransferTotal { get; private set; }
 
-    public IReadOnlyList<DisposalRow> Disposals { get; private set; } = [];
+    /// <summary>Người dùng có thấy phiếu chuyển nào không (bỏ qua bộ lọc), để phân biệt "chưa có phiếu" với "không có phiếu phù hợp".</summary>
+    public bool AnyTransfers { get; private set; }
+
+    public int CurrentTransferPage { get; private set; } = 1;
+
+    private readonly Dictionary<string, int> _waitingCounts = new(StringComparer.Ordinal);
+
+    private IReadOnlyDictionary<Guid, StockDocumentLabel> _labels = new Dictionary<Guid, StockDocumentLabel>();
 
     public Pancras.Domain.Employees.EmployeeActor Actor => User.ToActor();
 
@@ -136,11 +146,8 @@ public class IndexModel(
     [BindProperty(SupportsGet = true, Name = "doc")]
     public Guid? FocusDocument { get; set; }
 
-    private Pancras.Web.Formatting.DocumentSlice? _stocktakeSlice;
-
-    /// <summary>Kiểm kê, điều chỉnh và phiếu hủy gộp thành một danh sách phân trang 20/50.</summary>
-    public Pancras.Web.Formatting.DocumentSlice StocktakeSlice => _stocktakeSlice ??= Pancras.Web.Formatting.DocumentPaging.Slice(
-        Stocktakes, Adjustments, Disposals, StocktakePage, Pancras.Web.Formatting.PagerModel.SizeFrom(Request), FocusDocument);
+    /// <summary>Kiểm kê, điều chỉnh và phiếu hủy gộp thành một danh sách phân trang 20/50 (đếm và cắt trong database). Chỉ nạp ở tab Kiểm kê.</summary>
+    public StockDocumentPage StocktakeSlice { get; private set; } = new([], [], [], 0, 1);
 
     public Pancras.Web.Formatting.PagerModel StocktakePager =>
         new(StocktakeSlice.Page, Pancras.Web.Formatting.PagerModel.SizeFrom(Request), StocktakeSlice.Total, (page, size) => StocktakesUrl(page, size));
@@ -168,32 +175,13 @@ public class IndexModel(
         new(CurrentTransferPage, TransferPageSize, TransferTotal, (page, size) => TransferUrl(quick, page, true, size));
 
     /// <summary>Số phiếu đang chờ chính người dùng xử lý (duyệt, xuất, nhận hoặc xử lý chênh lệch), hiện trên tab Chuyển kho.</summary>
-    public int PendingForMeCount => Transfers.Count(slip => Waiting(slip, "all-mine"));
+    public int PendingForMeCount { get; private set; }
 
-    public int CountFor(string quick) => Transfers.Count(slip => Waiting(slip, quick));
+    /// <summary>Số phiếu đang chờ người dùng ở một nhóm lọc nhanh (decide, ship, receive, resolve). Chỉ có ở tab Chuyển kho.</summary>
+    public int CountFor(string quick) => _waitingCounts.GetValueOrDefault(quick);
 
-    public IReadOnlyList<TransferSlipRow> FilteredTransfers => Transfers.Where(MatchesTransferFilter).ToArray();
-
-    public int TransferTotal => FilteredTransfers.Count;
-
-    public int TransferPageCount => Math.Max(1, (int)Math.Ceiling(TransferTotal / (double)TransferPageSize));
-
-    public int CurrentTransferPage => Math.Clamp(TransferPage, 1, TransferPageCount);
-
-    /// <summary>Phiếu của trang hiện tại, kèm phiếu đang được mở (sau thao tác lỗi hoặc mở từ thông báo) dù nó nằm ở trang khác.</summary>
-    public IReadOnlyList<TransferSlipRow> PagedTransfers
-    {
-        get
-        {
-            var page = FilteredTransfers.Skip((CurrentTransferPage - 1) * TransferPageSize).Take(TransferPageSize).ToList();
-            if (OpenTransferId is Guid open && page.All(slip => slip.Id != open) && Transfers.FirstOrDefault(slip => slip.Id == open) is { } extra)
-            {
-                page.Add(extra);
-            }
-
-            return page;
-        }
-    }
+    /// <summary>Người dùng thấy phiếu đang mở (để hiện lỗi của thao tác trên phiếu đó); người không thấy phiếu không nhận thông báo.</summary>
+    public bool CanSeeOpenTransfer => OpenTransferId is Guid open && PagedTransfers.Any(slip => slip.Id == open);
 
     public bool HasTransferFilter => !string.IsNullOrWhiteSpace(TransferQuick)
         || !string.IsNullOrWhiteSpace(TransferStatusFilter)
@@ -202,62 +190,31 @@ public class IndexModel(
         || !string.IsNullOrWhiteSpace(TransferFrom)
         || !string.IsNullOrWhiteSpace(TransferTo);
 
-    /// <summary>Phiếu đang chờ người dùng theo từng nhóm: decide (duyệt), ship (xuất), receive (nhận), resolve (xử lý chênh lệch), all-mine (bất kỳ nhóm nào).</summary>
-    private static bool Waiting(TransferSlipRow slip, string quick) => slip.Flow is { } flow && quick switch
+    private static readonly Dictionary<string, TransferWaitingKind> QuickKinds = new(StringComparer.Ordinal)
     {
-        "decide" => flow.CanDecide,
-        "ship" => flow.CanShip,
-        "receive" => flow.CanReceive,
-        "resolve" => flow.CanResolve,
-        "all-mine" => flow.CanDecide || flow.CanShip || flow.CanReceive || flow.CanResolve,
-        _ => false
+        ["decide"] = TransferWaitingKind.Decide,
+        ["ship"] = TransferWaitingKind.Ship,
+        ["receive"] = TransferWaitingKind.Receive,
+        ["resolve"] = TransferWaitingKind.Resolve,
+        ["all-mine"] = TransferWaitingKind.Any
     };
 
-    private bool MatchesTransferFilter(TransferSlipRow slip)
+    /// <summary>
+    /// Bộ lọc của tab Chuyển kho thành truy vấn database: nhóm "chờ tôi", trạng thái, kho, từ khóa (mã phiếu, mã/tên hàng),
+    /// ngày lập theo giờ Việt Nam (từ đầu ngày "từ" đến hết ngày "đến").
+    /// </summary>
+    private TransferListRequest TransferRequest()
     {
-        if (!string.IsNullOrWhiteSpace(TransferQuick) && TransferQuick != "all" && !Waiting(slip, TransferQuick))
-        {
-            return false;
-        }
-
-        if (TransferStatusFilter is { Length: > 0 } token
-            && Enum.TryParse<TransferStatus>(token, ignoreCase: true, out var status)
-            && slip.Status != status)
-        {
-            return false;
-        }
-
-        if (Guid.TryParse(TransferLocation, out var place) && slip.SourceId != place && slip.DestinationId != place)
-        {
-            return false;
-        }
-
-        if (!string.IsNullOrWhiteSpace(TransferSearch))
-        {
-            var term = TransferSearch.Trim();
-            var code = StockLabels.TransferCode(slip.Number);
-            if (!code.Contains(term, StringComparison.OrdinalIgnoreCase)
-                && !slip.Lines.Any(line => line.Code.Contains(term, StringComparison.OrdinalIgnoreCase) || line.Name.Contains(term, StringComparison.OrdinalIgnoreCase)))
-            {
-                return false;
-            }
-        }
-
-        var created = StockLabels.Version7Time(slip.Id) is { } createdAt ? VietnamTime.Of(createdAt).DateTime.Date : (DateTime?)null;
-        if (created is DateTime day)
-        {
-            if (DateTime.TryParse(TransferFrom, CultureInfo.InvariantCulture, DateTimeStyles.None, out var from) && day < from.Date)
-            {
-                return false;
-            }
-
-            if (DateTime.TryParse(TransferTo, CultureInfo.InvariantCulture, DateTimeStyles.None, out var to) && day > to.Date)
-            {
-                return false;
-            }
-        }
-
-        return true;
+        TransferWaitingKind? waiting = !string.IsNullOrWhiteSpace(TransferQuick) && QuickKinds.TryGetValue(TransferQuick, out var kind) ? kind : null;
+        TransferStatus? status = TransferStatusFilter is { Length: > 0 } token && Enum.TryParse<TransferStatus>(token, ignoreCase: true, out var parsed) ? parsed : null;
+        Guid? place = Guid.TryParse(TransferLocation, out var placeId) ? placeId : null;
+        DateTimeOffset? from = DateTime.TryParse(TransferFrom, CultureInfo.InvariantCulture, DateTimeStyles.None, out var fromDay)
+            ? VietnamTime.StartOf(DateOnly.FromDateTime(fromDay))
+            : null;
+        DateTimeOffset? before = DateTime.TryParse(TransferTo, CultureInfo.InvariantCulture, DateTimeStyles.None, out var toDay)
+            ? VietnamTime.StartOf(DateOnly.FromDateTime(toDay).AddDays(1))
+            : null;
+        return new TransferListRequest(waiting, status, place, TransferSearch, from, before, TransferPage, TransferPageSize);
     }
 
     /// <summary>Số thực nhận đã nhập, giữ lại khi nhận hàng bị từ chối để người dùng không phải nhập lại.</summary>
@@ -269,7 +226,9 @@ public class IndexModel(
 
     /// <summary>Mã phiếu chuyển theo Id (dùng cho dòng điều chỉnh tự sinh khi nhận lệch); phiếu ngoài phạm vi người xem thì chỉ hiện tiền tố.</summary>
     public string TransferCodeOf(Guid transferId) =>
-        Transfers.FirstOrDefault(slip => slip.Id == transferId) is { } slip ? StockLabels.TransferCode(slip.Number) : StockDocumentCode.Transfer;
+        _labels.TryGetValue(transferId, out var label) && label.Kind == StockDocumentLabelKind.Transfer
+            ? StockLabels.TransferCode(label.TransferNumber)
+            : StockDocumentCode.Transfer;
 
     public string ActiveView => !CanOperate ? "balances" : View switch
     {
@@ -664,38 +623,31 @@ public class IndexModel(
 
     /// <summary>Nhãn loại biến động. Dòng trừ tồn theo phiếu hủy hiện "Xuất hủy" thay vì "Xuất bán" (dữ liệu vẫn là loại xuất).</summary>
     public (string Label, string ClassName) MovementBadge(StockHistoryEntry entry) =>
-        entry.Kind == StockMovementKind.Issue && Disposals.Any(slip => slip.Id == entry.DocumentId)
+        entry.Kind == StockMovementKind.Issue
+            && _labels.TryGetValue(entry.DocumentId, out var label)
+            && label.Kind == StockDocumentLabelKind.Disposal
             ? ("Xuất hủy", Badge.Colors(BadgeTone.Danger))
             : StockLabels.MovementBadge(entry.Kind, entry.Quantity);
 
     public string Describe(StockHistoryEntry entry)
     {
-        var transfer = Transfers.FirstOrDefault(slip => slip.Id == entry.DocumentId);
-        if (transfer is not null)
+        if (_labels.TryGetValue(entry.DocumentId, out var label))
         {
-            var code = StockLabels.TransferCode(transfer.Number);
-            var route = entry.Quantity < 0
-                ? $"{code}: Chuyển sang {transfer.DestinationName}"
-                : $"{code}: Nhận từ {transfer.SourceName}";
-            return string.IsNullOrWhiteSpace(transfer.Note) ? route : route + ". " + transfer.Note;
-        }
-
-        var stocktake = Stocktakes.FirstOrDefault(sheet => sheet.Id == entry.DocumentId);
-        if (stocktake is not null)
-        {
-            return string.IsNullOrWhiteSpace(stocktake.Reason) ? "Kiểm kê" : "Kiểm kê. " + stocktake.Reason;
-        }
-
-        var adjustment = Adjustments.FirstOrDefault(sheet => sheet.Id == entry.DocumentId);
-        if (adjustment is not null)
-        {
-            return string.IsNullOrWhiteSpace(adjustment.Reason) ? "Điều chỉnh tồn" : "Điều chỉnh tồn. " + adjustment.Reason;
-        }
-
-        var disposal = Disposals.FirstOrDefault(slip => slip.Id == entry.DocumentId);
-        if (disposal is not null)
-        {
-            return string.IsNullOrWhiteSpace(disposal.Reason) ? "Xuất hủy" : "Xuất hủy. " + disposal.Reason;
+            switch (label.Kind)
+            {
+                case StockDocumentLabelKind.Transfer:
+                    var code = StockLabels.TransferCode(label.TransferNumber);
+                    var route = entry.Quantity < 0
+                        ? $"{code}: Chuyển sang {label.DestinationName}"
+                        : $"{code}: Nhận từ {label.SourceName}";
+                    return string.IsNullOrWhiteSpace(label.Text) ? route : route + ". " + label.Text;
+                case StockDocumentLabelKind.Stocktake:
+                    return string.IsNullOrWhiteSpace(label.Text) ? "Kiểm kê" : "Kiểm kê. " + label.Text;
+                case StockDocumentLabelKind.Adjustment:
+                    return string.IsNullOrWhiteSpace(label.Text) ? "Điều chỉnh tồn" : "Điều chỉnh tồn. " + label.Text;
+                case StockDocumentLabelKind.Disposal:
+                    return string.IsNullOrWhiteSpace(label.Text) ? "Xuất hủy" : "Xuất hủy. " + label.Text;
+            }
         }
 
         return entry.Kind switch
@@ -832,11 +784,23 @@ public class IndexModel(
         Locations = await documentsHandler.ListLocationsAsync(Actor, cancellationToken);
         AllLocations = await documentsHandler.ListAllLocationsAsync(cancellationToken);
         Items = await documentsHandler.ListItemsAsync(cancellationToken);
-        Transfers = await documentsHandler.ListTransfersAsync(Actor, cancellationToken);
-        Stocktakes = await documentsHandler.ListStocktakesAsync(Actor, cancellationToken);
-        Adjustments = await documentsHandler.ListAdjustmentsAsync(Actor, cancellationToken);
-        Disposals = await documentsHandler.ListDisposalsAsync(Actor, cancellationToken);
         OpenTransferId = OpenTransfer;
+        if (CanOperate)
+        {
+            PendingForMeCount = await documentsHandler.CountWaitingTransfersAsync(Actor, TransferWaitingKind.Any, cancellationToken);
+        }
+
+        // Chỉ nạp danh sách của tab đang xem; mỗi danh sách đã được lọc và cắt trang trong database.
+        if (ActiveView == "transfers")
+        {
+            await LoadTransfersAsync(cancellationToken);
+        }
+        else if (ActiveView == "stocktakes")
+        {
+            StocktakeSlice = await documentsHandler.ListStockDocumentPageAsync(
+                Actor, StocktakePage, Pancras.Web.Formatting.PagerModel.SizeFrom(Request), FocusDocument, cancellationToken);
+        }
+
         PlaceCodes = BuildPlaceCodes(AllLocations);
         Groups = BuildGroups(filtered, badges);
         BalanceJson = JsonSerializer.Serialize(
@@ -849,6 +813,35 @@ public class IndexModel(
             Detail = await detailHandler.HandleAsync(itemId, Actor, cancellationToken);
             SliceHistory();
         }
+
+        // Nhãn cho các phiếu được nhắc tới trên trang: dòng lịch sử tồn đang hiện và phiếu điều chỉnh tự sinh khi nhận lệch.
+        var mentioned = VisibleHistory.Select(entry => entry.DocumentId)
+            .Concat(StocktakeSlice.Adjustments.Select(adjustment => adjustment.TransferSlipId ?? Guid.Empty));
+        _labels = await documentsHandler.DescribeDocumentsAsync(Actor, mentioned, cancellationToken);
+    }
+
+    private async Task LoadTransfersAsync(CancellationToken cancellationToken)
+    {
+        var page = await documentsHandler.ListTransferPageAsync(Actor, TransferRequest(), cancellationToken);
+        TransferRows = page.Rows;
+        TransferTotal = page.Total;
+        AnyTransfers = page.AnyVisible;
+        CurrentTransferPage = page.PageNumber;
+        foreach (var (token, kind) in QuickKinds)
+        {
+            if (kind != TransferWaitingKind.Any)
+            {
+                _waitingCounts[token] = await documentsHandler.CountWaitingTransfersAsync(Actor, kind, cancellationToken);
+            }
+        }
+
+        var rows = TransferRows.ToList();
+        if (OpenTransferId is Guid open && rows.All(slip => slip.Id != open))
+        {
+            rows.AddRange(await documentsHandler.GetTransfersAsync(Actor, [open], cancellationToken));
+        }
+
+        PagedTransfers = rows;
     }
 
     private void SliceHistory()

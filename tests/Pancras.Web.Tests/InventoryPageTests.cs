@@ -667,8 +667,8 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
     public Task<TransferSlip?> FindTransferForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         Task.FromResult<TransferSlip?>(null);
 
-    public Task<IReadOnlyList<TransferSlip>> ListOpenTransfersAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<TransferSlip>>([]);
+    public Task<TransferSlip?> FindTransferReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
+        FindTransferForUpdateAsync(id, cancellationToken);
 
     public List<TransferEvent> TransferEvents { get; } = [];
 
@@ -683,9 +683,6 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
 
     public Task<IReadOnlyList<TransferEvent>> ListTransferEventsAsync(IReadOnlyCollection<Guid> transferSlipIds, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<TransferEvent>>(TransferEvents.Where(item => transferSlipIds.Contains(item.TransferSlipId)).ToArray());
-
-    public Task<IReadOnlyList<TransferSlip>> ListTransfersAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<TransferSlip>>(Transfers.ToArray());
 
     public Task<StockItemProfile?> FindItemProfileAsync(Guid catalogItemId, CancellationToken cancellationToken) =>
         Task.FromResult<StockItemProfile?>(null);
@@ -716,16 +713,10 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
     public Task<StocktakeSheet?> FindStocktakeForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         Task.FromResult<StocktakeSheet?>(null);
 
-    public Task<IReadOnlyList<StocktakeSheet>> ListStocktakesAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<StocktakeSheet>>([]);
-
     public Task AddAdjustmentAsync(QuantityAdjustment adjustment, CancellationToken cancellationToken) => Task.CompletedTask;
 
     public Task<QuantityAdjustment?> FindAdjustmentForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         Task.FromResult<QuantityAdjustment?>(null);
-
-    public Task<IReadOnlyList<QuantityAdjustment>> ListAdjustmentsAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<QuantityAdjustment>>([]);
 
     public Task AddDisposalAsync(DisposalSlip slip, CancellationToken cancellationToken) => Task.CompletedTask;
 
@@ -735,8 +726,124 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
     public Task<Guid?> FindDocumentLocationAsync(StockDocumentKind kind, Guid id, CancellationToken cancellationToken) =>
         Task.FromResult<Guid?>(null);
 
-    public Task<IReadOnlyList<DisposalSlip>> ListDisposalsAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<DisposalSlip>>([]);
+    // Bản trong bộ nhớ của các truy vấn trang (cùng ngữ nghĩa với InventoryRepository: lọc, sắp xếp, cắt trang).
+    public Task<TransferPage> ListTransfersPageAsync(TransferListQuery query, int pageNumber, int pageSize, CancellationToken cancellationToken)
+    {
+        var visible = TransferSource().Where(query.Visible.Compile()).ToList();
+        IEnumerable<TransferSlip> rows = visible;
+        if (query.Waiting is { } waiting)
+        {
+            rows = rows.Where(waiting.Compile());
+        }
+
+        if (query.Status is TransferStatus status)
+        {
+            rows = rows.Where(slip => slip.Status == status);
+        }
+
+        if (query.LocationId is Guid place)
+        {
+            rows = rows.Where(slip => slip.SourceLocationId == place || slip.DestinationLocationId == place);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Term))
+        {
+            var term = query.Term.Trim();
+            rows = rows.Where(slip => StockDocumentCode.ForTransfer(slip.Number).Contains(term, StringComparison.OrdinalIgnoreCase)
+                || slip.Lines.Any(line => ItemText(line.CatalogItemId).Any(text => text.Contains(term, StringComparison.OrdinalIgnoreCase))));
+        }
+
+        if (query.CreatedFrom is DateTimeOffset from)
+        {
+            rows = rows.Where(slip => CreatedAt(slip.Id) >= from);
+        }
+
+        if (query.CreatedBefore is DateTimeOffset before)
+        {
+            rows = rows.Where(slip => CreatedAt(slip.Id) < before);
+        }
+
+        var matching = rows
+            .OrderBy(slip => slip.Status is TransferStatus.Requested or TransferStatus.Approved or TransferStatus.InTransit or TransferStatus.ReceivedWithDiscrepancy ? 0 : 1)
+            .ThenByDescending(slip => slip.Id)
+            .ToList();
+        var size = Math.Max(1, pageSize);
+        var page = Math.Clamp(pageNumber, 1, Math.Max(1, (matching.Count + size - 1) / size));
+        return Task.FromResult(new TransferPage(matching.Skip((page - 1) * size).Take(size).ToArray(), matching.Count, page, visible.Count > 0));
+    }
+
+    public Task<int> CountTransfersAsync(System.Linq.Expressions.Expression<Func<TransferSlip, bool>> predicate, CancellationToken cancellationToken) =>
+        Task.FromResult(TransferSource().Count(predicate.Compile()));
+
+    public Task<IReadOnlyList<TransferSlip>> FindTransfersAsync(System.Linq.Expressions.Expression<Func<TransferSlip, bool>> visible, IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<TransferSlip>>(TransferSource().Where(visible.Compile()).Where(slip => ids.Contains(slip.Id)).ToArray());
+
+    public Task<StockDocumentCounts> CountStockDocumentsAsync(Guid? scope, CancellationToken cancellationToken) =>
+        Task.FromResult(new StockDocumentCounts(
+            ScopedStocktakes(scope).Count(), ScopedAdjustments(scope).Count(), ScopedDisposals(scope).Count()));
+
+    public Task<IReadOnlyList<StocktakeSheet>> ListStocktakesAsync(Guid? scope, StockDocumentRange range, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<StocktakeSheet>>(ScopedStocktakes(scope).Skip(range.Skip).Take(range.Take).ToArray());
+
+    public Task<IReadOnlyList<QuantityAdjustment>> ListAdjustmentsAsync(Guid? scope, StockDocumentRange range, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<QuantityAdjustment>>(ScopedAdjustments(scope).Skip(range.Skip).Take(range.Take).ToArray());
+
+    public Task<IReadOnlyList<DisposalSlip>> ListDisposalsAsync(Guid? scope, StockDocumentRange range, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<DisposalSlip>>(ScopedDisposals(scope).Skip(range.Skip).Take(range.Take).ToArray());
+
+    public Task<StockDocumentPosition?> LocateStockDocumentAsync(Guid? scope, Guid id, CancellationToken cancellationToken)
+    {
+        var stocktake = ScopedStocktakes(scope).Select(sheet => sheet.Id).ToList().IndexOf(id);
+        var adjustment = ScopedAdjustments(scope).Select(item => item.Id).ToList().IndexOf(id);
+        var disposal = ScopedDisposals(scope).Select(slip => slip.Id).ToList().IndexOf(id);
+        return Task.FromResult(
+            stocktake >= 0 ? new StockDocumentPosition(StockDocumentKind.Stocktake, stocktake)
+            : adjustment >= 0 ? new StockDocumentPosition(StockDocumentKind.Adjustment, adjustment)
+            : disposal >= 0 ? new StockDocumentPosition(StockDocumentKind.Disposal, disposal)
+            : (StockDocumentPosition?)null);
+    }
+
+    public Task<(IReadOnlyList<StocktakeSheet> Stocktakes, IReadOnlyList<QuantityAdjustment> Adjustments, IReadOnlyList<DisposalSlip> Disposals)> FindStockDocumentsAsync(
+        Guid? scope,
+        IReadOnlyCollection<Guid> ids,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<(IReadOnlyList<StocktakeSheet>, IReadOnlyList<QuantityAdjustment>, IReadOnlyList<DisposalSlip>)>((
+            ScopedStocktakes(scope).Where(sheet => ids.Contains(sheet.Id)).ToArray(),
+            ScopedAdjustments(scope).Where(item => ids.Contains(item.Id)).ToArray(),
+            ScopedDisposals(scope).Where(slip => ids.Contains(slip.Id)).ToArray()));
+
+    private IEnumerable<StocktakeSheet> ScopedStocktakes(Guid? scope) =>
+        StocktakeSource().Where(sheet => scope is not Guid only || sheet.StockLocationId == only).OrderByDescending(sheet => sheet.Id);
+
+    private IEnumerable<QuantityAdjustment> ScopedAdjustments(Guid? scope) =>
+        AdjustmentSource().Where(item => scope is not Guid only || item.StockLocationId == only).OrderByDescending(item => item.Id);
+
+    private IEnumerable<DisposalSlip> ScopedDisposals(Guid? scope) =>
+        DisposalSource().Where(slip => scope is not Guid only || slip.StockLocationId == only).OrderByDescending(slip => slip.Id);
+
+    private static DateTimeOffset CreatedAt(Guid id)
+    {
+        Span<byte> bytes = stackalloc byte[16];
+        id.TryWriteBytes(bytes, bigEndian: true, out _);
+        long milliseconds = 0;
+        for (var i = 0; i < 6; i++)
+        {
+            milliseconds = (milliseconds << 8) | bytes[i];
+        }
+
+        return DateTimeOffset.FromUnixTimeMilliseconds(milliseconds);
+    }
+
+    private IEnumerable<TransferSlip> TransferSource() => Transfers;
+
+    private static IEnumerable<StocktakeSheet> StocktakeSource() => [];
+
+    private static IEnumerable<QuantityAdjustment> AdjustmentSource() => [];
+
+    private static IEnumerable<DisposalSlip> DisposalSource() => [];
+
+    private IEnumerable<string> ItemText(Guid itemId) =>
+        Rows.Where(row => row.CatalogItemId == itemId).SelectMany(row => new[] { row.Code, row.Name });
 
     public Task AddNoticeAsync(Notification notice, CancellationToken cancellationToken) => Task.CompletedTask;
 
@@ -757,7 +864,6 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
 
     public Task RemoveNoticesAsync(Guid documentId, CancellationToken cancellationToken) => Task.CompletedTask;
 
-    public Task<bool> CommitAsync(CancellationToken cancellationToken) => Task.FromResult(true);
 }
 
 internal sealed class TransferAttachmentDouble : ITransferAttachmentRepository

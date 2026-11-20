@@ -9,6 +9,7 @@ namespace Pancras.Application.Employees;
 
 public sealed class VerifyTwoFactorCommandHandler(
     IEmployeeRepository repository,
+    IUnitOfWork unitOfWork,
     ISecretProtector protector,
     ILogger<VerifyTwoFactorCommandHandler> logger,
     TimeProvider? clock = null,
@@ -19,6 +20,7 @@ public sealed class VerifyTwoFactorCommandHandler(
 
     public async Task<Result<EmployeeSession, LoginError>> HandleAsync(VerifyTwoFactorCommand command, CancellationToken cancellationToken)
     {
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var now = _clock.GetUtcNow();
         var employee = await repository.GetByIdAsync(command.EmployeeId, cancellationToken);
         if (employee is null || !employee.IsActive || !employee.TwoFactorEnabled || employee.IsLockedOut(now))
@@ -49,21 +51,21 @@ public sealed class VerifyTwoFactorCommandHandler(
         if (!valid)
         {
             var locked = employee.RegisterFailedLogin(now);
-            await repository.SaveChangesAsync(cancellationToken);
+            audit.Stage(_clock, request, employee.Id, employee.Code, locked ? AuditActions.LoginLockedOut : AuditActions.TwoFactorFailed, "employee", employee.Id.ToString("D"), null);
+            (await scope.CommitAsync(cancellationToken)).EnsureSaved();
             logger.LogInformation("Two-factor code rejected for employee {EmployeeId}.", employee.Id);
-            await audit.RecordAsync(_clock, request, employee.Id, employee.Code, locked ? AuditActions.LoginLockedOut : AuditActions.TwoFactorFailed, "employee", employee.Id.ToString("D"), null, cancellationToken);
             return Result<EmployeeSession, LoginError>.Fail(LoginError.InvalidCode);
         }
 
         employee.RegisterSuccessfulLogin();
-        await repository.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("Login succeeded for employee {EmployeeId} with two-factor.", employee.Id);
         if (usedRecovery)
         {
-            await audit.RecordAsync(_clock, request, employee.Id, employee.Code, AuditActions.RecoveryCodeUsed, "employee", employee.Id.ToString("D"), $"{employee.RecoveryCodesLeft} left", cancellationToken);
+            audit.Stage(_clock, request, employee.Id, employee.Code, AuditActions.RecoveryCodeUsed, "employee", employee.Id.ToString("D"), $"{employee.RecoveryCodesLeft} left");
         }
 
-        await audit.RecordAsync(_clock, request, employee.Id, employee.Code, AuditActions.LoginSucceeded, "employee", employee.Id.ToString("D"), "2fa", cancellationToken);
+        audit.Stage(_clock, request, employee.Id, employee.Code, AuditActions.LoginSucceeded, "employee", employee.Id.ToString("D"), "2fa");
+        (await scope.CommitAsync(cancellationToken)).EnsureSaved();
+        logger.LogInformation("Login succeeded for employee {EmployeeId} with two-factor.", employee.Id);
         return Result<EmployeeSession, LoginError>.Ok(LoginEmployeeCommandHandler.ToSession(employee, requiresTwoFactor: false));
     }
 }

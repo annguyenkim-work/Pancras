@@ -10,8 +10,10 @@ internal sealed class FakePasswordHasher : IPasswordHasher
     public bool Verify(string password, string passwordHash) => passwordHash == "hash:" + password;
 }
 
-internal sealed class FakeEmployeeRepository : IEmployeeRepository
+internal sealed class FakeEmployeeRepository : IEmployeeRepository, Pancras.Application.Common.IUnitOfWork
 {
+    private readonly List<Employee> _pending = [];
+    private readonly AsyncLocal<RulesState?> _scope = new();
     private readonly SemaphoreSlim _rules = new(1, 1);
     private int _adminCounts;
     private TaskCompletionSource<bool>? _firstAdminCounted;
@@ -77,57 +79,71 @@ internal sealed class FakeEmployeeRepository : IEmployeeRepository
 
     public Task AddAsync(Employee employee, CancellationToken cancellationToken)
     {
-        Added.Add(employee);
-        Employees.Add(employee);
-        return Task.CompletedTask;
-    }
-
-    public Task<bool> TryAddAsync(Employee employee, CancellationToken cancellationToken)
-    {
-        if (UniqueRejectionsRemaining > 0)
-        {
-            UniqueRejectionsRemaining--;
-            return Task.FromResult(false);
-        }
-
-        Added.Add(employee);
-        Employees.Add(employee);
-        SaveCount++;
-        return Task.FromResult(true);
-    }
-
-    public Task SaveChangesAsync(CancellationToken cancellationToken)
-    {
-        SaveCount++;
+        _pending.Add(employee);
         return Task.CompletedTask;
     }
 
     public Pancras.Application.Common.SaveOutcome NextSaveOutcome { get; set; } = Pancras.Application.Common.SaveOutcome.Saved;
 
-    public Task<Pancras.Application.Common.SaveOutcome> TrySaveChangesAsync(CancellationToken cancellationToken)
+    // Không async: AsyncLocal gán ở đây chảy sang handler đang gọi, để LockPersonnelRulesAsync biết scope hiện tại.
+    public Task<Pancras.Application.Common.IUnitOfWorkScope> BeginAsync(CancellationToken cancellationToken)
     {
-        SaveCount++;
-        return Task.FromResult(NextSaveOutcome);
+        var state = new RulesState();
+        _scope.Value = state;
+        return Task.FromResult<Pancras.Application.Common.IUnitOfWorkScope>(new FakeUnitOfWorkScope(Commit, () =>
+        {
+            if (state.Held)
+            {
+                state.Held = false;
+                _rules.Release();
+            }
+        }));
     }
 
-    public async Task<T> WithinPersonnelRulesAsync<T>(
-        Func<CancellationToken, Task<T>> action,
-        CancellationToken cancellationToken)
+    private sealed class RulesState
     {
+        public bool Held { get; set; }
+    }
+
+    private Pancras.Application.Common.SaveOutcome Commit()
+    {
+        SaveCount++;
+        if (UniqueRejectionsRemaining > 0 && _pending.Count > 0)
+        {
+            UniqueRejectionsRemaining--;
+            _pending.Clear();
+            return Pancras.Application.Common.SaveOutcome.Duplicate;
+        }
+
+        if (NextSaveOutcome != Pancras.Application.Common.SaveOutcome.Saved)
+        {
+            _pending.Clear();
+            return NextSaveOutcome;
+        }
+
+        foreach (var employee in _pending)
+        {
+            Added.Add(employee);
+            Employees.Add(employee);
+        }
+
+        _pending.Clear();
+        return Pancras.Application.Common.SaveOutcome.Saved;
+    }
+
+    public async Task LockPersonnelRulesAsync(CancellationToken cancellationToken)
+    {
+        var state = _scope.Value ?? throw new InvalidOperationException("Khóa quy tắc nhân sự cần một scope đang mở.");
         await _rules.WaitAsync(cancellationToken);
-        try
-        {
-            return await action(cancellationToken);
-        }
-        finally
-        {
-            _rules.Release();
-        }
+        state.Held = true;
     }
 }
 
-internal sealed class FakeLocationRepository : Pancras.Application.Locations.ILocationRepository
+internal sealed class FakeLocationRepository : Pancras.Application.Locations.ILocationRepository, Pancras.Application.Common.IUnitOfWork
 {
+    public Task<Pancras.Application.Common.IUnitOfWorkScope> BeginAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<Pancras.Application.Common.IUnitOfWorkScope>(new FakeUnitOfWorkScope(() => Pancras.Application.Common.SaveOutcome.Saved));
+
     public List<Pancras.Domain.Inventory.StockLocation> Locations { get; } = [];
 
     public Task<IReadOnlyList<Pancras.Domain.Inventory.StockLocation>> ListAsync(CancellationToken cancellationToken) =>
@@ -139,9 +155,9 @@ internal sealed class FakeLocationRepository : Pancras.Application.Locations.ILo
     public Task<bool> NameExistsAsync(string name, CancellationToken cancellationToken) =>
         Task.FromResult(Locations.Any(location => string.Equals(location.Name, name, StringComparison.OrdinalIgnoreCase)));
 
-    public Task<bool> TryAddAsync(Pancras.Domain.Inventory.StockLocation location, CancellationToken cancellationToken)
+    public Task AddAsync(Pancras.Domain.Inventory.StockLocation location, CancellationToken cancellationToken)
     {
         Locations.Add(location);
-        return Task.FromResult(true);
+        return Task.CompletedTask;
     }
 }

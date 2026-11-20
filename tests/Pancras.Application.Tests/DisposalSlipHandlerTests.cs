@@ -17,7 +17,7 @@ public class DisposalSlipHandlerTests
         var itemId = Guid.CreateVersion7();
         var balance = StockBalance.Create(itemId, location.Id, 5, 4, 0);
         store.Balances.Add(balance);
-        var created = await new CreateQuantityAdjustmentCommandHandler(store, new FakeEmployeeRepository(), NullLogger<CreateQuantityAdjustmentCommandHandler>.Instance)
+        var created = await new CreateQuantityAdjustmentCommandHandler(store, store, new FakeEmployeeRepository(), NullLogger<CreateQuantityAdjustmentCommandHandler>.Instance)
             .HandleAsync(new CreateQuantityAdjustmentCommand
             {
                 Actor = TestActors.Keeper(location.Id),
@@ -27,7 +27,7 @@ public class DisposalSlipHandlerTests
                 Reason = "Hao hụt",
                 DocumentRef = "DC-01"
             }, CancellationToken.None);
-        var result = await new ApproveQuantityAdjustmentCommandHandler(store, NullLogger<ApproveQuantityAdjustmentCommandHandler>.Instance)
+        var result = await new ApproveQuantityAdjustmentCommandHandler(store, store, NullLogger<ApproveQuantityAdjustmentCommandHandler>.Instance)
             .HandleAsync(new ApproveDocumentCommand(created.Value, TestActors.Accountant), CancellationToken.None);
 
         Assert.Equal(StockError.NegativeStock, result.Error);
@@ -148,7 +148,7 @@ public class DisposalSlipHandlerTests
         var people = new FakeEmployeeRepository();
         var accountant = Employee.Create("Kế Toán", "KeToan", "KETOAN", "hash", EmployeeRole.Accountant);
         people.Employees.Add(accountant);
-        var handler = new CreateQuantityAdjustmentCommandHandler(store, people, NullLogger<CreateQuantityAdjustmentCommandHandler>.Instance);
+        var handler = new CreateQuantityAdjustmentCommandHandler(store, store, people, NullLogger<CreateQuantityAdjustmentCommandHandler>.Instance);
 
         var direct = await handler.HandleAsync(new CreateQuantityAdjustmentCommand
         {
@@ -186,7 +186,8 @@ public class DisposalSlipHandlerTests
     private static Task<Result<Guid, StockError>> CreateAsync(DisposalFixture store, int quantity = 1) =>
         new CreateDisposalSlipCommandHandler(
                 store.Store,
-                new ApproveDisposalSlipCommandHandler(store.Store, store.Employees, NullLogger<ApproveDisposalSlipCommandHandler>.Instance),
+                store.Store,
+                new ApproveDisposalSlipCommandHandler(store.Store, store.Store, store.Employees, NullLogger<ApproveDisposalSlipCommandHandler>.Instance),
                 NullLogger<CreateDisposalSlipCommandHandler>.Instance)
             .HandleAsync(new CreateDisposalSlipCommand
             {
@@ -199,7 +200,7 @@ public class DisposalSlipHandlerTests
             }, CancellationToken.None);
 
     private static Task<Result<Guid, StockError>> ApproveAsync(DisposalFixture store, Guid id, string role) =>
-        new ApproveDisposalSlipCommandHandler(store.Store, store.Employees, NullLogger<ApproveDisposalSlipCommandHandler>.Instance)
+        new ApproveDisposalSlipCommandHandler(store.Store, store.Store, store.Employees, NullLogger<ApproveDisposalSlipCommandHandler>.Instance)
             .HandleAsync(new ApproveDocumentCommand(id, new EmployeeActor(Guid.NewGuid(), role, role is EmployeeRole.Admin or EmployeeRole.Director or EmployeeRole.Accountant ? null : store.Location.Id)), CancellationToken.None);
 
     private static DisposalFixture Prepared(int onHand, int reserved)

@@ -146,6 +146,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 }
 
 builder.Services.AddScoped<AuditStampInterceptor>();
+builder.Services.AddScoped<Pancras.Application.Common.IUnitOfWork, EfUnitOfWork>();
 builder.Services.AddDbContext<PancrasDbContext>((provider, options) =>
     options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention()
         .AddInterceptors(provider.GetRequiredService<AuditStampInterceptor>()));
@@ -329,7 +330,7 @@ app.UseExceptionHandler(errorApp =>
         var failure = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
         var traceId = System.Diagnostics.Activity.Current?.Id ?? context.TraceIdentifier;
         // Hai người sửa cùng một bản ghi (Version): không phải lỗi hệ thống. Thông báo rõ và không đổi dữ liệu.
-        if (failure?.Error?.GetType().Name == "DbUpdateConcurrencyException")
+        if (failure?.Error is Pancras.Application.Common.SaveConflictException || failure?.Error?.GetType().Name == "DbUpdateConcurrencyException")
         {
             logger.LogInformation("Rejected a concurrent update. TraceId {TraceId}", traceId);
             context.Response.StatusCode = StatusCodes.Status409Conflict;

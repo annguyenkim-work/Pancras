@@ -54,7 +54,7 @@ public class StocktakeHandlerTests
     {
         var store = Store(book: 10);
         var created = await CreateHandler(store).HandleAsync(Command(store, 9, "Lệch", "BB-01"), CancellationToken.None);
-        var handler = new ApproveStocktakeCommandHandler(store.Store, NullLogger<ApproveStocktakeCommandHandler>.Instance);
+        var handler = new ApproveStocktakeCommandHandler(store.Store, store.Store, NullLogger<ApproveStocktakeCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(new ApproveDocumentCommand(created.Value, TestActors.Sales(store.Location.Id)), CancellationToken.None);
 
@@ -67,7 +67,7 @@ public class StocktakeHandlerTests
     {
         var store = Store(book: 10);
         var created = await CreateHandler(store).HandleAsync(Command(store, 9, "Lệch", "BB-01"), CancellationToken.None);
-        var handler = new ApproveStocktakeCommandHandler(store.Store, NullLogger<ApproveStocktakeCommandHandler>.Instance);
+        var handler = new ApproveStocktakeCommandHandler(store.Store, store.Store, NullLogger<ApproveStocktakeCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(new ApproveDocumentCommand(created.Value, TestActors.Lead(store.Location.Id)), CancellationToken.None);
 
@@ -81,7 +81,7 @@ public class StocktakeHandlerTests
     {
         var store = Store(book: 5);
         var created = await CreateHandler(store).HandleAsync(Command(store, 3, "Lệch", "BB-01"), CancellationToken.None);
-        var handler = new ApproveStocktakeCommandHandler(store.Store, NullLogger<ApproveStocktakeCommandHandler>.Instance);
+        var handler = new ApproveStocktakeCommandHandler(store.Store, store.Store, NullLogger<ApproveStocktakeCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(new ApproveDocumentCommand(created.Value, TestActors.Lead(store.Location.Id)), CancellationToken.None);
 
@@ -97,7 +97,7 @@ public class StocktakeHandlerTests
         var store = Store(book: 10);
         store.Balance.TryReserve(6);
         var created = await CreateHandler(store).HandleAsync(Command(store, 4, "Lệch", "BB-01"), CancellationToken.None);
-        var handler = new ApproveStocktakeCommandHandler(store.Store, NullLogger<ApproveStocktakeCommandHandler>.Instance);
+        var handler = new ApproveStocktakeCommandHandler(store.Store, store.Store, NullLogger<ApproveStocktakeCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(new ApproveDocumentCommand(created.Value, TestActors.Lead(store.Location.Id)), CancellationToken.None);
 
@@ -112,7 +112,7 @@ public class StocktakeHandlerTests
         var store = Store(book: 26);
         var created = await CreateHandler(store).HandleAsync(Command(store, 24, "Lệch", "BB-01"), CancellationToken.None);
         store.Balance.TryAdjust(5);
-        var handler = new ApproveStocktakeCommandHandler(store.Store, NullLogger<ApproveStocktakeCommandHandler>.Instance);
+        var handler = new ApproveStocktakeCommandHandler(store.Store, store.Store, NullLogger<ApproveStocktakeCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(new ApproveDocumentCommand(created.Value, TestActors.Lead(store.Location.Id)), CancellationToken.None);
 
@@ -154,7 +154,7 @@ public class StocktakeHandlerTests
         var otherLead = Employee.Create("Trưởng khác", "lead2", "LEAD2", "hash", EmployeeRole.ShowroomWarehouseLead, stockLocationId: Guid.NewGuid());
         var director = Employee.Create("Giám đốc", "gd", "GD", "hash", EmployeeRole.Director);
         employees.Employees.AddRange([lead, otherLead, director]);
-        var create = new CreateStocktakeCommandHandler(store.Store, NullLogger<CreateStocktakeCommandHandler>.Instance, employees: employees);
+        var create = new CreateStocktakeCommandHandler(store.Store, store.Store, NullLogger<CreateStocktakeCommandHandler>.Instance, employees: employees);
 
         var created = await create.HandleAsync(Command(store, 8, "Lệch", "BB-01"), CancellationToken.None);
 
@@ -163,7 +163,7 @@ public class StocktakeHandlerTests
         Assert.Equal(Pancras.Domain.Notifications.NotificationKind.StocktakePending, notice.Kind);
         Assert.Equal(created.Value, notice.DocumentId);
 
-        var approve = new ApproveStocktakeCommandHandler(store.Store, NullLogger<ApproveStocktakeCommandHandler>.Instance);
+        var approve = new ApproveStocktakeCommandHandler(store.Store, store.Store, NullLogger<ApproveStocktakeCommandHandler>.Instance);
         var approved = await approve.HandleAsync(new ApproveDocumentCommand(created.Value, TestActors.Lead(store.Location.Id)), CancellationToken.None);
 
         Assert.True(approved.IsSuccess);
@@ -171,7 +171,7 @@ public class StocktakeHandlerTests
     }
 
     private static CreateStocktakeCommandHandler CreateHandler(StocktakeFixture store) =>
-        new(store.Store, NullLogger<CreateStocktakeCommandHandler>.Instance);
+        new(store.Store, store.Store, NullLogger<CreateStocktakeCommandHandler>.Instance);
 
     private static CreateStocktakeCommand Command(StocktakeFixture store, int counted, string? reason, string? document) =>
         new()

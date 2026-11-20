@@ -88,7 +88,13 @@ public class IndexModel(
 
     private bool NeedMeasures { get; set; }
 
+    /// <summary>Các đơn của trang danh sách hiện tại (cắt trang trong database).</summary>
     public IReadOnlyList<PurchaseOrderSummary> Orders { get; private set; } = [];
+
+    /// <summary>Tổng số đơn khớp bộ lọc (không chỉ trang hiện tại).</summary>
+    public int OrdersTotal { get; private set; }
+
+    public int OrdersPageNumber { get; private set; } = 1;
 
     public bool HasAnyOrders { get; private set; }
 
@@ -100,21 +106,10 @@ public class IndexModel(
 
     public int ListPageSize => Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
 
-    /// <summary>Các đơn của trang danh sách hiện tại; đơn đang chọn nằm ở trang khác vẫn hiện ở khung chi tiết.</summary>
-    public IReadOnlyList<PurchaseOrderSummary> PagedOrders
-    {
-        get
-        {
-            var pages = Math.Max(1, (Orders.Count + ListPageSize - 1) / ListPageSize);
-            var page = Math.Clamp(ListPage, 1, pages);
-            return Orders.Skip((page - 1) * ListPageSize).Take(ListPageSize).ToArray();
-        }
-    }
-
     public Pancras.Web.Formatting.PagerModel OrdersPager => new(
-        Math.Clamp(ListPage, 1, Math.Max(1, (Orders.Count + ListPageSize - 1) / ListPageSize)),
+        OrdersPageNumber,
         ListPageSize,
-        Orders.Count,
+        OrdersTotal,
         (page, size) => OrdersUrl(page, size));
 
     private string OrdersUrl(int page, int size)
@@ -213,7 +208,9 @@ public class IndexModel(
         }
         if (!string.IsNullOrEmpty(error) && Enum.TryParse<PurchaseError>(error, out var parsed) && parsed != PurchaseError.None)
         {
-            ErrorMessage = PurchaseErrorMessages.For(parsed);
+            // Lỗi của thao tác POST đã chuyển trang: hiện bằng toast góc dưới phải để người dùng đang ở giữa trang vẫn thấy
+            // (banner đầu trang nằm ngoài tầm nhìn). ErrorMessage chỉ còn dùng cho lỗi trong form khi lưu đơn.
+            TempData.Toast(PurchaseErrorMessages.For(parsed), ToastLevel.Error);
         }
 
         var selected = order is Guid orderId && orderId != Guid.Empty ? orderId : id;
@@ -519,22 +516,11 @@ public class IndexModel(
     private async Task LoadAsync(Guid? id, Guid? formula)
     {
         var cancellationToken = HttpContext.RequestAborted;
-        var allOrders = await listOrders.HandleAsync(Actor, cancellationToken);
-        HasAnyOrders = allOrders.Count > 0;
-        var term = Search?.Trim();
-        if (SupplierFilter is Guid supplierId)
-        {
-            allOrders = allOrders.Where(order => order.SupplierId == supplierId).ToArray();
-        }
-
-        Orders = string.IsNullOrEmpty(term)
-            ? allOrders
-            : allOrders.Where(order =>
-                order.Code.Contains(term, StringComparison.OrdinalIgnoreCase)
-                || order.SupplierName.Contains(term, StringComparison.OrdinalIgnoreCase)
-                || order.ContainerNumber.Contains(term, StringComparison.OrdinalIgnoreCase)
-                || order.BillOfLading.Contains(term, StringComparison.OrdinalIgnoreCase)
-                || order.Port.Contains(term, StringComparison.OrdinalIgnoreCase)).ToArray();
+        var list = await listOrders.HandleAsync(Actor, new PurchaseListFilter(SupplierFilter, Search, ListPage, ListPageSize), cancellationToken);
+        HasAnyOrders = list.HasAny;
+        Orders = list.Items;
+        OrdersTotal = list.Total;
+        OrdersPageNumber = list.PageNumber;
         Suppliers = await listSuppliers.HandleAsync(Actor, cancellationToken);
         Locations = await inventory.ListAllLocationsAsync(cancellationToken);
         Items = await inventory.ListItemsAsync(cancellationToken);
@@ -543,9 +529,9 @@ public class IndexModel(
             ItemMeasures = await catalogMeasures.HandleAsync(Items.Select(item => item.Id).ToArray(), cancellationToken);
         }
 
-        if ((id is null || id == Guid.Empty) && Orders.Count > 0)
+        if ((id is null || id == Guid.Empty) && list.FirstId is Guid first)
         {
-            id = Orders[0].Id;
+            id = first;
         }
 
         if (id is Guid selected && selected != Guid.Empty)

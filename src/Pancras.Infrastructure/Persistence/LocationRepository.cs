@@ -19,21 +19,8 @@ public sealed class LocationRepository(PancrasDbContext context) : ILocationRepo
         context.StockLocations.AsNoTracking()
             .AnyAsync(location => location.IsActive && location.Name.ToLower() == name.ToLower(), cancellationToken);
 
-    public async Task<bool> TryAddAsync(StockLocation location, CancellationToken cancellationToken)
-    {
-        await context.StockLocations.AddAsync(location, cancellationToken);
-        try
-        {
-            await context.SaveChangesAsync(cancellationToken);
-            return true;
-        }
-        catch (DbUpdateException exception) when (
-            exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
-        {
-            context.Entry(location).State = EntityState.Detached;
-            return false;
-        }
-    }
+    public Task AddAsync(StockLocation location, CancellationToken cancellationToken) =>
+        context.StockLocations.AddAsync(location, cancellationToken).AsTask();
 
 
     public Task<StockLocation?> GetForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
@@ -76,30 +63,5 @@ public sealed class LocationRepository(PancrasDbContext context) : ILocationRepo
                         || slip.Status == TransferStatus.InTransit
                         || slip.Status == TransferStatus.ReceivedWithDiscrepancy),
                 cancellationToken);
-    }
-
-    public async Task<SaveOutcome> TrySaveAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            await context.SaveChangesAsync(cancellationToken);
-            return SaveOutcome.Saved;
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            foreach (var entry in context.ChangeTracker.Entries<StockLocation>().ToList())
-            {
-                if (entry.State == EntityState.Modified)
-                {
-                    await entry.ReloadAsync(cancellationToken);
-                }
-            }
-
-            return SaveOutcome.Conflict;
-        }
-        catch (DbUpdateException)
-        {
-            return SaveOutcome.Duplicate;
-        }
     }
 }

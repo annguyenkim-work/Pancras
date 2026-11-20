@@ -9,6 +9,7 @@ namespace Pancras.Application.Suppliers;
 
 public sealed class UpdateSupplierCommandHandler(
     ISupplierRepository repository,
+    IUnitOfWork unitOfWork,
     ILogger<UpdateSupplierCommandHandler> logger,
     TimeProvider? clock = null,
     IRequestInfo? request = null,
@@ -45,6 +46,7 @@ public sealed class UpdateSupplierCommandHandler(
             return Result<SupplierProfile, SupplierError>.Fail(CreateSupplierCommandValidator.Primary(issues), issues);
         }
 
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var supplier = await repository.GetActiveForUpdateAsync(command.Id, cancellationToken);
         if (supplier is null)
         {
@@ -94,7 +96,8 @@ public sealed class UpdateSupplierCommandHandler(
         Track(changes, "SWIFT", supplier.SwiftCode, swift, mask: false);
 
         supplier.Update(code, name, country, contact, phone, email, account, bank, swift);
-        var saved = await repository.TrySaveAsync(cancellationToken);
+        audit.Stage(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.SupplierUpdated, "supplier", supplier.Id.ToString("D"), changes.Count == 0 ? "không đổi" : string.Join("; ", changes));
+        var saved = (await scope.CommitAsync(cancellationToken)).ThrowIfFailed();
         if (saved == SaveOutcome.Conflict)
         {
             logger.LogInformation("Rejected a concurrent supplier edit.");
@@ -108,16 +111,6 @@ public sealed class UpdateSupplierCommandHandler(
         }
 
         logger.LogInformation("Updated supplier {SupplierId}.", supplier.Id);
-        await audit.RecordAsync(
-            clock ?? TimeProvider.System,
-            request,
-            command.Actor.Id,
-            null,
-            AuditActions.SupplierUpdated,
-            "supplier",
-            supplier.Id.ToString("D"),
-            changes.Count == 0 ? "không đổi" : string.Join("; ", changes),
-            cancellationToken);
         return Result<SupplierProfile, SupplierError>.Ok(new SupplierProfile(
             supplier.Id,
             supplier.Code,

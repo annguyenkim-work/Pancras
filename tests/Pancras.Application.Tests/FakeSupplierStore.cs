@@ -18,8 +18,10 @@ internal static class SupplierActors
     public static EmployeeActor Sales { get; } = new(Guid.CreateVersion7(), EmployeeRole.Sales, Guid.CreateVersion7());
 }
 
-internal sealed class FakeSupplierRepository : ISupplierRepository
+internal sealed class FakeSupplierRepository : ISupplierRepository, IUnitOfWork
 {
+    private readonly List<Supplier> _pending = [];
+
     public List<Supplier> Suppliers { get; } = [];
 
     public bool RejectNextSave { get; set; }
@@ -103,15 +105,10 @@ internal sealed class FakeSupplierRepository : ISupplierRepository
     public Task<string?> InactiveNameWithCodeAsync(string normalizedCode, CancellationToken cancellationToken) =>
         Task.FromResult(Suppliers.FirstOrDefault(supplier => !supplier.IsActive && supplier.NormalizedCode == normalizedCode)?.Name);
 
-    public Task<bool> TryAddAsync(Supplier supplier, CancellationToken cancellationToken)
+    public Task AddAsync(Supplier supplier, CancellationToken cancellationToken)
     {
-        if (Suppliers.Any(existing => existing.IsActive && existing.NormalizedCode == supplier.NormalizedCode))
-        {
-            return Task.FromResult(false);
-        }
-
-        Suppliers.Add(supplier);
-        return Task.FromResult(true);
+        _pending.Add(supplier);
+        return Task.CompletedTask;
     }
 
     public Task<int> CountActiveBeforeAsync(string name, string code, CancellationToken cancellationToken)
@@ -123,21 +120,27 @@ internal sealed class FakeSupplierRepository : ISupplierRepository
         return Task.FromResult(count);
     }
 
-    public Task<SaveOutcome> TrySaveAsync(CancellationToken cancellationToken)
+    public Task<IUnitOfWorkScope> BeginAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IUnitOfWorkScope>(new FakeUnitOfWorkScope(Commit));
+
+    private SaveOutcome Commit()
     {
+        var staged = _pending.ToArray();
+        _pending.Clear();
         if (NextOutcome is { } outcome)
         {
             NextOutcome = null;
-            return Task.FromResult(outcome);
+            return outcome;
         }
 
-        if (!RejectNextSave)
+        if (RejectNextSave || staged.Any(supplier => Suppliers.Any(existing => existing.IsActive && existing.NormalizedCode == supplier.NormalizedCode)))
         {
-            return Task.FromResult(SaveOutcome.Saved);
+            RejectNextSave = false;
+            return SaveOutcome.Duplicate;
         }
 
-        RejectNextSave = false;
-        return Task.FromResult(SaveOutcome.Duplicate);
+        Suppliers.AddRange(staged);
+        return SaveOutcome.Saved;
     }
 }
 

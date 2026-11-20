@@ -37,10 +37,10 @@ public class EmployeeProfileCommandHandlerTests
     }
 
     private CreateEmployeeCommandHandler CreateHandler() =>
-        new(_repository, _locations, _hasher, NullLogger<CreateEmployeeCommandHandler>.Instance);
+        new(_repository, _repository, _locations, _hasher, NullLogger<CreateEmployeeCommandHandler>.Instance);
 
     private UpdateEmployeeCommandHandler UpdateHandler() =>
-        new(_repository, _locations, _hasher, NullLogger<UpdateEmployeeCommandHandler>.Instance);
+        new(_repository, _repository, _locations, _hasher, NullLogger<UpdateEmployeeCommandHandler>.Instance);
 
     private static CreateEmployeeCommand CreateCommand(string fullName, string role = EmployeeRole.Accountant, Guid? location = null) =>
         new()
@@ -103,7 +103,7 @@ public class EmployeeProfileCommandHandlerTests
         Add("Quản Trị", "admin", EmployeeRole.Admin);
         var accountant = Add("Nguyễn Kim An", "AnNK", EmployeeRole.Accountant);
         _repository.NextSaveOutcome = Pancras.Application.Common.SaveOutcome.Conflict;
-        var handler = new SetEmployeeActiveCommandHandler(_repository, NullLogger<SetEmployeeActiveCommandHandler>.Instance);
+        var handler = new SetEmployeeActiveCommandHandler(_repository, _repository, NullLogger<SetEmployeeActiveCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(accountant.Id, false, Admin(), CancellationToken.None);
 
@@ -405,7 +405,7 @@ public class EmployeeProfileCommandHandlerTests
         var onlyAdmin = Add("Quản Trị", "admin", EmployeeRole.Admin);
         var accountant = Add("Nguyễn Kim An", "AnNK", EmployeeRole.Accountant);
         var stamp = accountant.SecurityStamp;
-        var handler = new SetEmployeeActiveCommandHandler(_repository, NullLogger<SetEmployeeActiveCommandHandler>.Instance);
+        var handler = new SetEmployeeActiveCommandHandler(_repository, _repository, NullLogger<SetEmployeeActiveCommandHandler>.Instance);
 
         var done = await handler.HandleAsync(accountant.Id, false, Director(), CancellationToken.None);
         var lastAdmin = await handler.HandleAsync(onlyAdmin.Id, false, Admin(), CancellationToken.None);
@@ -423,7 +423,7 @@ public class EmployeeProfileCommandHandlerTests
     public async Task OwnProfile_UpdatesContactOnly()
     {
         var employee = Add("Nguyễn Kim An", "AnNK", EmployeeRole.Sales, _kho.Id);
-        var handler = new UpdateOwnProfileCommandHandler(_repository, NullLogger<UpdateOwnProfileCommandHandler>.Instance);
+        var handler = new UpdateOwnProfileCommandHandler(_repository, _repository, NullLogger<UpdateOwnProfileCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(
             new UpdateOwnProfileCommand { FullName = "Nguyễn Kim An B", Email = "new@example.com", Phone = "0912345678", Address = "Hà Nội" },
@@ -441,7 +441,7 @@ public class EmployeeProfileCommandHandlerTests
     public async Task OwnPassword_NeedsTheCurrentOneAndMinimumLength()
     {
         var employee = Add("Nguyễn Kim An", "AnNK", EmployeeRole.Sales, _kho.Id);
-        var handler = new ChangeOwnPasswordCommandHandler(_repository, _hasher, NullLogger<ChangeOwnPasswordCommandHandler>.Instance);
+        var handler = new ChangeOwnPasswordCommandHandler(_repository, _repository, _hasher, NullLogger<ChangeOwnPasswordCommandHandler>.Instance);
         var actor = new EmployeeActor(employee.Id, employee.Role, employee.StockLocationId);
 
         var wrong = await handler.HandleAsync(new ChangeOwnPasswordCommand { CurrentPassword = "nope", NewPassword = "Another123" }, actor, CancellationToken.None);
@@ -459,7 +459,7 @@ public class EmployeeProfileCommandHandlerTests
     {
         var employee = Add("Nguyễn Kim An", "AnNK", EmployeeRole.Accountant);
         employee.Deactivate();
-        var handler = new LoginEmployeeCommandHandler(_repository, _hasher, NullLogger<LoginEmployeeCommandHandler>.Instance);
+        var handler = new LoginEmployeeCommandHandler(_repository, _repository, _hasher, NullLogger<LoginEmployeeCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(new LoginEmployeeCommand { EmployeeCode = "AnNK", Password = "Secret12" }, CancellationToken.None);
 
@@ -487,9 +487,9 @@ public class EmployeeProfileCommandHandlerTests
         Add("Quản Trị Hai", "admin2", EmployeeRole.Admin);
         var accountant = Add("Nguyễn Kim An", "AnNK", EmployeeRole.Accountant);
         var active = new SetEmployeeActiveCommandHandler(
-            _repository, NullLogger<SetEmployeeActiveCommandHandler>.Instance, audit: audit);
+            _repository, _repository, NullLogger<SetEmployeeActiveCommandHandler>.Instance, audit: audit);
         var update = new UpdateEmployeeCommandHandler(
-            _repository, _locations, _hasher, NullLogger<UpdateEmployeeCommandHandler>.Instance, audit: audit);
+            _repository, _repository, _locations, _hasher, NullLogger<UpdateEmployeeCommandHandler>.Instance, audit: audit);
 
         var deactivated = await active.HandleAsync(accountant.Id, false, new EmployeeActor(admin.Id, admin.Role, null), CancellationToken.None);
         var command = UpdateFrom(accountant);
@@ -517,7 +517,7 @@ public class EmployeeProfileCommandHandlerTests
         var counted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         _repository.GateFirstAdminCount(counted, release);
-        var handler = new SetEmployeeActiveCommandHandler(_repository, NullLogger<SetEmployeeActiveCommandHandler>.Instance);
+        var handler = new SetEmployeeActiveCommandHandler(_repository, _repository, NullLogger<SetEmployeeActiveCommandHandler>.Instance);
 
         var stoppingSecond = handler.HandleAsync(second.Id, false, new EmployeeActor(first.Id, first.Role, null), CancellationToken.None);
         await counted.Task.WaitAsync(TimeSpan.FromSeconds(5));

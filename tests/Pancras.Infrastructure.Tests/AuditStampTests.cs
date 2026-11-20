@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Pancras.Application.Auditing;
 using Pancras.Domain.Employees;
 using Pancras.Domain.Suppliers;
@@ -8,7 +7,7 @@ using Pancras.Infrastructure.Persistence;
 namespace Pancras.Infrastructure.Tests;
 
 /// <summary>Dấu vết tạo/sửa (mã nhân viên + giờ) phải được ghi tự động cho mọi module qua interceptor.</summary>
-public class AuditStampTests
+public class AuditStampTests(PostgresFixture fixture) : PostgresTest(fixture)
 {
     private sealed class FakeRequest(string? code) : IRequestInfo
     {
@@ -26,14 +25,8 @@ public class AuditStampTests
         public override DateTimeOffset GetUtcNow() => Now;
     }
 
-    private readonly string _database = Guid.NewGuid().ToString("N");
-
     private PancrasDbContext NewContext(string? actor, FakeClock clock) =>
-        new(new DbContextOptionsBuilder<PancrasDbContext>()
-            .UseInMemoryDatabase(_database)
-            .AddInterceptors(new AuditStampInterceptor(new FakeRequest(actor), clock))
-            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
-            .Options);
+        Database.NewContext(new AuditStampInterceptor(new FakeRequest(actor), clock));
 
     private static Supplier NewSupplier() =>
         Supplier.Create("NCC1", "Nhà cung cấp 1", "VN", "A", "0900000000", "a@example.com", "123");

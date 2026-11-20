@@ -40,7 +40,7 @@ public class GetPurchaseReceiptPreviewHandlerTests
     {
         var s = Arrange();
         var preview = new GetPurchaseReceiptPreviewHandler(s.Orders, s.Catalog, s.Inventory);
-        var receive = new ReceivePurchaseOrderCommandHandler(s.Orders, s.Inventory, s.Catalog, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance);
+        var receive = new ReceivePurchaseOrderCommandHandler(s.Orders, s.Inventory, s.Catalog, s.Inventory, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance);
         var before = s.Item.CostPrice;
 
         var lines = await preview.HandleAsync(s.Order.Id, TestActors.Accountant, CancellationToken.None);
@@ -88,7 +88,7 @@ public class GetPurchaseReceiptPreviewHandlerTests
     {
         var s = Arrange();
         var preview = new GetPurchaseReceiptPreviewHandler(s.Orders, s.Catalog, s.Inventory);
-        var receive = new ReceivePurchaseOrderCommandHandler(s.Orders, s.Inventory, s.Catalog, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance);
+        var receive = new ReceivePurchaseOrderCommandHandler(s.Orders, s.Inventory, s.Catalog, s.Inventory, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance);
         await receive.HandleAsync(new ReceivePurchaseOrderCommand(s.Order.Id, TestActors.Accountant), CancellationToken.None);
 
         var afterReceipt = await preview.HandleAsync(s.Order.Id, TestActors.Accountant, CancellationToken.None);

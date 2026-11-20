@@ -106,6 +106,7 @@ public sealed class CreateSupplierCommandValidator : AbstractValidator<CreateSup
 
 public sealed class CreateSupplierCommandHandler(
     ISupplierRepository repository,
+    IUnitOfWork unitOfWork,
     ILogger<CreateSupplierCommandHandler> logger,
     TimeProvider? clock = null,
     IRequestInfo? request = null,
@@ -145,6 +146,7 @@ public sealed class CreateSupplierCommandHandler(
             return Duplicate(SupplierIssueKind.DuplicateInactive);
         }
 
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var supplier = Supplier.Create(
             code,
             command.Name!.Trim(),
@@ -155,14 +157,15 @@ public sealed class CreateSupplierCommandHandler(
             command.Account ?? string.Empty,
             command.BankName ?? string.Empty,
             command.SwiftCode ?? string.Empty);
-        if (!await repository.TryAddAsync(supplier, cancellationToken))
+        await repository.AddAsync(supplier, cancellationToken);
+        audit.Stage(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.SupplierCreated, "supplier", supplier.Id.ToString("D"), supplier.Code);
+        if ((await scope.CommitAsync(cancellationToken)).ThrowIfFailed() != SaveOutcome.Saved)
         {
             logger.LogInformation("Rejected a duplicate supplier code.");
             return Duplicate(SupplierIssueKind.Duplicate);
         }
 
         logger.LogInformation("Created supplier {SupplierId}.", supplier.Id);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.SupplierCreated, "supplier", supplier.Id.ToString("D"), supplier.Code, cancellationToken);
         return Result<CreatedSupplier, SupplierError>.Ok(new CreatedSupplier(supplier.Id, supplier.Code, supplier.Name));
     }
 

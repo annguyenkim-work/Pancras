@@ -64,7 +64,7 @@ public class PurchaseAttachmentTests
     }
 
     private UploadPurchaseAttachmentCommandHandler Upload() =>
-        new(_orders, _store, _store, NullLogger<UploadPurchaseAttachmentCommandHandler>.Instance, null, _audit);
+        new(_orders, _store, _store, new NoopUnitOfWork(), NullLogger<UploadPurchaseAttachmentCommandHandler>.Instance, null, _audit);
 
     private Task<Result<Guid, PurchaseError>> UploadAsync(string name, byte[] bytes, AttachmentKind kind = AttachmentKind.CustomsDeclaration) =>
         Upload().HandleAsync(
@@ -189,18 +189,17 @@ public class PurchaseAttachmentTests
     [Fact]
     public async Task Deleting_IsAllowedOnlyWhileTheOrderIsOpen()
     {
-        var id = (await UploadAsync("a.pdf", Pdf)).Value;
-        var delete = new DeletePurchaseAttachmentCommandHandler(_orders, _store, _store, NullLogger<DeletePurchaseAttachmentCommandHandler>.Instance, null, _audit);
-        var undo = _order.ReceiveAll();
+        var first = (await UploadAsync("a.pdf", Pdf)).Value;
+        var delete = new DeletePurchaseAttachmentCommandHandler(_orders, _store, _store, new NoopUnitOfWork(), NullLogger<DeletePurchaseAttachmentCommandHandler>.Instance, null, _audit);
+        var removed = await delete.HandleAsync(first, TestActors.Accountant, CancellationToken.None);
+        var second = (await UploadAsync("b.pdf", Pdf)).Value;
+        _order.ReceiveAll();
+        var locked = await delete.HandleAsync(second, TestActors.Accountant, CancellationToken.None);
 
-        var locked = await delete.HandleAsync(id, TestActors.Accountant, CancellationToken.None);
-        _order.UndoReceipt(undo);
-        var removed = await delete.HandleAsync(id, TestActors.Accountant, CancellationToken.None);
-
-        Assert.Equal(PurchaseError.AlreadyReceived, locked.Error);
         Assert.True(removed.IsSuccess);
-        Assert.Empty(_store.Items);
-        Assert.Empty(_store.Files);
+        Assert.Equal(PurchaseError.AlreadyReceived, locked.Error);
+        Assert.Equal(second, Assert.Single(_store.Items).Id);
+        Assert.Single(_store.Files);
     }
 
     [Theory]

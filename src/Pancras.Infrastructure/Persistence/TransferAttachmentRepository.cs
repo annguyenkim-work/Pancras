@@ -36,11 +36,8 @@ public sealed class TransferAttachmentRepository(PancrasDbContext context) : ITr
         return items.GroupBy(item => item.TransferSlipId).ToDictionary(group => group.Key, group => (IReadOnlyList<TransferAttachment>)group.ToList());
     }
 
-    public async Task AddAsync(TransferAttachment attachment, CancellationToken cancellationToken)
-    {
-        await context.TransferAttachments.AddAsync(attachment, cancellationToken);
-        await context.SaveChangesAsync(cancellationToken);
-    }
+    public Task AddAsync(TransferAttachment attachment, CancellationToken cancellationToken) =>
+        context.TransferAttachments.AddAsync(attachment, cancellationToken).AsTask();
 }
 
 public sealed class StockDocumentAttachmentConfiguration : IEntityTypeConfiguration<StockDocumentAttachment>
@@ -75,9 +72,6 @@ public sealed class StockDocumentAttachmentRepository(PancrasDbContext context) 
         return items.GroupBy(item => item.DocumentId).ToDictionary(group => group.Key, group => (IReadOnlyList<StockDocumentAttachment>)group.ToList());
     }
 
-    public async Task AddAsync(StockDocumentAttachment attachment, CancellationToken cancellationToken)
-    {
-        await context.StockDocumentAttachments.AddAsync(attachment, cancellationToken);
-        await context.SaveChangesAsync(cancellationToken);
-    }
+    public Task AddAsync(StockDocumentAttachment attachment, CancellationToken cancellationToken) =>
+        context.StockDocumentAttachments.AddAsync(attachment, cancellationToken).AsTask();
 }

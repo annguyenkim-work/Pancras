@@ -8,6 +8,7 @@ namespace Pancras.Application.Locations;
 
 public sealed class UpdateLocationCommandHandler(
     ILocationManagementRepository repository,
+    IUnitOfWork unitOfWork,
     ILogger<UpdateLocationCommandHandler> logger,
     TimeProvider? clock = null,
     IAuditLog? audit = null,
@@ -37,6 +38,7 @@ public sealed class UpdateLocationCommandHandler(
             return LocationManageError.InvalidKind;
         }
 
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var location = await repository.GetForUpdateAsync(command.Id, cancellationToken);
         if (location is null)
         {
@@ -55,14 +57,14 @@ public sealed class UpdateLocationCommandHandler(
         }
 
         location.Update(name, kind);
-        var saved = await repository.TrySaveAsync(cancellationToken);
+        audit.Stage(clock ?? TimeProvider.System, request, actor.Id, null, Pancras.Domain.Auditing.AuditActions.LocationUpdated, "stock_location", location.Id.ToString("D"), null);
+        var saved = await scope.CommitAsync(cancellationToken);
         if (saved != SaveOutcome.Saved)
         {
             return saved == SaveOutcome.Conflict ? LocationManageError.VersionConflict : LocationManageError.SaveFailed;
         }
 
         logger.LogInformation("Updated stock location {LocationId}.", location.Id);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, actor.Id, null, Pancras.Domain.Auditing.AuditActions.LocationUpdated, "stock_location", location.Id.ToString("D"), null, cancellationToken);
         return LocationManageError.None;
     }
 }

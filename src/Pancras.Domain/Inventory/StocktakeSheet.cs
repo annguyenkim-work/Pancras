@@ -97,7 +97,6 @@ public sealed class StocktakeSheet : Pancras.Domain.Auditing.AuditStamped
         return StockDecision.Accepted;
     }
 
-    public void RestoreUncommitted(ApprovalStatus status) => Status = status;
 
     internal static StockDecision EvidenceFailure(string? reason, string? documentRef, string? imageRef) =>
         TooLong(reason, ReasonMaxLength) || TooLong(documentRef, DocumentRefMaxLength) || TooLong(imageRef, ImageRefMaxLength)

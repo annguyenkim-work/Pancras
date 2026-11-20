@@ -18,7 +18,7 @@ public class UpdateCatalogPricesCommandHandlerTests
         var repository = new FakeCatalogRepository();
         var item = ListCatalogItemsHandlerTests.Item("SP01", "Vòi", ProductCategory.SanitaryEquipment);
         repository.Items.Add(item);
-        var handler = new UpdateCatalogPricesCommandHandler(repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
+        var handler = new UpdateCatalogPricesCommandHandler(repository, repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(Command(item.Id, role, 9000000m), CancellationToken.None);
 
@@ -35,7 +35,7 @@ public class UpdateCatalogPricesCommandHandlerTests
         var repository = new FakeCatalogRepository();
         var item = ListCatalogItemsHandlerTests.Item("SP01", "Vòi", ProductCategory.SanitaryEquipment);
         repository.Items.Add(item);
-        var handler = new UpdateCatalogPricesCommandHandler(repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
+        var handler = new UpdateCatalogPricesCommandHandler(repository, repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(Command(item.Id, role, 1m), CancellationToken.None);
 
@@ -50,7 +50,7 @@ public class UpdateCatalogPricesCommandHandlerTests
         var repository = new FakeCatalogRepository();
         var item = ListCatalogItemsHandlerTests.Item("SP01", "Vòi", ProductCategory.SanitaryEquipment);
         repository.Items.Add(item);
-        var handler = new UpdateCatalogPricesCommandHandler(repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
+        var handler = new UpdateCatalogPricesCommandHandler(repository, repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
         var command = Command(item.Id, EmployeeRole.Admin, 9000000m);
         command.IncludeDetails = true;
         command.Code = "SP02";
@@ -78,7 +78,7 @@ public class UpdateCatalogPricesCommandHandlerTests
         var item = ListCatalogItemsHandlerTests.Item("SP01", "Vòi", ProductCategory.SanitaryEquipment);
         item.SetImage("/uploads/catalog/old.png");
         repository.Items.Add(item);
-        var handler = new UpdateCatalogPricesCommandHandler(repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
+        var handler = new UpdateCatalogPricesCommandHandler(repository, repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
         var command = Command(item.Id, EmployeeRole.Admin, 9000000m);
         command.IncludeDetails = true;
         command.Code = "SP01";
@@ -113,7 +113,7 @@ public class UpdateCatalogPricesCommandHandlerTests
         var repository = new FakeCatalogRepository();
         var item = ListCatalogItemsHandlerTests.Item("SP01", "Vòi", ProductCategory.SanitaryEquipment);
         repository.Items.Add(item);
-        var handler = new UpdateCatalogPricesCommandHandler(repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
+        var handler = new UpdateCatalogPricesCommandHandler(repository, repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
         var command = Command(item.Id, EmployeeRole.Sales, 1m);
         command.IncludeDetails = true;
         command.Code = "SP02";
@@ -134,7 +134,7 @@ public class UpdateCatalogPricesCommandHandlerTests
         var repository = new FakeCatalogRepository();
         var item = ListCatalogItemsHandlerTests.Item("SP01", "Vòi", ProductCategory.SanitaryEquipment);
         repository.Items.Add(item);
-        var handler = new UpdateCatalogPricesCommandHandler(repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
+        var handler = new UpdateCatalogPricesCommandHandler(repository, repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
         var command = Command(item.Id, EmployeeRole.Admin, 100000000000000000000m);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -150,7 +150,7 @@ public class UpdateCatalogPricesCommandHandlerTests
         var repository = new FakeCatalogRepository();
         var item = ListCatalogItemsHandlerTests.Item("SP01", "Vòi", ProductCategory.SanitaryEquipment);
         repository.Items.Add(item);
-        var handler = new UpdateCatalogPricesCommandHandler(repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
+        var handler = new UpdateCatalogPricesCommandHandler(repository, repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(Command(item.Id, EmployeeRole.Admin, 1_000_000_000_000_000m), CancellationToken.None);
 
@@ -164,7 +164,7 @@ public class UpdateCatalogPricesCommandHandlerTests
         var repository = new FakeCatalogRepository();
         var item = ListCatalogItemsHandlerTests.Item("SP01", "Vòi", ProductCategory.SanitaryEquipment);
         repository.Items.Add(item);
-        var handler = new UpdateCatalogPricesCommandHandler(repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
+        var handler = new UpdateCatalogPricesCommandHandler(repository, repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
         var first = Command(item.Id, EmployeeRole.Admin, 300000m);
         first.IncludeDetails = true;
         first.Code = "SP01";
@@ -197,6 +197,7 @@ public class UpdateCatalogPricesCommandHandlerTests
         stock.Balances.Add(StockBalance.Create(item.Id, Guid.NewGuid(), 10, 0, 0));
         var handler = new UpdateCatalogPricesCommandHandler(
             repository,
+            repository,
             NullLogger<UpdateCatalogPricesCommandHandler>.Instance,
             stock: stock);
         var command = Command(item.Id, EmployeeRole.Admin, 15000000m);
@@ -216,6 +217,7 @@ public class UpdateCatalogPricesCommandHandlerTests
         repository.Items.Add(item);
         var handler = new UpdateCatalogPricesCommandHandler(
             repository,
+            repository,
             NullLogger<UpdateCatalogPricesCommandHandler>.Instance,
             stock: new FakeInventoryStore());
         var command = Command(item.Id, EmployeeRole.Admin, 15000000m);
@@ -233,7 +235,7 @@ public class UpdateCatalogPricesCommandHandlerTests
         var repository = new FakeCatalogRepository();
         var item = ListCatalogItemsHandlerTests.Item("SP01", "Vòi", ProductCategory.SanitaryEquipment);
         repository.Items.Add(item);
-        var handler = new UpdateCatalogPricesCommandHandler(repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
+        var handler = new UpdateCatalogPricesCommandHandler(repository, repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
         var command = Command(item.Id, EmployeeRole.Admin, 15000000m);
         command.IncludeDetails = true;
         command.Code = "SP01";
@@ -254,7 +256,7 @@ public class UpdateCatalogPricesCommandHandlerTests
         var repository = new FakeCatalogRepository { NextOutcome = SaveOutcome.Conflict };
         var item = ListCatalogItemsHandlerTests.Item("SP01", "Vòi", ProductCategory.SanitaryEquipment);
         repository.Items.Add(item);
-        var handler = new UpdateCatalogPricesCommandHandler(repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
+        var handler = new UpdateCatalogPricesCommandHandler(repository, repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(Command(item.Id, EmployeeRole.Admin, 9000000m), CancellationToken.None);
 

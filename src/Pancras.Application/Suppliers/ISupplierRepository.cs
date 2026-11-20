@@ -34,7 +34,5 @@ public interface ISupplierRepository
 
     Task<int> CountActiveBeforeAsync(string name, string code, CancellationToken cancellationToken);
 
-    Task<bool> TryAddAsync(Supplier supplier, CancellationToken cancellationToken);
-
-    Task<SaveOutcome> TrySaveAsync(CancellationToken cancellationToken);
+    Task AddAsync(Supplier supplier, CancellationToken cancellationToken);
 }

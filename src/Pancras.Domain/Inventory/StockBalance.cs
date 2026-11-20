@@ -217,10 +217,4 @@ public sealed class StockBalance
         return true;
     }
 
-    public void RestoreUncommitted(int onHand, int reserved, int inTransit)
-    {
-        OnHand = onHand;
-        Reserved = reserved;
-        InTransit = inTransit;
-    }
 }

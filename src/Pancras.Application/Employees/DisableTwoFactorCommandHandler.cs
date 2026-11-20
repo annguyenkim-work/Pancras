@@ -8,6 +8,7 @@ namespace Pancras.Application.Employees;
 
 public sealed class DisableTwoFactorCommandHandler(
     IEmployeeRepository repository,
+    IUnitOfWork unitOfWork,
     IPasswordHasher passwordHasher,
     ISecretProtector protector,
     ILogger<DisableTwoFactorCommandHandler> logger,
@@ -22,6 +23,7 @@ public sealed class DisableTwoFactorCommandHandler(
         EmployeeActor actor,
         CancellationToken cancellationToken)
     {
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var employee = await repository.GetByIdAsync(actor.Id, cancellationToken);
         if (employee is null)
         {
@@ -53,9 +55,9 @@ public sealed class DisableTwoFactorCommandHandler(
         }
 
         employee.DisableTwoFactor();
-        await repository.SaveChangesAsync(cancellationToken);
+        audit.Stage(_clock, request, employee.Id, employee.Code, AuditActions.TwoFactorDisabled, "employee", employee.Id.ToString("D"), null);
+        (await scope.CommitAsync(cancellationToken)).EnsureSaved();
         logger.LogInformation("Employee {EmployeeId} disabled two-factor.", employee.Id);
-        await audit.RecordAsync(_clock, request, employee.Id, employee.Code, AuditActions.TwoFactorDisabled, "employee", employee.Id.ToString("D"), null, cancellationToken);
         return Result<EmployeeSession, EmployeeError>.Ok(LoginEmployeeCommandHandler.ToSession(employee, requiresTwoFactor: false));
     }
 }

@@ -27,6 +27,8 @@ internal sealed class MemoryAudit : IAuditLog
 {
     public List<AuditEntry> Entries { get; } = [];
 
+    public void Stage(AuditEntry entry) => Entries.Add(entry);
+
     public Task RecordAsync(AuditEntry entry, CancellationToken cancellationToken)
     {
         Entries.Add(entry);
@@ -53,10 +55,10 @@ public class LoginLockoutAndTwoFactorTests
     }
 
     private LoginEmployeeCommandHandler Login() =>
-        new(_repository, _hasher, NullLogger<LoginEmployeeCommandHandler>.Instance, _clock, _audit);
+        new(_repository, _repository, _hasher, NullLogger<LoginEmployeeCommandHandler>.Instance, _clock, _audit);
 
     private VerifyTwoFactorCommandHandler Verify() =>
-        new(_repository, _protector, NullLogger<VerifyTwoFactorCommandHandler>.Instance, _clock, _audit);
+        new(_repository, _repository, _protector, NullLogger<VerifyTwoFactorCommandHandler>.Instance, _clock, _audit);
 
     private Task<Result<EmployeeSession, LoginError>> Attempt(string password) =>
         Login().HandleAsync(new LoginEmployeeCommand { EmployeeCode = "AnNK", Password = password }, CancellationToken.None);
@@ -135,7 +137,7 @@ public class LoginLockoutAndTwoFactorTests
         var begin = await new BeginTwoFactorSetupHandler(_repository, _protector).HandleAsync(Actor(), CancellationToken.None);
         var secret = Totp.FromBase32(begin.Value!.Secret)!;
         var code = Totp.Generate(secret, Totp.StepFor(_clock.GetUtcNow()));
-        var confirm = new ConfirmTwoFactorSetupCommandHandler(_repository, _protector, NullLogger<ConfirmTwoFactorSetupCommandHandler>.Instance, _clock, _audit);
+        var confirm = new ConfirmTwoFactorSetupCommandHandler(_repository, _repository, _protector, NullLogger<ConfirmTwoFactorSetupCommandHandler>.Instance, _clock, _audit);
         var result = await confirm.HandleAsync(
             new ConfirmTwoFactorCommand { ProtectedSecret = begin.Value.ProtectedSecret, Code = code },
             Actor(),
@@ -150,7 +152,7 @@ public class LoginLockoutAndTwoFactorTests
     public async Task Setup_RejectsAWrongCode_AndEnablesWithARightOne()
     {
         var begin = await new BeginTwoFactorSetupHandler(_repository, _protector).HandleAsync(Actor(), CancellationToken.None);
-        var confirm = new ConfirmTwoFactorSetupCommandHandler(_repository, _protector, NullLogger<ConfirmTwoFactorSetupCommandHandler>.Instance, _clock, _audit);
+        var confirm = new ConfirmTwoFactorSetupCommandHandler(_repository, _repository, _protector, NullLogger<ConfirmTwoFactorSetupCommandHandler>.Instance, _clock, _audit);
 
         var wrong = await confirm.HandleAsync(
             new ConfirmTwoFactorCommand { ProtectedSecret = begin.Value!.ProtectedSecret, Code = "000000" },
@@ -212,11 +214,11 @@ public class LoginLockoutAndTwoFactorTests
     public async Task DisablingNeedsThePasswordAndACode_AndOnlyAdminCanResetForOthers()
     {
         var (secret, codes) = await EnableAsync();
-        var disable = new DisableTwoFactorCommandHandler(_repository, _hasher, _protector, NullLogger<DisableTwoFactorCommandHandler>.Instance, _clock, _audit);
+        var disable = new DisableTwoFactorCommandHandler(_repository, _repository, _hasher, _protector, NullLogger<DisableTwoFactorCommandHandler>.Instance, _clock, _audit);
 
         var noPassword = await disable.HandleAsync(new DisableTwoFactorCommand { CurrentPassword = "bad", Code = codes[0] }, Actor(), CancellationToken.None);
         var noCode = await disable.HandleAsync(new DisableTwoFactorCommand { CurrentPassword = "Secret12", Code = "111111" }, Actor(), CancellationToken.None);
-        var reset = new ResetTwoFactorCommandHandler(_repository, NullLogger<ResetTwoFactorCommandHandler>.Instance, _clock, _audit);
+        var reset = new ResetTwoFactorCommandHandler(_repository, _repository, NullLogger<ResetTwoFactorCommandHandler>.Instance, _clock, _audit);
         var byDirector = await reset.HandleAsync(_employee.Id, new EmployeeActor(Guid.NewGuid(), EmployeeRole.Director, null), CancellationToken.None);
         var byAdmin = await reset.HandleAsync(_employee.Id, new EmployeeActor(Guid.NewGuid(), EmployeeRole.Admin, null), CancellationToken.None);
 
@@ -274,7 +276,7 @@ public class LoginLockoutAndTwoFactorTests
             await Attempt("wrong");
         }
 
-        var unlock = new UnlockEmployeeCommandHandler(_repository, NullLogger<UnlockEmployeeCommandHandler>.Instance, _clock, _audit);
+        var unlock = new UnlockEmployeeCommandHandler(_repository, _repository, NullLogger<UnlockEmployeeCommandHandler>.Instance, _clock, _audit);
         var byAccountant = await unlock.HandleAsync(_employee.Id, new EmployeeActor(Guid.NewGuid(), EmployeeRole.Accountant, null), CancellationToken.None);
         var byAdmin = await unlock.HandleAsync(_employee.Id, new EmployeeActor(Guid.NewGuid(), EmployeeRole.Admin, null), CancellationToken.None);
         var login = await Attempt("Secret12");

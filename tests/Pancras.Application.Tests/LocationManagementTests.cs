@@ -21,7 +21,7 @@ public class LocationManagementTests
         Assert.Equal(LocationManageError.VersionConflict, disable);
     }
 
-    private sealed class FakeManagement : ILocationManagementRepository
+    private sealed class FakeManagement : ILocationManagementRepository, Pancras.Application.Common.IUnitOfWork
     {
         public List<StockLocation> Locations { get; } = [];
 
@@ -47,11 +47,12 @@ public class LocationManagementTests
 
         public SaveOutcome NextOutcome { get; set; } = SaveOutcome.Saved;
 
-        public Task<SaveOutcome> TrySaveAsync(CancellationToken cancellationToken)
-        {
-            Saves++;
-            return Task.FromResult(NextOutcome);
-        }
+        public Task<Pancras.Application.Common.IUnitOfWorkScope> BeginAsync(CancellationToken cancellationToken) =>
+            Task.FromResult<Pancras.Application.Common.IUnitOfWorkScope>(new FakeUnitOfWorkScope(() =>
+            {
+                Saves++;
+                return NextOutcome;
+            }));
     }
 
     private static readonly EmployeeActor Admin = new(Guid.NewGuid(), EmployeeRole.Admin, null);
@@ -101,7 +102,7 @@ public class LocationManagementTests
     {
         var (repo, location) = Setup();
         var audit = new MemoryAudit();
-        var handler = new DisableLocationCommandHandler(repo, NullLogger<DisableLocationCommandHandler>.Instance, audit: audit);
+        var handler = new DisableLocationCommandHandler(repo, repo, NullLogger<DisableLocationCommandHandler>.Instance, audit: audit);
 
         var result = await handler.HandleAsync(location.Id, new EmployeeActor(Guid.NewGuid(), EmployeeRole.Sales, null), CancellationToken.None);
 
@@ -111,9 +112,9 @@ public class LocationManagementTests
         Assert.Equal(Pancras.Domain.Auditing.AuditActions.AccessDenied, entry.Action);
     }
 
-    private static UpdateLocationCommandHandler Update(FakeManagement repo) => new(repo, NullLogger<UpdateLocationCommandHandler>.Instance);
+    private static UpdateLocationCommandHandler Update(FakeManagement repo) => new(repo, repo, NullLogger<UpdateLocationCommandHandler>.Instance);
 
-    private static DisableLocationCommandHandler Delete(FakeManagement repo) => new(repo, NullLogger<DisableLocationCommandHandler>.Instance);
+    private static DisableLocationCommandHandler Delete(FakeManagement repo) => new(repo, repo, NullLogger<DisableLocationCommandHandler>.Instance);
 
     [Fact]
     public async Task Update_WithAStaleVersion_IsRejected_AndChangesNothing()

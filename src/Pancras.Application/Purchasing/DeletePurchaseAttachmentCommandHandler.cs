@@ -10,6 +10,7 @@ public sealed class DeletePurchaseAttachmentCommandHandler(
     IPurchaseOrderRepository orders,
     IPurchaseAttachmentRepository attachments,
     IAttachmentStorage storage,
+    IUnitOfWork unitOfWork,
     ILogger<DeletePurchaseAttachmentCommandHandler> logger,
     TimeProvider? clock = null,
     IAuditLog? audit = null,
@@ -35,7 +36,16 @@ public sealed class DeletePurchaseAttachmentCommandHandler(
             return Result<Guid, PurchaseError>.Fail(PurchaseError.AlreadyReceived);
         }
 
-        await attachments.RemoveAsync(attachment.Id, cancellationToken);
+        await using (var scope = await unitOfWork.BeginAsync(cancellationToken))
+        {
+            await attachments.RemoveAsync(attachment.Id, cancellationToken);
+            audit.Stage(clock ?? TimeProvider.System, request, null, null, AuditActions.PurchaseAttachmentDeleted, "purchase_order", order.Id.ToString("D"), attachment.FileName);
+            if (await scope.CommitAsync(cancellationToken) != SaveOutcome.Saved)
+            {
+                return Result<Guid, PurchaseError>.Fail(PurchaseError.SaveFailed);
+            }
+        }
+
         try
         {
             await storage.DeleteAsync(attachment.StoredName, cancellationToken);
@@ -47,7 +57,6 @@ public sealed class DeletePurchaseAttachmentCommandHandler(
         }
 
         logger.LogInformation("Removed attachment {AttachmentId} from purchase order {PurchaseOrderId}.", attachment.Id, order.Id);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, AuditActions.PurchaseAttachmentDeleted, "purchase_order", order.Id.ToString("D"), attachment.FileName, cancellationToken);
         return Result<Guid, PurchaseError>.Ok(attachment.Id);
     }
 }

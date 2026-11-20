@@ -11,7 +11,7 @@ public class SetCatalogItemActiveCommandHandlerTests
     private readonly FakeCatalogRepository _repository = new();
 
     private SetCatalogItemActiveCommandHandler Handler() =>
-        new(_repository, NullLogger<SetCatalogItemActiveCommandHandler>.Instance);
+        new(_repository, _repository, NullLogger<SetCatalogItemActiveCommandHandler>.Instance);
 
     private CatalogItem AddItem()
     {

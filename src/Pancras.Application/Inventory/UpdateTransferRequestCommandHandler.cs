@@ -12,6 +12,7 @@ namespace Pancras.Application.Inventory;
 /// <summary>Sửa phiếu đề nghị khi chưa được duyệt (kho, ghi chú, mặt hàng, số lượng). Chỉ người lập phiếu được sửa.</summary>
 public sealed class UpdateTransferRequestCommandHandler(
     IInventoryRepository repository,
+    IUnitOfWork unitOfWork,
     ILogger<UpdateTransferRequestCommandHandler> logger,
     TimeProvider? clock = null,
     IAuditLog? audit = null,
@@ -20,6 +21,7 @@ public sealed class UpdateTransferRequestCommandHandler(
 {
     public async Task<Result<Guid, StockError>> HandleAsync(UpdateTransferRequestCommand command, CancellationToken cancellationToken)
     {
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var slip = await repository.FindTransferForUpdateAsync(command.TransferSlipId, cancellationToken);
         if (slip is null)
         {
@@ -57,13 +59,13 @@ public sealed class UpdateTransferRequestCommandHandler(
 
         await TransferTrail.RecordAsync(repository, slip, TransferEventKind.Edited, request, clock, null, cancellationToken);
         await TransferTrail.NotifyAsync(repository, employees, slip, command.Actor.Id, Notification.TransferEditedStep, TransferAudience.Finance | TransferAudience.SourceLead, clock, cancellationToken);
-        if (!await repository.CommitAsync(cancellationToken))
+        audit.Stage(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.TransferUpdated, "transfer_slip", slip.Id.ToString("D"), null);
+        if (await scope.CommitAsync(cancellationToken) != SaveOutcome.Saved)
         {
             return Result<Guid, StockError>.Fail(StockError.TransferStateChanged);
         }
 
         logger.LogInformation("Updated transfer request {TransferSlipId}.", slip.Id);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.TransferUpdated, "transfer_slip", slip.Id.ToString("D"), null, cancellationToken);
         return Result<Guid, StockError>.Ok(slip.Id);
     }
 }

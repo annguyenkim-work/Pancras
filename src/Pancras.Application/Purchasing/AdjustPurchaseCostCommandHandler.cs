@@ -18,6 +18,7 @@ public sealed class AdjustPurchaseCostCommandHandler(
     IInventoryRepository inventory,
     ICatalogItemRepository catalog,
     GetCatalogMeasuresHandler measures,
+    IUnitOfWork unitOfWork,
     ILogger<AdjustPurchaseCostCommandHandler> logger,
     TimeProvider? clock = null,
     IAuditLog? audit = null,
@@ -25,6 +26,7 @@ public sealed class AdjustPurchaseCostCommandHandler(
 {
     public async Task<Result<Guid, PurchaseError>> HandleAsync(AdjustPurchaseCostCommand command, CancellationToken cancellationToken)
     {
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         if (!PurchaseAccess.CanManage(command.Actor))
         {
             logger.LogWarning("Purchase cost adjustment forbidden for role {Role}.", command.Actor.Role);
@@ -65,7 +67,6 @@ public sealed class AdjustPurchaseCostCommandHandler(
         var items = new Dictionary<Guid, CatalogItem>();
         var onHand = new Dictionary<Guid, int>();
         var uncovered = new Dictionary<Guid, int>();
-        var previousCosts = new Dictionary<Guid, decimal>();
         decimal applied = 0;
         for (var index = 0; index < received.Length; index++)
         {
@@ -75,12 +76,10 @@ public sealed class AdjustPurchaseCostCommandHandler(
                 item = await catalog.GetVisibleForUpdateAsync(line.CatalogItemId, cancellationToken);
                 if (item is null)
                 {
-                    Restore(items, previousCosts);
                     return Result<Guid, PurchaseError>.Fail(PurchaseError.InvalidOrder);
                 }
 
                 items[line.CatalogItemId] = item;
-                previousCosts[line.CatalogItemId] = item.CostPrice;
                 onHand[line.CatalogItemId] = await inventory.SumOnHandAsync(line.CatalogItemId, cancellationToken);
                 uncovered[line.CatalogItemId] = onHand[line.CatalogItemId];
             }
@@ -100,28 +99,19 @@ public sealed class AdjustPurchaseCostCommandHandler(
         var adjustment = order.TryAddCostAdjustment(command.Label, amount, command.Method, command.Reason, applied, at, request?.ActorCode);
         if (adjustment is null)
         {
-            Restore(items, previousCosts);
             return Result<Guid, PurchaseError>.Fail(PurchaseError.AdjustmentInvalid);
         }
 
         order.AdvanceVersion();
-        if (!await orders.CommitAsync(cancellationToken))
+        audit.Stage(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.PurchaseCostAdjusted, "purchase_order", order.Id.ToString("D"), adjustment.Label);
+        if (await scope.CommitAsync(cancellationToken) != SaveOutcome.Saved)
         {
-            Restore(items, previousCosts);
             logger.LogWarning("Purchase cost adjustment commit failed for {PurchaseOrderId}.", order.Id);
             return Result<Guid, PurchaseError>.Fail(PurchaseError.SaveFailed);
         }
 
         logger.LogInformation("Adjusted cost of purchase order {PurchaseOrderId}.", order.Id);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.PurchaseCostAdjusted, "purchase_order", order.Id.ToString("D"), adjustment.Label, cancellationToken);
         return Result<Guid, PurchaseError>.Ok(adjustment.Id);
     }
 
-    private static void Restore(Dictionary<Guid, CatalogItem> items, Dictionary<Guid, decimal> previousCosts)
-    {
-        foreach (var cost in previousCosts)
-        {
-            items[cost.Key].SetCostPrice(cost.Value);
-        }
-    }
 }

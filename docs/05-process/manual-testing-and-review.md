@@ -35,7 +35,7 @@ Với **dữ liệu bị ẩn** (giá vốn, ngân hàng nhà cung cấp, tiền
 ## 4. Chạy test
 
 - Môi trường `http://localhost:5010` (`dotnet run --project src/Pancras.Web --launch-profile http`). Dùng hai trình duyệt hoặc hai cửa sổ ẩn danh cho case đồng thời.
-- Hành vi cần PostgreSQL thật (concurrency token, giao dịch, migration) kiểm ở đây vì test tự động chỉ dùng InMemory ([testing.md](../02-coding-rules/testing.md) mục 4).
+- Concurrency token, giao dịch và migration đã có test tự động trên PostgreSQL thật ở `Infrastructure.Tests` ([testing.md](../02-coding-rules/testing.md) mục 4); ở đây chỉ kiểm luồng nhiều người dùng đồng thời qua giao diện.
 - Case giao diện/JS (modal, ô tiền, xác nhận) cần trình duyệt thật, không thay bằng gọi HTTP.
 
 ## 5. Review mã

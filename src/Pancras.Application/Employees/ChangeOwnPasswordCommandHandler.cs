@@ -9,6 +9,7 @@ namespace Pancras.Application.Employees;
 
 public sealed class ChangeOwnPasswordCommandHandler(
     IEmployeeRepository repository,
+    IUnitOfWork unitOfWork,
     IPasswordHasher passwordHasher,
     ILogger<ChangeOwnPasswordCommandHandler> logger,
     TimeProvider? clock = null,
@@ -20,6 +21,7 @@ public sealed class ChangeOwnPasswordCommandHandler(
         EmployeeActor actor,
         CancellationToken cancellationToken)
     {
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var employee = await repository.GetByIdAsync(actor.Id, cancellationToken);
         if (employee is null)
         {
@@ -39,9 +41,9 @@ public sealed class ChangeOwnPasswordCommandHandler(
         }
 
         employee.ReplacePassword(passwordHasher.Hash(command.NewPassword!));
-        await repository.SaveChangesAsync(cancellationToken);
+        audit.Stage(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.PasswordChanged, "employee", employee.Id.ToString("D"), null);
+        (await scope.CommitAsync(cancellationToken)).EnsureSaved();
         logger.LogInformation("Employee {EmployeeId} changed their password.", employee.Id);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.PasswordChanged, "employee", employee.Id.ToString("D"), null, cancellationToken);
         return Result<EmployeeSession, EmployeeError>.Ok(
             new EmployeeSession(employee.Id, employee.FullName, employee.Code, employee.Role, employee.StockLocationId, employee.SecurityStamp));
     }

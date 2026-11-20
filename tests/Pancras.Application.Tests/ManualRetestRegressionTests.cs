@@ -19,7 +19,7 @@ public class ManualRetestRegressionTests
         var store = new FakeInventoryStore();
         var location = StockLocation.Create("Kho A", StockLocationKind.Warehouse);
         store.Locations.Add(location);
-        var handler = new CreateQuantityAdjustmentCommandHandler(store, new FakeEmployeeRepository(), NullLogger<CreateQuantityAdjustmentCommandHandler>.Instance);
+        var handler = new CreateQuantityAdjustmentCommandHandler(store, store, new FakeEmployeeRepository(), NullLogger<CreateQuantityAdjustmentCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(
             new CreateQuantityAdjustmentCommand
@@ -43,7 +43,7 @@ public class ManualRetestRegressionTests
         var location = StockLocation.Create("Showroom 1", StockLocationKind.Showroom);
         repo.Locations.Add(location);
 
-        var result = await new UpdateLocationCommandHandler(repo, NullLogger<UpdateLocationCommandHandler>.Instance)
+        var result = await new UpdateLocationCommandHandler(repo, repo, NullLogger<UpdateLocationCommandHandler>.Instance)
             .HandleAsync(new UpdateLocationCommand { Id = location.Id, Name = "Showroom 1", Kind = null }, TestActors.Admin, CancellationToken.None);
 
         Assert.Equal(LocationManageError.InvalidKind, result);
@@ -75,7 +75,7 @@ public class ManualRetestRegressionTests
         store.Locations.Add(location);
         var itemId = Guid.CreateVersion7();
         store.Balances.Add(StockBalance.Create(itemId, location.Id, 5, 0, 0));
-        var created = await new CreateQuantityAdjustmentCommandHandler(store, new FakeEmployeeRepository(), NullLogger<CreateQuantityAdjustmentCommandHandler>.Instance)
+        var created = await new CreateQuantityAdjustmentCommandHandler(store, store, new FakeEmployeeRepository(), NullLogger<CreateQuantityAdjustmentCommandHandler>.Instance)
             .HandleAsync(
                 new CreateQuantityAdjustmentCommand
                 {
@@ -87,7 +87,7 @@ public class ManualRetestRegressionTests
                     DocumentRef = "DC-02"
                 },
                 CancellationToken.None);
-        var approve = new ApproveQuantityAdjustmentCommandHandler(store, NullLogger<ApproveQuantityAdjustmentCommandHandler>.Instance);
+        var approve = new ApproveQuantityAdjustmentCommandHandler(store, store, NullLogger<ApproveQuantityAdjustmentCommandHandler>.Instance);
 
         var first = await approve.HandleAsync(new ApproveDocumentCommand(created.Value, TestActors.Director), CancellationToken.None);
         var second = await approve.HandleAsync(new ApproveDocumentCommand(created.Value, TestActors.Director), CancellationToken.None);
@@ -96,7 +96,7 @@ public class ManualRetestRegressionTests
         Assert.Equal(StockError.TransferStateChanged, second.Error);
     }
 
-    private sealed class LocationFake : ILocationManagementRepository
+    private sealed class LocationFake : ILocationManagementRepository, Pancras.Application.Common.IUnitOfWork
     {
         public List<StockLocation> Locations { get; } = [];
 
@@ -111,6 +111,7 @@ public class ManualRetestRegressionTests
 
         public Task<bool> HasOpenDocumentsAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(false);
 
-        public Task<Pancras.Application.Common.SaveOutcome> TrySaveAsync(CancellationToken cancellationToken) => Task.FromResult(Pancras.Application.Common.SaveOutcome.Saved);
+        public Task<Pancras.Application.Common.IUnitOfWorkScope> BeginAsync(CancellationToken cancellationToken) =>
+            Task.FromResult<Pancras.Application.Common.IUnitOfWorkScope>(new FakeUnitOfWorkScope(() => Pancras.Application.Common.SaveOutcome.Saved));
     }
 }

@@ -421,6 +421,8 @@ public sealed class PancrasWebFactory : WebApplicationFactory<Program>
                 services.AddSingleton(Clock);
             }
 
+            services.RemoveAll<Pancras.Application.Common.IUnitOfWork>();
+            services.AddSingleton<Pancras.Application.Common.IUnitOfWork, WebTestUnitOfWork>();
             services.RemoveAll<Pancras.Application.Auditing.IAuditLog>();
             services.AddSingleton<Pancras.Application.Auditing.IAuditLog, NoAuditLog>();
             services.RemoveAll<IEmployeeRepository>();
@@ -509,17 +511,8 @@ internal sealed class FakeEmployeeRepository : IEmployeeRepository
     public Task AddAsync(Employee employee, CancellationToken cancellationToken) =>
         Task.CompletedTask;
 
-    public Task<bool> TryAddAsync(Employee employee, CancellationToken cancellationToken) =>
-        Task.FromResult(true);
-
-    public Task SaveChangesAsync(CancellationToken cancellationToken) =>
+    public Task LockPersonnelRulesAsync(CancellationToken cancellationToken) =>
         Task.CompletedTask;
-
-    public Task<Pancras.Application.Common.SaveOutcome> TrySaveChangesAsync(CancellationToken cancellationToken) =>
-        Task.FromResult(Pancras.Application.Common.SaveOutcome.Saved);
-
-    public Task<T> WithinPersonnelRulesAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken) =>
-        action(cancellationToken);
 }
 
 internal sealed class SupplierStatsDouble : ISupplierPurchaseStatsReader
@@ -579,13 +572,11 @@ internal sealed class SupplierDirectoryDouble : ISupplierRepository
             && (string.CompareOrdinal(supplier.Name, name) < 0
                 || (supplier.Name == name && string.CompareOrdinal(supplier.Code, code) < 0))));
 
-    public Task<bool> TryAddAsync(Supplier supplier, CancellationToken cancellationToken)
+    public Task AddAsync(Supplier supplier, CancellationToken cancellationToken)
     {
         Suppliers.Add(supplier);
-        return Task.FromResult(true);
+        return Task.CompletedTask;
     }
-
-    public Task<Pancras.Application.Common.SaveOutcome> TrySaveAsync(CancellationToken cancellationToken) => Task.FromResult(Pancras.Application.Common.SaveOutcome.Saved);
 
     private List<Supplier> Filtered(ListSuppliersQuery filter)
     {
@@ -625,16 +616,24 @@ internal sealed class LocationDirectoryDouble : Pancras.Application.Locations.IL
     public Task<bool> NameExistsAsync(string name, CancellationToken cancellationToken) =>
         Task.FromResult(Locations.Any(location => string.Equals(location.Name, name, StringComparison.OrdinalIgnoreCase)));
 
-    public Task<bool> TryAddAsync(Pancras.Domain.Inventory.StockLocation location, CancellationToken cancellationToken)
+    public Task AddAsync(Pancras.Domain.Inventory.StockLocation location, CancellationToken cancellationToken)
     {
         Locations.Add(location);
-        return Task.FromResult(true);
+        return Task.CompletedTask;
     }
 }
 
 internal sealed class NoAuditLog : Pancras.Application.Auditing.IAuditLog
 {
     public List<Pancras.Domain.Auditing.AuditEntry> Entries { get; } = [];
+
+    public void Stage(Pancras.Domain.Auditing.AuditEntry entry)
+    {
+        lock (Entries)
+        {
+            Entries.Add(entry);
+        }
+    }
 
     public Task RecordAsync(Pancras.Domain.Auditing.AuditEntry entry, CancellationToken cancellationToken)
     {
@@ -648,4 +647,19 @@ internal sealed class NoAuditLog : Pancras.Application.Auditing.IAuditLog
 
     public Task<IReadOnlyList<Pancras.Domain.Auditing.AuditEntry>> ListPageAsync(Pancras.Application.Auditing.AuditQuery query, Pancras.Application.Auditing.AuditCursor? cursor, bool backward, int limit, bool newestFirst, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<Pancras.Domain.Auditing.AuditEntry>>([]);
+}
+
+/// <summary>UnitOfWork giả cho test trang: các test double giữ dữ liệu trong bộ nhớ nên commit luôn thành công.</summary>
+internal sealed class WebTestUnitOfWork : Pancras.Application.Common.IUnitOfWork
+{
+    public Task<Pancras.Application.Common.IUnitOfWorkScope> BeginAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<Pancras.Application.Common.IUnitOfWorkScope>(new Scope());
+
+    private sealed class Scope : Pancras.Application.Common.IUnitOfWorkScope
+    {
+        public Task<Pancras.Application.Common.SaveOutcome> CommitAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(Pancras.Application.Common.SaveOutcome.Saved);
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
 }

@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Pancras.Domain.Notifications;
 using Pancras.Infrastructure.Persistence;
@@ -7,20 +6,15 @@ using Pancras.Infrastructure.Persistence;
 namespace Pancras.Infrastructure.Tests;
 
 /// <summary>Phân trang và đếm chưa xem làm ở truy vấn (docs/03-ui-ux/components.md mục 6), chỉ của người nhận; sắp theo thời điểm tạo, mới nhất trước, không đổi chỗ khi đã xem.</summary>
-public class NoticePagingTests
+public class NoticePagingTests(PostgresFixture fixture) : PostgresTest(fixture)
 {
-    private readonly DbContextOptions<PancrasDbContext> _options = new DbContextOptionsBuilder<PancrasDbContext>()
-        .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
-        .ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning))
-        .Options;
-
     private static readonly DateTimeOffset Start = new(2026, 11, 1, 8, 0, 0, TimeSpan.Zero);
 
     private async Task<(Guid Mine, Guid Other)> SeedAsync()
     {
         var mine = Guid.CreateVersion7();
         var other = Guid.CreateVersion7();
-        await using var context = new PancrasDbContext(_options);
+        await using var context = new PancrasDbContext(Options);
         for (var i = 0; i < 5; i++)
         {
             var notice = Notification.Create(mine, null, Guid.CreateVersion7(), NotificationKind.Purchase, "step" + i, Start.AddMinutes(i));
@@ -44,7 +38,7 @@ public class NoticePagingTests
     public async Task Pages_AreCutByTheDatabase_NewestFirstWhetherSeenOrNot_AndOnlyForTheRecipient()
     {
         var (mine, _) = await SeedAsync();
-        await using var context = new PancrasDbContext(_options);
+        await using var context = new PancrasDbContext(Options);
         var repository = Repository(context);
 
         var first = await repository.ListNoticesPageAsync(mine, 1, 2, default);
@@ -61,7 +55,7 @@ public class NoticePagingTests
     public async Task APageBeyondTheEnd_IsEmpty_ButStillReportsTheTotal()
     {
         var (mine, _) = await SeedAsync();
-        await using var context = new PancrasDbContext(_options);
+        await using var context = new PancrasDbContext(Options);
 
         var page = await Repository(context).ListNoticesPageAsync(mine, 9, 2, default);
 
@@ -73,7 +67,7 @@ public class NoticePagingTests
     public async Task UnseenCount_CountsOnlyMyUnseenNotices()
     {
         var (mine, other) = await SeedAsync();
-        await using var context = new PancrasDbContext(_options);
+        await using var context = new PancrasDbContext(Options);
         var repository = Repository(context);
 
         Assert.Equal(3, await repository.CountUnseenNoticesAsync(mine, default));

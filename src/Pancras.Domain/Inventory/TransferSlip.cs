@@ -438,38 +438,6 @@ public sealed class TransferSlip : Pancras.Domain.Auditing.VersionedAuditStamped
         return true;
     }
 
-    /// <summary>Khôi phục cờ giữ hàng khi lưu thất bại (số giữ chỗ ở kho xuất được khôi phục riêng bằng BalanceSnapshot).</summary>
-    public void RestoreReserved(bool reserved) => StockReserved = reserved;
-
-    public void RestoreUncommitted(TransferStatus status)
-    {
-        Status = status;
-        foreach (var line in _lines)
-        {
-            line.ClearReceived();
-        }
-
-        ReceiveNote = string.Empty;
-        ResolutionNote = string.Empty;
-        ResolvedBy = string.Empty;
-        ResolvedAt = null;
-        ReceivedBy = string.Empty;
-        ReceivedAt = null;
-        if (status is TransferStatus.Requested or TransferStatus.Approved)
-        {
-            SealNumber = string.Empty;
-            Carrier = string.Empty;
-            ShippedBy = string.Empty;
-            ShippedAt = null;
-        }
-
-        if (status == TransferStatus.Requested)
-        {
-            StockReserved = false;
-            ApprovedBy = string.Empty;
-            ApprovedAt = null;
-        }
-    }
 
     private bool TotalsAreShippable(
         IReadOnlyDictionary<Guid, StockBalance> sources,

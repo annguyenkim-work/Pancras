@@ -23,8 +23,8 @@ public class SupplierSnapshotOnOrdersTests
         supplier.Update("NCC99", "Tên mới", "Trung Quốc", "Nguyễn An", "", "", "");
 
         var list = await new ListPurchaseOrdersHandler(_orders, _suppliers, new FakeInventoryStore(), NullLogger<ListPurchaseOrdersHandler>.Instance)
-            .HandleAsync(SupplierActors.Admin, CancellationToken.None);
-        Assert.Equal("Kim An", Assert.Single(list).SupplierName);
+            .HandleAsync(SupplierActors.Admin, null, CancellationToken.None);
+        Assert.Equal("Kim An", Assert.Single(list.Items).SupplierName);
         Assert.Equal("NCC01", order.SupplierCode);
     }
 
@@ -36,9 +36,9 @@ public class SupplierSnapshotOnOrdersTests
         _orders.Orders.Add(NewOrder(supplier.Id));
 
         var list = await new ListPurchaseOrdersHandler(_orders, _suppliers, new FakeInventoryStore(), NullLogger<ListPurchaseOrdersHandler>.Instance)
-            .HandleAsync(SupplierActors.Admin, CancellationToken.None);
+            .HandleAsync(SupplierActors.Admin, null, CancellationToken.None);
 
-        Assert.Equal("Kim An", Assert.Single(list).SupplierName);
+        Assert.Equal("Kim An", Assert.Single(list.Items).SupplierName);
     }
 
     private static PurchaseOrder NewOrder(Guid supplierId) =>

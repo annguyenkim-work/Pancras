@@ -131,7 +131,7 @@ public class UpdateSupplierCommandHandlerTests
         var command = Edit(supplier.Id, name: "Tên mới");
         command.Account = "987654321";
 
-        var result = await new UpdateSupplierCommandHandler(_repository, NullLogger<UpdateSupplierCommandHandler>.Instance, audit: audit)
+        var result = await new UpdateSupplierCommandHandler(_repository, _repository, NullLogger<UpdateSupplierCommandHandler>.Instance, audit: audit)
             .HandleAsync(command, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -158,7 +158,7 @@ public class UpdateSupplierCommandHandlerTests
     }
 
     private UpdateSupplierCommandHandler Handler() =>
-        new(_repository, NullLogger<UpdateSupplierCommandHandler>.Instance);
+        new(_repository, _repository, NullLogger<UpdateSupplierCommandHandler>.Instance);
 
     private Supplier AddSample()
     {

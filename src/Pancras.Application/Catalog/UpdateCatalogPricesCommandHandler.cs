@@ -97,6 +97,7 @@ public sealed class UpdateCatalogPricesCommandValidator : AbstractValidator<Upda
 
 public sealed class UpdateCatalogPricesCommandHandler(
     ICatalogItemRepository repository,
+    IUnitOfWork unitOfWork,
     ILogger<UpdateCatalogPricesCommandHandler> logger,
     TimeProvider? clock = null,
     Pancras.Application.Auditing.IAuditLog? audit = null,
@@ -115,6 +116,7 @@ public sealed class UpdateCatalogPricesCommandHandler(
             return Result<CatalogItemRow, CatalogError>.Fail(CatalogError.PriceListForbidden);
         }
 
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var item = await repository.GetVisibleForUpdateAsync(command.Id, cancellationToken);
         if (item is null)
         {
@@ -188,14 +190,14 @@ public sealed class UpdateCatalogPricesCommandHandler(
             command.ProjectPrice!.Value);
         item.SetDiscountPercents(command.DealerDiscountPercent, command.DistributorDiscountPercent, command.ProjectDiscountPercent);
         item.AdvanceVersion();
-        if (await repository.TrySaveAsync(cancellationToken) != SaveOutcome.Saved)
+        audit.Stage(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.PricesChanged, "catalog_item", item.Id.ToString("D"), null);
+        if (await scope.CommitAsync(cancellationToken) != SaveOutcome.Saved)
         {
             logger.LogInformation("Rejected a price list edit for {CatalogItemId}.", item.Id);
             return Result<CatalogItemRow, CatalogError>.Fail(CatalogError.VersionConflict);
         }
 
         logger.LogInformation("Updated prices for catalog item {CatalogItemId}.", item.Id);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.PricesChanged, "catalog_item", item.Id.ToString("D"), null, cancellationToken);
         return Result<CatalogItemRow, CatalogError>.Ok(CatalogItemRow.From(item));
     }
 }

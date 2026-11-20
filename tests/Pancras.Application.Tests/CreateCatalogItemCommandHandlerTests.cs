@@ -147,7 +147,7 @@ public class CreateCatalogItemCommandHandlerTests
     }
 
     private static CreateCatalogItemCommandHandler Handler(FakeCatalogRepository repository) =>
-        new(repository, NullLogger<CreateCatalogItemCommandHandler>.Instance);
+        new(repository, repository, NullLogger<CreateCatalogItemCommandHandler>.Instance);
 
     private static CreateCatalogItemCommand Command(string code, string name) => new()
     {

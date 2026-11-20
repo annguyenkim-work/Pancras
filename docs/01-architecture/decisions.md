@@ -32,9 +32,10 @@
 - **Lý do:** lỗi nghiệp vụ là kết quả bình thường, không phải ngoại lệ; tách chữ tiếng Việt khỏi lõi.
 - **Hệ quả:** PageModel map mã lỗi sang câu; không `try/catch` nghiệp vụ trong trang.
 
-### ADR-06 — Giao dịch nằm trong repository
-- **Quyết định:** một phương thức repository = một giao dịch; không `IUnitOfWork`.
-- **Lý do:** Application không cần biết khái niệm giao dịch; thao tác nhiều bước có tên nghiệp vụ.
+### ADR-06 — Giao dịch mở tường minh bằng `IUnitOfWork` (đổi 2026-11-20)
+- **Quyết định:** handler ghi dữ liệu mở một scope `IUnitOfWork`, repository chỉ đọc và staging, `CommitAsync` lưu cả dữ liệu lẫn nhật ký trong một giao dịch. Thay quyết định cũ (2026-11-16): "một phương thức repository = một giao dịch; không `IUnitOfWork`".
+- **Lý do:** review của senior: giao dịch ẩn trong repository làm ranh giới giao dịch khó thấy, nhật ký ghi ngoài giao dịch có thể mất, và handler phải tự hoàn nguyên (`Restore`) đối tượng khi lưu lỗi.
+- **Hệ quả:** xem [use-cases-and-results.md](../02-coding-rules/use-cases-and-results.md) mục "Giao dịch" và "Audit".
 
 ## B. Nghiệp vụ nền
 

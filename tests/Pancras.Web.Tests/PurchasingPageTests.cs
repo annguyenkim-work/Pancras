@@ -102,7 +102,7 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
             [(Guid.CreateVersion7(), 1, 10m, 0.05m, 0m, 0m, 0m)])!;
         Assert.True(order.TrySubmit());
         Assert.True(order.TryApprove());
-        Assert.Equal(ReceiptDecision.Ok, order.TryRecordReceipt(order.Lines.ToDictionary(line => line.Id, line => line.Quantity), true, null, DateTimeOffset.UtcNow, "mua", out _, out _));
+        Assert.Equal(ReceiptDecision.Ok, order.TryRecordReceipt(order.Lines.ToDictionary(line => line.Id, line => line.Quantity), true, null, DateTimeOffset.UtcNow, "mua", out _));
         orders.Orders.Add(order);
         await SignInAsync(client);
 
@@ -167,6 +167,41 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         Assert.Contains("id=\"purchase-dialog\"", html, StringComparison.Ordinal);
         Assert.Contains("/js/purchasing-form.js", html, StringComparison.Ordinal);
         Assert.DoesNotContain("<dialog open", html, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("InvalidReceiptQuantity", "Số thực nhận không hợp lệ.")]
+    [InlineData("NotReceivable", "chưa nhận hàng được")]
+    public async Task ARejectedAction_ShowsItsReasonAsAnErrorToast_NotAsABannerAtTheTopOfThePage(string error, string text)
+    {
+        // Lỗi UAT: nhận hàng bị từ chối, trang tải lại mà người dùng (đang ở giữa trang) không thấy lỗi vì banner nằm ở đầu trang.
+        using var client = _factory.CreateClient(NoRedirect);
+        Reset();
+        await SignInAsync(client);
+
+        var html = await (await client.GetAsync("/purchasing?error=" + error)).Content.ReadAsStringAsync();
+
+        var toast = System.Text.RegularExpressions.Regex.Match(html, "<div[^>]*data-tone=\"rose\"[^>]*>.*?</div>", System.Text.RegularExpressions.RegexOptions.Singleline);
+        Assert.True(toast.Success, "Lỗi phải hiện bằng toast đỏ (góc dưới phải).");
+        Assert.Contains(text, System.Net.WebUtility.HtmlDecode(toast.Value), StringComparison.Ordinal);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(System.Net.WebUtility.HtmlDecode(html), System.Text.RegularExpressions.Regex.Escape(text)));
+    }
+
+    [Fact]
+    public async Task TheOtherTaxInput_IsAMoneyInput_LikeTheChargeAmounts()
+    {
+        // Lỗi UAT: ô "Thuế khác (VNĐ)" hiện số thô 200000 thay vì 200.000 vì thiếu lớp vnd (script định dạng tiền chỉ xử lý ô có lớp này).
+        using var client = _factory.CreateClient(NoRedirect);
+        Reset();
+        await SignInAsync(client);
+
+        var html = await (await client.GetAsync("/purchasing?form=1")).Content.ReadAsStringAsync();
+
+        var input = System.Text.RegularExpressions.Regex.Match(html, "<input name=\"Form\\.Lines\\[0\\]\\.SupplementalDuty\"[^>]*>");
+        Assert.True(input.Success, "Phải có ô Thuế khác của dòng đầu.");
+        var classes = System.Text.RegularExpressions.Regex.Match(input.Value, "class=\"([^\"]*)\"").Groups[1].Value.Split(' ');
+        Assert.Contains("line-other", classes);
+        Assert.Contains("vnd", classes);
     }
 
     [Fact]
@@ -564,8 +599,28 @@ internal sealed class PurchaseDirectoryDouble : IPurchaseOrderRepository
 {
     public List<PurchaseOrder> Orders { get; } = [];
 
-    public Task<IReadOnlyList<PurchaseOrder>> ListAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<PurchaseOrder>>(Orders.ToArray());
+    public Task<IReadOnlyList<PurchaseShipmentKey>> ListShipmentKeysAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<PurchaseShipmentKey>>(Orders.Select(order => new PurchaseShipmentKey(order.Id, order.Code, order.ContainerNumber, order.BillOfLading, order.Status)).ToArray());
+
+    public Task<PurchaseOrderPage> ListPageAsync(PurchaseOrderQuery filter, int pageNumber, int pageSize, CancellationToken cancellationToken)
+    {
+        var visible = Orders.Where(filter.Visible.Compile()).OrderByDescending(order => order.Id).ToList();
+        var term = filter.Term?.Trim();
+        var matching = visible
+            .Where(order => filter.SupplierId is null || order.SupplierId == filter.SupplierId)
+            .Where(order => string.IsNullOrEmpty(term)
+                || new[] { order.Code, order.ContainerNumber, order.BillOfLading, order.Port, order.SupplierName }
+                    .Any(text => text.Contains(term, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+        var size = Math.Max(1, pageSize);
+        var page = Math.Clamp(pageNumber, 1, Math.Max(1, (matching.Count + size - 1) / size));
+        return Task.FromResult(new PurchaseOrderPage(
+            matching.Skip((page - 1) * size).Take(size).ToArray(),
+            matching.Count,
+            page,
+            visible.Count > 0,
+            matching.Count == 0 ? null : matching[0].Id));
+    }
 
     public Task<PurchaseOrder?> FindReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
         Task.FromResult(Orders.FirstOrDefault(order => order.Id == id));
@@ -576,11 +631,9 @@ internal sealed class PurchaseDirectoryDouble : IPurchaseOrderRepository
     public Task<bool> NormalizedCodeExistsAsync(string normalizedCode, CancellationToken cancellationToken) =>
         Task.FromResult(Orders.Any(order => order.NormalizedCode == normalizedCode));
 
-    public Task<bool> TryAddAsync(PurchaseOrder order, CancellationToken cancellationToken)
+    public Task AddAsync(PurchaseOrder order, CancellationToken cancellationToken)
     {
         Orders.Add(order);
-        return Task.FromResult(true);
+        return Task.CompletedTask;
     }
-
-    public Task<bool> CommitAsync(CancellationToken cancellationToken) => Task.FromResult(true);
 }

@@ -75,7 +75,7 @@ public class DeactivateSupplierCommandHandlerTests
         var supplier = AddSample();
         supplier.Deactivate();
 
-        var result = await new CreateSupplierCommandHandler(_repository, NullLogger<CreateSupplierCommandHandler>.Instance)
+        var result = await new CreateSupplierCommandHandler(_repository, _repository, NullLogger<CreateSupplierCommandHandler>.Instance)
             .HandleAsync(new CreateSupplierCommand
             {
                 Actor = SupplierActors.Admin,
@@ -120,10 +120,10 @@ public class DeactivateSupplierCommandHandlerTests
                 _repository,
                 new FakeInventoryStore(),
                 NullLogger<Pancras.Application.Purchasing.ListPurchaseOrdersHandler>.Instance)
-            .HandleAsync(SupplierActors.Admin, CancellationToken.None);
+            .HandleAsync(SupplierActors.Admin, null, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("Kim An", Assert.Single(list).SupplierName);
+        Assert.Equal("Kim An", Assert.Single(list.Items).SupplierName);
     }
 
     [Fact]
@@ -166,10 +166,10 @@ public class DeactivateSupplierCommandHandlerTests
     }
 
     private DeactivateSupplierCommandHandler Deactivate(ISupplierPurchaseStatsReader? stats = null) =>
-        new(_repository, NullLogger<DeactivateSupplierCommandHandler>.Instance, stats, audit: _audit);
+        new(_repository, _repository, NullLogger<DeactivateSupplierCommandHandler>.Instance, stats, audit: _audit);
 
     private ReactivateSupplierCommandHandler Reactivate() =>
-        new(_repository, NullLogger<ReactivateSupplierCommandHandler>.Instance, audit: _audit);
+        new(_repository, _repository, NullLogger<ReactivateSupplierCommandHandler>.Instance, audit: _audit);
 
     private Supplier AddSample()
     {

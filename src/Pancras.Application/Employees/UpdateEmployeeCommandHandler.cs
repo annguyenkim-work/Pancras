@@ -9,6 +9,7 @@ namespace Pancras.Application.Employees;
 
 public sealed class UpdateEmployeeCommandHandler(
     IEmployeeRepository repository,
+    IUnitOfWork unitOfWork,
     ILocationRepository locations,
     IPasswordHasher passwordHasher,
     ILogger<UpdateEmployeeCommandHandler> logger,
@@ -23,43 +24,15 @@ public sealed class UpdateEmployeeCommandHandler(
         EmployeeActor actor,
         CancellationToken cancellationToken)
     {
-        var outcome = await repository.WithinPersonnelRulesAsync(
-            ct => SaveUpdateAsync(command, actor, ct),
-            cancellationToken);
-        if (outcome.AuditAction is string action)
-        {
-            await audit.RecordAsync(
-                clock ?? TimeProvider.System,
-                request,
-                null,
-                null,
-                action,
-                "employee",
-                outcome.EmployeeId,
-                outcome.Detail,
-                cancellationToken);
-        }
-
-        if (outcome.PasswordReset && outcome.EmployeeId is not null)
-        {
-            await audit.RecordAsync(
-                clock ?? TimeProvider.System,
-                request,
-                null,
-                null,
-                Pancras.Domain.Auditing.AuditActions.PasswordReset,
-                "employee",
-                outcome.EmployeeId,
-                null,
-                cancellationToken);
-        }
-
-        return outcome.Profile;
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
+        await repository.LockPersonnelRulesAsync(cancellationToken);
+        return await SaveUpdateAsync(command, actor, scope, cancellationToken);
     }
 
-    private async Task<UpdateOutcome> SaveUpdateAsync(
+    private async Task<Result<EmployeeProfile, EmployeeError>> SaveUpdateAsync(
         UpdateEmployeeCommand command,
         EmployeeActor actor,
+        IUnitOfWorkScope scope,
         CancellationToken cancellationToken)
     {
         var validation = _validator.Validate(command);
@@ -67,16 +40,16 @@ public sealed class UpdateEmployeeCommandHandler(
         {
             if (validation.Errors.Any(error => error.ErrorCode == nameof(EmployeeError.ProfileIncomplete)))
             {
-                return UpdateOutcome.Fail(EmployeeError.ProfileIncomplete);
+                return Failed(EmployeeError.ProfileIncomplete);
             }
 
-            return UpdateOutcome.Fail(EmployeeError.InvalidRole);
+            return Failed(EmployeeError.InvalidRole);
         }
 
         var employee = await repository.GetByIdAsync(command.Id, cancellationToken);
         if (employee is null)
         {
-            return UpdateOutcome.Fail(EmployeeError.NotFound);
+            return Failed(EmployeeError.NotFound);
         }
 
         if (!EmployeeAccess.CanView(actor, employee.Id, employee.StockLocationId))
@@ -87,7 +60,7 @@ public sealed class UpdateEmployeeCommandHandler(
         if (command.Version != employee.Version)
         {
             logger.LogInformation("Rejected a stale employee edit for {EmployeeId}.", employee.Id);
-            return UpdateOutcome.Fail(EmployeeError.VersionConflict);
+            return Failed(EmployeeError.VersionConflict);
         }
 
         var personalChanged =
@@ -117,14 +90,14 @@ public sealed class UpdateEmployeeCommandHandler(
                 && command.Role != EmployeeRole.Admin
                 && await repository.CountActiveAdminsAsync(cancellationToken) <= 1)
             {
-                return UpdateOutcome.Fail(EmployeeError.LastAdmin);
+                return Failed(EmployeeError.LastAdmin);
             }
 
             var assignment = await EmployeeRules.CheckAssignmentAsync(
                 command.Role!, command.StockLocationId, employee.Id, repository, locations, cancellationToken);
             if (assignment != EmployeeError.None)
             {
-                return UpdateOutcome.Fail(assignment);
+                return Failed(assignment);
             }
         }
 
@@ -138,7 +111,7 @@ public sealed class UpdateEmployeeCommandHandler(
 
             if (!PasswordPolicy.IsAcceptable(command.Password))
             {
-                return UpdateOutcome.Fail(EmployeeError.WeakPassword);
+                return Failed(EmployeeError.WeakPassword);
             }
 
             newHash = passwordHasher.Hash(command.Password);
@@ -147,61 +120,55 @@ public sealed class UpdateEmployeeCommandHandler(
         var previousCode = employee.Code;
         if (personalChanged && !employee.Rename(command.FullName!))
         {
-            return UpdateOutcome.Fail(EmployeeError.ProfileIncomplete);
+            return Failed(EmployeeError.ProfileIncomplete);
         }
 
         employee.ReplaceContact(command.Email, command.Phone, command.Address);
         if (assignmentChanged
             && !employee.ReplaceAssignment(command.Role!, command.JobTitle, command.Department, command.StockLocationId))
         {
-            return UpdateOutcome.Fail(EmployeeError.InvalidRole);
+            return Failed(EmployeeError.InvalidRole);
         }
 
         if (newHash is not null && !employee.ReplacePassword(newHash))
         {
-            return UpdateOutcome.Fail(EmployeeError.WeakPassword);
+            return Failed(EmployeeError.WeakPassword);
         }
 
         if (!string.Equals(previousCode, employee.Code, StringComparison.Ordinal))
         {
             logger.LogError("Employee {EmployeeId} code changed during rename.", employee.Id);
-            return UpdateOutcome.Fail(EmployeeError.ProfileIncomplete);
+            return Failed(EmployeeError.ProfileIncomplete);
         }
 
-        if (await repository.TrySaveChangesAsync(cancellationToken) == SaveOutcome.Conflict)
-        {
-            logger.LogInformation("Concurrent edit rejected for employee {EmployeeId}.", employee.Id);
-            return UpdateOutcome.Fail(EmployeeError.VersionConflict);
-        }
-
-        logger.LogInformation("Updated employee {EmployeeId} by {ActorId}.", employee.Id, actor.Id);
         var employeeId = employee.Id.ToString("D");
         var action = assignmentChanged
             ? Pancras.Domain.Auditing.AuditActions.EmployeeRoleChanged
             : Pancras.Domain.Auditing.AuditActions.EmployeeUpdated;
-        return new UpdateOutcome(
-            Result<EmployeeProfile, EmployeeError>.Ok(EmployeeMapping.ToProfile(employee)),
-            employeeId,
-            action,
-            assignmentChanged ? "role/assignment changed" : null,
-            newHash is not null);
+        audit.Stage(clock ?? TimeProvider.System, request, null, null, action, "employee", employeeId, assignmentChanged ? "role/assignment changed" : null);
+        if (newHash is not null)
+        {
+            audit.Stage(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.PasswordReset, "employee", employeeId, null);
+        }
+
+        var saved = (await scope.CommitAsync(cancellationToken)).ThrowIfFailed();
+        if (saved != SaveOutcome.Saved)
+        {
+            logger.LogInformation("Concurrent edit rejected for employee {EmployeeId}.", employee.Id);
+            return Failed(EmployeeError.VersionConflict);
+        }
+
+        logger.LogInformation("Updated employee {EmployeeId} by {ActorId}.", employee.Id, actor.Id);
+        return Result<EmployeeProfile, EmployeeError>.Ok(EmployeeMapping.ToProfile(employee));
     }
 
-    private readonly record struct UpdateOutcome(
-        Result<EmployeeProfile, EmployeeError> Profile,
-        string? EmployeeId,
-        string? AuditAction,
-        string? Detail,
-        bool PasswordReset)
-    {
-        public static UpdateOutcome Fail(EmployeeError error) =>
-            new(Result<EmployeeProfile, EmployeeError>.Fail(error), null, null, null, false);
-    }
+    private static Result<EmployeeProfile, EmployeeError> Failed(EmployeeError error) =>
+        Result<EmployeeProfile, EmployeeError>.Fail(error);
 
-    private UpdateOutcome Forbidden(EmployeeActor actor, Guid targetId)
+    private Result<EmployeeProfile, EmployeeError> Forbidden(EmployeeActor actor, Guid targetId)
     {
         logger.LogWarning("Employee update forbidden for {ActorId} on {EmployeeId}.", actor.Id, targetId);
-        return UpdateOutcome.Fail(EmployeeError.Forbidden);
+        return Failed(EmployeeError.Forbidden);
     }
 
     private static bool Same(string? left, string? right) =>

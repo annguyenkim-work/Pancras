@@ -9,6 +9,7 @@ namespace Pancras.Application.Employees;
 
 public sealed class SetEmployeeActiveCommandHandler(
     IEmployeeRepository repository,
+    IUnitOfWork unitOfWork,
     ILogger<SetEmployeeActiveCommandHandler> logger,
     TimeProvider? clock = null,
     Pancras.Application.Auditing.IAuditLog? audit = null,
@@ -20,6 +21,7 @@ public sealed class SetEmployeeActiveCommandHandler(
         EmployeeActor actor,
         CancellationToken cancellationToken)
     {
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var employee = await repository.GetByIdAsync(id, cancellationToken);
         if (employee is null)
         {
@@ -32,25 +34,7 @@ public sealed class SetEmployeeActiveCommandHandler(
             return Result<EmployeeProfile, EmployeeError>.Fail(EmployeeError.Forbidden);
         }
 
-        var result = await repository.WithinPersonnelRulesAsync(
-            ct => ApplyActiveChangeAsync(employee, active, ct),
-            cancellationToken);
-        if (result.IsSuccess)
-        {
-            var action = active
-                ? Pancras.Domain.Auditing.AuditActions.EmployeeActivated
-                : Pancras.Domain.Auditing.AuditActions.EmployeeDeactivated;
-            await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, action, "employee", employee.Id.ToString("D"), active ? "activated" : null, cancellationToken);
-        }
-
-        return result;
-    }
-
-    private async Task<Result<EmployeeProfile, EmployeeError>> ApplyActiveChangeAsync(
-        Employee employee,
-        bool active,
-        CancellationToken cancellationToken)
-    {
+        await repository.LockPersonnelRulesAsync(cancellationToken);
         if (!active && employee.IsActive && employee.Role == EmployeeRole.Admin
             && await repository.CountActiveAdminsAsync(cancellationToken) <= 1)
         {
@@ -74,7 +58,11 @@ public sealed class SetEmployeeActiveCommandHandler(
             employee.Deactivate();
         }
 
-        if (await repository.TrySaveChangesAsync(cancellationToken) == SaveOutcome.Conflict)
+        var action = active
+            ? Pancras.Domain.Auditing.AuditActions.EmployeeActivated
+            : Pancras.Domain.Auditing.AuditActions.EmployeeDeactivated;
+        audit.Stage(clock ?? TimeProvider.System, request, null, null, action, "employee", employee.Id.ToString("D"), active ? "activated" : null);
+        if ((await scope.CommitAsync(cancellationToken)).ThrowIfFailed() == SaveOutcome.Conflict)
         {
             return Result<EmployeeProfile, EmployeeError>.Fail(EmployeeError.VersionConflict);
         }
