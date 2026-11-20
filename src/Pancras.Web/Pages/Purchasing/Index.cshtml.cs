@@ -117,6 +117,15 @@ public class IndexModel(
     /// <summary>Link tới một đơn (hoặc một thao tác trên đơn) mà vẫn giữ bộ lọc, cỡ trang và trang của danh sách đang xem.</summary>
     public string OrderUrl(Guid orderId, string? extra = null) => ListUrl(orderId, OrdersPageNumber, ListPageSize, extra);
 
+    /// <summary>
+    /// Địa chỉ của form thao tác trên trang (duyệt, nhận hàng, lưu đơn...): thao tác cộng bộ lọc, trang và cỡ trang đang xem,
+    /// để sau khi xử lý quay lại đúng danh sách đó (docs/03-ui-ux/components.md mục 10).
+    /// </summary>
+    public string ActionUrl(string handler) => ListUrl(null, OrdersPageNumber, ListPageSize, "handler=" + handler);
+
+    /// <summary>Địa chỉ quay lại sau một thao tác POST: danh sách đang lọc (đọc từ query của form) và đơn vừa thao tác.</summary>
+    private string BackTo(Guid? orderId, string? extra = null) => ListUrl(orderId, ListPage, ListPageSize, extra);
+
     private string ListUrl(Guid? order, int page, int size, string? extra = null)
     {
         var parts = new List<string>();
@@ -384,14 +393,14 @@ public class IndexModel(
             return Page();
         }
 
-        return Redirect($"/purchasing?order={orderId}&notice=updated");
+        return Redirect(BackTo(orderId, "notice=updated"));
     }
 
     public async Task<IActionResult> OnPostUploadAsync(Guid orderId, AttachmentKind kind, IFormFile? file)
     {
         if (file is null || file.Length == 0)
         {
-            return Redirect($"/purchasing?order={orderId}&error={PurchaseError.AttachmentInvalid}");
+            return Redirect(BackTo(orderId, "error=" + PurchaseError.AttachmentInvalid));
         }
 
         await using var content = file.OpenReadStream();
@@ -399,8 +408,8 @@ public class IndexModel(
             new UploadPurchaseAttachmentCommand { Actor = Actor, PurchaseOrderId = orderId, Kind = kind, FileName = file.FileName, Content = content },
             HttpContext.RequestAborted);
         return result.IsFailure
-            ? Redirect($"/purchasing?order={orderId}&error={result.Error}")
-            : Redirect($"/purchasing?order={orderId}&notice=attachment-added");
+            ? Redirect(BackTo(orderId, "error=" + result.Error))
+            : Redirect(BackTo(orderId, "notice=attachment-added"));
     }
 
     public async Task<IActionResult> OnGetDownloadAsync(Guid id)
@@ -421,8 +430,8 @@ public class IndexModel(
     {
         var result = await deleteAttachment.HandleAsync(attachmentId, Actor, HttpContext.RequestAborted);
         return result.IsFailure
-            ? Redirect($"/purchasing?order={orderId}&error={result.Error}")
-            : Redirect($"/purchasing?order={orderId}&notice=attachment-deleted");
+            ? Redirect(BackTo(orderId, "error=" + result.Error))
+            : Redirect(BackTo(orderId, "notice=attachment-deleted"));
     }
 
     public async Task<IActionResult> OnPostCreateAsync()
@@ -457,7 +466,7 @@ public class IndexModel(
             return Page();
         }
 
-        return Redirect($"/purchasing?order={result.Value}&notice=created");
+        return Redirect(BackTo(result.Value, "notice=created"));
     }
 
     public async Task<IActionResult> OnPostReceiveAsync(Guid orderId, bool closeOrder, string? note, Dictionary<Guid, int>? actuals)
@@ -465,7 +474,7 @@ public class IndexModel(
         var detail = await getOrder.HandleAsync(orderId, Actor, HttpContext.RequestAborted);
         if (detail is null)
         {
-            return Redirect($"/purchasing?order={orderId}&error={PurchaseError.InvalidOrder}");
+            return Redirect(BackTo(orderId, "error=" + PurchaseError.InvalidOrder));
         }
 
         var posted = actuals ?? new Dictionary<Guid, int>();
@@ -482,13 +491,13 @@ public class IndexModel(
             {
                 // Câu lỗi cần mặt hàng và số lượng (Detail) nên ghi toast ngay, không đi qua tham số error=.
                 TempData.Toast(PurchaseErrorMessages.Describe(result.Error, result.Detail), ToastLevel.Error);
-                return Redirect($"/purchasing?order={orderId}");
+                return Redirect(BackTo(orderId));
             }
 
-            return Redirect($"/purchasing?order={orderId}&error={result.Error}");
+            return Redirect(BackTo(orderId, "error=" + result.Error));
         }
 
-        return Redirect($"/purchasing?order={orderId}&notice=received");
+        return Redirect(BackTo(orderId, "notice=received"));
     }
 
     /// <summary>Gửi duyệt, duyệt, trả về nháp, đánh dấu hàng đang về, hủy. Trả về nháp và hủy phải có lý do.</summary>
@@ -497,7 +506,7 @@ public class IndexModel(
         var result = await changeStatus.HandleAsync(new ChangePurchaseStatusCommand(orderId, Actor, action, note), HttpContext.RequestAborted);
         if (result.IsFailure)
         {
-            return Redirect($"/purchasing?order={orderId}&error={result.Error}");
+            return Redirect(BackTo(orderId, "error=" + result.Error));
         }
 
         var notice = action switch
@@ -508,7 +517,7 @@ public class IndexModel(
             PurchaseStatusAction.MarkInTransit => "in-transit",
             _ => "cancelled"
         };
-        return Redirect($"/purchasing?order={orderId}&notice={notice}");
+        return Redirect(BackTo(orderId, "notice=" + notice));
     }
 
     /// <summary>Điều chỉnh chi phí sau khi đơn đã nhận đủ (hóa đơn về muộn). Số tiền có dấu: dương tăng giá vốn, âm giảm.</summary>
@@ -518,21 +527,21 @@ public class IndexModel(
             new AdjustPurchaseCostCommand { Actor = Actor, PurchaseOrderId = orderId, Label = label, Amount = amount, Method = method, Reason = reason },
             HttpContext.RequestAborted);
         return result.IsFailure
-            ? Redirect($"/purchasing?order={orderId}&error={result.Error}")
-            : Redirect($"/purchasing?order={orderId}&notice=cost-adjusted");
+            ? Redirect(BackTo(orderId, "error=" + result.Error))
+            : Redirect(BackTo(orderId, "notice=cost-adjusted"));
     }
 
     public async Task<IActionResult> OnPostExportAsync(Guid orderId)
     {
         if (orderId == Guid.Empty)
         {
-            return Redirect("/purchasing");
+            return Redirect(BackTo(null));
         }
 
         var result = await exportOrder.HandleAsync(orderId, Actor, HttpContext.RequestAborted);
         if (result.IsFailure)
         {
-            return Redirect($"/purchasing?error={result.Error}");
+            return Redirect(BackTo(null, "error=" + result.Error));
         }
 
         var export = result.Value!;

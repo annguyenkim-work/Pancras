@@ -234,6 +234,63 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         Assert.Equal(expected, PurchaseErrorMessages.Describe(PurchaseError.ReceiptExceedsOrdered, detail));
 
     [Fact]
+    public async Task ActionsOnAnOrder_ReturnToTheSameFilteredList()
+    {
+        // Lỗi UAT: duyệt, nhận hàng (một phần, đủ) tải lại trang mà mất bộ lọc.
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var order = NewOrder("PO-KEEP", Guid.CreateVersion7());
+        orders.Orders.Add(order);
+        await SignInAsync(client);
+        const string list = "q=PO-KEEP&status=Draft&size=50";
+
+        var page = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?order=" + order.Id + "&" + list)).Content.ReadAsStringAsync());
+        var action = Regex.Match(page, @"<form[^>]*action=""(/purchasing\?handler=ChangeStatus[^""]*)""").Groups[1].Value;
+        Assert.Contains("q=PO-KEEP", action, StringComparison.Ordinal);
+        Assert.Contains("status=Draft", action, StringComparison.Ordinal);
+        Assert.Contains("size=50", action, StringComparison.Ordinal);
+        var token = Regex.Match(page, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+
+        var response = await client.PostAsync(action, new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = token,
+            ["orderId"] = order.Id.ToString(),
+            ["action"] = ((int)PurchaseStatusAction.Submit).ToString()
+        }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        var location = response.Headers.Location!.OriginalString;
+        Assert.Contains("order=" + order.Id, location, StringComparison.Ordinal);
+        Assert.Contains("notice=submitted", location, StringComparison.Ordinal);
+        Assert.Contains("q=PO-KEEP", location, StringComparison.Ordinal);
+        Assert.Contains("status=Draft", location, StringComparison.Ordinal);
+        Assert.Contains("size=50", location, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ARejectedReceipt_AlsoReturnsToTheSameFilteredList()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var order = NewOrder("PO-KEEP2", Guid.CreateVersion7());
+        orders.Orders.Add(order);
+        await SignInAsync(client);
+
+        var response = await client.PostAsync("/purchasing?handler=Receive&q=PO-KEEP2&status=Approved&pageNumber=2", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = await TokenAsync(client, order.Id),
+            ["orderId"] = order.Id.ToString()
+        }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        var location = response.Headers.Location!.OriginalString;
+        Assert.Contains("error=", location, StringComparison.Ordinal);
+        Assert.Contains("q=PO-KEEP2", location, StringComparison.Ordinal);
+        Assert.Contains("status=Approved", location, StringComparison.Ordinal);
+        Assert.Contains("pageNumber=2", location, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task OpeningAnOrderFromTheFilteredList_KeepsTheFilters()
     {
         // Lỗi UAT: lọc danh sách rồi bấm một đơn để xem chi tiết thì bộ lọc bị mất.

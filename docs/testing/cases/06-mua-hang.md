@@ -234,7 +234,7 @@ Mã `action` nằm trong hidden input của từng form. Đổi giá trị rồi
 | PUR-P22 | P2 | Mọi vai trò | Gửi form thiếu token chống giả mạo | 400 | ☐ |
 | PUR-U01 | P1 | KT mở form lập đơn, nhập "Thuế khác (VNĐ)" = 200000, tab ra ngoài; lưu rồi sửa lại | Ô hiện `200.000` khi gõ và khi mở lại; lưu đúng 200000 | ☐ |
 | PUR-U02 | P1 | Gõ từ khóa và chọn bộ lọc trạng thái trong danh sách, bấm chọn một đơn | Từ khóa, trạng thái và trang vẫn còn; thẻ đơn đang chọn được tô | ☐ |
-| PUR-U03 | P1 | Sau PUR-U02 thực hiện một thao tác (gửi duyệt, duyệt, hủy) | Quay lại đúng đơn, danh sách vẫn giữ bộ lọc | ☐ |
+| PUR-U03 | P1 | Sau PUR-U02 lần lượt: gửi duyệt, duyệt, trả về nháp, hàng đang về, nhận một phần, nhận đủ, ghi điều chỉnh chi phí, tải lên và xóa chứng từ, sửa và lưu đơn, sang trang 2 rồi thao tác, thử cả một thao tác bị từ chối | Sau mỗi thao tác quay lại đúng đơn vừa thao tác; từ khóa, trạng thái, nhà cung cấp, trang, cỡ trang vẫn giữ nguyên | ☐ |
 | PUR-U04 | P1 | Lọc theo từng trạng thái (Nháp, Chờ duyệt, Đã duyệt, Đang về, Đã nhận, Đã hủy); thử `?status=abc` | Chỉ ra đơn đúng trạng thái; giá trị lạ coi như không lọc | ☐ |
 | PUR-U05 | P1 | Nhận hàng với số thực nhận vượt số còn phải nhận, lần lượt: nhận một phần, có tick "Đóng đơn dù nhận thiếu", và lần nhận cuối; cuộn giữa trang trước khi bấm | Cả ba lần đều bị từ chối, tồn và đơn không đổi; toast lỗi góc dưới phải nêu mã mặt hàng, số đã nhập, số còn phải nhận; không có banner ở đầu trang. Ô số lượng không cho gõ quá số còn phải nhận (trình duyệt báo) | ☐ |
 | PUR-U06 | P2 | Mở chi tiết đơn ở mọi trạng thái, menu mở và thu nhỏ, màn 1024 và 1920 | Trạng thái nằm cạnh mã đơn sát phải; các nút cùng cỡ, chữ không xuống dòng, tối đa 2 hàng | ☐ |

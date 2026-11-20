@@ -62,6 +62,7 @@ Lưu ý nghiệp vụ đã được chủ sản phẩm chấp nhận: **không t
 | TRF-05 | P2 | Tìm theo mã phiếu, mã SKU, tên hàng | Đúng | ☐ |
 | TRF-06 | P2 | Lọc không ra | "Không có phiếu phù hợp." + nút "Xóa lọc" | ☐ |
 | TRF-07 | P1 | Lọc nhanh "Chờ tôi duyệt / xuất kho / nhận hàng / xử lý chênh lệch" | Số đếm = số phiếu thực tế mình có quyền làm bước đó; bấm vào ra đúng các phiếu ấy | ☐ |
+| TRF-07b | P1 | Lọc (trạng thái, kho, từ khóa, ngày, lọc nhanh), sang trang 2, rồi lần lượt: duyệt, xuất kho, nhận hàng, trả về, hủy, xử lý chênh lệch, sửa phiếu, đính kèm file; lập phiếu mới | Sau mỗi thao tác phiếu vừa thao tác được mở; bộ lọc, trang, cỡ trang giữ nguyên | ☐ |
 | TRF-08 | P1 | Số đếm trên tab "Chuyển kho" | = tổng phiếu đang chờ mình | ☐ |
 | TRF-09 | P1 | Cột "Việc của bạn" | Ghi đúng bước mình cần làm; trống khi không có việc | ☐ |
 | TRF-10 | P2 | Lọc nhanh + bộ lọc chi tiết cùng lúc | Kết hợp đúng; "Xóa lọc" đưa về danh sách đầy đủ | ☐ |

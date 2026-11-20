@@ -402,7 +402,7 @@ public class IndexModel(
         }
 
         View = "transfers";
-        return Redirect(PageUrl(includeItem: false));
+        return Redirect(TransfersBackTo(created.Value));
     }
 
     /// <summary>Sửa phiếu đề nghị khi chưa được duyệt.</summary>
@@ -491,7 +491,7 @@ public class IndexModel(
         }
 
         View = "transfers";
-        return Redirect(PageUrl(includeItem: false));
+        return Redirect(TransfersBackTo(DocumentId));
     }
 
     /// <summary>Lưu các file đính kèm cho phiếu hiện tại; trả về kết quả lỗi nếu một file bị từ chối, null nếu xong.</summary>
@@ -622,6 +622,17 @@ public class IndexModel(
             : Task.FromResult<IActionResult>(Forbid());
 
     /// <summary>Địa chỉ trang Chuyển kho với bộ lọc hiện tại, đổi một vài tham số (null thì bỏ tham số đó).</summary>
+    /// <summary>
+    /// Địa chỉ của form thao tác ở tab Chuyển kho (lập, sửa, duyệt, xuất, nhận, trả, hủy, xử lý chênh lệch, đính kèm): thao tác cộng
+    /// lọc nhanh, bộ lọc, trang và cỡ trang đang xem, để sau khi xử lý quay lại đúng danh sách (docs/03-ui-ux/components.md mục 10).
+    /// </summary>
+    public string TransferActionUrl(string handler) =>
+        "/inventory?handler=" + handler + "&" + TransferUrl(TransferQuick, CurrentTransferPage, keepFilters: true, TransferPageSize)["/inventory?".Length..];
+
+    /// <summary>Danh sách chuyển kho đang lọc (đọc từ query của form vừa gửi), mở sẵn phiếu vừa thao tác.</summary>
+    private string TransfersBackTo(Guid slipId) =>
+        TransferUrl(TransferQuick, TransferPage, keepFilters: true, TransferPageSize) + (slipId == Guid.Empty ? string.Empty : "&open=" + slipId.ToString("D"));
+
     public string TransferUrl(string? quick = null, int? page = null, bool keepFilters = true, int? size = null)
     {
         var parts = new List<string> { "view=transfers" };
@@ -724,7 +735,7 @@ public class IndexModel(
         if (view == "transfers" && DocumentId != Guid.Empty)
         {
             // Mở lại phiếu vừa thao tác để người dùng thấy trạng thái mới và lịch sử.
-            return Redirect(TransferUrl(keepFilters: false) + "&open=" + DocumentId.ToString("D"));
+            return Redirect(TransfersBackTo(DocumentId));
         }
 
         if (view == "stocktakes")
@@ -780,7 +791,7 @@ public class IndexModel(
         }
 
         View = "stocktakes";
-        return Redirect(PageUrl(includeItem: false));
+        return Redirect(StocktakesUrl(StocktakePage, StocktakePageSize));
     }
 
     private async Task<IActionResult> FailStockDocumentAsync(StockDocumentKind kind, StockError error, string? detail, CancellationToken cancellationToken)

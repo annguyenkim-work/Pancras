@@ -13,7 +13,7 @@
             <h2 class="text-lg font-bold text-slate-900">@(Model.EditingId is null ? "Lập Phiếu Mua Hàng & Container Nhập Khẩu (Nhiều Mặt Hàng)" : "Sửa Đơn Mua Hàng (chưa nhập kho)")</h2>
             <a href="/purchasing" data-leave class="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-2xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Đóng">×</a>
         </div>
-        <form method="post" asp-page-handler="@(Model.EditingId is null ? "Create" : "Update")" id="purchase-draft" class="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+        <form method="post" asp-antiforgery="true" action="@Model.ActionUrl(Model.EditingId is null ? "Create" : "Update")" id="purchase-draft" class="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
             @if (!string.IsNullOrEmpty(Model.ErrorMessage))
             {
                 <div class="mb-3"><partial name="_Notice" model='new NoticeModel(Model.ErrorMessage, ToastLevel.Error, null, "form-error")' /></div>

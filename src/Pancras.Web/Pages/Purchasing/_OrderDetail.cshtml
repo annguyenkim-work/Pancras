@@ -38,7 +38,7 @@
         </p>
         @* Nút thao tác: cùng chiều cao và độ rộng (w-44), chữ không xuống dòng; hàng 1 là xuất/sửa/nhập kho, hàng 2 là luồng đơn. *@
         <div id="order-actions" class="mt-4 flex flex-wrap items-center gap-2">
-            <form method="post" asp-page-handler="Export">
+            <form method="post" asp-antiforgery="true" action="@Model.ActionUrl("Export")">
                 <input type="hidden" name="orderId" value="@order.Id" />
                 <button type="submit" class="@actionButton @secondaryButton">Xuất CSV</button>
             </form>
@@ -48,7 +48,7 @@
             }
             @if (Model.CanReceiveSelected && Pancras.Web.Pages.Purchasing.IndexModel.IsReceivable(order.Status))
             {
-                <form id="receive-form" method="post" asp-page-handler="Receive" class="flex flex-nowrap items-center gap-3" data-confirm data-confirm-title="Ghi nhận hàng vào kho" data-confirm-message="Ghi số thực nhận vào tồn và cập nhật giá vốn bình quân? Thao tác này không hoàn tác được." data-confirm-label="Ghi nhận" data-confirm-tone="danger">
+                <form id="receive-form" method="post" asp-antiforgery="true" action="@Model.ActionUrl("Receive")" class="flex flex-nowrap items-center gap-3" data-confirm data-confirm-title="Ghi nhận hàng vào kho" data-confirm-message="Ghi số thực nhận vào tồn và cập nhật giá vốn bình quân? Thao tác này không hoàn tác được." data-confirm-label="Ghi nhận" data-confirm-tone="danger">
                     <input type="hidden" name="orderId" value="@order.Id" />
                     <input type="hidden" name="note" value="" />
                     <button type="submit" class="@actionShape px-5 @successButton">Nhập Kho &amp; Cập Nhật Giá Vốn (@order.Lines.Count món)</button>
@@ -66,7 +66,7 @@
             <div class="mt-2 flex flex-wrap items-center gap-2" id="order-workflow">
                 @if (order.Status == PurchaseStatus.Draft)
                 {
-                    <form method="post" asp-page-handler="ChangeStatus" data-confirm data-confirm-title="Gửi duyệt" data-confirm-message="Gửi đơn này đi duyệt?" data-confirm-label="Gửi duyệt">
+                    <form method="post" asp-antiforgery="true" action="@Model.ActionUrl("ChangeStatus")" data-confirm data-confirm-title="Gửi duyệt" data-confirm-message="Gửi đơn này đi duyệt?" data-confirm-label="Gửi duyệt">
                         <input type="hidden" name="orderId" value="@order.Id" />
                         <input type="hidden" name="action" value="@((int)Pancras.Application.Purchasing.PurchaseStatusAction.Submit)" />
                         <button type="submit" class="@actionButton @primaryButton">Gửi duyệt</button>
@@ -74,12 +74,12 @@
                 }
                 @if (order.Status == PurchaseStatus.PendingApproval)
                 {
-                    <form method="post" asp-page-handler="ChangeStatus" data-confirm data-confirm-title="Duyệt đơn" data-confirm-message="Duyệt đơn này?" data-confirm-label="Duyệt đơn">
+                    <form method="post" asp-antiforgery="true" action="@Model.ActionUrl("ChangeStatus")" data-confirm data-confirm-title="Duyệt đơn" data-confirm-message="Duyệt đơn này?" data-confirm-label="Duyệt đơn">
                         <input type="hidden" name="orderId" value="@order.Id" />
                         <input type="hidden" name="action" value="@((int)Pancras.Application.Purchasing.PurchaseStatusAction.Approve)" />
                         <button type="submit" class="@actionButton @successButton">Duyệt đơn</button>
                     </form>
-                    <form method="post" asp-page-handler="ChangeStatus" data-confirm data-confirm-title="Trả về nháp" data-confirm-message="Đơn quay về nháp để sửa. Nhập lý do trả về." data-confirm-label="Trả về nháp" data-reason="required">
+                    <form method="post" asp-antiforgery="true" action="@Model.ActionUrl("ChangeStatus")" data-confirm data-confirm-title="Trả về nháp" data-confirm-message="Đơn quay về nháp để sửa. Nhập lý do trả về." data-confirm-label="Trả về nháp" data-reason="required">
                         <input type="hidden" name="orderId" value="@order.Id" />
                         <input type="hidden" name="action" value="@((int)Pancras.Application.Purchasing.PurchaseStatusAction.ReturnToDraft)" />
                         <input type="hidden" name="note" value="" />
@@ -88,13 +88,13 @@
                 }
                 @if (order.Status == PurchaseStatus.Approved)
                 {
-                    <form method="post" asp-page-handler="ChangeStatus" data-confirm data-confirm-title="Hàng đang về" data-confirm-message="Đánh dấu hàng đang trên đường về?" data-confirm-label="Hàng đang về">
+                    <form method="post" asp-antiforgery="true" action="@Model.ActionUrl("ChangeStatus")" data-confirm data-confirm-title="Hàng đang về" data-confirm-message="Đánh dấu hàng đang trên đường về?" data-confirm-label="Hàng đang về">
                         <input type="hidden" name="orderId" value="@order.Id" />
                         <input type="hidden" name="action" value="@((int)Pancras.Application.Purchasing.PurchaseStatusAction.MarkInTransit)" />
                         <button type="submit" class="@actionButton @primaryButton">Hàng đang về</button>
                     </form>
                 }
-                <form method="post" asp-page-handler="ChangeStatus" data-confirm data-confirm-title="Hủy đơn" data-confirm-message="Hủy đơn này? Không hoàn tác được." data-confirm-label="Hủy đơn" data-confirm-tone="danger" data-reason="required">
+                <form method="post" asp-antiforgery="true" action="@Model.ActionUrl("ChangeStatus")" data-confirm data-confirm-title="Hủy đơn" data-confirm-message="Hủy đơn này? Không hoàn tác được." data-confirm-label="Hủy đơn" data-confirm-tone="danger" data-reason="required">
                     <input type="hidden" name="orderId" value="@order.Id" />
                     <input type="hidden" name="action" value="@((int)Pancras.Application.Purchasing.PurchaseStatusAction.Cancel)" />
                     <input type="hidden" name="note" value="" />
@@ -382,7 +382,7 @@
             <details class="mt-3 rounded-lg border border-slate-200 p-4" id="adjust-cost">
                 <summary class="cursor-pointer text-sm font-bold text-sky-700">Ghi điều chỉnh chi phí (hóa đơn về muộn)</summary>
                 <p class="mt-2 text-xs leading-5 text-slate-600">Số tiền có dấu: dương làm tăng giá vốn, âm làm giảm. Khoản này được chia cho các dòng đã nhận theo cách chọn; phần ứng với hàng còn trong kho cộng vào giá vốn bình quân, phần ứng với hàng đã xuất được ghi là chênh lệch và không sửa ngược.</p>
-                <form method="post" asp-page-handler="AdjustCost" class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-4" data-confirm data-confirm-title="Ghi điều chỉnh chi phí" data-confirm-message="Giá vốn của hàng còn tồn sẽ đổi." data-confirm-label="Ghi điều chỉnh">
+                <form method="post" asp-antiforgery="true" action="@Model.ActionUrl("AdjustCost")" class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-4" data-confirm data-confirm-title="Ghi điều chỉnh chi phí" data-confirm-message="Giá vốn của hàng còn tồn sẽ đổi." data-confirm-label="Ghi điều chỉnh">
                     <input type="hidden" name="orderId" value="@order.Id" />
                     <label class="text-sm">Tên khoản<input name="label" required maxlength="200" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" /></label>
                     <label class="text-sm">Số tiền (VNĐ, có dấu)<input name="amount" required inputmode="numeric" pattern="-?[0-9]+" class="mt-1 w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" /></label>
@@ -424,7 +424,7 @@
                             </div>
                             @if (Model.CanManage && Pancras.Web.Pages.Purchasing.IndexModel.IsEditable(order.Status))
                             {
-                                <form method="post" asp-page-handler="DeleteAttachment" data-confirm data-confirm-title="Xóa chứng từ" data-confirm-message="Xóa chứng từ này?" data-confirm-label="Xóa" data-confirm-tone="danger">
+                                <form method="post" asp-antiforgery="true" action="@Model.ActionUrl("DeleteAttachment")" data-confirm data-confirm-title="Xóa chứng từ" data-confirm-message="Xóa chứng từ này?" data-confirm-label="Xóa" data-confirm-tone="danger">
                                     <input type="hidden" name="orderId" value="@order.Id" />
                                     <input type="hidden" name="attachmentId" value="@file.Id" />
                                     <button type="submit" class="text-xs font-bold text-rose-600 hover:underline">Xóa</button>
@@ -440,7 +440,7 @@
             }
             @if (Model.CanManage)
             {
-            <form method="post" asp-page-handler="Upload" enctype="multipart/form-data" class="mt-3 flex flex-wrap items-end gap-3">
+            <form method="post" asp-antiforgery="true" action="@Model.ActionUrl("Upload")" enctype="multipart/form-data" class="mt-3 flex flex-wrap items-end gap-3">
                 <input type="hidden" name="orderId" value="@order.Id" />
                 <label class="text-xs">Loại chứng từ
                     <select name="kind" class="mt-1 block rounded-lg border border-slate-300 px-3 py-2 text-sm">

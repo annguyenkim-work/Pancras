@@ -46,7 +46,7 @@ Khi chủ dự án gửi một lỗi, AI **không sửa ngay**. Làm theo hai gi
 **Giai đoạn 1 — điều tra, chưa đổi mã:**
 1. **Tái hiện** lỗi (bằng test, lệnh hoặc xem trang); nêu rõ đã tái hiện được hay chưa và cách làm.
 2. **Xác định có phải lỗi không:** đối chiếu với docs (luật nghiệp vụ, UI) và code; có thể là đúng theo docs, hành vi đã chốt, hoặc docs/code lệch nhau.
-3. **Tìm nguyên nhân gốc** và phạm vi ảnh hưởng (chỗ khác có cùng lỗi không). **Bắt buộc quét toàn repo** tìm cùng mẫu lỗi ở các màn khác (lệnh quét ở [ui-checklist.md](../03-ui-ux/ui-checklist.md)), liệt kê từng chỗ tìm thấy; sửa một chỗ mà bỏ sót chỗ cùng mẫu là chưa xong.
+3. **Tìm nguyên nhân gốc** và phạm vi ảnh hưởng (chỗ khác có cùng lỗi không). **Bắt buộc quét toàn repo** tìm cùng mẫu lỗi ở các màn khác (lỗi về bộ lọc hay điều hướng thì quét **cả link lẫn mọi form POST** của mọi màn, không chỉ chỗ được báo) (lệnh quét ở [ui-checklist.md](../03-ui-ux/ui-checklist.md)), liệt kê từng chỗ tìm thấy; sửa một chỗ mà bỏ sót chỗ cùng mẫu là chưa xong.
 4. **Đề xuất các hướng sửa** kèm ưu nhược điểm và khuyến nghị; nêu cả việc docs hay test case cần đổi gì.
 
 **Giai đoạn 2 — sau khi chủ dự án chọn hướng, làm theo đúng thứ tự:**

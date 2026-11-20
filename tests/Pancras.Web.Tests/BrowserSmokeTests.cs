@@ -157,6 +157,28 @@ public sealed class BrowserSmokeTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ApprovingAnOrderFromAFilteredList_KeepsTheFilters()
+    {
+        // UAT: duyệt, nhận hàng tải lại trang mà mất bộ lọc. Đi trọn luồng thật: lọc, chọn đơn, bấm, xác nhận.
+        var orders = _factory.Services.GetRequiredService<PurchaseDirectoryDouble>();
+        var order = PurchaseOrder.TryCreate("PO-SMOKE-KEEP", Guid.CreateVersion7(), Guid.CreateVersion7(), "CONT", "BL", "Hải Phòng", null, 25000m, 0.1m, [(Guid.CreateVersion7(), 4, 10m, 0m, 0m, 0m, 0m)])!;
+        Assert.True(order.TrySubmit());
+        orders.Orders.Add(order);
+
+        var page = await SignedInPageAsync();
+        await page.GotoAsync(_baseUrl + "/purchasing?q=PO-SMOKE-KEEP&status=PendingApproval&size=50&order=" + order.Id);
+        await page.ClickAsync("#order-workflow button:has-text('Duyệt đơn')");
+        await page.ClickAsync("#confirm-ok");
+        await page.WaitForURLAsync(url => url.Contains("notice=approved", StringComparison.Ordinal));
+
+        Assert.Contains("q=PO-SMOKE-KEEP", page.Url, StringComparison.Ordinal);
+        Assert.Contains("status=PendingApproval", page.Url, StringComparison.Ordinal);
+        Assert.Contains("size=50", page.Url, StringComparison.Ordinal);
+        Assert.Equal(PurchaseStatus.Approved, order.Status);
+        AssertNoScriptErrors();
+    }
+
+    [Fact]
     public async Task RejectedStocktake_ShowsItsErrorInsideTheReopenedDialog()
     {
         // UAT: lỗi lập phiếu kiểm kê hiện sau lớp phủ của hộp thoại, người dùng không thấy.

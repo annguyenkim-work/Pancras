@@ -97,6 +97,59 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
     }
 
     [Fact]
+    public async Task InventoryActionForms_CarryTheTabFilters()
+    {
+        // Lỗi UAT: thao tác chuyển kho và lập phiếu tải lại trang mà mất bộ lọc.
+        using var client = _factory.CreateClient(NoRedirect);
+        Reset();
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+
+        var transfers = Decode(await (await client.GetAsync("/inventory?view=transfers&ts=Pending&tq=abc&size=50")).Content.ReadAsStringAsync());
+        var request = Regex.Match(transfers, @"<form[^>]*action=""(/inventory\?handler=RequestTransfer[^""]*)""").Groups[1].Value;
+        Assert.Contains("view=transfers", request, StringComparison.Ordinal);
+        Assert.Contains("ts=Pending", request, StringComparison.Ordinal);
+        Assert.Contains("tq=abc", request, StringComparison.Ordinal);
+        Assert.Contains("size=50", request, StringComparison.Ordinal);
+
+        var stocktakes = Decode(await (await client.GetAsync("/inventory?view=stocktakes&type=kk&code=1A&size=50")).Content.ReadAsStringAsync());
+        var create = Regex.Match(stocktakes, @"<form[^>]*action=""(/inventory\?handler=CreateStocktake[^""]*)""").Groups[1].Value;
+        Assert.Contains("view=stocktakes", create, StringComparison.Ordinal);
+        Assert.Contains("type=kk", create, StringComparison.Ordinal);
+        Assert.Contains("code=1A", create, StringComparison.Ordinal);
+        Assert.Contains("size=50", create, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ATransferAction_ReturnsToTheFilteredTransferList_WithTheSlipOpen()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+        var me = _factory.Services.GetRequiredService<FakeEmployeeRepository>().Employees.Single(employee => employee.Code == "admin");
+        var slip = TransferSlip.Create(Guid.CreateVersion7(), Guid.CreateVersion7(), "chuyển thử", [(Guid.CreateVersion7(), 1)], me.Id)!;
+        inventory.Transfers.Add(slip);
+        var token = await TokenAsync(client, "/inventory?view=transfers");
+
+        var response = await client.PostAsync(
+            "/inventory?handler=CancelTransfer&view=transfers&ts=Pending&tq=abc&tp=2&size=50",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["__RequestVerificationToken"] = token,
+                ["DocumentId"] = slip.Id.ToString(),
+                ["reason"] = "không cần nữa"
+            }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        var location = response.Headers.Location!.OriginalString;
+        Assert.Contains("view=transfers", location, StringComparison.Ordinal);
+        Assert.Contains("ts=Pending", location, StringComparison.Ordinal);
+        Assert.Contains("tq=abc", location, StringComparison.Ordinal);
+        Assert.Contains("tp=2", location, StringComparison.Ordinal);
+        Assert.Contains("size=50", location, StringComparison.Ordinal);
+        Assert.Contains("open=" + slip.Id, location, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Export_WritesTheThreeFilteredRows()
     {
         using var client = _factory.CreateClient(NoRedirect);
@@ -736,7 +789,7 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
         Task.FromResult<Guid?>(null);
 
     public Task<TransferSlip?> FindTransferForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult<TransferSlip?>(null);
+        Task.FromResult(Transfers.FirstOrDefault(slip => slip.Id == id));
 
     public Task<TransferSlip?> FindTransferReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
         FindTransferForUpdateAsync(id, cancellationToken);
