@@ -163,6 +163,13 @@
     }
     if (boot.showStocktakeDialog === 'true') {
         document.getElementById('stocktake-dialog').showModal();
+        refreshBook();
+    }
+    if (boot.showAdjustmentDialog === 'true') {
+        document.getElementById('adjustment-dialog').showModal();
+    }
+    if (boot.showDisposalDialog === 'true') {
+        document.getElementById('disposal-dialog').showModal();
     }
     document.addEventListener('click', event => {
         const opener = event.target.closest('[data-open-transfer]');

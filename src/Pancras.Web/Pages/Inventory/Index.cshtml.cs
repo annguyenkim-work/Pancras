@@ -106,6 +106,13 @@ public class IndexModel(
 
     public bool ShowStocktakeDialog { get; private set; }
 
+    public bool ShowAdjustmentDialog { get; private set; }
+
+    public bool ShowDisposalDialog { get; private set; }
+
+    /// <summary>Có modal lập phiếu (chuyển kho, kiểm kê, điều chỉnh, hủy) đang mở lại sau khi bị từ chối; lỗi hiện trong modal đó.</summary>
+    public bool ShowAnyDocumentDialog => ShowTransferDialog || ShowStocktakeDialog || ShowAdjustmentDialog || ShowDisposalDialog;
+
     [BindProperty(SupportsGet = true, Name = "bp")]
     public int BalancePage { get; set; } = 1;
 
@@ -740,6 +747,8 @@ public class IndexModel(
     {
         ErrorMessage = StockErrorMessages.Describe(error, detail);
         ShowStocktakeDialog = kind == StockDocumentKind.Stocktake;
+        ShowAdjustmentDialog = kind == StockDocumentKind.Adjustment;
+        ShowDisposalDialog = kind == StockDocumentKind.Disposal;
         View = "stocktakes";
         await LoadAsync(cancellationToken);
         return Page();

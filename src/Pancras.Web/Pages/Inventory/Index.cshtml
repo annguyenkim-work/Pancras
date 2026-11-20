@@ -33,7 +33,7 @@
         </div>
         @* Lỗi hiện ở đầu trang cả khi thao tác trên phiếu bị chặn. Người không thấy phiếu (không có trong danh sách) không nhận thông báo. *@
         @if (!string.IsNullOrEmpty(Model.ErrorMessage)
-            && !Model.ShowTransferDialog
+            && !Model.ShowAnyDocumentDialog
             && (Model.OpenTransferId is null || Model.CanSeeOpenTransfer))
         {
             <div class="mt-3"><partial name="_Notice" model="new NoticeModel(Model.ErrorMessage, ToastLevel.Error)" /></div>
@@ -64,5 +64,5 @@
 }
 
 <script type="application/json" id="stock-map">@Html.Raw(Model.BalanceJson)</script>
-<div id="inventory-boot" hidden data-show-transfer-dialog="@(Model.ShowTransferDialog ? "true" : "false")" data-open-transfer="@(Model.OpenTransferId is Guid openId ? openId.ToString("D") : "")" data-show-stocktake-dialog="@(Model.ShowStocktakeDialog ? "true" : "false")"></div>
+<div id="inventory-boot" hidden data-show-transfer-dialog="@(Model.ShowTransferDialog ? "true" : "false")" data-open-transfer="@(Model.OpenTransferId is Guid openId ? openId.ToString("D") : "")" data-show-stocktake-dialog="@(Model.ShowStocktakeDialog ? "true" : "false")" data-show-adjustment-dialog="@(Model.ShowAdjustmentDialog ? "true" : "false")" data-show-disposal-dialog="@(Model.ShowDisposalDialog ? "true" : "false")"></div>
 <script src="~/js/inventory-page.js" asp-append-version="true" defer></script>

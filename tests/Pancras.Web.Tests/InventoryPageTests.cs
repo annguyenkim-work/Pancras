@@ -186,6 +186,44 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
         Assert.Empty(inventory.Stocktakes);
     }
 
+    [Theory]
+    [InlineData("stocktake", "CreateStocktake", "Stocktake")]
+    [InlineData("adjustment", "CreateAdjustment", "Adjustment")]
+    [InlineData("disposal", "CreateDisposal", "Disposal")]
+    public async Task ARejectedStockDocument_ReopensItsOwnDialog_WithTheErrorInsideAndTheTypedValuesKept(string kind, string handler, string prefix)
+    {
+        // Lỗi UAT: lưu biên bản/phiếu lỗi thì modal đóng, lỗi hiện ngoài trang và các ô đã nhập bị mất.
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+        var token = await TokenAsync(client, "/inventory?view=stocktakes");
+        var fields = new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = token,
+            [prefix + ".StockLocationId"] = string.Empty,
+            [prefix + ".CatalogItemId"] = string.Empty,
+            [prefix + ".Reason"] = "lý do thử",
+            [prefix + ".DocumentRef"] = "CT-123"
+        };
+        if (kind == "stocktake")
+        {
+            fields["Stocktake.CountedQuantity"] = "abc";
+        }
+
+        var response = await client.PostAsync("/inventory?handler=" + handler, new FormUrlEncodedContent(fields));
+        var html = Decode(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains($"data-show-{kind}-dialog=\"true\"", html, StringComparison.Ordinal);
+        var dialog = Regex.Match(html, $"<dialog id=\"{kind}-dialog\".*?</dialog>", RegexOptions.Singleline).Value;
+        var alert = Regex.Match(dialog, "role=\"alert\"[^>]*>\\s*<p[^>]*>(.*?)</p>", RegexOptions.Singleline).Groups[1].Value.Trim();
+        Assert.False(string.IsNullOrEmpty(alert), "Lỗi phải hiện bên trong modal.");
+        Assert.Single(Regex.Matches(html, Regex.Escape(alert)));
+        Assert.Contains("value=\"lý do thử\"", dialog, StringComparison.Ordinal);
+        Assert.Contains("value=\"CT-123\"", dialog, StringComparison.Ordinal);
+        Assert.Empty(inventory.Stocktakes);
+    }
+
     private static async Task<string> TokenAsync(HttpClient client, string path) =>
         Regex.Match(await (await client.GetAsync(path)).Content.ReadAsStringAsync(), "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
 
