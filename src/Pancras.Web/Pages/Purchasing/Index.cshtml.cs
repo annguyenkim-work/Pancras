@@ -112,12 +112,22 @@ public class IndexModel(
         OrdersTotal,
         (page, size) => OrdersUrl(page, size));
 
-    private string OrdersUrl(int page, int size)
+    private string OrdersUrl(int page, int size) => ListUrl(Selected?.Id, page, size);
+
+    /// <summary>Link tới một đơn (hoặc một thao tác trên đơn) mà vẫn giữ bộ lọc, cỡ trang và trang của danh sách đang xem.</summary>
+    public string OrderUrl(Guid orderId, string? extra = null) => ListUrl(orderId, OrdersPageNumber, ListPageSize, extra);
+
+    private string ListUrl(Guid? order, int page, int size, string? extra = null)
     {
         var parts = new List<string>();
-        if (Selected is not null)
+        if (order is Guid orderId)
         {
-            parts.Add("order=" + Selected.Id.ToString("D"));
+            parts.Add("order=" + orderId.ToString("D"));
+        }
+
+        if (!string.IsNullOrEmpty(extra))
+        {
+            parts.Add(extra);
         }
 
         if (!string.IsNullOrWhiteSpace(Search))

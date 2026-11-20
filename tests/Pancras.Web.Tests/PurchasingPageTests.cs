@@ -188,6 +188,28 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
     }
 
     [Fact]
+    public async Task OpeningAnOrderFromTheFilteredList_KeepsTheFilters()
+    {
+        // Lỗi UAT: lọc danh sách rồi bấm một đơn để xem chi tiết thì bộ lọc bị mất.
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var location = Guid.CreateVersion7();
+        orders.Orders.Add(NewOrder("PO-AA", location));
+        orders.Orders.Add(NewOrder("PO-AB", location));
+        await SignInAsync(client);
+
+        var html = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?q=PO&size=50")).Content.ReadAsStringAsync());
+
+        var links = System.Text.RegularExpressions.Regex.Matches(html, "<a href=\"(/purchasing\\?order=[^\"]*)\" class=\"block rounded-xl").Select(match => match.Groups[1].Value).Distinct().ToArray();
+        Assert.Equal(2, links.Length);
+        Assert.All(links, link =>
+        {
+            Assert.Contains("q=PO", link, StringComparison.Ordinal);
+            Assert.Contains("size=50", link, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
     public async Task TheOtherTaxInput_IsAMoneyInput_LikeTheChargeAmounts()
     {
         // Lỗi UAT: ô "Thuế khác (VNĐ)" hiện số thô 200000 thay vì 200.000 vì thiếu lớp vnd (script định dạng tiền chỉ xử lý ô có lớp này).

@@ -155,7 +155,7 @@
                                 <td class="px-3 py-2 tabular-nums text-emerald-700">@VndMoney.FormatDong(line.Cost.LogisticsAllocated)</td>
                                 <td class="px-3 py-2 tabular-nums">@VndMoney.FormatDong(line.Cost.LandedCost)</td>
                                 <td class="px-3 py-2 tabular-nums font-bold">
-                                    <a class="text-sky-700" href="/purchasing?order=@order.Id&amp;formula=@line.Id">@VndMoney.FormatDong(line.Cost.UnitCost)</a>
+                                    <a class="text-sky-700" href="@Model.OrderUrl(order.Id, "formula=" + line.Id.ToString("D"))">@VndMoney.FormatDong(line.Cost.UnitCost)</a>
                                 </td>
                             }
                         </tr>
