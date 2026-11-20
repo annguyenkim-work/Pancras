@@ -170,6 +170,23 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
     }
 
     [Fact]
+    public async Task TheOtherTaxInput_IsAMoneyInput_LikeTheChargeAmounts()
+    {
+        // Lỗi UAT: ô "Thuế khác (VNĐ)" hiện số thô 200000 thay vì 200.000 vì thiếu lớp vnd (script định dạng tiền chỉ xử lý ô có lớp này).
+        using var client = _factory.CreateClient(NoRedirect);
+        Reset();
+        await SignInAsync(client);
+
+        var html = await (await client.GetAsync("/purchasing?form=1")).Content.ReadAsStringAsync();
+
+        var input = System.Text.RegularExpressions.Regex.Match(html, "<input name=\"Form\\.Lines\\[0\\]\\.SupplementalDuty\"[^>]*>");
+        Assert.True(input.Success, "Phải có ô Thuế khác của dòng đầu.");
+        var classes = System.Text.RegularExpressions.Regex.Match(input.Value, "class=\"([^\"]*)\"").Groups[1].Value.Split(' ');
+        Assert.Contains("line-other", classes);
+        Assert.Contains("vnd", classes);
+    }
+
+    [Fact]
     public async Task RejectedSave_ShowsTheReasonInsideTheOpenDialog_NotBehindIt()
     {
         using var client = _factory.CreateClient(NoRedirect);
