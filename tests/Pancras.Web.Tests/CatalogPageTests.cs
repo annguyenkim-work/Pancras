@@ -194,6 +194,36 @@ public class CatalogPageTests : IClassFixture<PancrasWebFactory>
     }
 
     [Fact]
+    public async Task ActivatingAnItem_ReturnsToTheSameFilteredList()
+    {
+        // Lỗi UAT: sau khi Disable/Active, bộ lọc (từ khóa, trạng thái, ngành...) bị đưa về mặc định.
+        using var client = _factory.CreateClient(NoRedirect);
+        var repository = Reset();
+        var item = CatalogItem.Create("SP-OFF", "Vòi cũ", ProductCategory.SanitaryEquipment, "Toto", "Việt Nam", "Cái", 1m, null, null, null, 1m, 1m, 1m, 1m, 1m);
+        item.Deactivate();
+        repository.Items.Add(item);
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+        var list = Decode(await (await client.GetAsync("/catalog?status=disabled&q=v%C3%B2i&category=" + ProductCategoryToken.Sanitary + "&size=50")).Content.ReadAsStringAsync());
+
+        var form = Regex.Match(list, "<form[^>]*handler=SetActive[^>]*>.*?</form>", RegexOptions.Singleline).Value;
+        Assert.NotEmpty(form);
+        var fields = Regex.Matches(form, "<input[^>]*>")
+            .Select(tag => tag.Value)
+            .Where(tag => tag.Contains("type=\"hidden\"", StringComparison.Ordinal))
+            .ToDictionary(
+                tag => Regex.Match(tag, "name=\"([^\"]+)\"").Groups[1].Value,
+                tag => System.Net.WebUtility.HtmlDecode(Regex.Match(tag, "value=\"([^\"]*)\"").Groups[1].Value));
+        var posted = await client.PostAsync("/catalog?handler=SetActive", new FormUrlEncodedContent(fields));
+
+        Assert.Equal(HttpStatusCode.Redirect, posted.StatusCode);
+        var location = posted.Headers.Location!.OriginalString;
+        Assert.Contains("status=disabled", location, StringComparison.Ordinal);
+        Assert.Contains("q=", location, StringComparison.Ordinal);
+        Assert.Contains("category=" + ProductCategoryToken.Sanitary, location, StringComparison.Ordinal);
+        Assert.Contains("size=50", location, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Create_RejectsAPriceAboveTheColumn_OnTheForm()
     {
         using var client = _factory.CreateClient(NoRedirect);

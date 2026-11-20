@@ -117,6 +117,7 @@ else
                                     <input type="hidden" name="id" value="@row.Id" />
                                     <input type="hidden" name="active" value="@(row.IsActive ? "false" : "true")" />
                                     <input type="hidden" name="version" value="@row.Version" />
+                                    <partial name="_FilterFields" model="Model" />
                                     <button type="submit" class="ml-2 px-3 py-1.5 text-xs font-bold rounded-lg @(row.IsActive ? "text-rose-700 hover:bg-rose-50" : "text-emerald-700 hover:bg-emerald-50")">@(row.IsActive ? "Disable" : "Active")</button>
                                 </form>
                             }
@@ -172,10 +173,7 @@ else
             </a>
     </div>
         <form method="post" enctype="multipart/form-data" asp-page-handler="Create" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-4 sm:px-8">
-            <input type="hidden" name="q" value="@Model.Search" />
-            <input type="hidden" name="category" value="@Model.CategoryToken" />
-            <input type="hidden" name="page" value="@Model.ItemPage.PageNumber" />
-            <partial name="_ListState" model="(Model.RequestedSize, Model.SortToken)" />
+            <partial name="_FilterFields" model="Model" />
             @if (Model.ShowForm && Model.ErrorMessages.Count > 0)
             {
                 <div class="mb-4"><partial name="_Notice" model="new NoticeModel(Model.ErrorTitle, ToastLevel.Error, Model.ErrorMessages)" /></div>
@@ -339,10 +337,7 @@ else
             <input type="hidden" asp-for="Prices.Id" />
             <input type="hidden" asp-for="Prices.IncludeDetails" />
             <input type="hidden" asp-for="Prices.Version" />
-            <input type="hidden" name="q" value="@Model.Search" />
-            <input type="hidden" name="category" value="@Model.CategoryToken" />
-            <input type="hidden" name="page" value="@Model.ItemPage.PageNumber" />
-            <partial name="_ListState" model="(Model.RequestedSize, Model.SortToken)" />
+            <partial name="_FilterFields" model="Model" />
             @if (Model.ShowPriceForm && Model.ErrorMessages.Count > 0)
             {
                 <div class="mb-4"><partial name="_Notice" model="new NoticeModel(Model.ErrorTitle, ToastLevel.Error, Model.ErrorMessages)" /></div>

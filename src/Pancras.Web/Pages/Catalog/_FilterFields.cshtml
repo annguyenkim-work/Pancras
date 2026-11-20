@@ -1,0 +1,7 @@
+@model Pancras.Web.Pages.Catalog.IndexModel
+@* Bộ lọc, sắp xếp, cỡ trang và trang đang xem, gửi kèm mọi thao tác POST để sau khi lưu quay về đúng danh sách đang lọc. *@
+<input type="hidden" name="q" value="@Model.Search" />
+<input type="hidden" name="category" value="@Model.CategoryToken" />
+<input type="hidden" name="status" value="@Model.StatusToken" />
+<input type="hidden" name="page" value="@Model.ItemPage.PageNumber" />
+<partial name="_ListState" model="(Model.RequestedSize, Model.SortToken)" />
