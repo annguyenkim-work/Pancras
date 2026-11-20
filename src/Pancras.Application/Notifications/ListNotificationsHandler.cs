@@ -4,7 +4,7 @@ using Pancras.Domain.Inventory;
 
 namespace Pancras.Application.Notifications;
 
-public sealed class ListNotificationsHandler(IInventoryRepository repository)
+public sealed class ListNotificationsHandler(IInventoryRepository repository, Pancras.Application.Common.IUnitOfWork unitOfWork)
 {
     /// <summary>Một trang thông báo của người nhận (số trang vượt cuối thì lấy trang cuối).</summary>
     public async Task<(IReadOnlyList<Notification> Items, int Total, int PageNumber)> HandleAsync(
@@ -36,6 +36,7 @@ public sealed class ListNotificationsHandler(IInventoryRepository repository)
 
     public async Task<Notification?> OpenAsync(Guid noticeId, Guid employeeId, CancellationToken cancellationToken)
     {
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var notice = await repository.FindNoticeForUpdateAsync(noticeId, cancellationToken);
         if (notice is null || notice.RecipientEmployeeId != employeeId)
         {
@@ -43,7 +44,7 @@ public sealed class ListNotificationsHandler(IInventoryRepository repository)
         }
 
         notice.MarkSeen();
-        await repository.CommitAsync(cancellationToken);
+        await scope.CommitAsync(cancellationToken);
         return notice;
     }
 }

@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 using Pancras.Application.Employees;
 using Pancras.Domain.Employees;
 
@@ -45,64 +44,23 @@ public sealed class EmployeeRepository(PancrasDbContext context) : IEmployeeRepo
                     && (excludeEmployeeId == null || employee.Id != excludeEmployeeId),
                 cancellationToken);
 
-    public async Task AddAsync(Employee employee, CancellationToken cancellationToken) =>
-        await context.Employees.AddAsync(employee, cancellationToken);
+    public Task AddAsync(Employee employee, CancellationToken cancellationToken) =>
+        context.Employees.AddAsync(employee, cancellationToken).AsTask();
 
-    public async Task<bool> TryAddAsync(Employee employee, CancellationToken cancellationToken)
+    /// <summary>
+    /// Khóa tư vấn (advisory lock) theo giao dịch cho nhóm quy tắc nhân sự, giữ đến hết scope IUnitOfWork: hai thao tác đồng thời
+    /// cùng kiểm tra "còn ít nhất một Admin" / "mỗi kho một Trưởng" sẽ chạy lần lượt.
+    /// </summary>
+    public async Task LockPersonnelRulesAsync(CancellationToken cancellationToken)
     {
-        await context.Employees.AddAsync(employee, cancellationToken);
-        try
+        if (context.Database.CurrentTransaction is null)
         {
-            await context.SaveChangesAsync(cancellationToken);
-            return true;
+            throw new InvalidOperationException("Khóa quy tắc nhân sự phải chạy trong một scope IUnitOfWork đang mở.");
         }
-        catch (DbUpdateException exception) when (IsUniqueViolation(exception))
-        {
-            context.Entry(employee).State = EntityState.Detached;
-            return false;
-        }
-    }
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken) =>
-        context.SaveChangesAsync(cancellationToken);
-
-    public async Task<Pancras.Application.Common.SaveOutcome> TrySaveChangesAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            await context.SaveChangesAsync(cancellationToken);
-            return Pancras.Application.Common.SaveOutcome.Saved;
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            foreach (var entry in context.ChangeTracker.Entries<Employee>().ToList())
-            {
-                if (entry.State == EntityState.Modified)
-                {
-                    await entry.ReloadAsync(cancellationToken);
-                }
-            }
-
-            return Pancras.Application.Common.SaveOutcome.Conflict;
-        }
-    }
-
-    public async Task<T> WithinPersonnelRulesAsync<T>(
-        Func<CancellationToken, Task<T>> action,
-        CancellationToken cancellationToken)
-    {
-        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
         // pg_advisory_xact_lock returns void, so run it as a command instead of reading a result.
         await context.Database.ExecuteSqlAsync(
             $"SELECT pg_advisory_xact_lock({PersonnelRulesLockKey})",
             cancellationToken);
-
-        var result = await action(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return result;
     }
-
-    private static bool IsUniqueViolation(DbUpdateException exception) =>
-        exception.InnerException is PostgresException postgres
-        && postgres.SqlState == PostgresErrorCodes.UniqueViolation;
 }

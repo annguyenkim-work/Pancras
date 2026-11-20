@@ -70,7 +70,7 @@ public class StockDocumentAttachmentTests
 
     private Guid NewStocktake()
     {
-        var result = new CreateStocktakeCommandHandler(_store, NullLogger<CreateStocktakeCommandHandler>.Instance)
+        var result = new CreateStocktakeCommandHandler(_store, _store, NullLogger<CreateStocktakeCommandHandler>.Instance)
             .HandleAsync(
                 new CreateStocktakeCommand
                 {
@@ -87,7 +87,7 @@ public class StockDocumentAttachmentTests
     }
 
     private UploadStockDocumentAttachmentCommandHandler Upload() =>
-        new(_store, _attachments, _storage, NullLogger<UploadStockDocumentAttachmentCommandHandler>.Instance);
+        new(_store, _attachments, _storage, new NoopUnitOfWork(), NullLogger<UploadStockDocumentAttachmentCommandHandler>.Instance);
 
     private OpenStockDocumentAttachmentHandler Open() => new(_store, _attachments, _storage);
 

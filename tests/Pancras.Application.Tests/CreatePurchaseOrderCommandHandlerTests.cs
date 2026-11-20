@@ -277,7 +277,7 @@ public class CreatePurchaseOrderCommandHandlerTests
             Location = StockLocation.Create("Kho A", StockLocationKind.Warehouse);
             Suppliers.Suppliers.Add(Supplier);
             Inventory.Locations.Add(Location);
-            Create = new CreatePurchaseOrderCommandHandler(Orders, Suppliers, Inventory, Catalog, NullLogger<CreatePurchaseOrderCommandHandler>.Instance, new GetCatalogMeasuresHandler(Catalog, NullLogger<GetCatalogMeasuresHandler>.Instance));
+            Create = new CreatePurchaseOrderCommandHandler(Orders, Suppliers, Inventory, Catalog, Orders, NullLogger<CreatePurchaseOrderCommandHandler>.Instance, new GetCatalogMeasuresHandler(Catalog, NullLogger<GetCatalogMeasuresHandler>.Instance));
         }
 
         public FakePurchaseStore Orders { get; } = new();

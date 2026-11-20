@@ -15,6 +15,7 @@ namespace Pancras.Application.Inventory;
 /// </summary>
 public sealed class ReturnTransferCommandHandler(
     IInventoryRepository repository,
+    IUnitOfWork unitOfWork,
     ILogger<ReturnTransferCommandHandler> logger,
     TimeProvider? clock = null,
     IAuditLog? audit = null,
@@ -23,6 +24,7 @@ public sealed class ReturnTransferCommandHandler(
 {
     public async Task<Result<Guid, StockError>> HandleAsync(ReturnTransferCommand command, CancellationToken cancellationToken)
     {
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         if (!InventoryRoles.IsFinance(command.Actor.Role))
         {
             return Result<Guid, StockError>.Fail(StockError.Forbidden);
@@ -66,14 +68,8 @@ public sealed class ReturnTransferCommandHandler(
             sources[itemId] = source;
         }
 
-        var snapshots = sources.Values.Concat(destinations.Values).Distinct().Select(BalanceSnapshot.Take).ToArray();
         if (!slip.TryReturnToSource(sources, destinations, command.Reason))
         {
-            foreach (var snapshot in snapshots)
-            {
-                snapshot.Restore();
-            }
-
             return Result<Guid, StockError>.Fail(StockError.ReturnRejected);
         }
 
@@ -100,19 +96,13 @@ public sealed class ReturnTransferCommandHandler(
             TransferAudience.Creator | TransferAudience.SourceStaff | TransferAudience.DestinationStaff,
             clock,
             cancellationToken);
-        if (!await repository.CommitAsync(cancellationToken))
+        audit.Stage(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.TransferReturned, "transfer_slip", slip.Id.ToString("D"), null);
+        if (await scope.CommitAsync(cancellationToken) != SaveOutcome.Saved)
         {
-            foreach (var snapshot in snapshots)
-            {
-                snapshot.Restore();
-            }
-
-            slip.RestoreUncommitted(TransferStatus.InTransit);
             return Result<Guid, StockError>.Fail(StockError.TransferStateChanged);
         }
 
         logger.LogInformation("Returned transfer {TransferSlipId} to source.", slip.Id);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.TransferReturned, "transfer_slip", slip.Id.ToString("D"), null, cancellationToken);
         return Result<Guid, StockError>.Ok(slip.Id);
     }
 }

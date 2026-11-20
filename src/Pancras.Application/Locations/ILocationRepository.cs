@@ -13,5 +13,5 @@ public interface ILocationRepository
 
     Task<bool> NameExistsAsync(string name, CancellationToken cancellationToken);
 
-    Task<bool> TryAddAsync(StockLocation location, CancellationToken cancellationToken);
+    Task AddAsync(StockLocation location, CancellationToken cancellationToken);
 }

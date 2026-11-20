@@ -51,6 +51,7 @@ public class EditPurchaseOrderTests
             _inventory,
             _catalog,
             new GetCatalogMeasuresHandler(_catalog, NullLogger<GetCatalogMeasuresHandler>.Instance),
+            _orders,
             NullLogger<UpdatePurchaseOrderCommandHandler>.Instance);
 
     private UpdatePurchaseOrderCommand Command(params CreatePurchaseLineInput[] lines) =>
@@ -144,6 +145,7 @@ public class EditPurchaseOrderTests
             _inventory,
             _catalog,
             new GetCatalogMeasuresHandler(_catalog, NullLogger<GetCatalogMeasuresHandler>.Instance),
+            _orders,
             NullLogger<UpdatePurchaseOrderCommandHandler>.Instance,
             new TestClock(at),
             null,
@@ -339,7 +341,7 @@ public class EditPurchaseOrderTests
     public async Task ReturnToDraft_RequiresAReasonWithin500Characters()
     {
         Assert.True(_order.TrySubmit());
-        var status = new ChangePurchaseStatusCommandHandler(_orders, NullLogger<ChangePurchaseStatusCommandHandler>.Instance);
+        var status = new ChangePurchaseStatusCommandHandler(_orders, _orders, NullLogger<ChangePurchaseStatusCommandHandler>.Instance);
 
         var missing = await status.HandleAsync(
             new ChangePurchaseStatusCommand(_order.Id, TestActors.Accountant, PurchaseStatusAction.ReturnToDraft),
@@ -369,6 +371,7 @@ public class EditPurchaseOrderTests
             _inventory,
             _catalog,
             new GetCatalogMeasuresHandler(_catalog, NullLogger<GetCatalogMeasuresHandler>.Instance),
+            _orders,
             NullLogger<AdjustPurchaseCostCommandHandler>.Instance);
 
         var overflow = await adjust.HandleAsync(new AdjustPurchaseCostCommand

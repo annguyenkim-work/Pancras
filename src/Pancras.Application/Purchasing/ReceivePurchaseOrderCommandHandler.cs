@@ -17,6 +17,7 @@ public sealed class ReceivePurchaseOrderCommandHandler(
     IPurchaseOrderRepository orders,
     IInventoryRepository inventory,
     ICatalogItemRepository catalog,
+    IUnitOfWork unitOfWork,
     ILogger<ReceivePurchaseOrderCommandHandler> logger,
     TimeProvider? clock = null,
     IAuditLog? audit = null,
@@ -26,6 +27,7 @@ public sealed class ReceivePurchaseOrderCommandHandler(
 {
     public async Task<Result<Guid, PurchaseError>> HandleAsync(ReceivePurchaseOrderCommand command, CancellationToken cancellationToken)
     {
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var order = await orders.FindForUpdateAsync(command.PurchaseOrderId, cancellationToken);
         if (order is null)
         {
@@ -84,8 +86,6 @@ public sealed class ReceivePurchaseOrderCommandHandler(
         }
 
         var balances = new Dictionary<Guid, StockBalance>();
-        var previous = new Dictionary<Guid, (int OnHand, int Reserved, int InTransit)>();
-        var previousCosts = items.ToDictionary(pair => pair.Key, pair => pair.Value.CostPrice);
         var runningOnHand = new Dictionary<Guid, int>();
         var runningCost = new Dictionary<Guid, decimal>();
         foreach (var itemId in items.Keys)
@@ -98,16 +98,15 @@ public sealed class ReceivePurchaseOrderCommandHandler(
             }
 
             balances[itemId] = balance;
-            previous[itemId] = (balance.OnHand, balance.Reserved, balance.InTransit);
             runningOnHand[itemId] = await inventory.SumOnHandAsync(itemId, cancellationToken);
-            runningCost[itemId] = previousCosts[itemId];
+            runningCost[itemId] = items[itemId].CostPrice;
         }
 
         var actuals = command.Actuals
             ?? order.Lines.ToDictionary(line => line.Id, line => Math.Max(0, line.Quantity - line.ReceivedQuantity));
         var exchangeRate = order.ExchangeRate;
         var receivedAt = (clock ?? TimeProvider.System).GetUtcNow();
-        var decision = order.TryRecordReceipt(actuals, command.Final, command.Note, receivedAt, request?.ActorCode, out var results, out var undo);
+        var decision = order.TryRecordReceipt(actuals, command.Final, command.Note, receivedAt, request?.ActorCode, out var results);
         if (decision != ReceiptDecision.Ok)
         {
             logger.LogInformation("Receipt rejected for purchase order {PurchaseOrderId}: {Decision}.", order.Id, decision);
@@ -128,7 +127,6 @@ public sealed class ReceivePurchaseOrderCommandHandler(
                 var beforeTransit = balance.InTransit;
                 if (!balance.TryAddOnHand(result.Quantity) || balance.InTransit != beforeTransit)
                 {
-                    Restore(order, undo!, balances, previous, items, previousCosts);
                     logger.LogInformation("Receipt rejected for purchase order {PurchaseOrderId}.", order.Id);
                     return Result<Guid, PurchaseError>.Fail(PurchaseError.InvalidOrder);
                 }
@@ -152,36 +150,21 @@ public sealed class ReceivePurchaseOrderCommandHandler(
 
         order.AdvanceVersion();
         await PurchaseNotifier.NotifyReceivedAsync(notices, employees, order, command.Final, command.Actor.Id, (clock ?? TimeProvider.System).GetUtcNow(), cancellationToken);
-        if (order.ExchangeRate != exchangeRate || !await inventory.CommitAsync(cancellationToken))
+        if (order.ExchangeRate != exchangeRate)
         {
-            Restore(order, undo!, balances, previous, items, previousCosts);
+            logger.LogWarning("Receipt rejected for purchase order {PurchaseOrderId}: the exchange rate changed.", order.Id);
+            return Result<Guid, PurchaseError>.Fail(PurchaseError.SaveFailed);
+        }
+
+        audit.Stage(clock ?? TimeProvider.System, request, command.Actor.Id, null, Pancras.Domain.Auditing.AuditActions.PurchaseReceived, "purchase_order", order.Id.ToString("D"), command.Final ? "final" : "partial");
+        if (await scope.CommitAsync(cancellationToken) != SaveOutcome.Saved)
+        {
             logger.LogWarning("Receipt commit failed for purchase order {PurchaseOrderId}.", order.Id);
             return Result<Guid, PurchaseError>.Fail(PurchaseError.SaveFailed);
         }
 
         logger.LogInformation("Received purchase order {PurchaseOrderId} (final: {Final}).", order.Id, command.Final);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, Pancras.Domain.Auditing.AuditActions.PurchaseReceived, "purchase_order", order.Id.ToString("D"), command.Final ? "final" : "partial", cancellationToken);
         return Result<Guid, PurchaseError>.Ok(order.Id);
-    }
-
-    private static void Restore(
-        PurchaseOrder order,
-        ReceiptUndo undo,
-        Dictionary<Guid, StockBalance> balances,
-        Dictionary<Guid, (int OnHand, int Reserved, int InTransit)> previous,
-        Dictionary<Guid, CatalogItem> items,
-        Dictionary<Guid, decimal> previousCosts)
-    {
-        order.UndoReceipt(undo);
-        foreach (var pair in previous)
-        {
-            balances[pair.Key].RestoreUncommitted(pair.Value.OnHand, pair.Value.Reserved, pair.Value.InTransit);
-        }
-
-        foreach (var cost in previousCosts)
-        {
-            items[cost.Key].SetCostPrice(cost.Value);
-        }
     }
 }
 

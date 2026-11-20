@@ -13,6 +13,7 @@ namespace Pancras.Application.Catalog;
 /// </summary>
 public sealed class SetCatalogItemActiveCommandHandler(
     ICatalogItemRepository repository,
+    IUnitOfWork unitOfWork,
     ILogger<SetCatalogItemActiveCommandHandler> logger,
     TimeProvider? clock = null,
     IAuditLog? audit = null,
@@ -32,6 +33,7 @@ public sealed class SetCatalogItemActiveCommandHandler(
             return CatalogError.Forbidden;
         }
 
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var item = await repository.GetVisibleForUpdateAsync(id, cancellationToken);
         if (item is null)
         {
@@ -59,22 +61,13 @@ public sealed class SetCatalogItemActiveCommandHandler(
             item.Deactivate();
         }
 
-        if (await repository.TrySaveAsync(cancellationToken) != SaveOutcome.Saved)
+        audit.Stage(clock ?? TimeProvider.System, request, actor.Id, null, active ? AuditActions.CatalogItemActivated : AuditActions.CatalogItemDisabled, "catalog_item", item.Id.ToString("D"), null);
+        if (await scope.CommitAsync(cancellationToken) != SaveOutcome.Saved)
         {
             return CatalogError.VersionConflict;
         }
 
         logger.LogInformation("Catalog item {CatalogItemId} set to active={Active}.", item.Id, active);
-        await audit.RecordAsync(
-            clock ?? TimeProvider.System,
-            request,
-            actor.Id,
-            null,
-            active ? AuditActions.CatalogItemActivated : AuditActions.CatalogItemDisabled,
-            "catalog_item",
-            item.Id.ToString("D"),
-            null,
-            cancellationToken);
         return CatalogError.None;
     }
 }

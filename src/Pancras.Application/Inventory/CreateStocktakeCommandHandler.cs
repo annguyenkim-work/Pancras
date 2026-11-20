@@ -6,12 +6,14 @@ namespace Pancras.Application.Inventory;
 
 public sealed class CreateStocktakeCommandHandler(
     IInventoryRepository repository,
+    IUnitOfWork unitOfWork,
     ILogger<CreateStocktakeCommandHandler> logger,
     TimeProvider? clock = null,
     Pancras.Application.Employees.IEmployeeRepository? employees = null)
 {
     public async Task<Result<Guid, StockError>> HandleAsync(CreateStocktakeCommand command, CancellationToken cancellationToken)
     {
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         if (!InventoryAccess.CanOperate(command.Actor.Role) || !InventoryAccess.CanAccessLocation(command.Actor, command.StockLocationId))
         {
             logger.LogWarning("Stocktake forbidden for employee {EmployeeId}.", command.Actor.Id);
@@ -42,18 +44,15 @@ public sealed class CreateStocktakeCommandHandler(
         }
 
         // Người lập thuộc nhóm tự duyệt (Kế toán, Giám đốc, Admin): biên bản có hiệu lực ngay, áp luôn số đếm vào tồn.
-        BalanceSnapshot? snapshot = null;
         if (sheet.Status == ApprovalStatus.Approved)
         {
-            var (applied, taken) = await StocktakeApplication.ApplyAsync(
+            var applied = await StocktakeApplication.ApplyAsync(
                 repository, sheet, (clock ?? TimeProvider.System).GetUtcNow(), cancellationToken);
             if (!applied)
             {
                 logger.LogInformation("Stocktake would drop stock below the reserved quantity for {CatalogItemId}.", command.CatalogItemId);
                 return Result<Guid, StockError>.Fail(StockError.NegativeStock);
             }
-
-            snapshot = taken;
         }
 
         await repository.AddStocktakeAsync(sheet, cancellationToken);
@@ -72,9 +71,8 @@ public sealed class CreateStocktakeCommandHandler(
             }
         }
 
-        if (!await repository.CommitAsync(cancellationToken))
+        if (await scope.CommitAsync(cancellationToken) != SaveOutcome.Saved)
         {
-            snapshot?.Restore();
             logger.LogWarning("Stocktake commit failed for {CatalogItemId}.", command.CatalogItemId);
             return Result<Guid, StockError>.Fail(StockError.MissingEvidence);
         }

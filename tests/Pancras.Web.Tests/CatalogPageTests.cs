@@ -358,13 +358,11 @@ internal sealed class CatalogDirectoryDouble : ICatalogItemRepository
     public Task<bool> NormalizedCodeExistsAsync(string normalizedCode, CancellationToken cancellationToken) =>
         Task.FromResult(Items.Any(item => item.NormalizedCode == normalizedCode));
 
-    public Task<bool> TryAddAsync(CatalogItem item, CancellationToken cancellationToken)
+    public Task AddAsync(CatalogItem item, CancellationToken cancellationToken)
     {
         Items.Add(item);
-        return Task.FromResult(true);
+        return Task.CompletedTask;
     }
-
-    public Task<Pancras.Application.Common.SaveOutcome> TrySaveAsync(CancellationToken cancellationToken) => Task.FromResult(Pancras.Application.Common.SaveOutcome.Saved);
 
     public Task<IReadOnlyDictionary<Guid, CatalogItemMeasure>> ListMeasuresAsync(
         IReadOnlyCollection<Guid> ids,

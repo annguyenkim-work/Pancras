@@ -49,7 +49,7 @@ public class PurchaseNotificationTests
         Employee.Create(code, code, code.ToUpperInvariant(), "hash", role, stockLocationId: location);
 
     private Task<Pancras.Application.Common.Result<Guid, Pancras.Application.Common.PurchaseError>> Run(PurchaseStatusAction action, EmployeeActor actor, string? note = null) =>
-        new ChangePurchaseStatusCommandHandler(_orders, NullLogger<ChangePurchaseStatusCommandHandler>.Instance, notices: _notices, employees: _employees)
+        new ChangePurchaseStatusCommandHandler(_orders, _orders, NullLogger<ChangePurchaseStatusCommandHandler>.Instance, notices: _notices, employees: _employees)
             .HandleAsync(new ChangePurchaseStatusCommand(_order.Id, actor, action, note), CancellationToken.None);
 
     private static EmployeeActor Actor(Employee person) => new(person.Id, person.Role, person.StockLocationId);

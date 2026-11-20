@@ -15,6 +15,7 @@ namespace Pancras.Application.Inventory;
 /// </summary>
 public sealed class DecideTransferCommandHandler(
     IInventoryRepository repository,
+    IUnitOfWork unitOfWork,
     ILogger<DecideTransferCommandHandler> logger,
     TimeProvider? clock = null,
     IAuditLog? audit = null,
@@ -27,6 +28,7 @@ public sealed class DecideTransferCommandHandler(
 
     public async Task<Result<Guid, StockError>> HandleAsync(DecideTransferCommand command, CancellationToken cancellationToken)
     {
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var slip = await repository.FindTransferForUpdateAsync(command.TransferSlipId, cancellationToken);
         if (slip is null)
         {
@@ -44,7 +46,6 @@ public sealed class DecideTransferCommandHandler(
         }
 
         var now = (clock ?? TimeProvider.System).GetUtcNow();
-        var snapshots = Array.Empty<BalanceSnapshot>();
         string? reason = null;
         if (command.Approve)
         {
@@ -58,14 +59,8 @@ public sealed class DecideTransferCommandHandler(
                 }
             }
 
-            snapshots = sources.Values.Select(BalanceSnapshot.Take).ToArray();
             if (!slip.TryApprove(sources))
             {
-                foreach (var snapshot in snapshots)
-                {
-                    snapshot.Restore();
-                }
-
                 return Result<Guid, StockError>.Fail(StockError.InsufficientStock, await TransferTrail.ShortageAsync(repository, slip, sources, false, cancellationToken));
             }
 
@@ -94,19 +89,13 @@ public sealed class DecideTransferCommandHandler(
             command.Approve ? TransferAudience.Creator | TransferAudience.SourceStaff : TransferAudience.Creator,
             clock,
             cancellationToken);
-        if (!await repository.CommitAsync(cancellationToken))
+        audit.Stage(clock ?? TimeProvider.System, request, command.Actor.Id, null, command.Approve ? AuditActions.TransferApproved : AuditActions.TransferRejected, "transfer_slip", slip.Id.ToString("D"), null);
+        if (await scope.CommitAsync(cancellationToken) != SaveOutcome.Saved)
         {
-            foreach (var snapshot in snapshots)
-            {
-                snapshot.Restore();
-            }
-
-            slip.RestoreUncommitted(TransferStatus.Requested);
             return Result<Guid, StockError>.Fail(StockError.TransferStateChanged);
         }
 
         logger.LogInformation("Transfer {TransferSlipId} decided: approve={Approve}.", slip.Id, command.Approve);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, command.Approve ? AuditActions.TransferApproved : AuditActions.TransferRejected, "transfer_slip", slip.Id.ToString("D"), null, cancellationToken);
         return Result<Guid, StockError>.Ok(slip.Id);
     }
 }

@@ -20,7 +20,7 @@ public sealed class OpenTransferAttachmentHandler(
     public async Task<Result<AttachmentDownload, StockError>> HandleAsync(Guid attachmentId, EmployeeActor actor, CancellationToken cancellationToken)
     {
         var attachment = await attachments.FindAsync(attachmentId, cancellationToken);
-        var slip = attachment is null ? null : await inventory.FindTransferForUpdateAsync(attachment.TransferSlipId, cancellationToken);
+        var slip = attachment is null ? null : await inventory.FindTransferReadOnlyAsync(attachment.TransferSlipId, cancellationToken);
         if (attachment is null || slip is null || !TransferAccess.CanTouch(actor, slip))
         {
             return Result<AttachmentDownload, StockError>.Fail(StockError.TransferNotFound);

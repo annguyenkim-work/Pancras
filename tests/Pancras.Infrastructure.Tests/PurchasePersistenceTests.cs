@@ -16,8 +16,7 @@ public class PurchasePersistenceTests(PostgresFixture fixture) : PostgresTest(fi
 {
     private PancrasDbContext NewContext() => new(Options);
 
-    private static PurchaseOrderRepository Orders(PancrasDbContext context) =>
-        new(context, NullLogger<PurchaseOrderRepository>.Instance);
+    private static PurchaseOrderRepository Orders(PancrasDbContext context) => new(context);
 
     private Guid _supplier;
     private Guid _location;
@@ -45,7 +44,8 @@ public class PurchasePersistenceTests(PostgresFixture fixture) : PostgresTest(fi
     private async Task<Guid> SaveNewOrderAsync(PurchaseOrder order)
     {
         await using var context = NewContext();
-        Assert.True(await Orders(context).TryAddAsync(order, CancellationToken.None));
+        await Orders(context).AddAsync(order, CancellationToken.None);
+        Assert.Equal(Pancras.Application.Common.SaveOutcome.Saved, await CommitAsync(context));
         return order.Id;
     }
 
@@ -71,7 +71,7 @@ public class PurchasePersistenceTests(PostgresFixture fixture) : PostgresTest(fi
             Assert.True(loaded.TryAllocate(chargeId, loaded.Lines.ToDictionary(line => line.Id, line => line.FobUsd), manual: false));
             Assert.True(loaded.TryAssignGroup(chargeId, ChargeGroup.Logistics, retainCurrent: false));
 
-            Assert.True(await repository.CommitAsync(CancellationToken.None), "Thêm khoản chi phí vào đơn đã lưu phải thành công (lỗi cũ: EF gửi UPDATE cho dòng chưa có).");
+            Assert.True(await CommitAsync(context) == Pancras.Application.Common.SaveOutcome.Saved, "Thêm khoản chi phí vào đơn đã lưu phải thành công (lỗi cũ: EF gửi UPDATE cho dòng chưa có).");
         }
 
         var saved = await LoadAsync(id);
@@ -110,7 +110,7 @@ public class PurchasePersistenceTests(PostgresFixture fixture) : PostgresTest(fi
             Assert.True(changed);
             Assert.True(loaded.TryAllocate(loaded.Charges[0].Id, loaded.Lines.ToDictionary(line => line.Id, line => line.FobUsd), manual: false));
 
-            Assert.True(await repository.CommitAsync(CancellationToken.None), "Lưu đơn đã sửa (thêm dòng mới, chia lại chi phí) phải thành công.");
+            Assert.True(await CommitAsync(context) == Pancras.Application.Common.SaveOutcome.Saved, "Lưu đơn đã sửa (thêm dòng mới, chia lại chi phí) phải thành công.");
         }
 
         var saved = await LoadAsync(id);
@@ -138,7 +138,7 @@ public class PurchasePersistenceTests(PostgresFixture fixture) : PostgresTest(fi
             var kept = loaded.Lines[0];
             Assert.True(loaded.TryUpdateLines([(kept.Id, kept.CatalogItemId, 2, 10m, 0.10m, 0m, 0m, 0m)], out _));
             loaded.DropCharge(other);
-            Assert.True(await repository.CommitAsync(CancellationToken.None));
+            Assert.Equal(Pancras.Application.Common.SaveOutcome.Saved, await CommitAsync(context));
         }
 
         var saved = await LoadAsync(id);
@@ -176,6 +176,7 @@ public class PurchasePersistenceTests(PostgresFixture fixture) : PostgresTest(fi
         await using (var context = NewContext())
         {
             await new PurchaseAttachmentRepository(context).AddAsync(attachment, CancellationToken.None);
+            Assert.Equal(Pancras.Application.Common.SaveOutcome.Saved, await CommitAsync(context));
         }
 
         await using (var context = NewContext())

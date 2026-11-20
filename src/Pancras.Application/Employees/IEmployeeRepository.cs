@@ -22,13 +22,6 @@ public interface IEmployeeRepository
 
     Task AddAsync(Employee employee, CancellationToken cancellationToken);
 
-    Task<bool> TryAddAsync(Employee employee, CancellationToken cancellationToken);
-
-    Task SaveChangesAsync(CancellationToken cancellationToken);
-
-    /// <summary>Lưu thay đổi do quản trị viên sửa; <see cref="Pancras.Application.Common.SaveOutcome.Conflict"/> khi người khác vừa sửa cùng bản ghi (Version).</summary>
-    Task<Pancras.Application.Common.SaveOutcome> TrySaveChangesAsync(CancellationToken cancellationToken);
-
-    /// <summary>Giữ khóa quy tắc nhân sự (còn Admin, một Trưởng mỗi kho) đến hết transaction, rồi mới đếm và lưu.</summary>
-    Task<T> WithinPersonnelRulesAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken);
+    /// <summary>Giữ khóa quy tắc nhân sự (còn Admin, một Trưởng mỗi kho) đến hết scope IUnitOfWork đang mở, rồi mới đếm và đổi.</summary>
+    Task LockPersonnelRulesAsync(CancellationToken cancellationToken);
 }

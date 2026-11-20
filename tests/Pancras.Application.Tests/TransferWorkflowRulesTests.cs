@@ -85,7 +85,7 @@ public class TransferWorkflowRulesTests
         var otherKeeper = await Cancel(id, TestActors.Keeper(_destination.Id), "Hủy giúp");
         var outsider = await Cancel(id, TestActors.Keeper(Guid.NewGuid()), "Hủy giúp");
         var noReason = await Cancel(id, maker, " ");
-        var edit = await new UpdateTransferRequestCommandHandler(_store, NullLogger<UpdateTransferRequestCommandHandler>.Instance)
+        var edit = await new UpdateTransferRequestCommandHandler(_store, _store, NullLogger<UpdateTransferRequestCommandHandler>.Instance)
             .HandleAsync(
                 new UpdateTransferRequestCommand
                 {
@@ -112,7 +112,7 @@ public class TransferWorkflowRulesTests
         var id = await RequestAsync(TestActors.Keeper(_destination.Id), 4);
         await Decide(id, true);
         await Ship(id);
-        var handler = new ReturnTransferCommandHandler(_store, NullLogger<ReturnTransferCommandHandler>.Instance);
+        var handler = new ReturnTransferCommandHandler(_store, _store, NullLogger<ReturnTransferCommandHandler>.Instance);
 
         var keeper = await handler.HandleAsync(new ReturnTransferCommand(id, TestActors.Keeper(_source.Id), "Giao nhầm"), CancellationToken.None);
         var noReason = await handler.HandleAsync(new ReturnTransferCommand(id, TestActors.Accountant, " "), CancellationToken.None);
@@ -164,7 +164,7 @@ public class TransferWorkflowRulesTests
         attachments.Attach(id);
         var slip = _store.Transfers.Single();
 
-        var result = await new ConfirmTransferReceiptCommandHandler(_store, NullLogger<ConfirmTransferReceiptCommandHandler>.Instance, attachments: attachments)
+        var result = await new ConfirmTransferReceiptCommandHandler(_store, _store, NullLogger<ConfirmTransferReceiptCommandHandler>.Instance, attachments: attachments)
             .HandleAsync(new ConfirmTransferCommand(id, TestActors.Admin, [new ReceivedLineInput(slip.Lines[0].Id, actual)], "Đếm lại hai lần"), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -185,7 +185,7 @@ public class TransferWorkflowRulesTests
     {
         var maker = TestActors.Keeper(_destination.Id);
         var rejected = await RequestAsync(maker, 1);
-        await new DecideTransferCommandHandler(_store, NullLogger<DecideTransferCommandHandler>.Instance, request: new RequestStub("AnNK"))
+        await new DecideTransferCommandHandler(_store, _store, NullLogger<DecideTransferCommandHandler>.Instance, request: new RequestStub("AnNK"))
             .HandleAsync(new DecideTransferCommand(rejected, TestActors.Admin, false, "Chưa cần"), CancellationToken.None);
         var shipped = await RequestAsync(maker, 2);
         await Decide(shipped, true);
@@ -214,10 +214,10 @@ public class TransferWorkflowRulesTests
         people.Employees.AddRange([lead, otherLead, accountant, director, maker]);
         var makerActor = new EmployeeActor(maker.Id, maker.Role, _destination.Id);
 
-        var id = (await new CreateTransferRequestCommandHandler(_store, NullLogger<CreateTransferRequestCommandHandler>.Instance, employees: people)
+        var id = (await new CreateTransferRequestCommandHandler(_store, _store, NullLogger<CreateTransferRequestCommandHandler>.Instance, employees: people)
             .HandleAsync(Command(makerActor, 2), CancellationToken.None)).Value;
         var onRequest = _store.Notices.Select(notice => notice.RecipientEmployeeId).ToHashSet();
-        var approve = await new DecideTransferCommandHandler(_store, NullLogger<DecideTransferCommandHandler>.Instance, employees: people)
+        var approve = await new DecideTransferCommandHandler(_store, _store, NullLogger<DecideTransferCommandHandler>.Instance, employees: people)
             .HandleAsync(new DecideTransferCommand(id, new EmployeeActor(lead.Id, lead.Role, _source.Id), true), CancellationToken.None);
 
         Assert.Equal(new HashSet<Guid> { lead.Id, accountant.Id, director.Id }, onRequest);
@@ -246,19 +246,19 @@ public class TransferWorkflowRulesTests
         };
 
     private Task<Result<Guid, StockError>> Decide(Guid id, bool approve) =>
-        new DecideTransferCommandHandler(_store, NullLogger<DecideTransferCommandHandler>.Instance)
+        new DecideTransferCommandHandler(_store, _store, NullLogger<DecideTransferCommandHandler>.Instance)
             .HandleAsync(new DecideTransferCommand(id, TestActors.Admin, approve, approve ? null : "Không"), CancellationToken.None);
 
     private Task<Result<Guid, StockError>> Ship(Guid id) =>
-        new ShipTransferCommandHandler(_store, NullLogger<ShipTransferCommandHandler>.Instance)
+        new ShipTransferCommandHandler(_store, _store, NullLogger<ShipTransferCommandHandler>.Instance)
             .HandleAsync(new ShipTransferCommand(id, TestActors.Admin), CancellationToken.None);
 
     private Task<Result<Guid, StockError>> Cancel(Guid id, EmployeeActor actor, string? reason) =>
-        new CancelTransferCommandHandler(_store, NullLogger<CancelTransferCommandHandler>.Instance)
+        new CancelTransferCommandHandler(_store, _store, NullLogger<CancelTransferCommandHandler>.Instance)
             .HandleAsync(new ConfirmTransferCommand(id, actor, null, reason), CancellationToken.None);
 
     private ConfirmTransferReceiptCommandHandler Receipt() =>
-        new(_store, NullLogger<ConfirmTransferReceiptCommandHandler>.Instance);
+        new(_store, _store, NullLogger<ConfirmTransferReceiptCommandHandler>.Instance);
 
     private sealed class RequestStub(string actorCode) : Pancras.Application.Auditing.IRequestInfo
     {

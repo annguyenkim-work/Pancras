@@ -75,7 +75,7 @@ public class DeactivateSupplierCommandHandlerTests
         var supplier = AddSample();
         supplier.Deactivate();
 
-        var result = await new CreateSupplierCommandHandler(_repository, NullLogger<CreateSupplierCommandHandler>.Instance)
+        var result = await new CreateSupplierCommandHandler(_repository, _repository, NullLogger<CreateSupplierCommandHandler>.Instance)
             .HandleAsync(new CreateSupplierCommand
             {
                 Actor = SupplierActors.Admin,
@@ -166,10 +166,10 @@ public class DeactivateSupplierCommandHandlerTests
     }
 
     private DeactivateSupplierCommandHandler Deactivate(ISupplierPurchaseStatsReader? stats = null) =>
-        new(_repository, NullLogger<DeactivateSupplierCommandHandler>.Instance, stats, audit: _audit);
+        new(_repository, _repository, NullLogger<DeactivateSupplierCommandHandler>.Instance, stats, audit: _audit);
 
     private ReactivateSupplierCommandHandler Reactivate() =>
-        new(_repository, NullLogger<ReactivateSupplierCommandHandler>.Instance, audit: _audit);
+        new(_repository, _repository, NullLogger<ReactivateSupplierCommandHandler>.Instance, audit: _audit);
 
     private Supplier AddSample()
     {

@@ -10,6 +10,7 @@ public sealed class UploadPurchaseAttachmentCommandHandler(
     IPurchaseOrderRepository orders,
     IPurchaseAttachmentRepository attachments,
     IAttachmentStorage storage,
+    IUnitOfWork unitOfWork,
     ILogger<UploadPurchaseAttachmentCommandHandler> logger,
     TimeProvider? clock = null,
     IAuditLog? audit = null,
@@ -83,7 +84,13 @@ public sealed class UploadPurchaseAttachmentCommandHandler(
         await storage.SaveAsync(storedName, buffer, cancellationToken);
         try
         {
+            await using var scope = await unitOfWork.BeginAsync(cancellationToken);
             await attachments.AddAsync(attachment, cancellationToken);
+            audit.Stage(clock ?? TimeProvider.System, request, null, null, AuditActions.PurchaseAttachmentAdded, "purchase_order", command.PurchaseOrderId.ToString("D"), cleanName);
+            if (await scope.CommitAsync(cancellationToken) != SaveOutcome.Saved)
+            {
+                throw new InvalidOperationException("Không lưu được chứng từ đính kèm.");
+            }
         }
         catch
         {
@@ -92,7 +99,6 @@ public sealed class UploadPurchaseAttachmentCommandHandler(
         }
 
         logger.LogInformation("Attached {AttachmentId} to purchase order {PurchaseOrderId}.", attachment.Id, command.PurchaseOrderId);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, AuditActions.PurchaseAttachmentAdded, "purchase_order", command.PurchaseOrderId.ToString("D"), cleanName, cancellationToken);
         return Result<Guid, PurchaseError>.Ok(attachment.Id);
     }
 }

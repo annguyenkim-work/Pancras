@@ -21,9 +21,7 @@ public interface ICatalogItemRepository
 
     Task<bool> NormalizedCodeExistsAsync(string normalizedCode, CancellationToken cancellationToken);
 
-    Task<bool> TryAddAsync(CatalogItem item, CancellationToken cancellationToken);
-
-    Task<SaveOutcome> TrySaveAsync(CancellationToken cancellationToken);
+    Task AddAsync(CatalogItem item, CancellationToken cancellationToken);
 
     Task<IReadOnlyDictionary<Guid, CatalogItemMeasure>> ListMeasuresAsync(
         IReadOnlyCollection<Guid> ids,

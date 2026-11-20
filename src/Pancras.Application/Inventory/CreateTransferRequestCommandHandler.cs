@@ -12,6 +12,7 @@ namespace Pancras.Application.Inventory;
 /// <summary>Bước 1: bộ phận cần hàng lập phiếu đề nghị. Chưa ảnh hưởng tồn kho.</summary>
 public sealed class CreateTransferRequestCommandHandler(
     IInventoryRepository repository,
+    IUnitOfWork unitOfWork,
     ILogger<CreateTransferRequestCommandHandler> logger,
     TimeProvider? clock = null,
     IAuditLog? audit = null,
@@ -20,6 +21,7 @@ public sealed class CreateTransferRequestCommandHandler(
 {
     public async Task<Result<Guid, StockError>> HandleAsync(CreateTransferSlipCommand command, CancellationToken cancellationToken)
     {
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         if (!InventoryAccess.CanOperate(command.Actor.Role))
         {
             logger.LogWarning("Transfer request forbidden for employee {EmployeeId}.", command.Actor.Id);
@@ -53,7 +55,8 @@ public sealed class CreateTransferRequestCommandHandler(
         await repository.AddTransferAsync(slip, cancellationToken);
         await TransferTrail.RecordAsync(repository, slip, TransferEventKind.Requested, request, clock, slip.Note, cancellationToken);
         await TransferTrail.NotifyAsync(repository, employees, slip, command.Actor.Id, Notification.TransferRequestedStep, TransferAudience.Finance | TransferAudience.SourceLead, clock, cancellationToken);
-        if (!await repository.CommitAsync(cancellationToken))
+        audit.Stage(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.TransferRequested, "transfer_slip", slip.Id.ToString("D"), null);
+        if (await scope.CommitAsync(cancellationToken) != SaveOutcome.Saved)
         {
             // Hai request cùng mã chạy song song: request thua vi phạm chỉ mục duy nhất, trả lại phiếu của request thắng.
             if (requestKey is Guid lostKey
@@ -66,7 +69,6 @@ public sealed class CreateTransferRequestCommandHandler(
         }
 
         logger.LogInformation("Created transfer request {TransferSlipId}.", slip.Id);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.TransferRequested, "transfer_slip", slip.Id.ToString("D"), null, cancellationToken);
         return Result<Guid, StockError>.Ok(slip.Id);
     }
 }

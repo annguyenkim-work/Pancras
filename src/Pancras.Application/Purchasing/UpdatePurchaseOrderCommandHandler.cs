@@ -16,6 +16,7 @@ public sealed class UpdatePurchaseOrderCommandHandler(
     IInventoryRepository inventory,
     ICatalogItemRepository catalog,
     GetCatalogMeasuresHandler measures,
+    IUnitOfWork unitOfWork,
     ILogger<UpdatePurchaseOrderCommandHandler> logger,
     TimeProvider? clock = null,
     IAuditLog? audit = null,
@@ -23,6 +24,7 @@ public sealed class UpdatePurchaseOrderCommandHandler(
 {
     public async Task<Result<Guid, PurchaseError>> HandleAsync(UpdatePurchaseOrderCommand command, CancellationToken cancellationToken)
     {
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         if (!PurchaseAccess.CanManage(command.Actor))
         {
             logger.LogWarning("Purchase order update forbidden for role {Role}.", command.Actor.Role);
@@ -205,14 +207,14 @@ public sealed class UpdatePurchaseOrderCommandHandler(
 
         order.StampUpdated((clock ?? TimeProvider.System).GetUtcNow(), request?.ActorCode);
         order.AdvanceVersion();
-        if (!await orders.CommitAsync(cancellationToken))
+        audit.Stage(clock ?? TimeProvider.System, request, null, null, AuditActions.PurchaseUpdated, "purchase_order", order.Id.ToString("D"), rateBefore == order.ExchangeRate ? null : $"exchange_rate {rateBefore:0} -> {order.ExchangeRate:0}");
+        if (await scope.CommitAsync(cancellationToken) != SaveOutcome.Saved)
         {
             logger.LogWarning("Purchase order update commit failed for {PurchaseOrderId}.", order.Id);
             return Result<Guid, PurchaseError>.Fail(PurchaseError.SaveFailed);
         }
 
         logger.LogInformation("Updated purchase order {PurchaseOrderId}.", order.Id);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, AuditActions.PurchaseUpdated, "purchase_order", order.Id.ToString("D"), rateBefore == order.ExchangeRate ? null : $"exchange_rate {rateBefore:0} -> {order.ExchangeRate:0}", cancellationToken);
         return Result<Guid, PurchaseError>.Ok(order.Id);
     }
 

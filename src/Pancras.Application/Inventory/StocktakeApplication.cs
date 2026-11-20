@@ -9,7 +9,7 @@ namespace Pancras.Application.Inventory;
 internal static class StocktakeApplication
 {
     /// <summary>Trả về false chỉ khi tồn sau khi áp sẽ âm. Tồn dưới số đang giữ chỗ vẫn được áp (khả dụng âm).</summary>
-    public static async Task<(bool Applied, BalanceSnapshot? Snapshot)> ApplyAsync(
+    public static async Task<bool> ApplyAsync(
         IInventoryRepository repository,
         StocktakeSheet sheet,
         DateTimeOffset now,
@@ -23,16 +23,15 @@ internal static class StocktakeApplication
             created = true;
         }
 
-        var snapshot = BalanceSnapshot.Take(balance);
         var delta = sheet.Variance;
         if (delta == 0)
         {
-            return (true, null);
+            return true;
         }
 
         if (!balance.TryApplyCount(delta))
         {
-            return (false, null);
+            return false;
         }
 
         await repository.AddMovementAsync(
@@ -43,6 +42,6 @@ internal static class StocktakeApplication
             await repository.AddBalanceAsync(balance, cancellationToken);
         }
 
-        return (true, snapshot);
+        return true;
     }
 }

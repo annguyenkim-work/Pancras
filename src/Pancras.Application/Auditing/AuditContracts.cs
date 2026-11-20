@@ -4,6 +4,19 @@ namespace Pancras.Application.Auditing;
 
 public static class AuditLogExtensions
 {
+    /// <summary>Thêm dòng nhật ký vào giao dịch đang mở (xem <see cref="IAuditLog.Stage"/>). Chưa lưu cho đến khi scope commit.</summary>
+    public static void Stage(
+        this IAuditLog? log,
+        TimeProvider clock,
+        IRequestInfo? request,
+        Guid? actorId,
+        string? actorCode,
+        string action,
+        string? targetType,
+        string? targetId,
+        string? detail) =>
+        log?.Stage(AuditEntry.Create(clock.GetUtcNow(), actorId ?? request?.ActorId, actorCode ?? request?.ActorCode, action, targetType, targetId, detail, request?.IpAddress));
+
     public static Task RecordAsync(
         this IAuditLog? log,
         TimeProvider clock,

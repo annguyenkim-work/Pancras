@@ -9,6 +9,7 @@ namespace Pancras.Application.Employees;
 
 public sealed class UpdateOwnProfileCommandHandler(
     IEmployeeRepository repository,
+    IUnitOfWork unitOfWork,
     ILogger<UpdateOwnProfileCommandHandler> logger)
 {
     public async Task<Result<EmployeeSession, EmployeeError>> HandleAsync(
@@ -24,6 +25,7 @@ public sealed class UpdateOwnProfileCommandHandler(
             return Result<EmployeeSession, EmployeeError>.Fail(EmployeeError.ProfileIncomplete);
         }
 
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var employee = await repository.GetByIdAsync(actor.Id, cancellationToken);
         if (employee is null)
         {
@@ -36,7 +38,7 @@ public sealed class UpdateOwnProfileCommandHandler(
         }
 
         employee.ReplaceContact(command.Email, command.Phone, command.Address);
-        await repository.SaveChangesAsync(cancellationToken);
+        (await scope.CommitAsync(cancellationToken)).EnsureSaved();
         logger.LogInformation("Employee {EmployeeId} updated their own profile.", employee.Id);
         return Result<EmployeeSession, EmployeeError>.Ok(
             new EmployeeSession(employee.Id, employee.FullName, employee.Code, employee.Role, employee.StockLocationId, employee.SecurityStamp));

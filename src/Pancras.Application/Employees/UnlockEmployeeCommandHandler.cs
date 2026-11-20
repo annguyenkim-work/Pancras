@@ -8,6 +8,7 @@ namespace Pancras.Application.Employees;
 
 public sealed class UnlockEmployeeCommandHandler(
     IEmployeeRepository repository,
+    IUnitOfWork unitOfWork,
     ILogger<UnlockEmployeeCommandHandler> logger,
     TimeProvider? clock = null,
     IAuditLog? audit = null,
@@ -23,6 +24,7 @@ public sealed class UnlockEmployeeCommandHandler(
             return Result<EmployeeProfile, EmployeeError>.Fail(EmployeeError.Forbidden);
         }
 
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var employee = await repository.GetByIdAsync(employeeId, cancellationToken);
         if (employee is null)
         {
@@ -30,9 +32,9 @@ public sealed class UnlockEmployeeCommandHandler(
         }
 
         employee.Unlock();
-        await repository.SaveChangesAsync(cancellationToken);
+        audit.Stage(_clock, request, actor.Id, null, AuditActions.EmployeeUnlocked, "employee", employee.Id.ToString("D"), null);
+        (await scope.CommitAsync(cancellationToken)).EnsureSaved();
         logger.LogInformation("Employee {EmployeeId} was unlocked by {ActorId}.", employee.Id, actor.Id);
-        await audit.RecordAsync(_clock, request, actor.Id, null, AuditActions.EmployeeUnlocked, "employee", employee.Id.ToString("D"), null, cancellationToken);
         return Result<EmployeeProfile, EmployeeError>.Ok(EmployeeMapping.ToProfile(employee));
     }
 }

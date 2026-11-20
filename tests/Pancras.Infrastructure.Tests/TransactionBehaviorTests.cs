@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Pancras.Application.Common;
 using Pancras.Domain.Inventory;
 using Pancras.Domain.Purchasing;
 using Pancras.Infrastructure.Persistence;
@@ -8,15 +9,16 @@ namespace Pancras.Infrastructure.Tests;
 
 /// <summary>
 /// Hành vi giao dịch, khóa dòng và concurrency của tầng lưu trữ trên PostgreSQL thật. InMemory không kiểm được các điều này.
-/// Đây là lưới an toàn khi chuẩn hóa giao dịch (UnitOfWork): các hành vi dưới đây phải giữ nguyên sau khi đổi cách commit.
+/// Các test mở scope IUnitOfWork giống một handler: repository chỉ đọc/staging, scope commit.
 /// </summary>
 public class TransactionBehaviorTests(PostgresFixture fixture) : PostgresTest(fixture)
 {
     private static InventoryRepository Inventory(PancrasDbContext context) =>
         new(context, NullLogger<InventoryRepository>.Instance);
 
-    private static PurchaseOrderRepository Orders(PancrasDbContext context) =>
-        new(context, NullLogger<PurchaseOrderRepository>.Instance);
+    private static PurchaseOrderRepository Orders(PancrasDbContext context) => new(context);
+
+    private static EfUnitOfWork Uow(PancrasDbContext context) => new(context, NullLogger<EfUnitOfWork>.Instance);
 
     [Fact]
     public async Task Commit_RollsBackEveryRow_WhenOneRowBreaksAConstraint()
@@ -32,7 +34,7 @@ public class TransactionBehaviorTests(PostgresFixture fixture) : PostgresTest(fi
                 StockMovement.Create(Guid.CreateVersion7(), location, StockMovementKind.Receipt, 5, Guid.CreateVersion7(), DateTimeOffset.UtcNow),
                 CancellationToken.None);
 
-            Assert.False(await repository.CommitAsync(CancellationToken.None));
+            Assert.Equal(SaveOutcome.Failed, await CommitAsync(context));
         }
 
         await using var read = Database.NewContext();
@@ -58,8 +60,8 @@ public class TransactionBehaviorTests(PostgresFixture fixture) : PostgresTest(fi
         Assert.True(a!.TryAddOnHand(5));
         Assert.True(b!.TryAddOnHand(3));
 
-        Assert.True(await Inventory(first).CommitAsync(CancellationToken.None));
-        Assert.False(await Inventory(second).CommitAsync(CancellationToken.None));
+        Assert.Equal(SaveOutcome.Saved, await CommitAsync(first));
+        Assert.Equal(SaveOutcome.Conflict, await CommitAsync(second));
 
         await using var read = Database.NewContext();
         Assert.Equal(15, (await read.StockBalances.AsNoTracking().SingleAsync()).OnHand);
@@ -80,6 +82,8 @@ public class TransactionBehaviorTests(PostgresFixture fixture) : PostgresTest(fi
 
         await using var first = Database.NewContext();
         await using var second = Database.NewContext();
+        await using var firstScope = await Uow(first).BeginAsync(CancellationToken.None);
+        await using var secondScope = await Uow(second).BeginAsync(CancellationToken.None);
         var held = await Inventory(first).FindTransferForUpdateAsync(slip.Id, CancellationToken.None);
         Assert.NotNull(held);
 
@@ -88,11 +92,11 @@ public class TransactionBehaviorTests(PostgresFixture fixture) : PostgresTest(fi
         Assert.False(waiting.IsCompleted, "Người đến sau phải chờ khi dòng phiếu đang bị khóa.");
 
         Assert.True(held.TryUpdateRequest(source, destination, "mới", [(item, 2)]));
-        Assert.True(await Inventory(first).CommitAsync(CancellationToken.None));
+        Assert.Equal(SaveOutcome.Saved, await firstScope.CommitAsync(CancellationToken.None));
 
         var seen = await waiting.WaitAsync(TimeSpan.FromSeconds(10));
         Assert.Equal("mới", seen!.Note);
-        Assert.True(await Inventory(second).CommitAsync(CancellationToken.None));
+        Assert.Equal(SaveOutcome.Saved, await secondScope.CommitAsync(CancellationToken.None));
     }
 
     [Fact]
@@ -114,7 +118,8 @@ public class TransactionBehaviorTests(PostgresFixture fixture) : PostgresTest(fi
             [(item, 1, 10m, 0.10m, 0m, 0m, 0m)])!;
         await using (var seed = Database.NewContext())
         {
-            Assert.True(await Orders(seed).TryAddAsync(order, CancellationToken.None));
+            await Orders(seed).AddAsync(order, CancellationToken.None);
+            Assert.Equal(SaveOutcome.Saved, await CommitAsync(seed));
         }
 
         await using var first = Database.NewContext();
@@ -124,8 +129,8 @@ public class TransactionBehaviorTests(PostgresFixture fixture) : PostgresTest(fi
         a!.AdvanceVersion();
         b!.AdvanceVersion();
 
-        Assert.True(await Orders(first).CommitAsync(CancellationToken.None));
-        Assert.False(await Orders(second).CommitAsync(CancellationToken.None));
+        Assert.Equal(SaveOutcome.Saved, await CommitAsync(first));
+        Assert.Equal(SaveOutcome.Conflict, await CommitAsync(second));
     }
 
     [Fact]

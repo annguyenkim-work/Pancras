@@ -26,8 +26,18 @@ public sealed class AuditEntryConfiguration : IEntityTypeConfiguration<AuditEntr
 
 public sealed class AuditLog(PancrasDbContext context, ILogger<AuditLog> logger) : IAuditLog
 {
+    public void Stage(AuditEntry entry) => context.AuditEntries.Add(entry);
+
     public async Task RecordAsync(AuditEntry entry, CancellationToken cancellationToken)
     {
+        if (context.Database.CurrentTransaction is not null)
+        {
+            // Đang trong scope IUnitOfWork: không tự lưu (sẽ bị hủy cùng scope nếu không commit); dòng này đi theo lần commit của scope.
+            logger.LogWarning("Audit entry {Action} was recorded inside an open transaction; it is saved with that transaction.", entry.Action);
+            Stage(entry);
+            return;
+        }
+
         try
         {
             await context.AuditEntries.AddAsync(entry, cancellationToken);

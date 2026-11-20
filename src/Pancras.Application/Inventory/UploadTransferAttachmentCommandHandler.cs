@@ -13,6 +13,7 @@ public sealed class UploadTransferAttachmentCommandHandler(
     IInventoryRepository inventory,
     ITransferAttachmentRepository attachments,
     IAttachmentStorage storage,
+    IUnitOfWork unitOfWork,
     ILogger<UploadTransferAttachmentCommandHandler> logger,
     TimeProvider? clock = null,
     IAuditLog? audit = null,
@@ -24,7 +25,7 @@ public sealed class UploadTransferAttachmentCommandHandler(
     /// </summary>
     public async Task<Result<Guid, StockError>> CheckAsync(Guid transferSlipId, IReadOnlyList<PendingTransferFile> files, EmployeeActor actor, CancellationToken cancellationToken)
     {
-        var slip = await inventory.FindTransferForUpdateAsync(transferSlipId, cancellationToken);
+        var slip = await inventory.FindTransferReadOnlyAsync(transferSlipId, cancellationToken);
         if (slip is null || !TransferAccess.CanTouch(actor, slip))
         {
             return Result<Guid, StockError>.Fail(StockError.Forbidden);
@@ -66,7 +67,7 @@ public sealed class UploadTransferAttachmentCommandHandler(
 
     public async Task<Result<Guid, StockError>> HandleAsync(UploadTransferAttachmentCommand command, CancellationToken cancellationToken)
     {
-        var slip = await inventory.FindTransferForUpdateAsync(command.TransferSlipId, cancellationToken);
+        var slip = await inventory.FindTransferReadOnlyAsync(command.TransferSlipId, cancellationToken);
         if (slip is null || !TransferAccess.CanTouch(command.Actor, slip))
         {
             return Result<Guid, StockError>.Fail(StockError.Forbidden);
@@ -118,7 +119,13 @@ public sealed class UploadTransferAttachmentCommandHandler(
         await storage.SaveAsync(storedName, buffer, cancellationToken);
         try
         {
+            await using var scope = await unitOfWork.BeginAsync(cancellationToken);
             await attachments.AddAsync(attachment, cancellationToken);
+            audit.Stage(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.TransferAttachmentAdded, "transfer_slip", slip.Id.ToString("D"), cleanName);
+            if (await scope.CommitAsync(cancellationToken) != SaveOutcome.Saved)
+            {
+                throw new InvalidOperationException("Không lưu được chứng từ đính kèm.");
+            }
         }
         catch
         {
@@ -126,7 +133,6 @@ public sealed class UploadTransferAttachmentCommandHandler(
             throw;
         }
 
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.TransferAttachmentAdded, "transfer_slip", slip.Id.ToString("D"), cleanName, cancellationToken);
         return Result<Guid, StockError>.Ok(attachment.Id);
     }
 }

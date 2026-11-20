@@ -9,6 +9,7 @@ namespace Pancras.Application.Employees;
 
 public sealed class LoginEmployeeCommandHandler(
     IEmployeeRepository repository,
+    IUnitOfWork unitOfWork,
     IPasswordHasher passwordHasher,
     ILogger<LoginEmployeeCommandHandler> logger,
     TimeProvider? clock = null,
@@ -28,6 +29,7 @@ public sealed class LoginEmployeeCommandHandler(
             return Result<EmployeeSession, LoginError>.Fail(LoginError.MissingCredentials);
         }
 
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var now = _clock.GetUtcNow();
         var normalizedCode = command.EmployeeCode!.Trim().ToUpperInvariant();
         var employee = await repository.GetByNormalizedCodeForUpdateAsync(normalizedCode, cancellationToken);
@@ -36,16 +38,18 @@ public sealed class LoginEmployeeCommandHandler(
             // Băm một lần để thời gian trả lời không tiết lộ tài khoản có tồn tại hay không.
             _ = passwordHasher.Hash(command.Password!);
             logger.LogInformation("Login rejected.");
-            await Log(employee, AuditActions.LoginFailed, employee is null ? "unknown account" : employee.IsActive ? "locked" : "inactive", cancellationToken);
+            // Không có dữ liệu nào đổi: chỉ lưu dòng nhật ký (best-effort, lỗi lưu không đổi kết quả trả về).
+            Stage(employee, AuditActions.LoginFailed, employee is null ? "unknown account" : employee.IsActive ? "locked" : "inactive");
+            await scope.CommitAsync(cancellationToken);
             return Result<EmployeeSession, LoginError>.Fail(LoginError.InvalidCredentials);
         }
 
         if (!passwordHasher.Verify(command.Password!, employee.PasswordHash))
         {
             var locked = employee.RegisterFailedLogin(now);
-            await repository.SaveChangesAsync(cancellationToken);
+            Stage(employee, locked ? AuditActions.LoginLockedOut : AuditActions.LoginFailed, "wrong password");
+            (await scope.CommitAsync(cancellationToken)).EnsureSaved();
             logger.LogInformation("Login rejected because the credentials did not match.");
-            await Log(employee, locked ? AuditActions.LoginLockedOut : AuditActions.LoginFailed, "wrong password", cancellationToken);
             return Result<EmployeeSession, LoginError>.Fail(LoginError.InvalidCredentials);
         }
 
@@ -55,17 +59,17 @@ public sealed class LoginEmployeeCommandHandler(
         }
 
         employee.RegisterSuccessfulLogin();
-        await repository.SaveChangesAsync(cancellationToken);
+        Stage(employee, AuditActions.LoginSucceeded, null);
+        (await scope.CommitAsync(cancellationToken)).EnsureSaved();
         logger.LogInformation("Login succeeded for employee {EmployeeId}.", employee.Id);
-        await Log(employee, AuditActions.LoginSucceeded, null, cancellationToken);
         return Result<EmployeeSession, LoginError>.Ok(ToSession(employee, requiresTwoFactor: false));
     }
 
     internal static EmployeeSession ToSession(Employee employee, bool requiresTwoFactor) =>
         new(employee.Id, employee.FullName, employee.Code, employee.Role, employee.StockLocationId, employee.SecurityStamp, requiresTwoFactor);
 
-    private Task Log(Employee? employee, string action, string? detail, CancellationToken cancellationToken) =>
-        audit.RecordAsync(_clock, request, employee?.Id, employee?.Code, action, "employee", employee?.Id.ToString("D"), detail, cancellationToken);
+    private void Stage(Employee? employee, string action, string? detail) =>
+        audit.Stage(_clock, request, employee?.Id, employee?.Code, action, "employee", employee?.Id.ToString("D"), detail);
 }
 
 public sealed class LoginEmployeeCommandValidator : AbstractValidator<LoginEmployeeCommand>

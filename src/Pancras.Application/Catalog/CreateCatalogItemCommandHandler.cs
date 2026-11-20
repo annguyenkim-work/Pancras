@@ -90,6 +90,7 @@ public sealed class CreateCatalogItemCommandValidator : AbstractValidator<Create
 
 public sealed class CreateCatalogItemCommandHandler(
     ICatalogItemRepository repository,
+    IUnitOfWork unitOfWork,
     ILogger<CreateCatalogItemCommandHandler> logger)
 {
     private readonly CreateCatalogItemCommandValidator _validator = new();
@@ -106,6 +107,7 @@ public sealed class CreateCatalogItemCommandHandler(
             return Result<CreatedCatalogItem, CatalogError>.Fail(CatalogValidation.Primary(issues), issues);
         }
 
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var code = command.Code!.Trim();
         var normalizedCode = CatalogItem.NormalizeCode(code);
         if (await repository.NormalizedCodeExistsAsync(normalizedCode, cancellationToken))
@@ -137,7 +139,8 @@ public sealed class CreateCatalogItemCommandHandler(
             command.WidthMm,
             command.ImagePath);
         item.SetDiscountPercents(command.DealerDiscountPercent, command.DistributorDiscountPercent, command.ProjectDiscountPercent);
-        if (!await repository.TryAddAsync(item, cancellationToken))
+        await repository.AddAsync(item, cancellationToken);
+        if ((await scope.CommitAsync(cancellationToken)).ThrowIfFailed() != SaveOutcome.Saved)
         {
             logger.LogInformation("Rejected a duplicate catalog item.");
             return Result<CreatedCatalogItem, CatalogError>.Fail(

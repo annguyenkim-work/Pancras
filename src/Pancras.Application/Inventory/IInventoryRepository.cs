@@ -27,6 +27,9 @@ public interface IInventoryRepository
 
     Task<TransferSlip?> FindTransferForUpdateAsync(Guid id, CancellationToken cancellationToken);
 
+    /// <summary>Đọc phiếu chuyển không khóa dòng và không cần scope: cho kiểm tra trước, tải tệp đính kèm, lưu tệp (không ghi vào phiếu).</summary>
+    Task<TransferSlip?> FindTransferReadOnlyAsync(Guid id, CancellationToken cancellationToken);
+
     Task<Guid?> FindTransferIdByRequestKeyAsync(Guid requestKey, Guid requestedById, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<TransferSlip>> ListOpenTransfersAsync(CancellationToken cancellationToken);
@@ -85,5 +88,4 @@ public interface IInventoryRepository
     /// </summary>
     Task<Guid?> FindDocumentLocationAsync(StockDocumentKind kind, Guid id, CancellationToken cancellationToken);
 
-    Task<bool> CommitAsync(CancellationToken cancellationToken);
 }

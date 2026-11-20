@@ -105,7 +105,7 @@ public class CatalogDiscountPercentHandlerTests
         command.DealerDiscountPercent = 20m;
         command.ProjectDiscountPercent = 5m;
 
-        var result = await new CreateCatalogItemCommandHandler(repository, NullLogger<CreateCatalogItemCommandHandler>.Instance)
+        var result = await new CreateCatalogItemCommandHandler(repository, repository, NullLogger<CreateCatalogItemCommandHandler>.Instance)
             .HandleAsync(command, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -122,7 +122,7 @@ public class CatalogDiscountPercentHandlerTests
         var command = CreateCommand();
         command.DealerDiscountPercent = 101m;
 
-        var result = await new CreateCatalogItemCommandHandler(repository, NullLogger<CreateCatalogItemCommandHandler>.Instance)
+        var result = await new CreateCatalogItemCommandHandler(repository, repository, NullLogger<CreateCatalogItemCommandHandler>.Instance)
             .HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(CatalogError.TooLarge, result.Error);
@@ -130,7 +130,7 @@ public class CatalogDiscountPercentHandlerTests
     }
 
     private static UpdateCatalogPricesCommandHandler UpdateHandler(FakeCatalogRepository repository) =>
-        new(repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
+        new(repository, repository, NullLogger<UpdateCatalogPricesCommandHandler>.Instance);
 
     private static UpdateCatalogPricesCommand UpdateCommand(Guid id) => new()
     {

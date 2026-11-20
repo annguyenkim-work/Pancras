@@ -118,16 +118,6 @@ public enum ReceiptDecision
 /// <param name="Unreceived">Giá vốn của dòng không nhận được món nào: không vào tồn kho.</param>
 public sealed record ReceiptLineResult(PurchaseLine Line, int Quantity, decimal UnitCost, decimal Revaluation, decimal Unreceived);
 
-/// <summary>Trạng thái trước một lần nhận, để hoàn lại khi lưu thất bại.</summary>
-public sealed record ReceiptUndo(
-    PurchaseStatus Status,
-    DateTimeOffset? ReceivedAt,
-    string ReceivedBy,
-    DateTimeOffset UpdatedAt,
-    string UpdatedBy,
-    IReadOnlyList<(Guid LineId, int Received, decimal Costed)> Lines,
-    Guid EventId);
-
 public sealed partial class PurchaseOrder
 {
     public const int ReasonMaxLength = 500;
@@ -189,11 +179,9 @@ public sealed partial class PurchaseOrder
         string? note,
         DateTimeOffset at,
         string? by,
-        out IReadOnlyList<ReceiptLineResult> results,
-        out ReceiptUndo? undo)
+        out IReadOnlyList<ReceiptLineResult> results)
     {
         results = [];
-        undo = null;
         if (!IsReceivable)
         {
             return ReceiptDecision.WrongStatus;
@@ -225,10 +213,8 @@ public sealed partial class PurchaseOrder
         }
 
         var built = new List<ReceiptLineResult>(_lines.Count);
-        var previous = new List<(Guid LineId, int Received, decimal Costed)>(_lines.Count);
         foreach (var line in _lines)
         {
-            previous.Add((line.Id, line.ReceivedQuantity, line.CostedAmount));
             var quantity = quantities[line.Id];
             var landed = PurchaseMoney.RoundDong(PurchaseCosting.For(this, line).LandedCost);
             decimal unit = 0;
@@ -259,31 +245,13 @@ public sealed partial class PurchaseOrder
             built.Add(new ReceiptLineResult(line, quantity, unit, revaluation, unreceived));
         }
 
-        var before = (Status, ReceivedAt, ReceivedBy, UpdatedAt, UpdatedBy);
         Status = final ? PurchaseStatus.Received : PurchaseStatus.PartiallyReceived;
         ReceivedAt = at;
         ReceivedBy = FitActor(by);
         StampUpdated(at, by);
-        var recorded = Record(final ? PurchaseEventKind.Received : PurchaseEventKind.PartiallyReceived, at, by, trimmedNote);
+        Record(final ? PurchaseEventKind.Received : PurchaseEventKind.PartiallyReceived, at, by, trimmedNote);
         results = built;
-        undo = new ReceiptUndo(before.Status, before.ReceivedAt, before.ReceivedBy, before.UpdatedAt, before.UpdatedBy, previous, recorded.Id);
         return ReceiptDecision.Ok;
-    }
-
-    /// <summary>Hoàn lại một lần nhận chưa lưu được.</summary>
-    public void UndoReceipt(ReceiptUndo undo)
-    {
-        Status = undo.Status;
-        ReceivedAt = undo.ReceivedAt;
-        ReceivedBy = undo.ReceivedBy;
-        UpdatedAt = undo.UpdatedAt;
-        UpdatedBy = undo.UpdatedBy;
-        foreach (var (lineId, received, costed) in undo.Lines)
-        {
-            _lines.FirstOrDefault(line => line.Id == lineId)?.SetReceipt(received, costed);
-        }
-
-        _events.RemoveAll(item => item.Id == undo.EventId);
     }
 
     /// <summary>Ghi một khoản điều chỉnh chi phí sau nhập. Chỉ khi đơn đã nhận đủ; số tiền khác 0; bắt buộc có tên khoản và lý do.</summary>

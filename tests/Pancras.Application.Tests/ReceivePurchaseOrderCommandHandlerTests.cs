@@ -36,7 +36,7 @@ public class ReceivePurchaseOrderCommandHandlerTests
             [(item.Id, 3, 100m, 0m, 0m, 0m, 0m)])!;
         orders.Orders.Add(order);
         order.Approve();
-        var handler = new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance);
+        var handler = new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, inventory, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance);
 
         var first = await handler.HandleAsync(new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant), CancellationToken.None);
         var stored = await orders.FindReadOnlyAsync(order.Id, CancellationToken.None);
@@ -72,7 +72,7 @@ public class ReceivePurchaseOrderCommandHandlerTests
         Assert.True(order.TryAllocate(chargeId, new Dictionary<Guid, decimal> { [order.Lines[0].Id] = 100m }, false));
         orders.Orders.Add(order);
         order.Approve();
-        var receive = new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance);
+        var receive = new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, inventory, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance);
 
         var blocked = await receive.HandleAsync(new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant), CancellationToken.None);
         Assert.True(order.TryAssignGroup(chargeId, ChargeGroup.Logistics, false));
@@ -98,7 +98,7 @@ public class ReceivePurchaseOrderCommandHandlerTests
         orders.Orders.Add(order);
         order.Approve();
 
-        var result = await new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance)
+        var result = await new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, inventory, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance)
             .HandleAsync(new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant), CancellationToken.None);
 
         Assert.Equal(PurchaseError.ZeroPrice, result.Error);
@@ -129,7 +129,7 @@ public class ReceivePurchaseOrderCommandHandlerTests
         orders.Orders.Add(order);
         order.Approve();
 
-        var result = await new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance)
+        var result = await new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, inventory, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance)
             .HandleAsync(new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -148,7 +148,7 @@ public class ReceivePurchaseOrderCommandHandlerTests
         var order = PurchaseOrder.TryCreate("PO-10", Guid.CreateVersion7(), warehouse.Id, "CONT", null, null, null, 1m, 0m, [(item.Id, 10, 100m, 0m, 0m, 0m, 0m)])!;
         orders.Orders.Add(order);
         order.Approve();
-        var handler = new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance);
+        var handler = new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, inventory, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance);
         var lineId = order.Lines[0].Id;
 
         var shortWithoutReason = await handler.HandleAsync(

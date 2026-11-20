@@ -39,16 +39,28 @@
 
 ### Audit
 
-- Handler ghi nhật ký qua `IAuditLog.RecordAsync` **sau khi lưu thành công** cho: mọi thao tác ghi dữ liệu (tạo, sửa, duyệt, hủy, đổi trạng thái) và sự kiện bảo mật (đăng nhập thất bại, khóa/mở khóa, đặt lại mật khẩu, đổi vai trò, từ chối do thiếu quyền).
-- Không ghi thao tác đọc.
+- Thao tác ghi dữ liệu (tạo, sửa, duyệt, hủy, đổi trạng thái, đăng nhập thất bại/khóa/mở khóa, đặt lại mật khẩu, đổi vai trò...) **ghi nhật ký trong cùng giao dịch** với dữ liệu: gọi `audit.Stage(...)` (chỉ thêm vào ngữ cảnh, không lưu) **trước** `CommitAsync` của UnitOfWork. Dữ liệu và nhật ký cùng lưu hoặc cùng bị hủy; **nếu ghi nhật ký lỗi thì cả thao tác bị hủy** (quyết định 2026-11-20, theo review của senior; thay cho quy tắc cũ "lỗi nhật ký không làm hỏng thao tác chính").
+- Sự kiện **không kèm ghi dữ liệu** (từ chối do thiếu quyền, xuất file, tải chứng từ) dùng `audit.RecordAsync(...)`: ghi ngay, riêng một lần lưu; lỗi chỉ log cảnh báo, không làm hỏng thao tác chính.
+- Không ghi thao tác đọc thuần.
 - `detail` không chứa mật khẩu, mã xác thực, token hay PII.
-- Lỗi khi ghi nhật ký chỉ log cảnh báo, **không làm hỏng thao tác chính**.
 - `action` là **mã dạng `nhóm.sự_kiện`** (hằng số trong `AuditActions`, ví dụ `login.failed`, `employee.role_changed`, `stock.transfer_approved`); **Web đổi mã sang câu tiếng Việt** khi hiển thị. `targetType` và `targetId` đặt theo cùng một quy ước trong cả module.
 
 ### Giao dịch
 
-- Giao dịch nằm trong repository: **một phương thức repository = một giao dịch trọn vẹn**. Handler không mở giao dịch, không có `IUnitOfWork`.
-- Thao tác cần nhiều bước phải là một phương thức repository có tên nghiệp vụ (ví dụ tạo phiếu chuyển kho rồi xuất xe). Chi tiết EF xem `data-access.md`.
+- Giao dịch được mở **tường minh ở handler** qua `IUnitOfWork` (quyết định 2026-11-20, theo review của senior; thay cho quy tắc cũ "giao dịch nằm trong repository, không có IUnitOfWork"):
+
+```csharp
+await using var scope = await unitOfWork.BeginAsync(cancellationToken);
+var slip = await repository.FindTransferForUpdateAsync(id, cancellationToken); // khóa dòng, cần giao dịch đang mở
+// kiểm tra, đổi dữ liệu qua Domain, repository.Add...(staging)
+audit.Stage(...);                                                                // nhật ký cùng giao dịch
+var outcome = await scope.CommitAsync(cancellationToken);                       // lưu + commit
+```
+
+- `CommitAsync` trả `SaveOutcome`: `Saved`, `Duplicate` (trùng khóa duy nhất), `Conflict` (người khác vừa sửa, `Version`), `Failed` (lỗi lưu khác). Thất bại thì giao dịch bị hủy và ngữ cảnh bị xóa sạch thay đổi; **handler không lưu sai lệch và không tự hoàn nguyên đối tượng** (không còn `Restore`).
+- Thoát khỏi `scope` mà chưa `CommitAsync` (trả lỗi nghiệp vụ, ném exception) là **hủy giao dịch** và bỏ mọi thay đổi chưa lưu.
+- Repository chỉ **đọc và staging** (`Add...`, `Find...ForUpdateAsync`); không có phương thức commit/save riêng. `Find...ForUpdateAsync` có khóa dòng (`SELECT ... FOR UPDATE`) **bắt buộc có scope đang mở** (không có thì ném `InvalidOperationException`: lỗi lập trình).
+- Mỗi handler ghi dữ liệu mở **một scope**, không lồng nhau. Hàm Domain `Try*` phải kiểm tra xong rồi mới đổi dữ liệu (không đổi một nửa rồi trả `false`).
 
 ## Mẫu handler (rút từ `CreateEmployeeCommandHandler`)
 

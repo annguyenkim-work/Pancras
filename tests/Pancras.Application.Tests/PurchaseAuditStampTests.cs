@@ -37,14 +37,11 @@ public class PurchaseAuditStampTests
         Assert.Equal(T0.AddHours(1), order.UpdatedAt);
         Assert.Equal("Kế toán 1", order.UpdatedBy);
 
-        var undo = order.ReceiveAll(T0.AddHours(2), "Thủ kho");
+        order.ReceiveAll(T0.AddHours(2), "Thủ kho");
         Assert.Equal(T0.AddHours(2), order.ReceivedAt);
         Assert.Equal("Thủ kho", order.ReceivedBy);
         Assert.Equal(T0.AddHours(2), order.UpdatedAt);
 
-        order.UndoReceipt(undo);
-        Assert.Null(order.ReceivedAt);
-        Assert.Equal(string.Empty, order.ReceivedBy);
     }
 
     [Fact]
@@ -71,7 +68,7 @@ public class PurchaseAuditStampTests
         catalog.Items.Add(item);
         var orders = new FakePurchaseStore();
         var handler = new CreatePurchaseOrderCommandHandler(
-            orders, suppliers, inventory, catalog, NullLogger<CreatePurchaseOrderCommandHandler>.Instance,
+            orders, suppliers, inventory, catalog, orders, NullLogger<CreatePurchaseOrderCommandHandler>.Instance,
             null, new TestClock(T0), new FakeRequestInfo("AnNK"));
 
         var result = await handler.HandleAsync(
@@ -104,7 +101,7 @@ public class PurchaseAuditStampTests
         orders.Orders.Add(order);
         order.Approve();
         var handler = new ReceivePurchaseOrderCommandHandler(
-            orders, new FakeInventoryStore(), catalog, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance,
+            orders, new FakeInventoryStore(), catalog, new FakeInventoryStore(), NullLogger<ReceivePurchaseOrderCommandHandler>.Instance,
             new TestClock(T0.AddDays(1)), null, new FakeRequestInfo("Thukho1"));
 
         var result = await handler.HandleAsync(new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant), CancellationToken.None);

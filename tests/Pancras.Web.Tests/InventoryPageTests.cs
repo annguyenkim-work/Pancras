@@ -667,6 +667,9 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
     public Task<TransferSlip?> FindTransferForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         Task.FromResult<TransferSlip?>(null);
 
+    public Task<TransferSlip?> FindTransferReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
+        FindTransferForUpdateAsync(id, cancellationToken);
+
     public Task<IReadOnlyList<TransferSlip>> ListOpenTransfersAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<TransferSlip>>([]);
 
@@ -757,7 +760,6 @@ internal sealed class InventoryDirectoryDouble : IInventoryRepository
 
     public Task RemoveNoticesAsync(Guid documentId, CancellationToken cancellationToken) => Task.CompletedTask;
 
-    public Task<bool> CommitAsync(CancellationToken cancellationToken) => Task.FromResult(true);
 }
 
 internal sealed class TransferAttachmentDouble : ITransferAttachmentRepository

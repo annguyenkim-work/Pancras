@@ -12,7 +12,5 @@ public interface IPurchaseOrderRepository
 
     Task<bool> NormalizedCodeExistsAsync(string normalizedCode, CancellationToken cancellationToken);
 
-    Task<bool> TryAddAsync(PurchaseOrder order, CancellationToken cancellationToken);
-
-    Task<bool> CommitAsync(CancellationToken cancellationToken);
+    Task AddAsync(PurchaseOrder order, CancellationToken cancellationToken);
 }

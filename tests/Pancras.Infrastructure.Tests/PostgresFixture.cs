@@ -127,6 +127,13 @@ public abstract class PostgresTest(PostgresFixture fixture) : IAsyncLifetime
 
     protected DbContextOptions<PancrasDbContext> Options => Database.Options();
 
+    /// <summary>Lưu mọi thay đổi đang chờ của <paramref name="context"/> trong một scope IUnitOfWork (giống một handler).</summary>
+    protected static async Task<Pancras.Application.Common.SaveOutcome> CommitAsync(PancrasDbContext context)
+    {
+        await using var scope = await new EfUnitOfWork(context, Microsoft.Extensions.Logging.Abstractions.NullLogger<EfUnitOfWork>.Instance).BeginAsync(CancellationToken.None);
+        return await scope.CommitAsync(CancellationToken.None);
+    }
+
     public virtual async Task InitializeAsync() => Database = await fixture.CreateDatabaseAsync();
 
     public async Task DisposeAsync() => await Database.DropAsync();

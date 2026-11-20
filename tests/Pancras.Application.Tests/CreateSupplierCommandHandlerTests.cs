@@ -193,7 +193,7 @@ public class CreateSupplierCommandHandlerTests
     {
         var audit = new MemoryAudit();
 
-        var result = await new CreateSupplierCommandHandler(_repository, NullLogger<CreateSupplierCommandHandler>.Instance, audit: audit)
+        var result = await new CreateSupplierCommandHandler(_repository, _repository, NullLogger<CreateSupplierCommandHandler>.Instance, audit: audit)
             .HandleAsync(Valid(), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -203,7 +203,7 @@ public class CreateSupplierCommandHandlerTests
     }
 
     private CreateSupplierCommandHandler Handler() =>
-        new(_repository, NullLogger<CreateSupplierCommandHandler>.Instance);
+        new(_repository, _repository, NullLogger<CreateSupplierCommandHandler>.Instance);
 
     private static CreateSupplierCommand Valid(string? code = null, string? name = null, string? email = null, string? phone = null, Pancras.Domain.Employees.EmployeeActor? actor = null) =>
         new()

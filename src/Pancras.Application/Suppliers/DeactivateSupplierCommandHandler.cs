@@ -10,6 +10,7 @@ namespace Pancras.Application.Suppliers;
 /// <summary>Ngừng hợp tác với nhà cung cấp: ẩn khỏi danh sách chọn khi lập đơn, nhưng giữ lại để xem lịch sử.</summary>
 public sealed class DeactivateSupplierCommandHandler(
     ISupplierRepository repository,
+    IUnitOfWork unitOfWork,
     ILogger<DeactivateSupplierCommandHandler> logger,
     ISupplierPurchaseStatsReader? purchaseStats = null,
     TimeProvider? clock = null,
@@ -24,6 +25,7 @@ public sealed class DeactivateSupplierCommandHandler(
             return Result<Guid, SupplierError>.Fail(SupplierError.Forbidden);
         }
 
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var supplier = await repository.GetActiveForUpdateAsync(id, cancellationToken);
         if (supplier is null)
         {
@@ -43,7 +45,8 @@ public sealed class DeactivateSupplierCommandHandler(
         }
 
         supplier.Deactivate();
-        var saved = await repository.TrySaveAsync(cancellationToken);
+        audit.Stage(clock ?? TimeProvider.System, request, actor.Id, null, AuditActions.SupplierDeactivated, "supplier", supplier.Id.ToString("D"), supplier.Code);
+        var saved = (await scope.CommitAsync(cancellationToken)).ThrowIfFailed();
         if (saved != SaveOutcome.Saved)
         {
             logger.LogWarning("Could not save a supplier deactivation for {SupplierId}.", supplier.Id);
@@ -51,7 +54,6 @@ public sealed class DeactivateSupplierCommandHandler(
         }
 
         logger.LogInformation("Deactivated supplier {SupplierId}.", supplier.Id);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, actor.Id, null, AuditActions.SupplierDeactivated, "supplier", supplier.Id.ToString("D"), supplier.Code, cancellationToken);
         return Result<Guid, SupplierError>.Ok(supplier.Id);
     }
 }

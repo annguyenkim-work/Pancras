@@ -12,6 +12,7 @@ namespace Pancras.Application.Purchasing;
 /// <summary>Chuyển trạng thái đơn mua: gửi duyệt, duyệt, trả về nháp, đánh dấu hàng đang về, hủy. Mỗi bước ghi vào lịch sử đơn.</summary>
 public sealed class ChangePurchaseStatusCommandHandler(
     IPurchaseOrderRepository orders,
+    IUnitOfWork unitOfWork,
     ILogger<ChangePurchaseStatusCommandHandler> logger,
     TimeProvider? clock = null,
     IAuditLog? audit = null,
@@ -21,6 +22,7 @@ public sealed class ChangePurchaseStatusCommandHandler(
 {
     public async Task<Result<Guid, PurchaseError>> HandleAsync(ChangePurchaseStatusCommand command, CancellationToken cancellationToken)
     {
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         if (!PurchaseAccess.CanManage(command.Actor))
         {
             logger.LogWarning("Purchase status change forbidden for role {Role}.", command.Actor.Role);
@@ -67,14 +69,14 @@ public sealed class ChangePurchaseStatusCommandHandler(
         order.StampUpdated(at, by);
         order.AdvanceVersion();
         await PurchaseNotifier.NotifyAsync(notices, employees, order, command.Action, command.Note, command.Actor.Id, at, cancellationToken);
-        if (!await orders.CommitAsync(cancellationToken))
+        audit.Stage(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.PurchaseStatusChanged, "purchase_order", order.Id.ToString("D"), command.Action.ToString());
+        if (await scope.CommitAsync(cancellationToken) != SaveOutcome.Saved)
         {
             logger.LogWarning("Purchase status commit failed for {PurchaseOrderId}.", order.Id);
             return Result<Guid, PurchaseError>.Fail(PurchaseError.SaveFailed);
         }
 
         logger.LogInformation("Purchase order {PurchaseOrderId} moved to {Status}.", order.Id, order.Status);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.PurchaseStatusChanged, "purchase_order", order.Id.ToString("D"), command.Action.ToString(), cancellationToken);
         return Result<Guid, PurchaseError>.Ok(order.Id);
     }
 }

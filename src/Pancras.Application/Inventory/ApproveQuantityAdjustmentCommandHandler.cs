@@ -7,6 +7,7 @@ namespace Pancras.Application.Inventory;
 
 public sealed class ApproveQuantityAdjustmentCommandHandler(
     IInventoryRepository repository,
+    IUnitOfWork unitOfWork,
     ILogger<ApproveQuantityAdjustmentCommandHandler> logger,
     TimeProvider? clock = null,
     Pancras.Application.Auditing.IAuditLog? audit = null,
@@ -14,6 +15,7 @@ public sealed class ApproveQuantityAdjustmentCommandHandler(
 {
     public async Task<Result<Guid, StockError>> HandleAsync(ApproveDocumentCommand command, CancellationToken cancellationToken)
     {
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var adjustment = await repository.FindAdjustmentForUpdateAsync(command.Id, cancellationToken);
         if (adjustment is null)
         {
@@ -35,8 +37,6 @@ public sealed class ApproveQuantityAdjustmentCommandHandler(
             created = true;
         }
 
-        var snapshot = BalanceSnapshot.Take(balance);
-        var status = adjustment.Status;
         var decision = adjustment.Approve(command.Actor.Role, balance);
         if (decision != StockDecision.Accepted)
         {
@@ -64,16 +64,14 @@ public sealed class ApproveQuantityAdjustmentCommandHandler(
         }
 
         await repository.RemoveNoticesAsync(adjustment.Id, cancellationToken);
-        if (!await repository.CommitAsync(cancellationToken))
+        audit.Stage(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.AdjustmentApproved, "adjustment", adjustment.Id.ToString("D"), null);
+        if (await scope.CommitAsync(cancellationToken) != SaveOutcome.Saved)
         {
-            snapshot.Restore();
-            adjustment.RestoreUncommitted(status);
             logger.LogWarning("Quantity adjustment approval commit failed for {QuantityAdjustmentId}.", adjustment.Id);
             return Result<Guid, StockError>.Fail(StockError.NegativeStock);
         }
 
         logger.LogInformation("Approved quantity adjustment {QuantityAdjustmentId}.", adjustment.Id);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.AdjustmentApproved, "adjustment", adjustment.Id.ToString("D"), null, cancellationToken);
         return Result<Guid, StockError>.Ok(adjustment.Id);
     }
 }

@@ -63,7 +63,7 @@
 
 ### B2. Ghi gì
 
-Theo quy tắc ở [use-cases-and-results.md](../../02-coding-rules/use-cases-and-results.md): mọi thao tác ghi dữ liệu và sự kiện bảo mật, **sau khi lưu thành công**; **không ghi thao tác đọc**; lỗi ghi nhật ký không làm hỏng thao tác chính. Nhóm hành động hiện có: `login`, `2fa`, `password`, `employee`, `location`, `stock` (chuyển kho, tệp đính kèm chứng từ), `access.denied`; mua hàng, danh mục, nhà cung cấp ghi theo cùng quy ước. **Xuất file** (tồn kho, danh mục, đơn mua) cũng ghi nhật ký ai xuất, bao nhiêu dòng; **xem trên màn hình thì không ghi**. Thông báo đã xem chỉ đánh dấu, không tự dọn; nhật ký lưu vô thời hạn (quyết 2026-11-16).
+Theo quy tắc ở [use-cases-and-results.md](../../02-coding-rules/use-cases-and-results.md): mọi thao tác ghi dữ liệu và sự kiện bảo mật; thao tác ghi dữ liệu ghi nhật ký **trong cùng giao dịch** với dữ liệu (nhật ký lỗi thì cả thao tác bị hủy), sự kiện không kèm ghi dữ liệu (từ chối quyền, xuất file, tải chứng từ) ghi riêng và lỗi chỉ log cảnh báo; **không ghi thao tác đọc**. Nhóm hành động hiện có: `login`, `2fa`, `password`, `employee`, `location`, `stock` (chuyển kho, tệp đính kèm chứng từ), `access.denied`; mua hàng, danh mục, nhà cung cấp ghi theo cùng quy ước. **Xuất file** (tồn kho, danh mục, đơn mua) cũng ghi nhật ký ai xuất, bao nhiêu dòng; **xem trên màn hình thì không ghi**. Thông báo đã xem chỉ đánh dấu, không tự dọn; nhật ký lưu vô thời hạn (quyết 2026-11-16).
 
 ### B3. Xem và bảo toàn
 

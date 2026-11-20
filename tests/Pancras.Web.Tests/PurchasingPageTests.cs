@@ -102,7 +102,7 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
             [(Guid.CreateVersion7(), 1, 10m, 0.05m, 0m, 0m, 0m)])!;
         Assert.True(order.TrySubmit());
         Assert.True(order.TryApprove());
-        Assert.Equal(ReceiptDecision.Ok, order.TryRecordReceipt(order.Lines.ToDictionary(line => line.Id, line => line.Quantity), true, null, DateTimeOffset.UtcNow, "mua", out _, out _));
+        Assert.Equal(ReceiptDecision.Ok, order.TryRecordReceipt(order.Lines.ToDictionary(line => line.Id, line => line.Quantity), true, null, DateTimeOffset.UtcNow, "mua", out _));
         orders.Orders.Add(order);
         await SignInAsync(client);
 
@@ -576,11 +576,9 @@ internal sealed class PurchaseDirectoryDouble : IPurchaseOrderRepository
     public Task<bool> NormalizedCodeExistsAsync(string normalizedCode, CancellationToken cancellationToken) =>
         Task.FromResult(Orders.Any(order => order.NormalizedCode == normalizedCode));
 
-    public Task<bool> TryAddAsync(PurchaseOrder order, CancellationToken cancellationToken)
+    public Task AddAsync(PurchaseOrder order, CancellationToken cancellationToken)
     {
         Orders.Add(order);
-        return Task.FromResult(true);
+        return Task.CompletedTask;
     }
-
-    public Task<bool> CommitAsync(CancellationToken cancellationToken) => Task.FromResult(true);
 }

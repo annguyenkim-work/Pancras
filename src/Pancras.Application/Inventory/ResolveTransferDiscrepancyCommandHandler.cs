@@ -12,6 +12,7 @@ namespace Pancras.Application.Inventory;
 /// <summary>Bước cuối: Kế toán/Giám đốc/Admin xác nhận cách xử lý chênh lệch giữa số xuất và số thực nhận (không phân biệt thừa hay thiếu, nhỏ hay lớn).</summary>
 public sealed class ResolveTransferDiscrepancyCommandHandler(
     IInventoryRepository repository,
+    IUnitOfWork unitOfWork,
     ILogger<ResolveTransferDiscrepancyCommandHandler> logger,
     TimeProvider? clock = null,
     IAuditLog? audit = null,
@@ -20,6 +21,7 @@ public sealed class ResolveTransferDiscrepancyCommandHandler(
 {
     public async Task<Result<Guid, StockError>> HandleAsync(ResolveTransferCommand command, CancellationToken cancellationToken)
     {
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         if (!InventoryRoles.IsFinance(command.Actor.Role))
         {
             return Result<Guid, StockError>.Fail(StockError.ApprovalForbidden);
@@ -49,14 +51,13 @@ public sealed class ResolveTransferDiscrepancyCommandHandler(
         slip.RecordStep(TransferStep.Resolved, (clock ?? TimeProvider.System).GetUtcNow(), request?.ActorCode);
         await TransferTrail.RecordAsync(repository, slip, TransferEventKind.Resolved, request, clock, command.Resolution, cancellationToken);
         await TransferTrail.NotifyAsync(repository, employees, slip, command.Actor.Id, Notification.TransferResolvedStep, TransferAudience.Creator | TransferAudience.DestinationStaff, clock, cancellationToken);
-        if (!await repository.CommitAsync(cancellationToken))
+        audit.Stage(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.TransferDiscrepancyResolved, "transfer_slip", slip.Id.ToString("D"), null);
+        if (await scope.CommitAsync(cancellationToken) != SaveOutcome.Saved)
         {
-            slip.RestoreUncommitted(TransferStatus.ReceivedWithDiscrepancy);
             return Result<Guid, StockError>.Fail(StockError.TransferStateChanged);
         }
 
         logger.LogInformation("Resolved transfer discrepancy {TransferSlipId}.", slip.Id);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, command.Actor.Id, null, AuditActions.TransferDiscrepancyResolved, "transfer_slip", slip.Id.ToString("D"), null, cancellationToken);
         return Result<Guid, StockError>.Ok(slip.Id);
     }
 }

@@ -22,6 +22,7 @@ public class LoginEmployeeCommandHandlerTests
         _repository.Employees.Add(admin);
         _handler = new LoginEmployeeCommandHandler(
             _repository,
+            _repository,
             _hasher,
             NullLogger<LoginEmployeeCommandHandler>.Instance);
     }

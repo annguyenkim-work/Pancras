@@ -25,8 +25,9 @@ Công nghệ: PostgreSQL qua Npgsql, EF Core 10, đặt tên `snake_case` (`EFCo
 ## 3. Repository
 
 - Interface `I*Repository` ở Application, mỗi interface một file; cài đặt ở `Infrastructure/Persistence`.
-- **Một phương thức repository = một giao dịch trọn vẹn.** Thao tác nhiều bước là một phương thức có tên nghiệp vụ (xem use-cases-and-results.md). Handler không mở giao dịch.
-- **Lỗi trùng khóa (unique violation) bắt trong repository** và trả `bool`/mã lỗi (ví dụ `TryAddAsync` trả `false`), không để `DbUpdateException` lọt ra handler.
+- **Giao dịch do handler mở tường minh qua `IUnitOfWork`** (xem use-cases-and-results.md mục "Giao dịch"); repository chỉ đọc và staging, không tự lưu. `EfUnitOfWork` (Infrastructure) mở transaction trên `PancrasDbContext`, `CommitAsync` gọi `SaveChanges` rồi commit; thoát scope mà chưa commit thì rollback và `ChangeTracker.Clear()`.
+- **Lỗi lưu được chuyển thành `SaveOutcome` ngay trong `CommitAsync`** (trùng khóa duy nhất → `Duplicate`, `DbUpdateConcurrencyException` → `Conflict`, lỗi khác → `Failed`); `DbUpdateException` không lọt ra handler.
+- Nhật ký (`AuditEntry`) được thêm vào cùng ngữ cảnh (`IAuditLog.Stage`) nên lưu trong cùng giao dịch với dữ liệu.
 - Đặt tên theo ý: `...ReadOnlyAsync` cho đọc không tracking, `...ForUpdateAsync` cho đọc để ghi.
 
 ## 4. Concurrency
@@ -62,7 +63,7 @@ dotnet ef database update --project src/Pancras.Infrastructure --startup-project
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| `Version` chưa trọn vẹn | Lần ghi chồng nhau thật sự đã thành `VersionConflict` của Danh mục, Nhà cung cấp, Kho/showroom (repository trả `SaveOutcome.Conflict`). Nhân viên: sửa và Disable/Active cũng trả `VersionConflict` (`TrySaveChangesAsync`); các thao tác nhân viên khác (đổi mật khẩu, 2FA, đăng nhập) vẫn lưu trực tiếp. Mua hàng và Kho gộp chung vào `SaveFailed`. `TransferSlip` chỉ dựa vào kiểm tra trạng thái (`TransferStateChanged`), form không gửi `Version` |
+| `Version` chưa trọn vẹn | Lần ghi chồng nhau thật sự đã thành `VersionConflict` của Danh mục, Nhà cung cấp, Kho/showroom (`CommitAsync` của UnitOfWork trả `SaveOutcome.Conflict`). Nhân viên: sửa và Disable/Active cũng trả `VersionConflict` (`SaveOutcome.Conflict`); các thao tác nhân viên khác (đổi mật khẩu, 2FA, đăng nhập) vẫn lưu trực tiếp. Mua hàng và Kho gộp chung vào `SaveFailed`. `TransferSlip` chỉ dựa vào kiểm tra trạng thái (`TransferStateChanged`), form không gửi `Version` |
 | Gạch dưới tên | Bảng "đọc không tracking" (`...ReadOnlyAsync`) chưa nhất quán ở mọi repository |
 
 ## Quyết định đã chốt (2026-11-16)

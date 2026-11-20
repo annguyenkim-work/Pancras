@@ -1,3 +1,4 @@
+using Pancras.Application.Common;
 using Pancras.Application.Auditing;
 using Microsoft.Extensions.Logging;
 using Pancras.Domain.Employees;
@@ -7,6 +8,7 @@ namespace Pancras.Application.Locations;
 
 public sealed class CreateLocationCommandHandler(
     ILocationRepository repository,
+    IUnitOfWork unitOfWork,
     ILogger<CreateLocationCommandHandler> logger,
     TimeProvider? clock = null,
     Pancras.Application.Auditing.IAuditLog? audit = null,
@@ -45,14 +47,16 @@ public sealed class CreateLocationCommandHandler(
             return new LocationOutcome(null, LocationError.DuplicateName);
         }
 
+        await using var scope = await unitOfWork.BeginAsync(cancellationToken);
         var location = StockLocation.Create(name, kind);
-        if (!await repository.TryAddAsync(location, cancellationToken))
+        await repository.AddAsync(location, cancellationToken);
+        audit.Stage(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.LocationCreated, "stock_location", location.Id.ToString("D"), null);
+        if ((await scope.CommitAsync(cancellationToken)).ThrowIfFailed() != SaveOutcome.Saved)
         {
             return new LocationOutcome(null, LocationError.DuplicateName);
         }
 
         logger.LogInformation("Created stock location {LocationId}.", location.Id);
-        await audit.RecordAsync(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.LocationCreated, "stock_location", location.Id.ToString("D"), null, cancellationToken);
         return new LocationOutcome(location.Id, LocationError.None);
     }
 }

@@ -4,8 +4,10 @@ using Pancras.Domain.Catalog;
 
 namespace Pancras.Application.Tests;
 
-internal sealed class FakeCatalogRepository : ICatalogItemRepository
+internal sealed class FakeCatalogRepository : ICatalogItemRepository, IUnitOfWork
 {
+    private readonly List<CatalogItem> _pending = [];
+
     public List<CatalogItem> Items { get; } = [];
 
     public int SaveCount { get; private set; }
@@ -41,23 +43,34 @@ internal sealed class FakeCatalogRepository : ICatalogItemRepository
     public Task<bool> NormalizedCodeExistsAsync(string normalizedCode, CancellationToken cancellationToken) =>
         Task.FromResult(Items.Any(item => item.NormalizedCode == normalizedCode));
 
-    public Task<bool> TryAddAsync(CatalogItem item, CancellationToken cancellationToken)
+    public Task AddAsync(CatalogItem item, CancellationToken cancellationToken)
     {
-        if (Items.Any(existing => existing.NormalizedCode == item.NormalizedCode))
-        {
-            return Task.FromResult(false);
-        }
-
-        Items.Add(item);
-        return Task.FromResult(true);
+        _pending.Add(item);
+        return Task.CompletedTask;
     }
 
     public SaveOutcome NextOutcome { get; set; } = SaveOutcome.Saved;
 
-    public Task<SaveOutcome> TrySaveAsync(CancellationToken cancellationToken)
+    public Task<IUnitOfWorkScope> BeginAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IUnitOfWorkScope>(new FakeUnitOfWorkScope(Commit));
+
+    private SaveOutcome Commit()
     {
         SaveCount++;
-        return Task.FromResult(NextOutcome);
+        var staged = _pending.ToArray();
+        _pending.Clear();
+        if (NextOutcome != SaveOutcome.Saved)
+        {
+            return NextOutcome;
+        }
+
+        if (staged.Any(item => Items.Any(existing => existing.NormalizedCode == item.NormalizedCode)))
+        {
+            return SaveOutcome.Duplicate;
+        }
+
+        Items.AddRange(staged);
+        return SaveOutcome.Saved;
     }
 
     public Task<IReadOnlyDictionary<Guid, CatalogItemMeasure>> ListMeasuresAsync(

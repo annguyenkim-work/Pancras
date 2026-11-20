@@ -5,7 +5,7 @@ using Pancras.Domain.Inventory;
 
 namespace Pancras.Application.Tests;
 
-internal sealed class FakeInventoryStore : IInventoryRepository
+internal sealed class FakeInventoryStore : IInventoryRepository, Pancras.Application.Common.IUnitOfWork
 {
     private readonly List<StockBalance> _stagedBalances = [];
     private readonly List<TransferSlip> _stagedTransfers = [];
@@ -99,6 +99,9 @@ internal sealed class FakeInventoryStore : IInventoryRepository
 
     public Task<TransferSlip?> FindTransferForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         Task.FromResult(Transfers.FirstOrDefault(slip => slip.Id == id));
+
+    public Task<TransferSlip?> FindTransferReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
+        FindTransferForUpdateAsync(id, cancellationToken);
 
     public Task<Guid?> FindTransferIdByRequestKeyAsync(Guid requestKey, Guid requestedById, CancellationToken cancellationToken) =>
         Task.FromResult(Transfers.Concat(_stagedTransfers).Where(slip => slip.RequestKey == requestKey && slip.RequestedById == requestedById).Select(slip => (Guid?)slip.Id).FirstOrDefault());
@@ -223,7 +226,10 @@ internal sealed class FakeInventoryStore : IInventoryRepository
         return Task.CompletedTask;
     }
 
-    public Task<bool> CommitAsync(CancellationToken cancellationToken)
+    public Task<Pancras.Application.Common.IUnitOfWorkScope> BeginAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<Pancras.Application.Common.IUnitOfWorkScope>(new FakeUnitOfWorkScope(Commit));
+
+    private Pancras.Application.Common.SaveOutcome Commit()
     {
         Balances.AddRange(_stagedBalances);
         Transfers.AddRange(_stagedTransfers);
@@ -239,7 +245,7 @@ internal sealed class FakeInventoryStore : IInventoryRepository
         _stagedAdjustments.Clear();
         _stagedDisposals.Clear();
         _stagedNotices.Clear();
-        return Task.FromResult(true);
+        return Pancras.Application.Common.SaveOutcome.Saved;
     }
 }
 

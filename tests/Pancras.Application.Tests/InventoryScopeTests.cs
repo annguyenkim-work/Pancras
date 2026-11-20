@@ -102,9 +102,9 @@ public class InventoryScopeTests
         var asked = await TransferFlow.RequestAsync(_store, Transfer(TestActors.Keeper(_a.Id), _b.Id, _a.Id));
         var sales = await TransferFlow.RequestAsync(_store, Transfer(TestActors.Sales(_a.Id), _a.Id, _b.Id));
         var unrelated = await TransferFlow.RequestAsync(_store, Transfer(TestActors.Keeper(Guid.NewGuid()), _a.Id, _b.Id));
-        await new DecideTransferCommandHandler(_store, NullLogger<DecideTransferCommandHandler>.Instance)
+        await new DecideTransferCommandHandler(_store, _store, NullLogger<DecideTransferCommandHandler>.Instance)
             .HandleAsync(new DecideTransferCommand(asked.Value, TestActors.Admin, true), CancellationToken.None);
-        var ship = new ShipTransferCommandHandler(_store, NullLogger<ShipTransferCommandHandler>.Instance);
+        var ship = new ShipTransferCommandHandler(_store, _store, NullLogger<ShipTransferCommandHandler>.Instance);
 
         var notSource = await ship.HandleAsync(new ShipTransferCommand(asked.Value, TestActors.Keeper(_a.Id)), CancellationToken.None);
 
@@ -119,7 +119,7 @@ public class InventoryScopeTests
     public async Task OnlyTheDestinationConfirmsReceipt()
     {
         var shipped = await TransferFlow.ShipAsync(_store, Transfer(TestActors.Keeper(_a.Id), _a.Id, _b.Id, 2));
-        var receipt = new ConfirmTransferReceiptCommandHandler(_store, NullLogger<ConfirmTransferReceiptCommandHandler>.Instance);
+        var receipt = new ConfirmTransferReceiptCommandHandler(_store, _store, NullLogger<ConfirmTransferReceiptCommandHandler>.Instance);
 
         var bySource = await receipt.HandleAsync(new ConfirmTransferCommand(shipped.Value, TestActors.Keeper(_a.Id)), CancellationToken.None);
         var byDestination = await receipt.HandleAsync(TransferFlow.FullReceipt(_store, shipped.Value, TestActors.Keeper(_b.Id)), CancellationToken.None);
@@ -202,7 +202,7 @@ public class InventoryScopeTests
     [Fact]
     public async Task FinanceStocktake_IsRecordedAsApproved_AndKeeperStocktakeWaits()
     {
-        var create = new CreateStocktakeCommandHandler(_store, NullLogger<CreateStocktakeCommandHandler>.Instance);
+        var create = new CreateStocktakeCommandHandler(_store, _store, NullLogger<CreateStocktakeCommandHandler>.Instance);
         CreateStocktakeCommand Command(EmployeeActor actor) => new()
         {
             Actor = actor,
@@ -243,7 +243,7 @@ public class InventoryScopeTests
 
     private CreateDisposalSlipCommandHandler DisposalCreator(out ApproveDisposalSlipCommandHandler approve)
     {
-        approve = new ApproveDisposalSlipCommandHandler(_store, new FakeEmployeeRepository(), NullLogger<ApproveDisposalSlipCommandHandler>.Instance);
-        return new CreateDisposalSlipCommandHandler(_store, approve, NullLogger<CreateDisposalSlipCommandHandler>.Instance);
+        approve = new ApproveDisposalSlipCommandHandler(_store, _store, new FakeEmployeeRepository(), NullLogger<ApproveDisposalSlipCommandHandler>.Instance);
+        return new CreateDisposalSlipCommandHandler(_store, _store, approve, NullLogger<CreateDisposalSlipCommandHandler>.Instance);
     }
 }
