@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Pancras.Domain.Employees;
 
 namespace Pancras.Domain.Purchasing;
@@ -34,6 +35,30 @@ public static class PurchaseAccess
         || (IsWarehouseStaff(actor)
             && actor!.LocationId == receiveLocationId
             && status is PurchaseStatus.Approved or PurchaseStatus.InTransit or PurchaseStatus.PartiallyReceived or PurchaseStatus.Received);
+
+    /// <summary>
+    /// Cùng quy tắc với <see cref="CanView"/> nhưng dưới dạng điều kiện để database lọc (danh sách đơn mua cắt trang trong truy vấn).
+    /// Có test đối chiếu từng vai, trạng thái và kho với <see cref="CanView"/>.
+    /// </summary>
+    public static Expression<Func<PurchaseOrder, bool>> Visible(EmployeeActor? actor)
+    {
+        if (CanManage(actor))
+        {
+            return order => true;
+        }
+
+        if (IsWarehouseStaff(actor))
+        {
+            var location = actor!.LocationId!.Value;
+            return order => order.ReceiveLocationId == location
+                && (order.Status == PurchaseStatus.Approved
+                    || order.Status == PurchaseStatus.InTransit
+                    || order.Status == PurchaseStatus.PartiallyReceived
+                    || order.Status == PurchaseStatus.Received);
+        }
+
+        return order => false;
+    }
 
     /// <summary>Nhận hàng: vai trò quản lý, hoặc kho đúng kho nhận của đơn.</summary>
     public static bool CanReceive(EmployeeActor? actor, Guid receiveLocationId) =>

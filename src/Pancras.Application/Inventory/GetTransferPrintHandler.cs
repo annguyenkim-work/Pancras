@@ -10,7 +10,7 @@ public sealed class GetTransferPrintHandler(ListInventoryDocumentsHandler docume
 {
     public async Task<Result<TransferSlipRow, StockError>> HandleAsync(GetTransferPrintQuery query, CancellationToken cancellationToken)
     {
-        var rows = await documents.ListTransfersAsync(query.Actor, cancellationToken);
+        var rows = await documents.GetTransfersAsync(query.Actor, [query.TransferSlipId], cancellationToken);
         var row = rows.FirstOrDefault(item => item.Id == query.TransferSlipId);
         if (row is null)
         {

@@ -12,19 +12,23 @@ public sealed class ListPurchaseOrdersHandler(
     IInventoryRepository inventory,
     ILogger<ListPurchaseOrdersHandler> logger)
 {
-    /// <summary>Vai trò quản lý thấy mọi đơn kèm giá vốn. Kho chỉ thấy đơn đã duyệt trở đi của kho mình, không có số tiền.</summary>
-    public async Task<IReadOnlyList<PurchaseOrderSummary>> HandleAsync(EmployeeActor actor, CancellationToken cancellationToken)
+    /// <summary>
+    /// Một trang đơn mua đã lọc và cắt trong database. Vai trò quản lý thấy mọi đơn kèm giá vốn. Kho chỉ thấy đơn đã duyệt trở đi
+    /// của kho mình, không có số tiền (điều kiện xem lấy từ <see cref="PurchaseAccess.Visible"/>).
+    /// </summary>
+    public async Task<PurchaseOrderListPage> HandleAsync(EmployeeActor actor, PurchaseListFilter? filter, CancellationToken cancellationToken)
     {
         var costVisible = PurchaseAccess.CanViewCost(actor);
-        var list = (await orders.ListAsync(cancellationToken))
-            .Where(order => PurchaseAccess.CanView(actor, order.ReceiveLocationId, order.Status))
-            .ToArray();
+        var page = await orders.ListPageAsync(
+            new PurchaseOrderQuery(PurchaseAccess.Visible(actor), filter?.SupplierId, filter?.Term?.Trim()),
+            filter?.PageNumber ?? 1,
+            filter?.PageSize ?? Pancras.Application.Common.PageSizes.Default,
+            cancellationToken);
         // Ưu tiên tên đã chụp lúc lập đơn; đơn cũ chưa có bản chụp thì lấy tên hiện tại (kể cả nhà cung cấp đã ngừng hợp tác).
-        var supplierNames = await suppliers.GetNamesAsync(list.Select(order => order.SupplierId).Distinct().ToArray(), cancellationToken);
+        var supplierNames = await suppliers.GetNamesAsync(page.Items.Select(order => order.SupplierId).Distinct().ToArray(), cancellationToken);
         var locations = (await inventory.ListLocationsAsync(cancellationToken)).ToDictionary(location => location.Id, location => location.Name);
-        logger.LogInformation("Listed {PurchaseOrderCount} purchase orders.", list.Length);
-        return list
-            .OrderByDescending(order => order.Id)
+        logger.LogInformation("Listed {PurchaseOrderCount} of {PurchaseOrderTotal} purchase orders.", page.Items.Count, page.Total);
+        var rows = page.Items
             .Select(order => new PurchaseOrderSummary(
                 order.Id,
                 order.Code,
@@ -41,8 +45,15 @@ public sealed class ListPurchaseOrdersHandler(
                 costVisible,
                 order.SupplierId))
             .ToArray();
+        return new PurchaseOrderListPage(rows, page.Total, page.PageNumber, page.AnyVisible, page.FirstId);
     }
 }
+
+/// <summary>Bộ lọc và vị trí trang của danh sách đơn mua (cỡ trang 20 hoặc 50).</summary>
+public sealed record PurchaseListFilter(Guid? SupplierId = null, string? Term = null, int PageNumber = 1, int PageSize = Pancras.Application.Common.PageSizes.Default);
+
+/// <summary>Các dòng của một trang đơn mua, tổng số đơn khớp bộ lọc, số trang đã dùng, còn đơn nào xem được không và Id đơn đầu danh sách.</summary>
+public sealed record PurchaseOrderListPage(IReadOnlyList<PurchaseOrderSummary> Items, int Total, int PageNumber, bool HasAny, Guid? FirstId);
 
 internal static class PurchaseSupplierNames
 {

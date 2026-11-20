@@ -120,10 +120,10 @@ public class DeactivateSupplierCommandHandlerTests
                 _repository,
                 new FakeInventoryStore(),
                 NullLogger<Pancras.Application.Purchasing.ListPurchaseOrdersHandler>.Instance)
-            .HandleAsync(SupplierActors.Admin, CancellationToken.None);
+            .HandleAsync(SupplierActors.Admin, null, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("Kim An", Assert.Single(list).SupplierName);
+        Assert.Equal("Kim An", Assert.Single(list.Items).SupplierName);
     }
 
     [Fact]

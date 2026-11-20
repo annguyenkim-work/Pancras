@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Pancras.Domain.Notifications;
 using Pancras.Application.Auditing;
 using Pancras.Domain.Catalog;
@@ -32,9 +33,17 @@ public interface IInventoryRepository
 
     Task<Guid?> FindTransferIdByRequestKeyAsync(Guid requestKey, Guid requestedById, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<TransferSlip>> ListOpenTransfersAsync(CancellationToken cancellationToken);
+    /// <summary>
+    /// Một trang phiếu chuyển (kèm dòng hàng) đã lọc, sắp xếp (đang xử lý trước, rồi mới nhất trước), cắt trang và đếm trong database.
+    /// Số trang vượt cuối thì lấy trang cuối.
+    /// </summary>
+    Task<TransferPage> ListTransfersPageAsync(TransferListQuery query, int pageNumber, int pageSize, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<TransferSlip>> ListTransfersAsync(CancellationToken cancellationToken);
+    /// <summary>Số phiếu thỏa điều kiện (đã gồm quyền xem do người gọi ghép vào), cho các nhãn đếm trên giao diện.</summary>
+    Task<int> CountTransfersAsync(Expression<Func<TransferSlip, bool>> predicate, CancellationToken cancellationToken);
+
+    /// <summary>Các phiếu theo Id mà người xem được thấy (kèm dòng hàng). Chỉ đọc.</summary>
+    Task<IReadOnlyList<TransferSlip>> FindTransfersAsync(Expression<Func<TransferSlip, bool>> visible, IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
 
     /// <summary>Số thứ tự (mã CK-000123) của các phiếu chuyển; phiếu không tồn tại thì không có trong kết quả. Chỉ đọc.</summary>
     Task<IReadOnlyDictionary<Guid, int>> ListTransferNumbersAsync(IReadOnlyCollection<Guid> transferSlipIds, CancellationToken cancellationToken);
@@ -57,19 +66,34 @@ public interface IInventoryRepository
 
     Task<StocktakeSheet?> FindStocktakeForUpdateAsync(Guid id, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<StocktakeSheet>> ListStocktakesAsync(CancellationToken cancellationToken);
-
     Task AddAdjustmentAsync(QuantityAdjustment adjustment, CancellationToken cancellationToken);
 
     Task<QuantityAdjustment?> FindAdjustmentForUpdateAsync(Guid id, CancellationToken cancellationToken);
-
-    Task<IReadOnlyList<QuantityAdjustment>> ListAdjustmentsAsync(CancellationToken cancellationToken);
 
     Task AddDisposalAsync(DisposalSlip slip, CancellationToken cancellationToken);
 
     Task<DisposalSlip?> FindDisposalForUpdateAsync(Guid id, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<DisposalSlip>> ListDisposalsAsync(CancellationToken cancellationToken);
+
+    // Biên bản kiểm kê, phiếu điều chỉnh, phiếu hủy. scope: null là mọi kho; một Id là chỉ kho đó (Guid.Empty: không kho nào), như InventoryAccess.Scope.
+
+    /// <summary>Số phiếu từng loại trong phạm vi kho.</summary>
+    Task<StockDocumentCounts> CountStockDocumentsAsync(Guid? scope, CancellationToken cancellationToken);
+
+    /// <summary>Một đoạn biên bản kiểm kê trong phạm vi kho, mới nhất trước.</summary>
+    Task<IReadOnlyList<StocktakeSheet>> ListStocktakesAsync(Guid? scope, StockDocumentRange range, CancellationToken cancellationToken);
+
+    /// <summary>Một đoạn phiếu điều chỉnh trong phạm vi kho, mới nhất trước.</summary>
+    Task<IReadOnlyList<QuantityAdjustment>> ListAdjustmentsAsync(Guid? scope, StockDocumentRange range, CancellationToken cancellationToken);
+
+    /// <summary>Một đoạn phiếu hủy trong phạm vi kho, mới nhất trước.</summary>
+    Task<IReadOnlyList<DisposalSlip>> ListDisposalsAsync(Guid? scope, StockDocumentRange range, CancellationToken cancellationToken);
+
+    /// <summary>Loại và thứ tự (mới nhất trước) của một phiếu trong phạm vi kho; không có hoặc ngoài phạm vi thì null.</summary>
+    Task<StockDocumentPosition?> LocateStockDocumentAsync(Guid? scope, Guid id, CancellationToken cancellationToken);
+
+    /// <summary>Các biên bản, phiếu điều chỉnh, phiếu hủy theo Id trong phạm vi kho (để ghi chú lịch sử tồn). Chỉ đọc.</summary>
+    Task<(IReadOnlyList<StocktakeSheet> Stocktakes, IReadOnlyList<QuantityAdjustment> Adjustments, IReadOnlyList<DisposalSlip> Disposals)> FindStockDocumentsAsync(Guid? scope, IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
 
     Task AddNoticeAsync(Notification notice, CancellationToken cancellationToken);
 

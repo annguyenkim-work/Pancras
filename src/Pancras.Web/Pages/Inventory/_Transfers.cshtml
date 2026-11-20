@@ -79,7 +79,7 @@
             <a href="/inventory?view=transfers" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Xóa lọc</a>
         </div>
     }
-    @if (Model.Transfers.Count == 0)
+    @if (!Model.AnyTransfers)
     {
         <partial name="_EmptyState" model='new EmptyStateModel("Chưa có phiếu chuyển.", "Phiếu chuyển kho giữa các kho và showroom sẽ hiện ở đây.")' />
     }
@@ -104,7 +104,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var slip in Model.FilteredTransfers.Skip((Model.CurrentTransferPage - 1) * Model.TransferPageSize).Take(Model.TransferPageSize))
+                    @foreach (var slip in Model.TransferRows)
                     {
                         var flow = slip.Flow;
                         var todo = flow is null ? null

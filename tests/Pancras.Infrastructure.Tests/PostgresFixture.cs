@@ -19,7 +19,7 @@ public sealed class PostgresFixture : IAsyncLifetime
     public const string ExternalServerVariable = "PANCRAS_TEST_POSTGRES";
 
     // Cùng dòng với production (Ubuntu 24.04 LTS cài PostgreSQL 16).
-    private const string Image = "postgres:16-alpine";
+    private const string Image = "postgres:16";
 
     private const string DatabasePrefix = "pancras_test_";
 

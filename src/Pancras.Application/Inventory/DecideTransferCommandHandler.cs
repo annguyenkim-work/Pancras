@@ -23,8 +23,7 @@ public sealed class DecideTransferCommandHandler(
     IEmployeeRepository? employees = null)
 {
     public static bool CanDecide(EmployeeActor actor, Guid sourceLocationId) =>
-        InventoryRoles.IsFinance(actor.Role)
-        || (InventoryRoles.IsShowroomLead(actor.Role) && actor.LocationId is Guid own && own == sourceLocationId);
+        TransferWorkflowAccess.CanDecide(actor, sourceLocationId);
 
     public async Task<Result<Guid, StockError>> HandleAsync(DecideTransferCommand command, CancellationToken cancellationToken)
     {

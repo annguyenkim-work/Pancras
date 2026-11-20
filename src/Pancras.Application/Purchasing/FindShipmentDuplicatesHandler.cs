@@ -20,7 +20,7 @@ public sealed class FindShipmentDuplicatesHandler(
             return [];
         }
 
-        var all = await orders.ListAsync(cancellationToken);
+        var all = await orders.ListShipmentKeysAsync(cancellationToken);
         var mine = all.FirstOrDefault(order => order.Id == orderId);
         if (mine is null)
         {

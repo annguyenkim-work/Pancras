@@ -14,6 +14,9 @@ public static class VietnamTime
 
     public static DateOnly DateOf(DateTimeOffset time) => DateOnly.FromDateTime(Of(time).DateTime);
 
+    /// <summary>Thời điểm 00:00 giờ Việt Nam của một ngày, để lọc dữ liệu UTC theo ngày người dùng chọn.</summary>
+    public static DateTimeOffset StartOf(DateOnly day) => new(day.ToDateTime(TimeOnly.MinValue), Offset);
+
     public static string Format(DateTimeOffset time, string format = "dd/MM/yyyy HH:mm") =>
         Of(time).ToString(format, CultureInfo.InvariantCulture);
 }

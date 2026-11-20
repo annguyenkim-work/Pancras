@@ -177,7 +177,7 @@ public class InventoryScopeTests
 
         Assert.True(rejected.IsFailure);
         Assert.Empty(_store.Disposals);
-        Assert.Empty(await _store.ListDisposalsAsync(CancellationToken.None));
+        Assert.Equal(0, (await _store.CountStockDocumentsAsync(null, CancellationToken.None)).Disposals);
         Assert.Equal(0, empty.OnHand);
     }
 
