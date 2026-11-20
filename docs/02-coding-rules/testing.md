@@ -12,10 +12,10 @@ Framework xUnit. Bốn dự án, mỗi dự án test đúng một tầng:
 | --- | --- | --- |
 | `Pancras.Domain.Tests` | Thực thể, bất biến, `*Access`, tính toán (giá vốn, tồn kho, mã nhân viên, TOTP) | Không phụ thuộc gì ngoài Domain |
 | `Pancras.Application.Tests` | Handler: thành công, từng mã lỗi, quyền | Fake viết tay (`FakeEmployeeStore`, `FakeInventoryStore`...), không dùng thư viện mock |
-| `Pancras.Infrastructure.Tests` | Repository, dấu vết bản ghi, lưu phiếu | EF Core InMemory |
+| `Pancras.Infrastructure.Tests` | Repository, dấu vết bản ghi, lưu phiếu, transaction, khóa dòng, concurrency, migration | PostgreSQL thật qua Testcontainers (mục 4) |
 | `Pancras.Web.Tests` | Trang, đăng nhập, phân quyền, quét mã nguồn | `WebApplicationFactory` + EF InMemory/test double |
 
-Test không được phụ thuộc cơ sở dữ liệu thật hay mạng.
+Test Domain, Application và Web không được phụ thuộc cơ sở dữ liệu thật hay mạng. Riêng `Infrastructure.Tests` chạy trên PostgreSQL thật (mục 4).
 
 ## 2. Đặt tên
 
@@ -33,8 +33,12 @@ Test không được phụ thuộc cơ sở dữ liệu thật hay mạng.
 
 ## 4. Cơ sở dữ liệu trong test
 
-- Test tự động chỉ dùng fake hoặc EF InMemory; **không dùng PostgreSQL thật**.
-- InMemory không kiểm concurrency token, transaction, migration. Những hành vi này **ghi vào checklist test thủ công** và kiểm trên PostgreSQL thật (xem `05-process/manual-testing-and-review.md`).
+- `Domain.Tests`, `Application.Tests`, `Web.Tests`: chỉ dùng fake hoặc EF InMemory; không dùng PostgreSQL thật.
+- **`Infrastructure.Tests` dùng PostgreSQL thật** (quyết định 2026-11-20, theo review của senior): InMemory không kiểm được transaction, `SELECT ... FOR UPDATE`, concurrency token, `ILIKE`, so sánh `Guid` hay migration, nên không đủ tin cậy cho tầng này.
+- Cách chạy: gói `Testcontainers.PostgreSql` khởi động **một container cho cả lần chạy test** (cần Docker; CI `ubuntu-latest` có sẵn). Migration được áp **một lần** vào một database mẫu, mỗi test tạo database riêng bằng `CREATE DATABASE ... TEMPLATE`, nên test độc lập và vẫn kiểm được migration khớp model.
+- Máy không có Docker: đặt biến môi trường `PANCRAS_TEST_POSTGRES` là chuỗi kết nối tới một máy chủ PostgreSQL (tài khoản được phép tạo database); fixture dùng máy chủ đó thay cho container và chỉ tạo/xóa các database tên `pancras_test_*`. Không ghi chuỗi này vào file trong repo.
+- Phiên bản PostgreSQL của container ghim trong `PostgresFixture`, giữ cùng dòng với production.
+- Hành vi cần PostgreSQL thật mà nằm ngoài `Infrastructure.Tests` (luồng nhiều người dùng, deploy) vẫn kiểm bằng checklist thủ công (`05-process/manual-testing-and-review.md`).
 
 ## 5. Luật viết thành test quét mã nguồn
 

@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Pancras.Application.Auditing;
 using Pancras.Domain.Auditing;
@@ -7,19 +6,14 @@ using Pancras.Infrastructure.Persistence;
 
 namespace Pancras.Infrastructure.Tests;
 
-public class AuditKeysetPagingTests
+public class AuditKeysetPagingTests(PostgresFixture fixture) : PostgresTest(fixture)
 {
-    private readonly DbContextOptions<PancrasDbContext> _options = new DbContextOptionsBuilder<PancrasDbContext>()
-        .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
-        .ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning))
-        .Options;
-
     private static readonly DateTimeOffset Start = new(2026, 11, 1, 8, 0, 0, TimeSpan.Zero);
 
     /// <summary>Bảy dòng; ba dòng cuối cùng giờ để thử tie-break theo mã.</summary>
     private async Task<List<AuditEntry>> SeedAsync()
     {
-        await using var context = new PancrasDbContext(_options);
+        await using var context = new PancrasDbContext(Options);
         var entries = new List<AuditEntry>();
         for (var i = 0; i < 4; i++)
         {
@@ -45,7 +39,7 @@ public class AuditKeysetPagingTests
     public async Task WalkingForward_VisitsEveryEntryExactlyOnce_EvenWithEqualTimestamps(bool newestFirst)
     {
         var seeded = await SeedAsync();
-        await using var context = new PancrasDbContext(_options);
+        await using var context = new PancrasDbContext(Options);
         var handler = Handler(context);
         var seen = new List<Guid>();
         string? cursor = null;
@@ -70,7 +64,7 @@ public class AuditKeysetPagingTests
     public async Task GoingBack_ReturnsTheSamePageThatWasLeft()
     {
         await SeedAsync();
-        await using var context = new PancrasDbContext(_options);
+        await using var context = new PancrasDbContext(Options);
         var handler = Handler(context);
 
         var first = await handler.HandleAsync(new AuditQuery(), null, false, 3, true, default);
@@ -86,7 +80,7 @@ public class AuditKeysetPagingTests
     public async Task FirstPage_HasNoPrevious_AndTheLastHasNoNext()
     {
         await SeedAsync();
-        await using var context = new PancrasDbContext(_options);
+        await using var context = new PancrasDbContext(Options);
         var handler = Handler(context);
 
         var first = await handler.HandleAsync(new AuditQuery(), null, false, 3, true, default);
@@ -105,7 +99,7 @@ public class AuditKeysetPagingTests
     public async Task ABrokenCursor_FallsBackToTheFirstPage()
     {
         await SeedAsync();
-        await using var context = new PancrasDbContext(_options);
+        await using var context = new PancrasDbContext(Options);
         var handler = Handler(context);
 
         var page = await handler.HandleAsync(new AuditQuery(), "khong-phai-dau-trang", true, 3, true, default);
@@ -117,7 +111,7 @@ public class AuditKeysetPagingTests
     [Fact]
     public async Task EmptyLog_ReturnsAnEmptyPage()
     {
-        await using var context = new PancrasDbContext(_options);
+        await using var context = new PancrasDbContext(Options);
 
         var page = await Handler(context).HandleAsync(new AuditQuery(), null, false, 20, true, default);
 

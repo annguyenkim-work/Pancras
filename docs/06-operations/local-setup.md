@@ -47,6 +47,7 @@ dotnet build Pancras.slnx --warnaserror
 dotnet test Pancras.slnx --warnaserror --nologo                 # một dự án test mỗi lần gọi khi chọn đường dẫn
 ```
 
+- `Pancras.Infrastructure.Tests` chạy trên PostgreSQL thật: cần **Docker** (Testcontainers tự khởi động container) hoặc đặt biến môi trường `PANCRAS_TEST_POSTGRES` (chuỗi kết nối tới máy chủ PostgreSQL local; chỉ tạo/xóa database `pancras_test_*`). Chi tiết ở [testing.md](../02-coding-rules/testing.md) mục 4.
 - **Dừng `Pancras.Web.exe` (cổng 5010) trước khi build lại**; ứng dụng đang chạy khóa tệp build.
 - Sửa class giao diện thì chạy `npm run build:css` trong `src/Pancras.Web` (hoặc `npm run watch:css` khi đang làm), rồi commit `site.css`.
 - Ảnh sản phẩm tải lên lưu ở `src/Pancras.Web/wwwroot/uploads/` (không vào git). Chứng từ đính kèm lưu ở thư mục cấu hình `Storage:AttachmentsPath` (không cấu hình thì dùng đường dẫn mặc định); `App_Data/` cũng không vào git.

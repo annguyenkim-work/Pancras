@@ -1,24 +1,18 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Pancras.Domain.Inventory;
 using Pancras.Infrastructure.Persistence;
 
 namespace Pancras.Infrastructure.Tests;
 
 /// <summary>Kho/showroom Disable chỉ bị ẩn do từng truy vấn đọc lọc <c>IsActive</c>, không còn query filter toàn cục.</summary>
-public class LocationFilteringTests
+public class LocationFilteringTests(PostgresFixture fixture) : PostgresTest(fixture)
 {
-    private readonly DbContextOptions<PancrasDbContext> _options = new DbContextOptionsBuilder<PancrasDbContext>()
-        .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
-        .ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning))
-        .Options;
-
     private async Task<(StockLocation Active, StockLocation Disabled)> SeedAsync()
     {
         var active = StockLocation.Create("Kho A", StockLocationKind.Warehouse);
         var disabled = StockLocation.Create("Kho cũ", StockLocationKind.Warehouse);
         disabled.Deactivate();
-        await using var context = new PancrasDbContext(_options);
+        await using var context = new PancrasDbContext(Options);
         context.StockLocations.AddRange(active, disabled);
         await context.SaveChangesAsync();
         return (active, disabled);
@@ -28,7 +22,7 @@ public class LocationFilteringTests
     public async Task ListsHideDisabledLocations_ButTheDisabledListShowsThem()
     {
         var (active, disabled) = await SeedAsync();
-        await using var context = new PancrasDbContext(_options);
+        await using var context = new PancrasDbContext(Options);
         var locations = new LocationRepository(context);
         var inventory = new InventoryRepository(context, Microsoft.Extensions.Logging.Abstractions.NullLogger<InventoryRepository>.Instance);
 
@@ -41,7 +35,7 @@ public class LocationFilteringTests
     public async Task ExistenceAndNameChecksIgnoreDisabledLocations()
     {
         var (active, disabled) = await SeedAsync();
-        await using var context = new PancrasDbContext(_options);
+        await using var context = new PancrasDbContext(Options);
         var locations = new LocationRepository(context);
 
         Assert.True(await locations.ExistsAsync(active.Id, default));
