@@ -26,6 +26,23 @@ public class SidebarCollapseTests
     }
 
     [Fact]
+    public void MainContent_IsCenteredWithAMinAndMaxWidth_OnLaptopAndDesktop()
+    {
+        // Lỗi UAT: khi thu nhỏ menu, nội dung dính trái (max-w-7xl nhưng không mx-auto) và hở khoảng trống bên phải.
+        var layout = File.ReadAllText(Path.Combine(WebRoot, "Pages/Shared/_Layout.cshtml"));
+        var css = File.ReadAllText(Path.Combine(WebRoot, "wwwroot/css/site.css"));
+
+        var main = System.Text.RegularExpressions.Regex.Match(layout, "<main class=\"([^\"]*)\"").Groups[1].Value.Split(' ');
+        Assert.Contains("mx-auto", main);
+        Assert.Contains("w-full", main);
+        Assert.Contains("max-w-screen-2xl", main);
+        Assert.Contains("lg:min-w-[40rem]", main);
+        Assert.Contains(".mx-auto", css, StringComparison.Ordinal);
+        Assert.Contains("max-w-screen-2xl", css, StringComparison.Ordinal);
+        Assert.Contains("lg\\:min-w-\\[40rem\\]", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void CollapsedClasses_ExistInBuiltCss()
     {
         var css = File.ReadAllText(Path.Combine(WebRoot, "wwwroot/css/site.css"));
