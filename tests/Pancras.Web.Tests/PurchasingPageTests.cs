@@ -210,6 +210,32 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
     }
 
     [Fact]
+    public async Task OrderList_CanBeFilteredByStatus_AndKeepsTheStatusWhenOpeningAnOrder()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var location = Guid.CreateVersion7();
+        var draft = NewOrder("PO-DRAFT", location);
+        var approved = NewOrder("PO-APPROVED", location);
+        Assert.True(approved.TrySubmit());
+        Assert.True(approved.TryApprove());
+        orders.Orders.Add(draft);
+        orders.Orders.Add(approved);
+        await SignInAsync(client);
+
+        var html = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?status=Approved")).Content.ReadAsStringAsync());
+
+        Assert.Contains("PO-APPROVED", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("PO-DRAFT", html, StringComparison.Ordinal);
+        Assert.Contains("<option value=\"Approved\" selected", html, StringComparison.Ordinal);
+        Assert.Contains("<option value=\"\">Mọi trạng thái</option>", html, StringComparison.Ordinal);
+        var card = System.Text.RegularExpressions.Regex.Match(html, "<a href=\"(/purchasing\\?order=[^\"]*)\" class=\"block rounded-xl").Groups[1].Value;
+        Assert.Contains("status=Approved", card, StringComparison.Ordinal);
+        var unknown = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?status=Nonsense")).Content.ReadAsStringAsync());
+        Assert.Contains("PO-DRAFT", unknown, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task TheOtherTaxInput_IsAMoneyInput_LikeTheChargeAmounts()
     {
         // Lỗi UAT: ô "Thuế khác (VNĐ)" hiện số thô 200000 thay vì 200.000 vì thiếu lớp vnd (script định dạng tiền chỉ xử lý ô có lớp này).
@@ -630,6 +656,7 @@ internal sealed class PurchaseDirectoryDouble : IPurchaseOrderRepository
         var term = filter.Term?.Trim();
         var matching = visible
             .Where(order => filter.SupplierId is null || order.SupplierId == filter.SupplierId)
+            .Where(order => filter.Status is null || order.Status == filter.Status)
             .Where(order => string.IsNullOrEmpty(term)
                 || new[] { order.Code, order.ContainerNumber, order.BillOfLading, order.Port, order.SupplierName }
                     .Any(text => text.Contains(term, StringComparison.OrdinalIgnoreCase)))

@@ -140,6 +140,11 @@ public class IndexModel(
             parts.Add("supplier=" + supplier.ToString("D"));
         }
 
+        if (StatusFilter is PurchaseStatus status)
+        {
+            parts.Add("status=" + status);
+        }
+
         if (size != Pancras.Application.Common.PageSizes.Default)
         {
             parts.Add("size=" + size);
@@ -156,6 +161,25 @@ public class IndexModel(
     /// <summary>Lọc đơn theo nhà cung cấp (link từ danh bạ nhà cung cấp).</summary>
     [BindProperty(SupportsGet = true, Name = "supplier")]
     public Guid? SupplierFilter { get; set; }
+
+    /// <summary>Lọc đơn theo trạng thái (tên giá trị của PurchaseStatus, ví dụ Approved); trống hoặc không hợp lệ là mọi trạng thái.</summary>
+    [BindProperty(SupportsGet = true, Name = "status")]
+    public string? StatusToken { get; set; }
+
+    public PurchaseStatus? StatusFilter =>
+        Enum.TryParse<PurchaseStatus>(StatusToken, ignoreCase: true, out var parsed) && Enum.IsDefined(parsed) ? parsed : null;
+
+    /// <summary>Các trạng thái chọn được ở ô lọc, theo thứ tự luồng đơn.</summary>
+    public static IReadOnlyList<PurchaseStatus> FilterStatuses { get; } =
+    [
+        PurchaseStatus.Draft,
+        PurchaseStatus.PendingApproval,
+        PurchaseStatus.Approved,
+        PurchaseStatus.InTransit,
+        PurchaseStatus.PartiallyReceived,
+        PurchaseStatus.Received,
+        PurchaseStatus.Cancelled
+    ];
 
     public PurchaseOrderDetail? Selected { get; private set; }
 
@@ -526,7 +550,7 @@ public class IndexModel(
     private async Task LoadAsync(Guid? id, Guid? formula)
     {
         var cancellationToken = HttpContext.RequestAborted;
-        var list = await listOrders.HandleAsync(Actor, new PurchaseListFilter(SupplierFilter, Search, ListPage, ListPageSize), cancellationToken);
+        var list = await listOrders.HandleAsync(Actor, new PurchaseListFilter(SupplierFilter, Search, ListPage, ListPageSize, StatusFilter), cancellationToken);
         HasAnyOrders = list.HasAny;
         Orders = list.Items;
         OrdersTotal = list.Total;

@@ -61,11 +61,14 @@ public class PurchaseListPageTests(PostgresFixture fixture) : PostgresTest(fixtu
         return order;
     }
 
-    private async Task<PurchaseOrderPage> ListAsync(EmployeeActor actor, Guid? supplier = null, string? term = null, int page = 1, int size = 20)
+    private Task<PurchaseOrderPage> ListAsync(EmployeeActor actor, Guid? supplier = null, string? term = null, int page = 1, int size = 20) =>
+        PageAsync(actor, supplier, term, null, page, size);
+
+    private async Task<PurchaseOrderPage> PageAsync(EmployeeActor actor, Guid? supplier = null, string? term = null, PurchaseStatus? status = null, int page = 1, int size = 20)
     {
         await using var context = Database.NewContext();
         return await new PurchaseOrderRepository(context).ListPageAsync(
-            new PurchaseOrderQuery(PurchaseAccess.Visible(actor), supplier, term), page, size, CancellationToken.None);
+            new PurchaseOrderQuery(PurchaseAccess.Visible(actor), supplier, term, status), page, size, CancellationToken.None);
     }
 
     [Fact]
@@ -133,7 +136,30 @@ public class PurchaseListPageTests(PostgresFixture fixture) : PostgresTest(fixtu
     }
 
     [Fact]
-    public async Task ListPage_AppliesTheViewRules_ToTheRowsTheTotalAndAnyVisible()
+    public async Task ListPage_FiltersByStatus_AndCountsOnlyThoseOrders()
+    {
+        await AddOrderAsync("PO-DRAFT", _supplierA, _here);
+        await AddOrderAsync("PO-APPROVED-1", _supplierA, _here, status: PurchaseStatus.Approved);
+        await AddOrderAsync("PO-APPROVED-2", _supplierB, _here, status: PurchaseStatus.Approved);
+        await AddOrderAsync("PO-TRANSIT", _supplierA, _here, status: PurchaseStatus.InTransit);
+        var keeper = new EmployeeActor(Guid.CreateVersion7(), EmployeeRole.WarehouseKeeper, _here);
+
+        var approved = await PageAsync(Manager, status: PurchaseStatus.Approved);
+        var approvedOfSupplierB = await PageAsync(Manager, supplier: _supplierB, status: PurchaseStatus.Approved);
+        var draftForKeeper = await PageAsync(keeper, status: PurchaseStatus.Draft);
+
+        Assert.Equal(2, approved.Total);
+        Assert.All(approved.Items, order => Assert.Equal(PurchaseStatus.Approved, order.Status));
+        Assert.Equal("PO-APPROVED-2", Assert.Single(approvedOfSupplierB.Items).Code);
+        Assert.Equal(4, (await ListAsync(Manager)).Total);
+        // Trạng thái không làm lộ đơn ngoài quyền xem: kho không thấy đơn nháp dù lọc đúng trạng thái đó.
+        Assert.Empty(draftForKeeper.Items);
+        Assert.True(draftForKeeper.AnyVisible);
+    }
+
+    [Fact]
+    public async Task ListPage_AppliesTheViewRules_ToTheRowsTheTotalAndAnyVisible
+()
     {
         await AddOrderAsync("PO-DRAFT-HERE", _supplierA, _here);
         await AddOrderAsync("PO-APPROVED-HERE", _supplierA, _here, status: PurchaseStatus.Approved);

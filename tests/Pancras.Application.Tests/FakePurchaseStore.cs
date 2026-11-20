@@ -19,6 +19,7 @@ internal sealed class FakePurchaseStore : IPurchaseOrderRepository, IUnitOfWork
         var term = filter.Term?.Trim();
         var matching = visible
             .Where(order => filter.SupplierId is null || order.SupplierId == filter.SupplierId)
+            .Where(order => filter.Status is null || order.Status == filter.Status)
             .Where(order => string.IsNullOrEmpty(term)
                 || new[] { order.Code, order.ContainerNumber, order.BillOfLading, order.Port, order.SupplierName }
                     .Any(text => text.Contains(term, StringComparison.OrdinalIgnoreCase)))

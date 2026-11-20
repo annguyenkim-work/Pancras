@@ -36,7 +36,16 @@
             {
                 <input type="hidden" name="supplier" value="@supplierFilter" />
             }
-            <input name="q" value="@Model.Search" type="search" placeholder="Tìm theo mã đơn, nhà cung cấp, container, B/L, cảng..." aria-label="Tìm kiếm đơn mua" class="w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" />
+            <div class="flex flex-col gap-3 sm:flex-row">
+                <input name="q" value="@Model.Search" type="search" placeholder="Tìm theo mã đơn, nhà cung cấp, container, B/L, cảng..." aria-label="Tìm kiếm đơn mua" class="w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" />
+                <select name="status" aria-label="Lọc theo trạng thái" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-600 focus:outline-none sm:w-56">
+                    <option value="">Mọi trạng thái</option>
+                    @foreach (var status in Pancras.Web.Pages.Purchasing.IndexModel.FilterStatuses)
+                    {
+                        <option value="@status" selected="@(Model.StatusFilter == status)">@Pancras.Web.Pages.Purchasing.IndexModel.StatusLabel(status)</option>
+                    }
+                </select>
+            </div>
         </form>
         @if (Model.SupplierFilter is not null)
         {
@@ -53,7 +62,7 @@
 {
     @if (Model.HasAnyOrders)
     {
-        <partial name="_EmptyState" model='new EmptyStateModel("Không có đơn mua khớp từ khóa.", "Thử mã đơn, nhà cung cấp, số container hoặc B/L khác.")' />
+        <partial name="_EmptyState" model='new EmptyStateModel("Không có đơn mua khớp bộ lọc.", "Thử từ khóa khác (mã đơn, nhà cung cấp, số container, B/L) hoặc đổi trạng thái.")' />
     }
     else
     {
