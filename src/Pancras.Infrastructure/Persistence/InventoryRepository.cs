@@ -352,46 +352,46 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
     public Task<DisposalSlip?> FindDisposalForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         LockedAsync("disposal_slip", id, context.DisposalSlips, slip => slip.Id == id, cancellationToken);
 
-    public async Task<StockDocumentCounts> CountStockDocumentsAsync(Guid? scope, CancellationToken cancellationToken) =>
+    public async Task<StockDocumentCounts> CountStockDocumentsAsync(Guid? scope, StockDocumentFilter filter, CancellationToken cancellationToken) =>
         new(
-            await InScope(context.StocktakeSheets.AsNoTracking(), scope, sheet => sheet.StockLocationId).CountAsync(cancellationToken),
-            await InScope(context.QuantityAdjustments.AsNoTracking(), scope, item => item.StockLocationId).CountAsync(cancellationToken),
-            await InScope(context.DisposalSlips.AsNoTracking(), scope, slip => slip.StockLocationId).CountAsync(cancellationToken));
+            await Matching(InScope(context.StocktakeSheets.AsNoTracking(), scope, sheet => sheet.StockLocationId), filter).CountAsync(cancellationToken),
+            await Matching(InScope(context.QuantityAdjustments.AsNoTracking(), scope, item => item.StockLocationId), filter).CountAsync(cancellationToken),
+            await Matching(InScope(context.DisposalSlips.AsNoTracking(), scope, slip => slip.StockLocationId), filter).CountAsync(cancellationToken));
 
-    public async Task<IReadOnlyList<StocktakeSheet>> ListStocktakesAsync(Guid? scope, StockDocumentRange range, CancellationToken cancellationToken) =>
+    public async Task<IReadOnlyList<StocktakeSheet>> ListStocktakesAsync(Guid? scope, StockDocumentRange range, StockDocumentFilter filter, CancellationToken cancellationToken) =>
         range.Take <= 0
             ? []
-            : await InScope(context.StocktakeSheets.AsNoTracking(), scope, sheet => sheet.StockLocationId)
+            : await Matching(InScope(context.StocktakeSheets.AsNoTracking(), scope, sheet => sheet.StockLocationId), filter)
                 .OrderByDescending(sheet => sheet.Id).Skip(range.Skip).Take(range.Take).ToListAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<QuantityAdjustment>> ListAdjustmentsAsync(Guid? scope, StockDocumentRange range, CancellationToken cancellationToken) =>
+    public async Task<IReadOnlyList<QuantityAdjustment>> ListAdjustmentsAsync(Guid? scope, StockDocumentRange range, StockDocumentFilter filter, CancellationToken cancellationToken) =>
         range.Take <= 0
             ? []
-            : await InScope(context.QuantityAdjustments.AsNoTracking(), scope, item => item.StockLocationId)
+            : await Matching(InScope(context.QuantityAdjustments.AsNoTracking(), scope, item => item.StockLocationId), filter)
                 .OrderByDescending(item => item.Id).Skip(range.Skip).Take(range.Take).ToListAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<DisposalSlip>> ListDisposalsAsync(Guid? scope, StockDocumentRange range, CancellationToken cancellationToken) =>
+    public async Task<IReadOnlyList<DisposalSlip>> ListDisposalsAsync(Guid? scope, StockDocumentRange range, StockDocumentFilter filter, CancellationToken cancellationToken) =>
         range.Take <= 0
             ? []
-            : await InScope(context.DisposalSlips.AsNoTracking(), scope, slip => slip.StockLocationId)
+            : await Matching(InScope(context.DisposalSlips.AsNoTracking(), scope, slip => slip.StockLocationId), filter)
                 .OrderByDescending(slip => slip.Id).Skip(range.Skip).Take(range.Take).ToListAsync(cancellationToken);
 
-    public async Task<StockDocumentPosition?> LocateStockDocumentAsync(Guid? scope, Guid id, CancellationToken cancellationToken)
+    public async Task<StockDocumentPosition?> LocateStockDocumentAsync(Guid? scope, Guid id, StockDocumentFilter filter, CancellationToken cancellationToken)
     {
         // Thứ tự mới nhất trước: vị trí = số phiếu cùng loại (trong phạm vi) có Id lớn hơn.
-        var stocktakes = InScope(context.StocktakeSheets.AsNoTracking(), scope, sheet => sheet.StockLocationId);
+        var stocktakes = Matching(InScope(context.StocktakeSheets.AsNoTracking(), scope, sheet => sheet.StockLocationId), filter);
         if (await stocktakes.AnyAsync(sheet => sheet.Id == id, cancellationToken))
         {
             return new StockDocumentPosition(StockDocumentKind.Stocktake, await stocktakes.CountAsync(sheet => sheet.Id.CompareTo(id) > 0, cancellationToken));
         }
 
-        var adjustments = InScope(context.QuantityAdjustments.AsNoTracking(), scope, item => item.StockLocationId);
+        var adjustments = Matching(InScope(context.QuantityAdjustments.AsNoTracking(), scope, item => item.StockLocationId), filter);
         if (await adjustments.AnyAsync(item => item.Id == id, cancellationToken))
         {
             return new StockDocumentPosition(StockDocumentKind.Adjustment, await adjustments.CountAsync(item => item.Id.CompareTo(id) > 0, cancellationToken));
         }
 
-        var disposals = InScope(context.DisposalSlips.AsNoTracking(), scope, slip => slip.StockLocationId);
+        var disposals = Matching(InScope(context.DisposalSlips.AsNoTracking(), scope, slip => slip.StockLocationId), filter);
         if (await disposals.AnyAsync(slip => slip.Id == id, cancellationToken))
         {
             return new StockDocumentPosition(StockDocumentKind.Disposal, await disposals.CountAsync(slip => slip.Id.CompareTo(id) > 0, cancellationToken));
@@ -415,6 +415,22 @@ public sealed class InventoryRepository(PancrasDbContext context, ILogger<Invent
         var disposals = await InScope(context.DisposalSlips.AsNoTracking(), scope, slip => slip.StockLocationId).Where(slip => ids.Contains(slip.Id)).ToListAsync(cancellationToken);
         return (stocktakes, adjustments, disposals);
     }
+
+    /// <summary>
+    /// Áp bộ lọc loại và mã phiếu trong database. Mã hiển thị là 8 ký tự hex cuối của Id (xem <see cref="StockDocumentCode.Of"/>),
+    /// nên khớp bằng ILIKE trên 8 ký tự cuối của chuỗi Id.
+    /// </summary>
+    private static IQueryable<StocktakeSheet> Matching(IQueryable<StocktakeSheet> source, StockDocumentFilter filter) =>
+        !filter.Includes(StockDocumentKind.Stocktake) ? source.Where(_ => false)
+        : filter.CodeFragment is { } fragment ? source.Where(sheet => EF.Functions.ILike(sheet.Id.ToString().Substring(28), "%" + fragment + "%")) : source;
+
+    private static IQueryable<QuantityAdjustment> Matching(IQueryable<QuantityAdjustment> source, StockDocumentFilter filter) =>
+        !filter.Includes(StockDocumentKind.Adjustment) ? source.Where(_ => false)
+        : filter.CodeFragment is { } fragment ? source.Where(item => EF.Functions.ILike(item.Id.ToString().Substring(28), "%" + fragment + "%")) : source;
+
+    private static IQueryable<DisposalSlip> Matching(IQueryable<DisposalSlip> source, StockDocumentFilter filter) =>
+        !filter.Includes(StockDocumentKind.Disposal) ? source.Where(_ => false)
+        : filter.CodeFragment is { } fragment ? source.Where(slip => EF.Functions.ILike(slip.Id.ToString().Substring(28), "%" + fragment + "%")) : source;
 
     /// <summary>Giới hạn theo kho: null là mọi kho, một Id là chỉ kho đó (Guid.Empty không khớp kho nào).</summary>
     private static IQueryable<T> InScope<T>(IQueryable<T> source, Guid? scope, System.Linq.Expressions.Expression<Func<T, Guid>> location)

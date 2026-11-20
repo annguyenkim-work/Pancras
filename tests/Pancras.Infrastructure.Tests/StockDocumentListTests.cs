@@ -69,13 +69,13 @@ public class StockDocumentListTests(PostgresFixture fixture) : PostgresTest(fixt
         await using var context = Database.NewContext();
         var repository = Repository(context);
 
-        Assert.Equal(new StockDocumentCounts(4, 1, 1), await repository.CountStockDocumentsAsync(null, CancellationToken.None));
-        Assert.Equal(new StockDocumentCounts(3, 1, 0), await repository.CountStockDocumentsAsync(_a, CancellationToken.None));
-        Assert.Equal(new StockDocumentCounts(0, 0, 0), await repository.CountStockDocumentsAsync(Guid.Empty, CancellationToken.None));
-        var slice = await repository.ListStocktakesAsync(_a, new StockDocumentRange(1, 2), CancellationToken.None);
+        Assert.Equal(new StockDocumentCounts(4, 1, 1), await repository.CountStockDocumentsAsync(null, new StockDocumentFilter(), CancellationToken.None));
+        Assert.Equal(new StockDocumentCounts(3, 1, 0), await repository.CountStockDocumentsAsync(_a, new StockDocumentFilter(), CancellationToken.None));
+        Assert.Equal(new StockDocumentCounts(0, 0, 0), await repository.CountStockDocumentsAsync(Guid.Empty, new StockDocumentFilter(), CancellationToken.None));
+        var slice = await repository.ListStocktakesAsync(_a, new StockDocumentRange(1, 2), new StockDocumentFilter(), CancellationToken.None);
         Assert.Equal([second.Id, first.Id], slice.Select(sheet => sheet.Id).ToArray());
-        Assert.Empty(await repository.ListStocktakesAsync(_a, new StockDocumentRange(0, 0), CancellationToken.None));
-        Assert.Equal(third.Id, (await repository.ListStocktakesAsync(_a, new StockDocumentRange(0, 1), CancellationToken.None)).Single().Id);
+        Assert.Empty(await repository.ListStocktakesAsync(_a, new StockDocumentRange(0, 0), new StockDocumentFilter(), CancellationToken.None));
+        Assert.Equal(third.Id, (await repository.ListStocktakesAsync(_a, new StockDocumentRange(0, 1), new StockDocumentFilter(), CancellationToken.None)).Single().Id);
     }
 
     [Fact]
@@ -88,10 +88,10 @@ public class StockDocumentListTests(PostgresFixture fixture) : PostgresTest(fixt
         await using var context = Database.NewContext();
         var repository = Repository(context);
 
-        Assert.Equal(new StockDocumentPosition(StockDocumentKind.Adjustment, 1), await repository.LocateStockDocumentAsync(_a, older.Id, CancellationToken.None));
-        Assert.Equal(new StockDocumentPosition(StockDocumentKind.Adjustment, 0), await repository.LocateStockDocumentAsync(null, newer.Id, CancellationToken.None));
-        Assert.Null(await repository.LocateStockDocumentAsync(_a, elsewhere.Id, CancellationToken.None));
-        Assert.Equal(new StockDocumentPosition(StockDocumentKind.Disposal, 0), await repository.LocateStockDocumentAsync(null, elsewhere.Id, CancellationToken.None));
+        Assert.Equal(new StockDocumentPosition(StockDocumentKind.Adjustment, 1), await repository.LocateStockDocumentAsync(_a, older.Id, new StockDocumentFilter(), CancellationToken.None));
+        Assert.Equal(new StockDocumentPosition(StockDocumentKind.Adjustment, 0), await repository.LocateStockDocumentAsync(null, newer.Id, new StockDocumentFilter(), CancellationToken.None));
+        Assert.Null(await repository.LocateStockDocumentAsync(_a, elsewhere.Id, new StockDocumentFilter(), CancellationToken.None));
+        Assert.Equal(new StockDocumentPosition(StockDocumentKind.Disposal, 0), await repository.LocateStockDocumentAsync(null, elsewhere.Id, new StockDocumentFilter(), CancellationToken.None));
     }
 
     [Fact]
@@ -109,10 +109,10 @@ public class StockDocumentListTests(PostgresFixture fixture) : PostgresTest(fixt
 
         await using var context = Database.NewContext();
         var handler = Handler(context);
-        var focused = await handler.ListStockDocumentPageAsync(keeperA, 1, 20, target.Id, CancellationToken.None);
-        var small = await handler.ListStockDocumentPageAsync(keeperA, 1, 1, target.Id, CancellationToken.None);
-        var other = await handler.ListStockDocumentPageAsync(keeperB, 1, 20, target.Id, CancellationToken.None);
-        var none = await handler.ListStockDocumentPageAsync(sales, 1, 20, null, CancellationToken.None);
+        var focused = await handler.ListStockDocumentPageAsync(keeperA, 1, 20, target.Id, new StockDocumentFilter(), CancellationToken.None);
+        var small = await handler.ListStockDocumentPageAsync(keeperA, 1, 1, target.Id, new StockDocumentFilter(), CancellationToken.None);
+        var other = await handler.ListStockDocumentPageAsync(keeperB, 1, 20, target.Id, new StockDocumentFilter(), CancellationToken.None);
+        var none = await handler.ListStockDocumentPageAsync(sales, 1, 20, null, new StockDocumentFilter(), CancellationToken.None);
 
         Assert.Equal(4, focused.Total);
         Assert.Equal(3, focused.Stocktakes.Count);
@@ -122,6 +122,79 @@ public class StockDocumentListTests(PostgresFixture fixture) : PostgresTest(fixt
         Assert.Equal(1, small.Page);
         Assert.Equal(0, other.Total);
         Assert.Equal(0, none.Total);
+    }
+
+    private static string Hex(Guid id) => StockDocumentCode.Of("KK", id)[3..];
+
+    [Fact]
+    public async Task KindFilter_CountsAndListsOnlyThatKind()
+    {
+        await AddStocktakeAsync(_a);
+        await AddStocktakeAsync(_a);
+        var adjustment = await AddAdjustmentAsync(_a);
+        await AddDisposalAsync(_a);
+
+        await using var context = Database.NewContext();
+        var repository = Repository(context);
+
+        Assert.Equal(new StockDocumentCounts(0, 1, 0), await repository.CountStockDocumentsAsync(null, new StockDocumentFilter(StockDocumentKind.Adjustment), CancellationToken.None));
+        Assert.Equal(new StockDocumentCounts(2, 0, 0), await repository.CountStockDocumentsAsync(null, new StockDocumentFilter(StockDocumentKind.Stocktake), CancellationToken.None));
+        Assert.Empty(await repository.ListStocktakesAsync(null, new StockDocumentRange(0, 10), new StockDocumentFilter(StockDocumentKind.Disposal), CancellationToken.None));
+        Assert.Equal(adjustment.Id, (await repository.ListAdjustmentsAsync(null, new StockDocumentRange(0, 10), new StockDocumentFilter(StockDocumentKind.Adjustment), CancellationToken.None)).Single().Id);
+    }
+
+    [Fact]
+    public async Task CodeFilter_MatchesTheLastEightHexCharacters_CaseInsensitive_AndPartially()
+    {
+        var sheets = new List<StocktakeSheet>();
+        for (var i = 0; i < 4; i++)
+        {
+            sheets.Add(await AddStocktakeAsync(_a));
+        }
+
+        var target = sheets[2];
+        var full = Hex(target.Id);
+        await using var context = Database.NewContext();
+        var repository = Repository(context);
+
+        async Task<Guid[]> Find(string code) => (await repository.ListStocktakesAsync(null, new StockDocumentRange(0, 50), new StockDocumentFilter(null, code), CancellationToken.None)).Select(sheet => sheet.Id).ToArray();
+
+        Assert.Contains(target.Id, await Find("KK-" + full));
+        Assert.Contains(target.Id, await Find(full.ToLowerInvariant()));
+        Assert.Contains(target.Id, await Find(full[2..6]));
+        Assert.Empty(await Find("DC-" + full));
+        // Phần đầu của Id là mốc thời gian, không phải mã: một đoạn chỉ có ở đó không được khớp.
+        var timestampOnly = target.Id.ToString("N")[..8];
+        if (!full.Contains(timestampOnly, StringComparison.OrdinalIgnoreCase))
+        {
+            Assert.DoesNotContain(target.Id, await Find(timestampOnly));
+        }
+
+        Assert.True((await repository.CountStockDocumentsAsync(null, new StockDocumentFilter(null, "KK-" + full), CancellationToken.None)).Total >= 1);
+    }
+
+    [Fact]
+    public async Task Filter_ShrinksTheTotal_AndPagingFollowsTheFilteredList()
+    {
+        for (var i = 0; i < 3; i++)
+        {
+            await AddStocktakeAsync(_a);
+        }
+
+        var adjustment = await AddAdjustmentAsync(_a);
+        var keeper = new EmployeeActor(Guid.CreateVersion7(), EmployeeRole.WarehouseKeeper, _a);
+
+        await using var context = Database.NewContext();
+        var handler = Handler(context);
+        var page = await handler.ListStockDocumentPageAsync(keeper, 1, 20, null, new StockDocumentFilter(StockDocumentKind.Adjustment), CancellationToken.None);
+        var focusedOutside = await handler.ListStockDocumentPageAsync(keeper, 1, 20, adjustment.Id, new StockDocumentFilter(StockDocumentKind.Stocktake), CancellationToken.None);
+
+        Assert.Equal(1, page.Total);
+        Assert.Empty(page.Stocktakes);
+        Assert.Equal(adjustment.Id, Assert.Single(page.Adjustments).Id);
+        // Phiếu mở từ thông báo không khớp bộ lọc: hiện danh sách theo bộ lọc, không ép nhảy.
+        Assert.Equal(3, focusedOutside.Total);
+        Assert.Empty(focusedOutside.Adjustments);
     }
 
     [Fact]

@@ -30,6 +30,7 @@ Mọi nút `rounded-lg`. Hai cỡ.
 - Cùng chiều cao `h-10`, cùng độ rộng `w-44`, `inline-flex items-center justify-center whitespace-nowrap rounded-lg px-4 text-sm font-bold`; chữ không bao giờ xuống dòng hay bị cắt.
 - Nút có nhãn dài (ví dụ `Nhập Kho & Cập Nhật Giá Vốn (N món)`) là ngoại lệ duy nhất được rộng theo chữ (bỏ `w-44`, thêm `px-5`); các nút còn lại giữ `w-44`.
 - Tối đa **2 hàng** (`flex flex-wrap gap-2`): hàng 1 là xuất/sửa/nhận hàng, hàng 2 là các bước luồng đơn (gửi duyệt, duyệt, trả về nháp, đang về, hủy).
+- **Nút nhận hàng và ô "Đóng đơn dù nhận thiếu" là một khối không tách** (`flex-nowrap`): nút đứng trước, ô đánh dấu đứng sau, khối xuống hàng nguyên cả hai khi hết chỗ. Thứ tự này do chủ dự án chốt (2026-11-21).
 - **Trạng thái của đối tượng nằm ở hàng tiêu đề, sát phải, cạnh tên/mã** (`flex items-start justify-between`), không đặt lẫn trong cụm nút.
 - Màu theo biến thể ở bảng trên (Chính, Phụ, Hoàn tất; Nguy hiểm dạng viền `border-rose-200 text-rose-700` cho nút "Hủy đơn" cần hộp xác nhận).
 - Khai báo các chuỗi class một lần ở đầu partial (`const string actionButton = "..."`) rồi dùng lại; test `UiStandardsTests` đọc cả class nằm trong biến Razor.

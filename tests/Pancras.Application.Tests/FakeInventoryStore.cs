@@ -263,24 +263,38 @@ internal sealed class FakeInventoryStore : IInventoryRepository, Pancras.Applica
     public Task<IReadOnlyList<TransferSlip>> FindTransfersAsync(System.Linq.Expressions.Expression<Func<TransferSlip, bool>> visible, IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<TransferSlip>>(TransferSource().Where(visible.Compile()).Where(slip => ids.Contains(slip.Id)).ToArray());
 
-    public Task<StockDocumentCounts> CountStockDocumentsAsync(Guid? scope, CancellationToken cancellationToken) =>
-        Task.FromResult(new StockDocumentCounts(
-            ScopedStocktakes(scope).Count(), ScopedAdjustments(scope).Count(), ScopedDisposals(scope).Count()));
-
-    public Task<IReadOnlyList<StocktakeSheet>> ListStocktakesAsync(Guid? scope, StockDocumentRange range, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<StocktakeSheet>>(ScopedStocktakes(scope).Skip(range.Skip).Take(range.Take).ToArray());
-
-    public Task<IReadOnlyList<QuantityAdjustment>> ListAdjustmentsAsync(Guid? scope, StockDocumentRange range, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<QuantityAdjustment>>(ScopedAdjustments(scope).Skip(range.Skip).Take(range.Take).ToArray());
-
-    public Task<IReadOnlyList<DisposalSlip>> ListDisposalsAsync(Guid? scope, StockDocumentRange range, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<DisposalSlip>>(ScopedDisposals(scope).Skip(range.Skip).Take(range.Take).ToArray());
-
-    public Task<StockDocumentPosition?> LocateStockDocumentAsync(Guid? scope, Guid id, CancellationToken cancellationToken)
+    /// <summary>Áp bộ lọc loại và mã như database: mã là 8 ký tự hex cuối của Id, khớp không phân biệt hoa thường.</summary>
+    private static IEnumerable<T> Matching<T>(IEnumerable<T> source, StockDocumentFilter filter, StockDocumentKind kind, string prefix)
+        where T : class
     {
-        var stocktake = ScopedStocktakes(scope).Select(sheet => sheet.Id).ToList().IndexOf(id);
-        var adjustment = ScopedAdjustments(scope).Select(item => item.Id).ToList().IndexOf(id);
-        var disposal = ScopedDisposals(scope).Select(slip => slip.Id).ToList().IndexOf(id);
+        if (!filter.Includes(kind))
+        {
+            return [];
+        }
+
+        return filter.CodeFragment is { } fragment
+            ? source.Where(document => StockDocumentCode.Of(prefix, (Guid)document.GetType().GetProperty("Id")!.GetValue(document)!)[3..].Contains(fragment, StringComparison.OrdinalIgnoreCase))
+            : source;
+    }
+
+    public Task<StockDocumentCounts> CountStockDocumentsAsync(Guid? scope, StockDocumentFilter filter, CancellationToken cancellationToken) =>
+        Task.FromResult(new StockDocumentCounts(
+            Matching(ScopedStocktakes(scope), filter, StockDocumentKind.Stocktake, "KK").Count(), Matching(ScopedAdjustments(scope), filter, StockDocumentKind.Adjustment, "DC").Count(), Matching(ScopedDisposals(scope), filter, StockDocumentKind.Disposal, "HY").Count()));
+
+    public Task<IReadOnlyList<StocktakeSheet>> ListStocktakesAsync(Guid? scope, StockDocumentRange range, StockDocumentFilter filter, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<StocktakeSheet>>(Matching(ScopedStocktakes(scope), filter, StockDocumentKind.Stocktake, "KK").Skip(range.Skip).Take(range.Take).ToArray());
+
+    public Task<IReadOnlyList<QuantityAdjustment>> ListAdjustmentsAsync(Guid? scope, StockDocumentRange range, StockDocumentFilter filter, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<QuantityAdjustment>>(Matching(ScopedAdjustments(scope), filter, StockDocumentKind.Adjustment, "DC").Skip(range.Skip).Take(range.Take).ToArray());
+
+    public Task<IReadOnlyList<DisposalSlip>> ListDisposalsAsync(Guid? scope, StockDocumentRange range, StockDocumentFilter filter, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<DisposalSlip>>(Matching(ScopedDisposals(scope), filter, StockDocumentKind.Disposal, "HY").Skip(range.Skip).Take(range.Take).ToArray());
+
+    public Task<StockDocumentPosition?> LocateStockDocumentAsync(Guid? scope, Guid id, StockDocumentFilter filter, CancellationToken cancellationToken)
+    {
+        var stocktake = Matching(ScopedStocktakes(scope), filter, StockDocumentKind.Stocktake, "KK").Select(sheet => sheet.Id).ToList().IndexOf(id);
+        var adjustment = Matching(ScopedAdjustments(scope), filter, StockDocumentKind.Adjustment, "DC").Select(item => item.Id).ToList().IndexOf(id);
+        var disposal = Matching(ScopedDisposals(scope), filter, StockDocumentKind.Disposal, "HY").Select(slip => slip.Id).ToList().IndexOf(id);
         return Task.FromResult(
             stocktake >= 0 ? new StockDocumentPosition(StockDocumentKind.Stocktake, stocktake)
             : adjustment >= 0 ? new StockDocumentPosition(StockDocumentKind.Adjustment, adjustment)

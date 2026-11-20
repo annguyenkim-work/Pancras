@@ -42,6 +42,22 @@ public class SidebarCollapseTests
         Assert.Contains("lg\\:min-w-\\[40rem\\]", css, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void Header_StaysFixedAtTheTop_WhenThePageScrolls()
+    {
+        // UAT: thanh header (tên trang, thông báo, tài khoản) phải luôn hiện khi cuộn trang xuống.
+        var layout = File.ReadAllText(Path.Combine(WebRoot, "Pages/Shared/_Layout.cshtml"));
+        var css = File.ReadAllText(Path.Combine(WebRoot, "wwwroot/css/site.css"));
+
+        var header = System.Text.RegularExpressions.Regex.Match(layout, "<header class=\"([^\"]*)\"").Groups[1].Value.Split(' ');
+        Assert.Contains("sticky", header);
+        Assert.Contains("top-0", header);
+        Assert.Contains("z-30", header);
+        Assert.Contains(".sticky", css, StringComparison.Ordinal);
+        Assert.Contains(".z-30", css, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void CollapsedClasses_ExistInBuiltCss()
     {

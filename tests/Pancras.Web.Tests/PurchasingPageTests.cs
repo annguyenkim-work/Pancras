@@ -267,6 +267,29 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         Assert.Equal(1, controls.Count(classes => !classes.Contains("w-44", StringComparison.Ordinal)));
     }
 
+
+    [Fact]
+    public async Task ReceiveForm_KeepsTheReceiveButtonAndTheCloseCheckboxTogether_ButtonFirst()
+    {
+        // UAT: nút Nhập kho đứng trước, ô "Đóng đơn dù nhận thiếu" đứng sau, cùng một khối không tách dòng.
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var order = NewOrder("PO-RCV", Guid.CreateVersion7());
+        Assert.True(order.TrySubmit());
+        Assert.True(order.TryApprove());
+        orders.Orders.Add(order);
+        await SignInAsync(client);
+
+        var html = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?order=" + order.Id)).Content.ReadAsStringAsync());
+
+        var form = System.Text.RegularExpressions.Regex.Match(html, "<form id=\"receive-form\"[^>]*class=\"([^\"]*)\".*?</form>", System.Text.RegularExpressions.RegexOptions.Singleline);
+        Assert.True(form.Success);
+        Assert.Contains("flex-nowrap", form.Groups[1].Value, StringComparison.Ordinal);
+        var button = form.Value.IndexOf("Nhập Kho & Cập Nhật Giá Vốn", StringComparison.Ordinal);
+        var checkbox = form.Value.IndexOf("name=\"closeOrder\"", StringComparison.Ordinal);
+        Assert.True(button > 0 && checkbox > button, "Nút nhập kho phải đứng trước ô đóng đơn dù nhận thiếu.");
+    }
+
     [Fact]
     public async Task TheOtherTaxInput_IsAMoneyInput_LikeTheChargeAmounts()
     {

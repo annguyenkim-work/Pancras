@@ -77,20 +77,20 @@ public interface IInventoryRepository
 
     // Biên bản kiểm kê, phiếu điều chỉnh, phiếu hủy. scope: null là mọi kho; một Id là chỉ kho đó (Guid.Empty: không kho nào), như InventoryAccess.Scope.
 
-    /// <summary>Số phiếu từng loại trong phạm vi kho.</summary>
-    Task<StockDocumentCounts> CountStockDocumentsAsync(Guid? scope, CancellationToken cancellationToken);
+    /// <summary>Số phiếu từng loại trong phạm vi kho và khớp bộ lọc.</summary>
+    Task<StockDocumentCounts> CountStockDocumentsAsync(Guid? scope, StockDocumentFilter filter, CancellationToken cancellationToken);
 
     /// <summary>Một đoạn biên bản kiểm kê trong phạm vi kho, mới nhất trước.</summary>
-    Task<IReadOnlyList<StocktakeSheet>> ListStocktakesAsync(Guid? scope, StockDocumentRange range, CancellationToken cancellationToken);
+    Task<IReadOnlyList<StocktakeSheet>> ListStocktakesAsync(Guid? scope, StockDocumentRange range, StockDocumentFilter filter, CancellationToken cancellationToken);
 
     /// <summary>Một đoạn phiếu điều chỉnh trong phạm vi kho, mới nhất trước.</summary>
-    Task<IReadOnlyList<QuantityAdjustment>> ListAdjustmentsAsync(Guid? scope, StockDocumentRange range, CancellationToken cancellationToken);
+    Task<IReadOnlyList<QuantityAdjustment>> ListAdjustmentsAsync(Guid? scope, StockDocumentRange range, StockDocumentFilter filter, CancellationToken cancellationToken);
 
     /// <summary>Một đoạn phiếu hủy trong phạm vi kho, mới nhất trước.</summary>
-    Task<IReadOnlyList<DisposalSlip>> ListDisposalsAsync(Guid? scope, StockDocumentRange range, CancellationToken cancellationToken);
+    Task<IReadOnlyList<DisposalSlip>> ListDisposalsAsync(Guid? scope, StockDocumentRange range, StockDocumentFilter filter, CancellationToken cancellationToken);
 
     /// <summary>Loại và thứ tự (mới nhất trước) của một phiếu trong phạm vi kho; không có hoặc ngoài phạm vi thì null.</summary>
-    Task<StockDocumentPosition?> LocateStockDocumentAsync(Guid? scope, Guid id, CancellationToken cancellationToken);
+    Task<StockDocumentPosition?> LocateStockDocumentAsync(Guid? scope, Guid id, StockDocumentFilter filter, CancellationToken cancellationToken);
 
     /// <summary>Các biên bản, phiếu điều chỉnh, phiếu hủy theo Id trong phạm vi kho (để ghi chú lịch sử tồn). Chỉ đọc.</summary>
     Task<(IReadOnlyList<StocktakeSheet> Stocktakes, IReadOnlyList<QuantityAdjustment> Adjustments, IReadOnlyList<DisposalSlip> Disposals)> FindStockDocumentsAsync(Guid? scope, IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);

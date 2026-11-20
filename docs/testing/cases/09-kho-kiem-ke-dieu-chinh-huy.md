@@ -169,4 +169,7 @@ Quy tắc chung:
 | DOC-04 | P1 | `/audit` | Có dòng duyệt kiểm kê / điều chỉnh / hủy | ☐ |
 | DOC-05 | P1 | Hộp thoại lập phiếu khi lỗi | Mở lại, dữ liệu còn (trừ file phải chọn lại) | ☐ |
 | DOC-06 | P1 | Lập phiếu kiểm kê, điều chỉnh, hủy với số liệu sai (số đếm âm, vượt tồn, thiếu lý do) | Hộp thoại mở lại với lỗi hiện **trong hộp thoại**, không có banner phía sau lớp phủ; kho, mặt hàng, số lượng, lý do còn nguyên | ☐ |
-| DOC-06 | P2 | Gửi form thiếu token chống giả mạo | 400 | ☐ |
+| DOC-07 | P2 | Gửi form thiếu token chống giả mạo | 400 | ☐ |
+| DOC-08 | P1 | Tab Kiểm kê và điều chỉnh: chọn loại phiếu Kiểm kê, Điều chỉnh, Hủy lần lượt | Chỉ hiện phiếu đúng loại; số phiếu và phân trang tính theo bộ lọc; "Tất cả" hiện đủ ba loại | ☐ |
+| DOC-09 | P1 | Nhập mã phiếu đầy đủ (ví dụ `KK-1A2B3C4D`), nhập một phần (`1A2B`), nhập sai (`ZZZ`) | Đầy đủ: đúng phiếu đó; một phần: các phiếu có mã chứa đoạn đó (không phân biệt hoa thường); sai: trạng thái rỗng "Không có phiếu khớp bộ lọc" và nút "Bỏ lọc" | ☐ |
+| DOC-10 | P1 | Lọc loại phiếu và mã, sang trang 2, duyệt một phiếu chờ duyệt | Sau khi duyệt, danh sách vẫn giữ loại, mã và trang | ☐ |

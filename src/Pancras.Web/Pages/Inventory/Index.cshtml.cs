@@ -156,12 +156,39 @@ public class IndexModel(
     /// <summary>Kiểm kê, điều chỉnh và phiếu hủy gộp thành một danh sách phân trang 20/50 (đếm và cắt trong database). Chỉ nạp ở tab Kiểm kê.</summary>
     public StockDocumentPage StocktakeSlice { get; private set; } = new([], [], [], 0, 1);
 
+    public int StocktakePageSize => Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
+
     public Pancras.Web.Formatting.PagerModel StocktakePager =>
         new(StocktakeSlice.Page, Pancras.Web.Formatting.PagerModel.SizeFrom(Request), StocktakeSlice.Total, (page, size) => StocktakesUrl(page, size));
 
-    private static string StocktakesUrl(int page, int size)
+    /// <summary>Loại phiếu đang lọc ở tab Kiểm kê và điều chỉnh: <c>kk</c>, <c>dc</c>, <c>hy</c>; giá trị khác là tất cả.</summary>
+    [BindProperty(SupportsGet = true, Name = "type")]
+    public string? DocumentType { get; set; }
+
+    /// <summary>Mã phiếu đang tìm ở tab Kiểm kê và điều chỉnh (ví dụ <c>KK-1A2B3C4D</c> hoặc một đoạn của mã).</summary>
+    [BindProperty(SupportsGet = true, Name = "code")]
+    public string? DocumentCode { get; set; }
+
+    private const int DocumentCodeMaxLength = 20;
+
+    public StockDocumentFilter DocumentFilter => new(StockDocumentFilter.ParseKind(DocumentType), DocumentCode is { } code ? code.Trim()[..Math.Min(code.Trim().Length, DocumentCodeMaxLength)] : null);
+
+    public bool HasDocumentFilter => DocumentFilter.IsActive;
+
+    /// <summary>Phần query của tab Kiểm kê và điều chỉnh: tab, bộ lọc, cỡ trang và trang. Một nơi duy nhất cho mọi link và form POST của tab.</summary>
+    private string StocktakesQuery(int page, int size)
     {
         var parts = new List<string> { "view=stocktakes" };
+        if (StockDocumentFilter.KindToken(DocumentFilter.Kind) is { } type)
+        {
+            parts.Add("type=" + type);
+        }
+
+        if (!string.IsNullOrWhiteSpace(DocumentFilter.Code))
+        {
+            parts.Add("code=" + Uri.EscapeDataString(DocumentFilter.Code));
+        }
+
         if (size != Pancras.Application.Common.PageSizes.Default)
         {
             parts.Add("size=" + size.ToString(CultureInfo.InvariantCulture));
@@ -172,8 +199,16 @@ public class IndexModel(
             parts.Add("sp=" + page.ToString(CultureInfo.InvariantCulture));
         }
 
-        return "/inventory?" + string.Join('&', parts);
+        return string.Join('&', parts);
     }
+
+    private string StocktakesUrl(int page, int size) => "/inventory?" + StocktakesQuery(page, size);
+
+    /// <summary>Địa chỉ của form duyệt phiếu ở tab Kiểm kê: gửi kèm bộ lọc và trang để sau khi duyệt quay lại đúng danh sách.</summary>
+    public string StocktakeActionUrl(string handler) =>
+        "/inventory?handler=" + handler + "&" + StocktakesQuery(StocktakeSlice.Page, Pancras.Web.Formatting.PagerModel.SizeFrom(Request));
+
+    public string StocktakeFilterResetUrl => "/inventory?view=stocktakes" + (Pancras.Web.Formatting.PagerModel.SizeFrom(Request) is var size && size != Pancras.Application.Common.PageSizes.Default ? "&size=" + size.ToString(CultureInfo.InvariantCulture) : "");
 
     /// <summary>Cỡ trang danh sách phiếu chuyển: 20 hoặc 50 (query `size`).</summary>
     public int TransferPageSize => Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
@@ -692,6 +727,11 @@ public class IndexModel(
             return Redirect(TransferUrl(keepFilters: false) + "&open=" + DocumentId.ToString("D"));
         }
 
+        if (view == "stocktakes")
+        {
+            return Redirect(StocktakesUrl(StocktakePage, Pancras.Web.Formatting.PagerModel.SizeFrom(Request)));
+        }
+
         return Redirect(PageUrl(includeItem: false));
     }
 
@@ -807,7 +847,7 @@ public class IndexModel(
         else if (ActiveView == "stocktakes")
         {
             StocktakeSlice = await documentsHandler.ListStockDocumentPageAsync(
-                Actor, StocktakePage, Pancras.Web.Formatting.PagerModel.SizeFrom(Request), FocusDocument, cancellationToken);
+                Actor, StocktakePage, Pancras.Web.Formatting.PagerModel.SizeFrom(Request), FocusDocument, DocumentFilter, cancellationToken);
         }
 
         PlaceCodes = BuildPlaceCodes(AllLocations);

@@ -79,6 +79,15 @@ Nguồn: UAT sprint 1. Thay quyết định 2026-11-16 "chưa cần phiếu giao
 - Tài chính ghi thẳng (không qua duyệt). Thủ kho và Trưởng kho lập phiếu chờ duyệt; người duyệt xem [roles-and-permissions.md](../roles-and-permissions.md) mục 3.
 - Duyệt hủy ghi thông báo cho nhân viên kho; lập điều chỉnh chờ duyệt báo cho Admin, Giám đốc, Kế toán (chi tiết ở [notifications-and-audit.md](notifications-and-audit.md)).
 
+### Bộ lọc danh sách (tab Kiểm kê và điều chỉnh)
+
+Chủ dự án yêu cầu 2026-11-21. Danh sách gộp ba loại phiếu nên có:
+
+- **Loại phiếu:** Tất cả (mặc định), Kiểm kê (`KK`), Điều chỉnh (`DC`), Hủy (`HY`). Query `?type=kk|dc|hy`; giá trị lạ coi như Tất cả.
+- **Mã phiếu:** ô tìm theo mã hiển thị (`KK-1A2B3C4D`). Query `?code=`. Không phân biệt hoa thường; nhập phần hex (`1A2B`) thì khớp mọi phiếu có đoạn đó trong 8 ký tự mã; nhập tiền tố kèm gạch ngang (`KK-`) thì chỉ tìm trong loại đó. Phần sau tiền tố không phải hex thì không có kết quả.
+- Lọc, đếm và cắt trang **trong database**; số phiếu và các trang tính theo bộ lọc. Bộ lọc, trang và cỡ trang được giữ khi chuyển trang và sau khi duyệt phiếu (xem [components.md](../../03-ui-ux/components.md) mục 10). Phiếu mở từ thông báo (`?doc=`) mà không khớp bộ lọc thì hiện danh sách theo bộ lọc, không ép nhảy.
+- Chưa chốt: lọc theo kho, trạng thái (chờ duyệt/đã duyệt) và ngày cho tab này.
+
 ## 5. Tra cứu tồn
 
 - Mỗi dòng hiện bốn số: tồn thực, đang giữ, khả dụng, đang chuyển, và tồn từng địa điểm. Khả dụng không hiện số âm (hiện 0).
