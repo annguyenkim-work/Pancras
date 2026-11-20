@@ -169,6 +169,24 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         Assert.DoesNotContain("<dialog open", html, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("InvalidReceiptQuantity", "Số thực nhận không hợp lệ.")]
+    [InlineData("NotReceivable", "chưa nhận hàng được")]
+    public async Task ARejectedAction_ShowsItsReasonAsAnErrorToast_NotAsABannerAtTheTopOfThePage(string error, string text)
+    {
+        // Lỗi UAT: nhận hàng bị từ chối, trang tải lại mà người dùng (đang ở giữa trang) không thấy lỗi vì banner nằm ở đầu trang.
+        using var client = _factory.CreateClient(NoRedirect);
+        Reset();
+        await SignInAsync(client);
+
+        var html = await (await client.GetAsync("/purchasing?error=" + error)).Content.ReadAsStringAsync();
+
+        var toast = System.Text.RegularExpressions.Regex.Match(html, "<div[^>]*data-tone=\"rose\"[^>]*>.*?</div>", System.Text.RegularExpressions.RegexOptions.Singleline);
+        Assert.True(toast.Success, "Lỗi phải hiện bằng toast đỏ (góc dưới phải).");
+        Assert.Contains(text, System.Net.WebUtility.HtmlDecode(toast.Value), StringComparison.Ordinal);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(System.Net.WebUtility.HtmlDecode(html), System.Text.RegularExpressions.Regex.Escape(text)));
+    }
+
     [Fact]
     public async Task TheOtherTaxInput_IsAMoneyInput_LikeTheChargeAmounts()
     {

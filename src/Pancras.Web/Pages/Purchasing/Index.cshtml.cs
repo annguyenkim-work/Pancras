@@ -208,7 +208,9 @@ public class IndexModel(
         }
         if (!string.IsNullOrEmpty(error) && Enum.TryParse<PurchaseError>(error, out var parsed) && parsed != PurchaseError.None)
         {
-            ErrorMessage = PurchaseErrorMessages.For(parsed);
+            // Lỗi của thao tác POST đã chuyển trang: hiện bằng toast góc dưới phải để người dùng đang ở giữa trang vẫn thấy
+            // (banner đầu trang nằm ngoài tầm nhìn). ErrorMessage chỉ còn dùng cho lỗi trong form khi lưu đơn.
+            TempData.Toast(PurchaseErrorMessages.For(parsed), ToastLevel.Error);
         }
 
         var selected = order is Guid orderId && orderId != Guid.Empty ? orderId : id;
