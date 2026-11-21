@@ -97,6 +97,25 @@ public sealed class BrowserSmokeTests : IAsyncLifetime
         await input.BlurAsync();
 
         Assert.Equal("200.000", await input.InputValueAsync());
+        Assert.Equal("200000", await input.EvaluateAsync<string>("element => new FormData(element.form).get(element.name)"));
+        AssertNoScriptErrors();
+    }
+
+    [Fact]
+    public async Task CatalogPriceInput_GroupsWhileTyping_AndPostsTheRawNumber()
+    {
+        // Một script ô tiền cho mọi trang: Danh mục trước đây chỉ nhóm khi rời ô và thêm chữ " VNĐ" vào ô.
+        var page = await SignedInPageAsync();
+        await page.GotoAsync(_baseUrl + "/catalog?add=true");
+
+        var input = page.Locator("#Form_CostPrice");
+        await input.FillAsync(string.Empty);
+        await input.PressSequentiallyAsync("1500000");
+
+        Assert.Equal("1.500.000", await input.InputValueAsync());
+        var posted = await input.EvaluateAsync<string>("element => new FormData(element.form).get('Form.CostPrice')");
+        Assert.Equal("1500000", posted);
+        Assert.Equal("1.500.000", await input.InputValueAsync());
         AssertNoScriptErrors();
     }
 

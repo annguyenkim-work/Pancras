@@ -40,6 +40,22 @@ public class MoneyInputsTests
     }
 
     [Fact]
+    public void OneSharedScript_FormatsMoneyInputs_OnEveryPage()
+    {
+        // Trước đây Danh mục và Mua hàng mỗi trang một cách định dạng ô tiền. Nay chỉ vnd-input.js định dạng; script khác gọi window.PancrasVnd.
+        var web = Path.GetFullPath(Path.Combine(PagesRoot, ".."));
+        Assert.Contains("vnd-input.js", File.ReadAllText(Path.Combine(PagesRoot, "Shared/_Head.cshtml")), StringComparison.Ordinal);
+
+        var offenders = Directory.EnumerateFiles(Path.Combine(web, "wwwroot/js"), "*.js")
+            .Where(file => Path.GetFileName(file) != "vnd-input.js")
+            .Where(file => File.ReadAllText(file).Contains("querySelectorAll(\"[data-vnd]\")", StringComparison.Ordinal))
+            .Select(Path.GetFileName)
+            .ToArray();
+
+        Assert.True(offenders.Length == 0, "Định dạng ô tiền bằng window.PancrasVnd: " + string.Join(", ", offenders));
+    }
+
+    [Fact]
     public void NoView_UsesTheOldVndClassHook()
     {
         var offenders = Directory.EnumerateFiles(PagesRoot, "*.cshtml", SearchOption.AllDirectories)
