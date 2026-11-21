@@ -304,6 +304,29 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
     }
 
     [Fact]
+    public async Task NewOrderAndFormCloseLinks_KeepTheFilteredList()
+    {
+        // Rà toàn bộ (2026-11-21): nút "Tạo đơn" và nút đóng form (×, Quay lại) đưa về /purchasing trần, mất bộ lọc.
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var order = NewOrder("PO-LINK", Guid.CreateVersion7());
+        orders.Orders.Add(order);
+        await SignInAsync(client);
+
+        var list = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?q=PO&status=Draft&size=50")).Content.ReadAsStringAsync());
+        Assert.Contains("href=\"/purchasing?form=1&q=PO&status=Draft&size=50\"", list, StringComparison.Ordinal);
+
+        var create = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?form=1&q=PO&status=Draft&size=50")).Content.ReadAsStringAsync());
+        var closeLinks = Regex.Matches(create, @"<a href=""([^""]*)"" data-leave").Select(match => match.Groups[1].Value).ToArray();
+        Assert.Equal(2, closeLinks.Length);
+        Assert.All(closeLinks, href => Assert.EndsWith("q=PO&status=Draft&size=50", href, StringComparison.Ordinal));
+
+        var edit = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?edit=" + order.Id + "&q=PO&status=Draft")).Content.ReadAsStringAsync());
+        var editClose = Regex.Matches(edit, @"<a href=""([^""]*)"" data-leave").Select(match => match.Groups[1].Value).ToArray();
+        Assert.All(editClose, href => Assert.Equal("/purchasing?order=" + order.Id + "&q=PO&status=Draft", href));
+    }
+
+    [Fact]
     public async Task OpeningAnOrderFromTheFilteredList_KeepsTheFilters()
     {
         // Lỗi UAT: lọc danh sách rồi bấm một đơn để xem chi tiết thì bộ lọc bị mất.

@@ -124,6 +124,9 @@ public class IndexModel(
             return Page();
         }
 
+        Search = q;
+        Role = role;
+        LocationFilter = location;
         return Redirect(ListUrl());
     }
 

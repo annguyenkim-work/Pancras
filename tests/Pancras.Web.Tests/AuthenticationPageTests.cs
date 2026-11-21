@@ -286,6 +286,34 @@ public class AuthenticationPageTests : IClassFixture<PancrasWebFactory>
     }
 
     [Fact]
+    public async Task CreatingAnEmployee_ReturnsToTheSameFilteredList()
+    {
+        // Rà toàn bộ (2026-11-21): tạo nhân viên thành công thì quay về danh sách không còn bộ lọc, vì trang chỉ nhớ bộ lọc khi lưu lỗi.
+        using var client = _factory.CreateClient(NoRedirect);
+        ResetEmployees(Admin());
+        await SignInAsync(client, "admin", "Admin@12345");
+        var page = await client.GetAsync("/employees?form=1&q=Nguy&role=" + EmployeeRole.Sales + "&size=50");
+        var token = Regex.Match(await page.Content.ReadAsStringAsync(), "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+
+        var response = await client.PostAsync("/employees?handler=Create&q=Nguy&role=" + EmployeeRole.Sales + "&size=50", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Command.FullName"] = "Nguyễn Văn Lọc",
+            ["Command.Email"] = "loc@example.com",
+            ["Command.Phone"] = "0901000002",
+            ["Command.JobTitle"] = "Nhân viên",
+            ["Command.Password"] = "Secret123",
+            ["Command.Role"] = EmployeeRole.Accountant,
+            ["__RequestVerificationToken"] = token
+        }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        var location = response.Headers.Location!.OriginalString;
+        Assert.Contains("q=Nguy", location, StringComparison.Ordinal);
+        Assert.Contains("role=" + EmployeeRole.Sales, location, StringComparison.Ordinal);
+        Assert.Contains("size=50", location, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task CreateWithoutRole_SaysARoleIsRequired_AndCreatesNobody()
     {
         using var client = _factory.CreateClient(NoRedirect);

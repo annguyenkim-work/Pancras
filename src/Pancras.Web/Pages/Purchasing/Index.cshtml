@@ -20,7 +20,7 @@
             }
             @if (Model.CanManage)
             {
-                <a href="/purchasing?form=1" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">+ Tạo Đơn Mua Hàng &amp; Container</a>
+                <a href="@Model.NewOrderUrl" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">+ Tạo Đơn Mua Hàng &amp; Container</a>
             }
         </div>
     </div>

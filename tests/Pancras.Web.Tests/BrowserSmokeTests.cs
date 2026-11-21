@@ -175,6 +175,24 @@ public sealed class BrowserSmokeTests(BrowserFixture fixture) : IClassFixture<Br
     }
 
     [Fact]
+    public async Task ClosingThePurchaseFormWithEscape_KeepsTheFiltersInTheAddress()
+    {
+        // Rà toàn bộ (2026-11-21): Esc đóng form lập đơn rồi ghi lại địa chỉ thành /purchasing trần, tải lại trang là mất bộ lọc.
+        var page = await SignedInPageAsync();
+        await page.GotoAsync(BaseUrl + "/purchasing?form=1&q=PO&status=Draft&size=50");
+        await page.Locator("#purchase-dialog").WaitForAsync();
+
+        await page.Keyboard.PressAsync("Escape");
+        await page.WaitForFunctionAsync("() => !location.search.includes('form=1')");
+
+        var query = new Uri(page.Url).Query;
+        Assert.Contains("q=PO", query, StringComparison.Ordinal);
+        Assert.Contains("status=Draft", query, StringComparison.Ordinal);
+        Assert.Contains("size=50", query, StringComparison.Ordinal);
+        AssertNoScriptErrors();
+    }
+
+    [Fact]
     public async Task RejectedStocktake_ShowsItsErrorInsideTheReopenedDialog()
     {
         // UAT: lỗi lập phiếu kiểm kê hiện sau lớp phủ của hộp thoại, người dùng không thấy.

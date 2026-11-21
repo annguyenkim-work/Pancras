@@ -1,10 +1,21 @@
         (function () {
             document.getElementById("purchase-dialog")?.showModal();
-            // Đóng bằng Esc không đổi địa chỉ: bỏ ?form=1 để tải lại trang không mở lại hộp thoại.
+            // Đóng bằng Esc không đổi địa chỉ: bỏ form, edit, focus để tải lại trang không mở lại hộp thoại,
+            // nhưng giữ bộ lọc, trang, cỡ trang và đơn đang chọn (docs/03-ui-ux/components.md mục 10).
             document.getElementById("purchase-dialog")?.addEventListener("close", () => {
-                if (location.pathname === "/purchasing" && location.search.includes("form=1")) {
-                    history.replaceState(null, "", "/purchasing");
+                const query = new URLSearchParams(location.search);
+                if (location.pathname !== "/purchasing" || !(query.has("form") || query.has("edit"))) {
+                    return;
                 }
+
+                const editing = query.get("edit");
+                ["form", "edit", "focus"].forEach((name) => query.delete(name));
+                if (editing && !query.has("order")) {
+                    query.set("order", editing);
+                }
+
+                const rest = query.toString();
+                history.replaceState(null, "", "/purchasing" + (rest ? "?" + rest : ""));
             });
             const lineBody = document.getElementById("line-body");
             const chargeBody = document.getElementById("charge-body");

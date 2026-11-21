@@ -117,6 +117,12 @@ public class IndexModel(
     /// <summary>Link tới một đơn (hoặc một thao tác trên đơn) mà vẫn giữ bộ lọc, cỡ trang và trang của danh sách đang xem.</summary>
     public string OrderUrl(Guid orderId, params (string Name, string? Value)[] extra) => ListState(OrderQuery(orderId, extra), OrdersPageNumber).ToString();
 
+    /// <summary>Nút "Tạo đơn": mở form lập đơn mà vẫn giữ bộ lọc, trang và cỡ trang đang xem.</summary>
+    public string NewOrderUrl => ListState(new ListQuery("/purchasing").Add("form", "1"), OrdersPageNumber).ToString();
+
+    /// <summary>Nút đóng form lập/sửa đơn (×, Quay lại): về danh sách đang lọc, đang sửa đơn nào thì mở lại đơn đó.</summary>
+    public string CloseFormUrl => ListState(OrderQuery(EditingId ?? Selected?.Id, []), OrdersPageNumber).ToString();
+
     /// <summary>
     /// Địa chỉ của form thao tác trên trang (duyệt, nhận hàng, lưu đơn...): thao tác cộng bộ lọc, trang và cỡ trang đang xem,
     /// để sau khi xử lý quay lại đúng danh sách đó (docs/03-ui-ux/components.md mục 10).
