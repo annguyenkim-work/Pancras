@@ -61,6 +61,7 @@ dotnet test Pancras.slnx --warnaserror --nologo
 dotnet test tests/Pancras.Domain.Tests --filter "FullyQualifiedName~SomeTest"
 ```
 
+- Trên máy dev dùng `./scripts/test.ps1` (xem [local-setup.md](../06-operations/local-setup.md)): build sạch rồi test, tự đặt `PANCRAS_TEST_POSTGRES` từ user-secrets.
 - Mỗi lần gọi `dotnet test` chỉ truyền một đường dẫn dự án (hai csproj cùng lúc lỗi MSB1008).
 - Không để cảnh báo biên dịch (`--warnaserror`).
 
