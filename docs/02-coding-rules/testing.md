@@ -77,8 +77,7 @@ Chủ dự án duyệt 2026-11-21 (gói `Microsoft.Playwright`).
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| CLAUDE.md thiếu | Chỉ liệt kê 3 dự án test, thiếu `Infrastructure.Tests` |
-| Test quét mã nguồn | Mới có `NoNativeDialogTests` |
+| Test quét mã nguồn | Đã có `NoNativeDialogTests`, `UiStandardsTests`, `MoneyInputsTests`, `ListStateLinksTests`, `ListStateFormsTests`, `SidebarCollapseTests`. Chưa có test quét `IsInRole` trong view, `onclick` inline, màu ngoài palette, `ToString` tiền tự do (mục 5) |
 | Tên test hồi quy | `ManualRetestRegressionTests` đặt theo đợt test thủ công, không theo handler; chuyển test về file của handler khi chạm tới |
 | Đủ mã lỗi | Chưa rà từng enum lỗi xem handler nào chưa có test cho mã lỗi nào |
 
