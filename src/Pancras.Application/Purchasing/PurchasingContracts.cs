@@ -30,7 +30,8 @@ public sealed record PurchaseLineView(
     decimal SpecialConsumptionTax,
     decimal EnvironmentTax,
     PurchaseLineCost Cost,
-    int ReceivedQuantity = 0);
+    int ReceivedQuantity = 0,
+    decimal CostedAmount = 0);
 
 public sealed record PurchaseChargeView(
     Guid Id,

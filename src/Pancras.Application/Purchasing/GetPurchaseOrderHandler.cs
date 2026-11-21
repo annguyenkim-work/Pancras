@@ -64,7 +64,8 @@ public sealed class GetPurchaseOrderHandler(
                     costVisible ? line.SpecialConsumptionTax : 0,
                     costVisible ? line.EnvironmentTax : 0,
                     costVisible ? PurchaseCosting.For(order, line) : NoCost,
-                    line.ReceivedQuantity);
+                    line.ReceivedQuantity,
+                    costVisible ? line.CostedAmount : 0);
             }).ToArray(),
             costVisible
                 ? order.Charges.Select(charge => new PurchaseChargeView(

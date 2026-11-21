@@ -1,22 +1,26 @@
 // Ô nhập tiền VNĐ dùng chung cho mọi trang (docs/03-ui-ux/formatting-and-copy.md mục 1): mọi ô có thuộc tính data-vnd
 // hiện số nhóm kiểu 200.000 khi mở trang và ngay khi gõ; dữ liệu gửi lên máy chủ là số thô (200000), ô trên màn hình giữ nguyên.
-// Chỉ cho số đồng không âm. Script trang khác dùng window.PancrasVnd thay vì tự định dạng.
+// Số đồng không âm; ô có thêm data-vnd-signed (ví dụ điều chỉnh chi phí) cho phép dấu trừ ở đầu: hiện -500.000, gửi -500000.
+// Script trang khác dùng window.PancrasVnd thay vì tự định dạng.
 (function () {
     "use strict";
 
     const money = new Intl.NumberFormat("vi-VN");
     const digitsOf = (text) => String(text ?? "").replace(/\D/g, "");
+    // Dấu trừ chỉ tính khi ô cho phép số âm và người dùng gõ nó ở đầu (bỏ khoảng trắng).
+    const signOf = (input) => input.hasAttribute("data-vnd-signed") && /^\s*[-−]/.test(input.value) ? "-" : "";
 
     /** Số đồng của một ô data-vnd (ô trống là 0). */
     function parse(input) {
         const digits = digitsOf(input.value);
-        return digits === "" ? 0 : Number(digits);
+        return digits === "" ? 0 : Number(signOf(input) + digits);
     }
 
     /** Định dạng lại một ô, giữ con trỏ đứng sau đúng chữ số người dùng vừa gõ. */
     function format(input) {
         const digits = digitsOf(input.value);
-        const formatted = digits === "" ? "" : money.format(Number(digits));
+        const sign = signOf(input);
+        const formatted = sign + (digits === "" ? "" : money.format(Number(digits)));
         if (input.value === formatted) {
             return;
         }
@@ -29,7 +33,7 @@
             return;
         }
 
-        let position = 0;
+        let position = sign.length;
         let seen = 0;
         while (position < formatted.length && seen < digitsBeforeCaret) {
             if (/\d/.test(formatted[position])) {
@@ -58,7 +62,8 @@
     document.addEventListener("formdata", (event) => {
         event.target.querySelectorAll("[data-vnd][name]").forEach((input) => {
             if (!input.disabled && event.formData.has(input.name)) {
-                event.formData.set(input.name, digitsOf(input.value));
+                const digits = digitsOf(input.value);
+                event.formData.set(input.name, digits === "" ? "" : signOf(input) + digits);
             }
         });
     }, true);

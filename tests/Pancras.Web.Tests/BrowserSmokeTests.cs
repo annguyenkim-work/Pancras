@@ -193,6 +193,55 @@ public sealed class BrowserSmokeTests(BrowserFixture fixture) : IClassFixture<Br
     }
 
     [Fact]
+    public async Task EscapeOnAPurchaseFormWithInput_AsksFirst_AndDiscardingDoesNotBlockTheNextForm()
+    {
+        // Test thủ công 2026-11-21 (B3): Esc bỏ hết dữ liệu không hỏi, rồi cờ "chưa lưu" còn lại chặn mọi lần rời trang sau đó.
+        var page = await SignedInPageAsync();
+        await page.GotoAsync(BaseUrl + "/purchasing?form=1");
+        await page.Locator("#purchase-dialog").WaitForAsync();
+        await page.FillAsync("#Form_Code", "PO-ESC");
+
+        await page.Keyboard.PressAsync("Escape");
+        await page.Locator("#confirm-dialog[open]").WaitForAsync();
+        Assert.True(await page.Locator("#purchase-dialog").EvaluateAsync<bool>("dialog => dialog.open"), "Esc khi form có dữ liệu phải hỏi trước, chưa đóng form.");
+
+        await page.ClickAsync("#confirm-ok");
+        await page.WaitForFunctionAsync("() => !document.getElementById('purchase-dialog').open");
+
+        await page.ClickAsync("a[href='/purchasing?form=1'] >> nth=0");
+        await page.WaitForURLAsync(url => url.Contains("form=1", StringComparison.Ordinal));
+        await page.Locator("#purchase-dialog[open]").WaitForAsync();
+        AssertNoScriptErrors();
+    }
+
+    [Fact]
+    public async Task CostAdjustmentAmount_GroupsDigits_KeepsTheMinusSign_AndPostsTheRawNumber()
+    {
+        // Test thủ công 2026-11-21 (B4): ô "Số tiền (VNĐ, có dấu)" hiện 500000, không chèn dấu chấm như các ô tiền khác.
+        var orders = Factory.Services.GetRequiredService<PurchaseDirectoryDouble>();
+        var order = PurchaseOrder.TryCreate("PO-SMOKE-ADJ", Guid.CreateVersion7(), Guid.CreateVersion7(), "CONT", "BL", "Hải Phòng", null, 25000m, 0.1m, [(Guid.CreateVersion7(), 4, 10m, 0m, 0m, 0m, 0m)])!;
+        Assert.True(order.TrySubmit());
+        Assert.True(order.TryApprove());
+        Assert.Equal(ReceiptDecision.Ok, order.TryRecordReceipt(order.Lines.ToDictionary(line => line.Id, line => line.Quantity), true, null, DateTimeOffset.UtcNow, "kho", out _));
+        orders.Orders.Add(order);
+
+        var page = await SignedInPageAsync();
+        await page.GotoAsync(BaseUrl + "/purchasing?order=" + order.Id);
+        await page.ClickAsync("#adjust-cost summary");
+        var amount = page.Locator("#adjust-cost input[name='amount']");
+
+        await amount.PressSequentiallyAsync("-500000");
+        Assert.Equal("-500.000", await amount.InputValueAsync());
+        Assert.Equal("-500000", await amount.EvaluateAsync<string>("input => new FormData(input.form).get('amount')"));
+
+        await amount.FillAsync(string.Empty);
+        await amount.PressSequentiallyAsync("1250000");
+        Assert.Equal("1.250.000", await amount.InputValueAsync());
+        Assert.Equal("1250000", await amount.EvaluateAsync<string>("input => new FormData(input.form).get('amount')"));
+        AssertNoScriptErrors();
+    }
+
+    [Fact]
     public async Task RejectedStocktake_ShowsItsErrorInsideTheReopenedDialog()
     {
         // UAT: lỗi lập phiếu kiểm kê hiện sau lớp phủ của hộp thoại, người dùng không thấy.
