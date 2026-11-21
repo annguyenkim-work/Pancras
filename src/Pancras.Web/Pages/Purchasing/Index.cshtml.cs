@@ -126,6 +126,16 @@ public class IndexModel(
     /// <summary>Địa chỉ quay lại sau một thao tác POST: danh sách đang lọc (đọc từ query của form) và đơn vừa thao tác.</summary>
     private string BackTo(Guid? orderId, params (string Name, string? Value)[] extra) => ListState(OrderQuery(orderId, extra), ListPage).ToString();
 
+    /// <summary>
+    /// Thao tác POST bị từ chối: câu lỗi hiện bằng toast góc dưới phải (người dùng đang ở giữa trang vẫn thấy), rồi quay lại đúng
+    /// danh sách đang lọc với đơn vừa thao tác. Mọi lỗi sau POST của trang đi qua đây (docs/03-ui-ux/components.md mục 7).
+    /// </summary>
+    private RedirectResult Rejected(Guid? orderId, PurchaseError error, IReadOnlyList<object>? issues = null)
+    {
+        TempData.Toast(PurchaseErrorMessages.Describe(error, issues), ToastLevel.Error);
+        return Redirect(BackTo(orderId));
+    }
+
     private static ListQuery OrderQuery(Guid? orderId, (string Name, string? Value)[] extra)
     {
         var query = new ListQuery("/purchasing").Add("order", orderId);
@@ -193,7 +203,7 @@ public class IndexModel(
     [BindProperty]
     public PurchaseForm Form { get; set; } = PurchaseForm.Create();
 
-    public async Task OnGetAsync(Guid? id, Guid? order, Guid? formula, string? form, string? notice, string? error, Guid? edit)
+    public async Task OnGetAsync(Guid? id, Guid? order, Guid? formula, string? form, string? notice, Guid? edit)
     {
         // Kho không lập hay sửa đơn: bỏ qua ?form và ?edit để họ không thấy form (handler cũng chặn).
         if (!CanManage)
@@ -225,12 +235,6 @@ public class IndexModel(
         if (noticeText is not null)
         {
             TempData.Toast(noticeText);
-        }
-        if (!string.IsNullOrEmpty(error) && Enum.TryParse<PurchaseError>(error, out var parsed) && parsed != PurchaseError.None)
-        {
-            // Lỗi của thao tác POST đã chuyển trang: hiện bằng toast góc dưới phải để người dùng đang ở giữa trang vẫn thấy
-            // (banner đầu trang nằm ngoài tầm nhìn). ErrorMessage chỉ còn dùng cho lỗi trong form khi lưu đơn.
-            TempData.Toast(PurchaseErrorMessages.For(parsed), ToastLevel.Error);
         }
 
         var selected = order is Guid orderId && orderId != Guid.Empty ? orderId : id;
@@ -377,7 +381,7 @@ public class IndexModel(
     {
         if (file is null || file.Length == 0)
         {
-            return Redirect(BackTo(orderId, ("error", PurchaseError.AttachmentInvalid.ToString())));
+            return Rejected(orderId, PurchaseError.AttachmentInvalid);
         }
 
         await using var content = file.OpenReadStream();
@@ -385,7 +389,7 @@ public class IndexModel(
             new UploadPurchaseAttachmentCommand { Actor = Actor, PurchaseOrderId = orderId, Kind = kind, FileName = file.FileName, Content = content },
             HttpContext.RequestAborted);
         return result.IsFailure
-            ? Redirect(BackTo(orderId, ("error", result.Error.ToString())))
+            ? Rejected(orderId, result.Error, result.Issues)
             : Redirect(BackTo(orderId, ("notice", "attachment-added")));
     }
 
@@ -407,7 +411,7 @@ public class IndexModel(
     {
         var result = await deleteAttachment.HandleAsync(attachmentId, Actor, HttpContext.RequestAborted);
         return result.IsFailure
-            ? Redirect(BackTo(orderId, ("error", result.Error.ToString())))
+            ? Rejected(orderId, result.Error, result.Issues)
             : Redirect(BackTo(orderId, ("notice", "attachment-deleted")));
     }
 
@@ -451,7 +455,7 @@ public class IndexModel(
         var detail = await getOrder.HandleAsync(orderId, Actor, HttpContext.RequestAborted);
         if (detail is null)
         {
-            return Redirect(BackTo(orderId, ("error", PurchaseError.InvalidOrder.ToString())));
+            return Rejected(orderId, PurchaseError.InvalidOrder);
         }
 
         var posted = actuals ?? new Dictionary<Guid, int>();
@@ -464,14 +468,7 @@ public class IndexModel(
             HttpContext.RequestAborted);
         if (result.IsFailure)
         {
-            if (result.Error == PurchaseError.ReceiptExceedsOrdered)
-            {
-                // Câu lỗi cần mặt hàng và số lượng (Detail) nên ghi toast ngay, không đi qua tham số error=.
-                TempData.Toast(PurchaseErrorMessages.Describe(result.Error, result.Detail), ToastLevel.Error);
-                return Redirect(BackTo(orderId));
-            }
-
-            return Redirect(BackTo(orderId, ("error", result.Error.ToString())));
+            return Rejected(orderId, result.Error, result.Issues);
         }
 
         return Redirect(BackTo(orderId, ("notice", "received")));
@@ -483,7 +480,7 @@ public class IndexModel(
         var result = await changeStatus.HandleAsync(new ChangePurchaseStatusCommand(orderId, Actor, action, note), HttpContext.RequestAborted);
         if (result.IsFailure)
         {
-            return Redirect(BackTo(orderId, ("error", result.Error.ToString())));
+            return Rejected(orderId, result.Error, result.Issues);
         }
 
         var notice = action switch
@@ -504,7 +501,7 @@ public class IndexModel(
             new AdjustPurchaseCostCommand { Actor = Actor, PurchaseOrderId = orderId, Label = label, Amount = amount, Method = method, Reason = reason },
             HttpContext.RequestAborted);
         return result.IsFailure
-            ? Redirect(BackTo(orderId, ("error", result.Error.ToString())))
+            ? Rejected(orderId, result.Error, result.Issues)
             : Redirect(BackTo(orderId, ("notice", "cost-adjusted")));
     }
 
@@ -518,7 +515,7 @@ public class IndexModel(
         var result = await exportOrder.HandleAsync(orderId, Actor, HttpContext.RequestAborted);
         if (result.IsFailure)
         {
-            return Redirect(BackTo(null, ("error", result.Error.ToString())));
+            return Rejected(null, result.Error, result.Issues);
         }
 
         var export = result.Value!;

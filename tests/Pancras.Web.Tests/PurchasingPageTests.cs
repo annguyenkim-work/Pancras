@@ -172,22 +172,30 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         Assert.DoesNotContain("<dialog open", html, StringComparison.Ordinal);
     }
 
-    [Theory]
-    [InlineData("InvalidReceiptQuantity", "Số thực nhận không hợp lệ.")]
-    [InlineData("NotReceivable", "chưa nhận hàng được")]
-    public async Task ARejectedAction_ShowsItsReasonAsAnErrorToast_NotAsABannerAtTheTopOfThePage(string error, string text)
+    [Fact]
+    public async Task ARejectedAction_ShowsItsReasonAsAnErrorToast_NotAsABannerAtTheTopOfThePage()
     {
         // Lỗi UAT: nhận hàng bị từ chối, trang tải lại mà người dùng (đang ở giữa trang) không thấy lỗi vì banner nằm ở đầu trang.
+        // Mọi lỗi sau POST đi một đường: toast ghi ngay khi xử lý, địa chỉ không mang tham số error=.
         using var client = _factory.CreateClient(NoRedirect);
-        Reset();
+        var orders = Reset();
+        var order = NewOrder("PO-DRAFT", Guid.CreateVersion7());
+        orders.Orders.Add(order);
         await SignInAsync(client);
 
-        var html = await (await client.GetAsync("/purchasing?error=" + error)).Content.ReadAsStringAsync();
+        var response = await client.PostAsync("/purchasing?handler=Receive", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = await TokenAsync(client, order.Id),
+            ["orderId"] = order.Id.ToString()
+        }));
+        var location = response.Headers.Location!.OriginalString;
+        var html = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync(location)).Content.ReadAsStringAsync());
 
-        var toast = System.Text.RegularExpressions.Regex.Match(html, "<div[^>]*data-tone=\"rose\"[^>]*>.*?</div>", System.Text.RegularExpressions.RegexOptions.Singleline);
+        Assert.DoesNotContain("error=", location, StringComparison.Ordinal);
+        var toast = Regex.Match(html, "<div[^>]*data-tone=\"rose\"[^>]*>.*?</div>", RegexOptions.Singleline);
         Assert.True(toast.Success, "Lỗi phải hiện bằng toast đỏ (góc dưới phải).");
-        Assert.Contains(text, System.Net.WebUtility.HtmlDecode(toast.Value), StringComparison.Ordinal);
-        Assert.Single(System.Text.RegularExpressions.Regex.Matches(System.Net.WebUtility.HtmlDecode(html), System.Text.RegularExpressions.Regex.Escape(text)));
+        Assert.Contains("chưa nhận hàng được", toast.Value, StringComparison.Ordinal);
+        Assert.Single(Regex.Matches(html, Regex.Escape("chưa nhận hàng được")));
     }
 
     [Fact]
@@ -227,11 +235,16 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         Assert.Contains("còn phải nhận 4", toast, StringComparison.Ordinal);
     }
 
-    [Theory]
-    [InlineData("SP01|12|10", "Mặt hàng SP01: nhập 12 nhưng chỉ còn phải nhận 10. Không được nhận quá số đặt; sửa số thực nhận rồi thử lại.")]
-    [InlineData(null, "Có mặt hàng nhận nhiều hơn số còn phải nhận. Không được nhận quá số đặt; sửa số thực nhận rồi thử lại.")]
-    public void ExceedsOrderedMessage_NamesItemAndLimit(string? detail, string expected) =>
-        Assert.Equal(expected, PurchaseErrorMessages.Describe(PurchaseError.ReceiptExceedsOrdered, detail));
+    [Fact]
+    public void ExceedsOrderedMessage_NamesItemAndLimit_FromTheTypedDetail()
+    {
+        Assert.Equal(
+            "Mặt hàng SP01: nhập 12 nhưng chỉ còn phải nhận 10. Không được nhận quá số đặt; sửa số thực nhận rồi thử lại.",
+            PurchaseErrorMessages.Describe(PurchaseError.ReceiptExceedsOrdered, [new ReceiptExcess("SP01", 12, 10)]));
+        Assert.Equal(
+            "Có mặt hàng nhận nhiều hơn số còn phải nhận. Không được nhận quá số đặt; sửa số thực nhận rồi thử lại.",
+            PurchaseErrorMessages.Describe(PurchaseError.ReceiptExceedsOrdered));
+    }
 
     [Fact]
     public async Task ActionsOnAnOrder_ReturnToTheSameFilteredList()
@@ -284,7 +297,7 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         var location = response.Headers.Location!.OriginalString;
-        Assert.Contains("error=", location, StringComparison.Ordinal);
+        Assert.DoesNotContain("error=", location, StringComparison.Ordinal);
         Assert.Contains("q=PO-KEEP2", location, StringComparison.Ordinal);
         Assert.Contains("status=Approved", location, StringComparison.Ordinal);
         Assert.Contains("pageNumber=2", location, StringComparison.Ordinal);
@@ -472,7 +485,8 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         var response = await client.PostAsync("/purchasing?handler=Upload", Multipart(token, order.Id, "virus.pdf", "MZ-not-a-pdf"u8.ToArray()));
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-        Assert.Contains("error=AttachmentInvalid", response.Headers.Location?.OriginalString, StringComparison.Ordinal);
+        Assert.Contains("order=" + order.Id, response.Headers.Location?.OriginalString, StringComparison.Ordinal);
+        Assert.Contains("File không hợp lệ", System.Net.WebUtility.HtmlDecode(await (await client.GetAsync(response.Headers.Location!.OriginalString)).Content.ReadAsStringAsync()), StringComparison.Ordinal);
         Assert.Empty(files.Items);
         Assert.Empty(files.Files);
     }

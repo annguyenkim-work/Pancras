@@ -57,6 +57,6 @@ public enum PurchaseError
     /// <summary>Đơn đã hủy nên không nhận thêm file đính kèm.</summary>
     OrderCancelled,
 
-    /// <summary>Có dòng nhận nhiều hơn số còn phải nhận. Detail: <c>mã SKU|số nhập|số còn phải nhận</c>.</summary>
+    /// <summary>Có dòng nhận nhiều hơn số còn phải nhận. Chi tiết nằm ở <c>Issues</c> (<see cref="Pancras.Application.Purchasing.ReceiptExcess"/>).</summary>
     ReceiptExceedsOrdered
 }

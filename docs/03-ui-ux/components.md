@@ -107,6 +107,8 @@ Chỉ dùng bốn cỡ này; test `UiStandardsTests` từ chối cỡ khác (ch�
 - Thành công (emerald) tự tắt sau 5 giây. Cảnh báo (amber) và lỗi hệ thống (rose) phải bấm `×` mới tắt.
 - `role="status"` cho thành công, `role="alert"` cho cảnh báo/lỗi; luôn có nút `×` với `aria-label="Đóng"`.
 - Một khóa `TempData` duy nhất mang cả mức độ lẫn nội dung; `_Layout` render toast. Trang không tự render banner kết quả.
+- **Lỗi sau POST đi một đường:** handler ghi toast lỗi ngay (`TempData.Toast(..., ToastLevel.Error)`) qua một hàm của trang (ví dụ `Rejected` ở Mua hàng) rồi chuyển về danh sách đang lọc. **Không** truyền mã lỗi qua địa chỉ (`?error=`): tải lại trang sẽ hiện lại lỗi cũ, và lỗi có chi tiết (mặt hàng, số lượng) không đi qua được.
+- Câu lỗi cần chi tiết (mặt hàng nào, số bao nhiêu) lấy từ **record có kiểu** trong `Result.Issues` (ví dụ `ReceiptExcess`), không ghép chuỗi có dấu phân cách trong `Detail`.
 
 **Banner trong trang/form** — lỗi nghiệp vụ hoặc cảnh báo cần người dùng đọc ngay tại chỗ (thường trong modal hoặc đầu form):
 - Khung chung: `rounded-lg border border-{màu}-200 bg-{màu}-50 px-4 py-3 text-sm font-medium text-{màu}-800`.

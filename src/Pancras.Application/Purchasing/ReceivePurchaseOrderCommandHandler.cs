@@ -116,7 +116,7 @@ public sealed class ReceivePurchaseOrderCommandHandler(
                 var code = items.TryGetValue(over.CatalogItemId, out var overItem) ? overItem.Code : over.CatalogItemId.ToString("D");
                 return Result<Guid, PurchaseError>.Fail(
                     PurchaseError.ReceiptExceedsOrdered,
-                    string.Join('|', code, actuals.GetValueOrDefault(over.Id), over.Quantity - over.ReceivedQuantity));
+                    [new ReceiptExcess(code, actuals.GetValueOrDefault(over.Id), over.Quantity - over.ReceivedQuantity)]);
             }
 
             return Result<Guid, PurchaseError>.Fail(decision switch
@@ -185,3 +185,6 @@ internal static class PurchaseCostSpread
             ? currentCost
             : Math.Max(0, PurchaseMoney.RoundDong((onHand * currentCost + amount) / onHand));
 }
+
+/// <summary>Dòng nhận vượt số còn phải nhận: mã mặt hàng, số đã nhập, số còn phải nhận (số đặt − đã nhận).</summary>
+public sealed record ReceiptExcess(string ItemCode, int Entered, int Remaining);

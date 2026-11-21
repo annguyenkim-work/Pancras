@@ -1,4 +1,5 @@
 using Pancras.Application.Common;
+using Pancras.Application.Purchasing;
 
 namespace Pancras.Web.Pages.Purchasing;
 
@@ -12,19 +13,11 @@ public static class PurchaseErrorMessages
 
     private const string Generic = "Không thực hiện được thao tác này. Đơn có thể đã bị xóa hoặc số liệu không hợp lệ. Tải lại trang rồi thử lại.";
 
-    /// <summary>Câu lỗi kèm chi tiết thô từ Application (nếu có).</summary>
-    public static string Describe(PurchaseError error, string? detail)
-    {
-        if (error == PurchaseError.ReceiptExceedsOrdered)
-        {
-            var parts = detail?.Split('|');
-            return parts is { Length: 3 }
-                ? $"Mặt hàng {parts[0]}: nhập {parts[1]} nhưng chỉ còn phải nhận {parts[2]}. {ExceedsTail}"
-                : $"Có mặt hàng nhận nhiều hơn số còn phải nhận. {ExceedsTail}";
-        }
-
-        return For(error);
-    }
+    /// <summary>Câu lỗi cho người dùng, dùng chi tiết có kiểu trong <paramref name="issues"/> khi có (ví dụ mặt hàng nhận vượt).</summary>
+    public static string Describe(PurchaseError error, IReadOnlyList<object>? issues = null) =>
+        error == PurchaseError.ReceiptExceedsOrdered && issues?.OfType<ReceiptExcess>().FirstOrDefault() is { } excess
+            ? $"Mặt hàng {excess.ItemCode}: nhập {excess.Entered} nhưng chỉ còn phải nhận {excess.Remaining}. {ExceedsTail}"
+            : For(error);
 
     private const string ExceedsTail = "Không được nhận quá số đặt; sửa số thực nhận rồi thử lại.";
 
@@ -48,7 +41,7 @@ public static class PurchaseErrorMessages
         PurchaseError.AttachmentLimit => "Đơn đã đủ số file đính kèm tối đa (30).",
         PurchaseError.NotReceivable => "Đơn chưa được duyệt, đã nhận đủ hoặc đã hủy nên chưa nhận hàng được.",
         PurchaseError.InvalidReceiptQuantity => "Số thực nhận không hợp lệ.",
-        PurchaseError.ReceiptExceedsOrdered => Describe(error, null),
+        PurchaseError.ReceiptExceedsOrdered => "Có mặt hàng nhận nhiều hơn số còn phải nhận. " + ExceedsTail,
         PurchaseError.ReceiptNoteRequired => "Đóng đơn khi chưa nhận đủ: cần ghi lý do.",
         PurchaseError.InvalidTransition => "Trạng thái hiện tại của đơn không cho phép bước này. Tải lại trang để xem trạng thái mới nhất.",
         PurchaseError.ReasonRequired => "Cần ghi lý do.",

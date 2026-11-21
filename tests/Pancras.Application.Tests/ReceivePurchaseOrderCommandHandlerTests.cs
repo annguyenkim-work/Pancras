@@ -196,7 +196,7 @@ public class ReceivePurchaseOrderCommandHandlerTests
             CancellationToken.None);
 
         Assert.Equal(PurchaseError.ReceiptExceedsOrdered, closing.Error);
-        Assert.Equal("SP11|7|6", closing.Detail);
+        Assert.Equal(new ReceiptExcess("SP11", 7, 6), Assert.Single(closing.IssuesOf<ReceiptExcess>()));
         Assert.Equal(PurchaseStatus.PartiallyReceived, order.Status);
         Assert.Equal(4, order.Lines[0].ReceivedQuantity);
         Assert.Equal(4, inventory.Balances.Sum(balance => balance.OnHand));
