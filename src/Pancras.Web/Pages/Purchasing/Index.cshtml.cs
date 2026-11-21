@@ -112,60 +112,37 @@ public class IndexModel(
         OrdersTotal,
         (page, size) => OrdersUrl(page, size));
 
-    private string OrdersUrl(int page, int size) => ListUrl(Selected?.Id, page, size);
+    private string OrdersUrl(int page, int size) => ListState(OrderQuery(Selected?.Id, []), page, size).ToString();
 
     /// <summary>Link tới một đơn (hoặc một thao tác trên đơn) mà vẫn giữ bộ lọc, cỡ trang và trang của danh sách đang xem.</summary>
-    public string OrderUrl(Guid orderId, string? extra = null) => ListUrl(orderId, OrdersPageNumber, ListPageSize, extra);
+    public string OrderUrl(Guid orderId, params (string Name, string? Value)[] extra) => ListState(OrderQuery(orderId, extra), OrdersPageNumber).ToString();
 
     /// <summary>
     /// Địa chỉ của form thao tác trên trang (duyệt, nhận hàng, lưu đơn...): thao tác cộng bộ lọc, trang và cỡ trang đang xem,
     /// để sau khi xử lý quay lại đúng danh sách đó (docs/03-ui-ux/components.md mục 10).
     /// </summary>
-    public string ActionUrl(string handler) => ListUrl(null, OrdersPageNumber, ListPageSize, "handler=" + handler);
+    public string ActionUrl(string handler) => ListState(new ListQuery("/purchasing"), OrdersPageNumber).WithHandler(handler);
 
     /// <summary>Địa chỉ quay lại sau một thao tác POST: danh sách đang lọc (đọc từ query của form) và đơn vừa thao tác.</summary>
-    private string BackTo(Guid? orderId, string? extra = null) => ListUrl(orderId, ListPage, ListPageSize, extra);
+    private string BackTo(Guid? orderId, params (string Name, string? Value)[] extra) => ListState(OrderQuery(orderId, extra), ListPage).ToString();
 
-    private string ListUrl(Guid? order, int page, int size, string? extra = null)
+    private static ListQuery OrderQuery(Guid? orderId, (string Name, string? Value)[] extra)
     {
-        var parts = new List<string>();
-        if (order is Guid orderId)
+        var query = new ListQuery("/purchasing").Add("order", orderId);
+        foreach (var (name, value) in extra)
         {
-            parts.Add("order=" + orderId.ToString("D"));
+            query.Add(name, value);
         }
 
-        if (!string.IsNullOrEmpty(extra))
-        {
-            parts.Add(extra);
-        }
-
-        if (!string.IsNullOrWhiteSpace(Search))
-        {
-            parts.Add("q=" + Uri.EscapeDataString(Search.Trim()));
-        }
-
-        if (SupplierFilter is Guid supplier)
-        {
-            parts.Add("supplier=" + supplier.ToString("D"));
-        }
-
-        if (StatusFilter is PurchaseStatus status)
-        {
-            parts.Add("status=" + status);
-        }
-
-        if (size != Pancras.Application.Common.PageSizes.Default)
-        {
-            parts.Add("size=" + size);
-        }
-
-        if (page > 1)
-        {
-            parts.Add("pageNumber=" + page);
-        }
-
-        return parts.Count == 0 ? "/purchasing" : "/purchasing?" + string.Join("&", parts);
+        return query;
     }
+
+    private ListQuery ListState(ListQuery query, int page, int? size = null) => query
+        .Add("q", Search)
+        .Add("supplier", SupplierFilter)
+        .Add("status", StatusFilter?.ToString())
+        .Add("size", size ?? ListPageSize, Pancras.Application.Common.PageSizes.Default)
+        .AddPage("pageNumber", page);
 
     /// <summary>Lọc đơn theo nhà cung cấp (link từ danh bạ nhà cung cấp).</summary>
     [BindProperty(SupportsGet = true, Name = "supplier")]
@@ -393,14 +370,14 @@ public class IndexModel(
             return Page();
         }
 
-        return Redirect(BackTo(orderId, "notice=updated"));
+        return Redirect(BackTo(orderId, ("notice", "updated")));
     }
 
     public async Task<IActionResult> OnPostUploadAsync(Guid orderId, AttachmentKind kind, IFormFile? file)
     {
         if (file is null || file.Length == 0)
         {
-            return Redirect(BackTo(orderId, "error=" + PurchaseError.AttachmentInvalid));
+            return Redirect(BackTo(orderId, ("error", PurchaseError.AttachmentInvalid.ToString())));
         }
 
         await using var content = file.OpenReadStream();
@@ -408,8 +385,8 @@ public class IndexModel(
             new UploadPurchaseAttachmentCommand { Actor = Actor, PurchaseOrderId = orderId, Kind = kind, FileName = file.FileName, Content = content },
             HttpContext.RequestAborted);
         return result.IsFailure
-            ? Redirect(BackTo(orderId, "error=" + result.Error))
-            : Redirect(BackTo(orderId, "notice=attachment-added"));
+            ? Redirect(BackTo(orderId, ("error", result.Error.ToString())))
+            : Redirect(BackTo(orderId, ("notice", "attachment-added")));
     }
 
     public async Task<IActionResult> OnGetDownloadAsync(Guid id)
@@ -430,8 +407,8 @@ public class IndexModel(
     {
         var result = await deleteAttachment.HandleAsync(attachmentId, Actor, HttpContext.RequestAborted);
         return result.IsFailure
-            ? Redirect(BackTo(orderId, "error=" + result.Error))
-            : Redirect(BackTo(orderId, "notice=attachment-deleted"));
+            ? Redirect(BackTo(orderId, ("error", result.Error.ToString())))
+            : Redirect(BackTo(orderId, ("notice", "attachment-deleted")));
     }
 
     public async Task<IActionResult> OnPostCreateAsync()
@@ -466,7 +443,7 @@ public class IndexModel(
             return Page();
         }
 
-        return Redirect(BackTo(result.Value, "notice=created"));
+        return Redirect(BackTo(result.Value, ("notice", "created")));
     }
 
     public async Task<IActionResult> OnPostReceiveAsync(Guid orderId, bool closeOrder, string? note, Dictionary<Guid, int>? actuals)
@@ -474,7 +451,7 @@ public class IndexModel(
         var detail = await getOrder.HandleAsync(orderId, Actor, HttpContext.RequestAborted);
         if (detail is null)
         {
-            return Redirect(BackTo(orderId, "error=" + PurchaseError.InvalidOrder));
+            return Redirect(BackTo(orderId, ("error", PurchaseError.InvalidOrder.ToString())));
         }
 
         var posted = actuals ?? new Dictionary<Guid, int>();
@@ -494,10 +471,10 @@ public class IndexModel(
                 return Redirect(BackTo(orderId));
             }
 
-            return Redirect(BackTo(orderId, "error=" + result.Error));
+            return Redirect(BackTo(orderId, ("error", result.Error.ToString())));
         }
 
-        return Redirect(BackTo(orderId, "notice=received"));
+        return Redirect(BackTo(orderId, ("notice", "received")));
     }
 
     /// <summary>Gửi duyệt, duyệt, trả về nháp, đánh dấu hàng đang về, hủy. Trả về nháp và hủy phải có lý do.</summary>
@@ -506,7 +483,7 @@ public class IndexModel(
         var result = await changeStatus.HandleAsync(new ChangePurchaseStatusCommand(orderId, Actor, action, note), HttpContext.RequestAborted);
         if (result.IsFailure)
         {
-            return Redirect(BackTo(orderId, "error=" + result.Error));
+            return Redirect(BackTo(orderId, ("error", result.Error.ToString())));
         }
 
         var notice = action switch
@@ -517,7 +494,7 @@ public class IndexModel(
             PurchaseStatusAction.MarkInTransit => "in-transit",
             _ => "cancelled"
         };
-        return Redirect(BackTo(orderId, "notice=" + notice));
+        return Redirect(BackTo(orderId, ("notice", notice)));
     }
 
     /// <summary>Điều chỉnh chi phí sau khi đơn đã nhận đủ (hóa đơn về muộn). Số tiền có dấu: dương tăng giá vốn, âm giảm.</summary>
@@ -527,8 +504,8 @@ public class IndexModel(
             new AdjustPurchaseCostCommand { Actor = Actor, PurchaseOrderId = orderId, Label = label, Amount = amount, Method = method, Reason = reason },
             HttpContext.RequestAborted);
         return result.IsFailure
-            ? Redirect(BackTo(orderId, "error=" + result.Error))
-            : Redirect(BackTo(orderId, "notice=cost-adjusted"));
+            ? Redirect(BackTo(orderId, ("error", result.Error.ToString())))
+            : Redirect(BackTo(orderId, ("notice", "cost-adjusted")));
     }
 
     public async Task<IActionResult> OnPostExportAsync(Guid orderId)
@@ -541,7 +518,7 @@ public class IndexModel(
         var result = await exportOrder.HandleAsync(orderId, Actor, HttpContext.RequestAborted);
         if (result.IsFailure)
         {
-            return Redirect(BackTo(null, "error=" + result.Error));
+            return Redirect(BackTo(null, ("error", result.Error.ToString())));
         }
 
         var export = result.Value!;

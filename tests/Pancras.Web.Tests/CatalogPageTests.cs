@@ -212,7 +212,8 @@ public class CatalogPageTests : IClassFixture<PancrasWebFactory>
             .ToDictionary(
                 tag => Regex.Match(tag, "name=\"([^\"]+)\"").Groups[1].Value,
                 tag => System.Net.WebUtility.HtmlDecode(Regex.Match(tag, "value=\"([^\"]*)\"").Groups[1].Value));
-        var posted = await client.PostAsync("/catalog?handler=SetActive", new FormUrlEncodedContent(fields));
+        var action = System.Net.WebUtility.HtmlDecode(Regex.Match(form, "action=\"([^\"]*)\"").Groups[1].Value);
+        var posted = await client.PostAsync(action, new FormUrlEncodedContent(fields));
 
         Assert.Equal(HttpStatusCode.Redirect, posted.StatusCode);
         var location = posted.Headers.Location!.OriginalString;

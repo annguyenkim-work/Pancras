@@ -39,6 +39,18 @@ public class IndexModel(
     [BindProperty]
     public UpdateLocationCommand Edit { get; set; } = new();
 
+    /// <summary>Danh sách đang lọc (ô tìm). Mọi link và chuyển trang sau thao tác giữ từ khóa (docs/03-ui-ux/components.md mục 10).</summary>
+    public string ListUrl => ListState(new ListQuery("/locations")).ToString();
+
+    public string FormUrl => ListState(new ListQuery("/locations").Add("form", "1")).ToString();
+
+    public string EditUrl(Guid id) => ListState(new ListQuery("/locations").Add("edit", id)).ToString();
+
+    /// <summary>Địa chỉ form thao tác (thêm, sửa, Disable) mang từ khóa đang tìm.</summary>
+    public string ActionUrl(string? handler) => ListState(new ListQuery("/locations")).WithHandler(handler);
+
+    private ListQuery ListState(ListQuery query) => query.Add("q", Search);
+
     public async Task OnGetAsync(string? form, string? edit, CancellationToken cancellationToken)
     {
         ShowForm = form == "1" && CanManage;
@@ -68,7 +80,7 @@ public class IndexModel(
         }
 
         TempData.Toast("Đã thêm kho/showroom.");
-        return RedirectToPage();
+        return Redirect(ListUrl);
     }
 
     public async Task<IActionResult> OnPostUpdateAsync(CancellationToken cancellationToken)
@@ -83,7 +95,7 @@ public class IndexModel(
         }
 
         TempData.Toast("Đã cập nhật kho/showroom.");
-        return RedirectToPage();
+        return Redirect(ListUrl);
     }
 
     public async Task<IActionResult> OnPostDisableAsync(Guid id, CancellationToken cancellationToken)
@@ -98,7 +110,7 @@ public class IndexModel(
             TempData.Toast(ManageErrorText(error), ToastLevel.Error);
         }
 
-        return RedirectToPage();
+        return Redirect(ListUrl);
     }
 
     private async Task LoadAsync(CancellationToken cancellationToken)

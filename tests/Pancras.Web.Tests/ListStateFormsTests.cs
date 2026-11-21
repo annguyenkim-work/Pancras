@@ -4,7 +4,7 @@ namespace Pancras.Web.Tests;
 
 /// <summary>
 /// Lỗi UAT: duyệt, nhận hàng (một phần, đủ) và các thao tác chuyển kho tải lại trang mà mất bộ lọc, vì form chỉ gửi mã đối tượng.
-/// Luật (docs/03-ui-ux/components.md mục 10): form thao tác ở Mua hàng và Kho lấy action từ hàm dựng địa chỉ của trang,
+/// Luật (docs/03-ui-ux/components.md mục 10): form thao tác ở mọi trang danh sách (Mua hàng, Kho, Danh mục, Nhân viên, Nhà cung cấp, Kho & Showroom) lấy action từ hàm dựng địa chỉ của trang,
 /// hàm đó mang bộ lọc, trang và cỡ trang; form có action tự đặt phải bật antiforgery.
 /// </summary>
 public class ListStateFormsTests
@@ -17,7 +17,11 @@ public class ListStateFormsTests
         "Purchasing/_OrderForm.cshtml",
         "Inventory/_Dialogs.cshtml",
         "Inventory/_Stocktakes.cshtml",
-        "Inventory/_Transfers.cshtml"
+        "Inventory/_Transfers.cshtml",
+        "Catalog/Index.cshtml",
+        "Employees/Index.cshtml",
+        "Suppliers/Index.cshtml",
+        "Locations/Index.cshtml"
     ];
 
     private static IEnumerable<(string View, string Tag)> PostForms() =>
@@ -28,7 +32,7 @@ public class ListStateFormsTests
     public void TheScan_FindsTheActionForms()
     {
         // Test đối chứng: nếu regex không khớp gì thì test dưới xanh giả.
-        Assert.True(PostForms().Count() >= 25);
+        Assert.True(PostForms().Count() >= 37);
     }
 
     [Fact]

@@ -152,8 +152,10 @@ public class SupplierPageTests : IClassFixture<PancrasWebFactory>
 
         var html = WebUtility.HtmlDecode(await (await client.GetAsync("/suppliers?status=inactive&sort=-code&size=50")).Content.ReadAsStringAsync());
 
-        Assert.Contains("name=\"size\" value=\"50\"", html, StringComparison.Ordinal);
-        Assert.Contains("name=\"sort\" value=\"-code\"", html, StringComparison.Ordinal);
+        var action = Regex.Match(html, @"<form[^>]*action=""(/suppliers\?handler=Reactivate[^""]*)""").Groups[1].Value;
+        Assert.Contains("status=inactive", action, StringComparison.Ordinal);
+        Assert.Contains("sort=-code", action, StringComparison.Ordinal);
+        Assert.Contains("size=50", action, StringComparison.Ordinal);
     }
 
     [Theory]

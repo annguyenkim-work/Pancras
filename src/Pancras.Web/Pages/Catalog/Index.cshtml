@@ -113,11 +113,10 @@ else
                             <a href="@Model.PriceUrl(row.Id)" class="ml-2 rounded-lg px-3 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Sửa</a>
                             @if (Model.CanDisable)
                             {
-                                <form method="post" asp-page-handler="SetActive" class="inline" data-confirm data-confirm-title="@(row.IsActive ? "Disable mặt hàng" : "Active mặt hàng")" data-confirm-message="@(row.IsActive ? "Disable mặt hàng này? Mặt hàng sẽ không còn hiện trong danh sách chọn (đơn mua, phiếu kho); lịch sử vẫn được giữ." : "Active lại mặt hàng này?")" data-confirm-label="@(row.IsActive ? "Disable" : "Active")" data-confirm-tone="@(row.IsActive ? "danger" : "")">
+                                <form method="post" asp-antiforgery="true" action="@Model.ActionUrl("SetActive")" class="inline" data-confirm data-confirm-title="@(row.IsActive ? "Disable mặt hàng" : "Active mặt hàng")" data-confirm-message="@(row.IsActive ? "Disable mặt hàng này? Mặt hàng sẽ không còn hiện trong danh sách chọn (đơn mua, phiếu kho); lịch sử vẫn được giữ." : "Active lại mặt hàng này?")" data-confirm-label="@(row.IsActive ? "Disable" : "Active")" data-confirm-tone="@(row.IsActive ? "danger" : "")">
                                     <input type="hidden" name="id" value="@row.Id" />
                                     <input type="hidden" name="active" value="@(row.IsActive ? "false" : "true")" />
                                     <input type="hidden" name="version" value="@row.Version" />
-                                    <partial name="_FilterFields" model="Model" />
                                     <button type="submit" class="ml-2 px-3 py-1.5 text-xs font-bold rounded-lg @(row.IsActive ? "text-rose-700 hover:bg-rose-50" : "text-emerald-700 hover:bg-emerald-50")">@(row.IsActive ? "Disable" : "Active")</button>
                                 </form>
                             }
@@ -172,8 +171,7 @@ else
                 </svg>
             </a>
     </div>
-        <form method="post" enctype="multipart/form-data" asp-page-handler="Create" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-4 sm:px-8">
-            <partial name="_FilterFields" model="Model" />
+        <form method="post" enctype="multipart/form-data" asp-antiforgery="true" action="@Model.ActionUrl("Create")" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-4 sm:px-8">
             @if (Model.ShowForm && Model.ErrorMessages.Count > 0)
             {
                 <div class="mb-4"><partial name="_Notice" model="new NoticeModel(Model.ErrorTitle, ToastLevel.Error, Model.ErrorMessages)" /></div>
@@ -333,11 +331,10 @@ else
                 </svg>
             </a>
     </div>
-        <form method="post" enctype="multipart/form-data" asp-page-handler="UpdatePrices" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-4 sm:px-8">
+        <form method="post" enctype="multipart/form-data" asp-antiforgery="true" action="@Model.ActionUrl("UpdatePrices")" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-4 sm:px-8">
             <input type="hidden" asp-for="Prices.Id" />
             <input type="hidden" asp-for="Prices.IncludeDetails" />
             <input type="hidden" asp-for="Prices.Version" />
-            <partial name="_FilterFields" model="Model" />
             @if (Model.ShowPriceForm && Model.ErrorMessages.Count > 0)
             {
                 <div class="mb-4"><partial name="_Notice" model="new NoticeModel(Model.ErrorTitle, ToastLevel.Error, Model.ErrorMessages)" /></div>

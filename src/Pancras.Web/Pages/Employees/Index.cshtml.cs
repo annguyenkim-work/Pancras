@@ -7,6 +7,7 @@ using Pancras.Application.Employees;
 using Pancras.Application.Locations;
 using Pancras.Domain.Employees;
 using Pancras.Domain.Inventory;
+using Pancras.Web.Formatting;
 using Pancras.Web.Security;
 
 namespace Pancras.Web.Pages.Employees;
@@ -201,31 +202,24 @@ public class IndexModel(
     public string PreviewCode =>
         EmployeeCodeGenerator.Attempts(Command.FullName ?? string.Empty).Select(attempt => attempt.Code).FirstOrDefault() ?? string.Empty;
 
-    public string ListUrl(int? page = null, int? size = null, string? sort = null)
+    public string ListUrl(int? page = null, int? size = null, string? sort = null) =>
+        ListState(new ListQuery("/employees"), page, size, sort).ToString();
+
+    /// <summary>Địa chỉ form thao tác (thêm, sửa, Active/Disable, mở khóa, tắt 2FA): thao tác cộng bộ lọc, sắp xếp, cỡ trang và trang đang xem.</summary>
+    public string ActionUrl(string handler) => ListState(new ListQuery("/employees")).WithHandler(handler);
+
+    private ListQuery ListState(ListQuery query, int? page = null, int? size = null, string? sort = null)
     {
-        var parts = new List<string>();
-        Add(parts, "q", Search);
-        Add(parts, "role", Role);
-        Add(parts, "location", LocationFilter?.ToString("D"));
+        query.Add("q", Search).Add("role", Role).Add("location", LocationFilter);
         var order = EmployeeOrdering.Parse(sort ?? SortToken);
         if (order != EmployeeOrdering.Parse(null))
         {
-            parts.Add("sort=" + order.Token);
+            query.Add("sort", order.Token);
         }
 
-        var sizeNow = size ?? Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
-        if (sizeNow != Pancras.Application.Common.PageSizes.Default)
-        {
-            parts.Add("size=" + sizeNow.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        }
-
-        var pageNow = page ?? PageNumber;
-        if (pageNow > 1)
-        {
-            parts.Add("pageNumber=" + pageNow.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        }
-
-        return parts.Count == 0 ? "/employees" : "/employees?" + string.Join("&", parts);
+        return query
+            .Add("size", size ?? Pancras.Web.Formatting.PagerModel.SizeFrom(Request), Pancras.Application.Common.PageSizes.Default)
+            .AddPage("pageNumber", page ?? PageNumber);
     }
 
     public string FormUrl()
@@ -267,14 +261,6 @@ public class IndexModel(
             JobTitle = result.Value.JobTitle,
             Department = result.Value.Department
         };
-    }
-
-    private static void Add(List<string> parts, string key, string? value)
-    {
-        if (!string.IsNullOrWhiteSpace(value))
-        {
-            parts.Add(key + "=" + Uri.EscapeDataString(value));
-        }
     }
 
     private async Task LoadAsync(string? q, string? role, Guid? location, int page, CancellationToken cancellationToken)
