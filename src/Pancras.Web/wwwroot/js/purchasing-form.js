@@ -288,6 +288,29 @@
             form.addEventListener("submit", () => {
                 dirty = false;
             });
+            // Esc cũng là một cách rời form: còn dữ liệu chưa lưu thì hỏi như nút ×. Hộp thoại đã đóng (bỏ dữ liệu) thì
+            // không còn gì để giữ, nên xóa cờ, nếu không cảnh báo rời trang sẽ chặn mọi lần bấm link sau đó.
+            const purchaseDialog = document.getElementById("purchase-dialog");
+            purchaseDialog?.addEventListener("cancel", (event) => {
+                if (!dirty) {
+                    return;
+                }
+
+                event.preventDefault();
+                window.pancrasConfirm({
+                    title: "Bỏ thay đổi",
+                    message: "Bỏ các thay đổi chưa lưu?",
+                    label: "Bỏ thay đổi",
+                    tone: "danger",
+                    onOk: () => {
+                        dirty = false;
+                        purchaseDialog.close();
+                    }
+                });
+            });
+            purchaseDialog?.addEventListener("close", () => {
+                dirty = false;
+            });
             window.addEventListener("beforeunload", (event) => {
                 if (dirty) {
                     event.preventDefault();

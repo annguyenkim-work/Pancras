@@ -92,11 +92,11 @@ Dùng cho hóa đơn về muộn, tờ khai điều chỉnh:
 | Vấn đề | Hiện trạng |
 | --- | --- |
 | Thứ tự enum | `PurchaseStatus` đánh số theo thời điểm thêm (`Received = 2`, `PendingApproval = 3`...), không theo vòng đời; chỉ đổi khi có migration |
-| Hiển thị giá vốn đơn chưa nhập | Cần phân biệt số dự toán và số đã ghi nhận |
 
 ## Quyết định đã chốt (2026-11-16)
 
 - [Đã làm] Chi tiết đơn còn nhận được hiện khung "Xem trước giá vốn khi nhận đủ phần còn lại" (còn nhận, tồn hiện tại, giá vốn hiện tại → dự kiến từng mặt hàng; `GetPurchaseReceiptPreviewHandler`). Chỉ vai thấy được giá vốn mới có khung này; xem trước không đổi tồn hay giá. Xem trước tính theo nhận đủ phần còn lại, chưa tính theo số thực nhận nhập trong form. Nút giữ nhãn `Nhập Kho & Cập Nhật Giá Vốn`.
+- (2026-11-21) Khung tổng của chi tiết đơn tách số dự toán và số đã ghi nhận: chưa nhận ghi "Dự toán giá vốn hàng nhập (chưa ghi nhận)"; **đã nhận một phần** ghi hai dòng "Giá vốn đã ghi nhận vào kho" (tổng số đã thực vào giá vốn qua các lần nhận) và "Dự toán giá vốn toàn đơn"; đã nhập kho ghi "Giá vốn hàng nhập đã ghi nhận" bằng số đã thực vào kho (đóng đơn thiếu thì dòng chưa nhận cái nào không tính). Nút nhận kho đếm số mặt hàng còn phải nhận.
 - Không bắt buộc chứng từ (tờ khai, hóa đơn NCC) trước khi nhận kho; đính kèm tùy chọn.
 - Chưa cần duyệt theo ngưỡng giá trị hay người duyệt thay thế; giữ Admin, Giám đốc, Kế toán duyệt.
 

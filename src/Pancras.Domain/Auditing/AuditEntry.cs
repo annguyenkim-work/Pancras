@@ -104,8 +104,11 @@ public static class AuditActions
     public const string TransferReceived = "stock.transfer_received";
     public const string TransferCancelled = "stock.transfer_cancelled";
     public const string TransferReturned = "stock.transfer_returned";
+    public const string StocktakeRequested = "stock.stocktake_requested";
     public const string StocktakeApproved = "stock.stocktake_approved";
+    public const string AdjustmentRequested = "stock.adjustment_requested";
     public const string AdjustmentApproved = "stock.adjustment_approved";
+    public const string DisposalRequested = "stock.disposal_requested";
     public const string DisposalApproved = "stock.disposal_approved";
     public const string PricesChanged = "catalog.prices_changed";
     public const string CatalogItemDisabled = "catalog.item_disabled";

@@ -580,6 +580,87 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         return form;
     }
 
+    [Fact]
+    public async Task PartiallyReceivedOrder_ShowsWhatReachedStock_AndTheWholeOrderEstimateSeparately()
+    {
+        // Test thủ công 2026-11-21 (B2): nhận 6/10 mà dòng "Giá vốn hàng nhập đã ghi nhận" vẫn hiện tổng cả đơn.
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var order = TwoLineOrder("PO-MOT-PHAN");
+        var first = order.Lines[0];
+        var second = order.Lines[1];
+        Assert.Equal(ReceiptDecision.Ok, order.TryRecordReceipt(new Dictionary<Guid, int> { [first.Id] = 2, [second.Id] = 0 }, false, null, DateTimeOffset.UtcNow, "kho", out _));
+        orders.Orders.Add(order);
+        await SignInAsync(client);
+
+        var html = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?order=" + order.Id)).Content.ReadAsStringAsync());
+
+        var recorded = order.Lines.Sum(line => line.CostedAmount);
+        var whole = order.Lines.Sum(line => PurchaseCosting.For(order, line).LandedCost);
+        Assert.True(recorded > 0 && recorded < whole);
+        Assert.Matches(TotalRow("Giá vốn đã ghi nhận vào kho", recorded), html);
+        Assert.Matches(TotalRow("Dự toán giá vốn toàn đơn", whole), html);
+        Assert.DoesNotContain("Giá vốn hàng nhập đã ghi nhận (Landed Total)", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task OrderClosedShort_RecordsOnlyTheCostThatReachedStock()
+    {
+        // B2: đóng đơn dù nhận thiếu, có dòng chưa nhận cái nào: dòng đó không vào kho nên không nằm trong số đã ghi nhận.
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var order = TwoLineOrder("PO-DONG-THIEU");
+        var first = order.Lines[0];
+        var second = order.Lines[1];
+        Assert.Equal(ReceiptDecision.Ok, order.TryRecordReceipt(new Dictionary<Guid, int> { [first.Id] = first.Quantity, [second.Id] = 0 }, true, "NCC giao thiếu", DateTimeOffset.UtcNow, "kho", out _));
+        orders.Orders.Add(order);
+        await SignInAsync(client);
+
+        var html = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?order=" + order.Id)).Content.ReadAsStringAsync());
+
+        Assert.Equal(PurchaseStatus.Received, order.Status);
+        Assert.Matches(TotalRow("Giá vốn hàng nhập đã ghi nhận (Landed Total)", first.CostedAmount), html);
+    }
+
+    [Fact]
+    public async Task ReceiveButton_CountsOnlyTheLinesStillToReceive()
+    {
+        // Test thủ công 2026-11-21 (B5): còn 1 mặt hàng chưa nhận đủ mà nút vẫn ghi "(2 món)".
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var order = TwoLineOrder("PO-CON-MOT");
+        var first = order.Lines[0];
+        var second = order.Lines[1];
+        Assert.Equal(ReceiptDecision.Ok, order.TryRecordReceipt(new Dictionary<Guid, int> { [first.Id] = first.Quantity, [second.Id] = 1 }, false, null, DateTimeOffset.UtcNow, "kho", out _));
+        orders.Orders.Add(order);
+        await SignInAsync(client);
+
+        var html = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?order=" + order.Id)).Content.ReadAsStringAsync());
+
+        Assert.Contains("Nhập Kho & Cập Nhật Giá Vốn (1 món)", html, StringComparison.Ordinal);
+    }
+
+    private static PurchaseOrder TwoLineOrder(string code)
+    {
+        var order = PurchaseOrder.TryCreate(
+            code,
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            "CONT",
+            "BL",
+            "Hải Phòng",
+            new DateOnly(2026, 11, 12),
+            25000m,
+            0.10m,
+            [(Guid.CreateVersion7(), 10, 100m, 0.10m, 0m, 0m, 0m), (Guid.CreateVersion7(), 5, 400m, 0.20m, 0m, 0m, 0m)])!;
+        Assert.True(order.TrySubmit());
+        Assert.True(order.TryApprove());
+        return order;
+    }
+
+    private static Regex TotalRow(string label, decimal amount) =>
+        new(Regex.Escape(label) + @"</span>\s*<span[^>]*>" + Regex.Escape(Pancras.Web.Formatting.VndMoney.FormatDong(amount)) + "<");
+
     private static PurchaseOrder NewOrder(string code, Guid receiveLocation)
     {
         var order = PurchaseOrder.TryCreate(

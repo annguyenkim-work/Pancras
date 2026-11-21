@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Pancras.Application.Auditing;
 using Pancras.Application.Common;
 using Pancras.Domain.Inventory;
 
@@ -9,7 +10,9 @@ public sealed class CreateStocktakeCommandHandler(
     IUnitOfWork unitOfWork,
     ILogger<CreateStocktakeCommandHandler> logger,
     TimeProvider? clock = null,
-    Pancras.Application.Employees.IEmployeeRepository? employees = null)
+    Pancras.Application.Employees.IEmployeeRepository? employees = null,
+    Pancras.Application.Auditing.IAuditLog? audit = null,
+    Pancras.Application.Auditing.IRequestInfo? request = null)
 {
     public async Task<Result<Guid, StockError>> HandleAsync(CreateStocktakeCommand command, CancellationToken cancellationToken)
     {
@@ -56,6 +59,17 @@ public sealed class CreateStocktakeCommandHandler(
         }
 
         await repository.AddStocktakeAsync(sheet, cancellationToken);
+        audit.Stage(
+            clock ?? TimeProvider.System,
+            request,
+            null,
+            null,
+            sheet.Status == ApprovalStatus.Approved
+                ? Pancras.Domain.Auditing.AuditActions.StocktakeApproved
+                : Pancras.Domain.Auditing.AuditActions.StocktakeRequested,
+            "stocktake",
+            sheet.Id.ToString("D"),
+            null);
         if (sheet.Status == ApprovalStatus.Pending && employees is not null)
         {
             // Biên bản của nhân viên chờ duyệt: báo Trưởng Showroom/Kho đúng kho đó (trừ người lập).
