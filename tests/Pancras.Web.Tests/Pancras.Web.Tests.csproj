@@ -21,6 +21,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="../Shared/**/*.cs" Link="Shared/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Pancras.Web\Pancras.Web.csproj" />
     <ProjectReference Include="..\..\src\Pancras.Application\Pancras.Application.csproj" />
     <ProjectReference Include="..\..\src\Pancras.Domain\Pancras.Domain.csproj" />
