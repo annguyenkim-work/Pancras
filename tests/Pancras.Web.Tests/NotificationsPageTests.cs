@@ -116,10 +116,3 @@ public class NotificationsPageTests : IClassFixture<PancrasWebFactory>
         Assert.Equal("/notifications", IndexModel.TargetOf(null));
     }
 }
-
-internal sealed class NoticeStoreDouble : Pancras.Application.Notifications.INoticeStore
-{
-    public Task AddAsync(Notification notice, CancellationToken cancellationToken) => Task.CompletedTask;
-
-    public Task RemoveForDocumentAsync(Guid documentId, CancellationToken cancellationToken) => Task.CompletedTask;
-}

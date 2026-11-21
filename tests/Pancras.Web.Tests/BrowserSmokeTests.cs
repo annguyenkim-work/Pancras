@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Hosting.Server;
-using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Playwright;
 using Pancras.Domain.Catalog;
@@ -10,60 +8,39 @@ namespace Pancras.Web.Tests;
 
 /// <summary>
 /// Smoke test trên trình duyệt thật (docs/02-coding-rules/testing.md mục 7): những lỗi UAT chỉ thấy được khi JS chạy và trang được
-/// vẽ thật. App chạy trên Kestrel với cùng các test double như test trang, nên không cần DB hay tài khoản thật.
+/// vẽ thật. App chạy trên Kestrel với cùng các test double như test trang, nên không cần DB hay tài khoản thật. Server và trình duyệt
+/// dùng chung cho cả lớp (<see cref="BrowserFixture"/>); mỗi test một browser context.
 /// </summary>
 [Trait("Category", "Browser")]
-public sealed class BrowserSmokeTests : IAsyncLifetime
+public sealed class BrowserSmokeTests(BrowserFixture fixture) : IClassFixture<BrowserFixture>, IAsyncLifetime
 {
     private const string Password = "Admin@12345";
-    private readonly PancrasWebFactory _factory = new();
     private readonly List<string> _consoleErrors = [];
-    private IPlaywright? _playwright;
-    private IBrowser? _browser;
-    private string _baseUrl = string.Empty;
+    private readonly List<IBrowserContext> _contexts = [];
 
-    public async Task InitializeAsync()
-    {
-        _factory.UseKestrel(0);
-        _factory.StartServer();
-        var addresses = _factory.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses;
-        _baseUrl = addresses.First(address => address.StartsWith("http://", StringComparison.Ordinal)).TrimEnd('/');
+    private PancrasWebFactory Factory => fixture.Factory;
 
-        _playwright = await Playwright.CreateAsync();
-        _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true, Channel = Channel() });
-    }
+    private string BaseUrl => fixture.BaseUrl;
+
+    public Task InitializeAsync() => Task.CompletedTask;
 
     public async Task DisposeAsync()
     {
-        if (_browser is not null)
+        foreach (var context in _contexts)
         {
-            await _browser.DisposeAsync();
+            await context.DisposeAsync();
         }
-
-        _playwright?.Dispose();
-        await _factory.DisposeAsync();
-    }
-
-    /// <summary>Windows dùng Edge có sẵn; nơi khác dùng Chromium của Playwright (CI cài trước). Ghi đè bằng PANCRAS_BROWSER_CHANNEL.</summary>
-    private static string? Channel()
-    {
-        var chosen = Environment.GetEnvironmentVariable("PANCRAS_BROWSER_CHANNEL");
-        if (!string.IsNullOrWhiteSpace(chosen))
-        {
-            return chosen == "chromium" ? null : chosen;
-        }
-
-        return OperatingSystem.IsWindows() ? "msedge" : null;
     }
 
     private async Task<IPage> SignedInPageAsync(int width = 1440, int height = 900, string role = EmployeeRole.Admin)
     {
-        var employees = _factory.Services.GetRequiredService<FakeEmployeeRepository>();
-        var hasher = _factory.Services.GetRequiredService<FakePasswordHasher>();
-        var code = "smoke" + employees.Employees.Count;
+        var employees = Factory.Services.GetRequiredService<FakeEmployeeRepository>();
+        var hasher = Factory.Services.GetRequiredService<FakePasswordHasher>();
+        var code = "smoke" + Guid.NewGuid().ToString("N")[..8];
         employees.Employees.Add(Employee.Create("Smoke", code, code.ToUpperInvariant(), hasher.Hash(Password), role));
 
-        var context = await _browser!.NewContextAsync(new BrowserNewContextOptions { ViewportSize = new ViewportSize { Width = width, Height = height } });
+        var context = await fixture.Browser.NewContextAsync(new BrowserNewContextOptions { ViewportSize = new ViewportSize { Width = width, Height = height } });
+        _contexts.Add(context);
         var page = await context.NewPageAsync();
         page.Console += (_, message) =>
         {
@@ -74,7 +51,7 @@ public sealed class BrowserSmokeTests : IAsyncLifetime
         };
         page.PageError += (_, error) => _consoleErrors.Add(error);
 
-        await page.GotoAsync(_baseUrl + "/login");
+        await page.GotoAsync(BaseUrl + "/login");
         await page.FillAsync("input[name='Command.EmployeeCode']", code);
         await page.FillAsync("input[name='Command.Password']", Password);
         await page.ClickAsync("button[type='submit']");
@@ -89,7 +66,7 @@ public sealed class BrowserSmokeTests : IAsyncLifetime
     {
         // UAT: ô "Thuế khác (VNĐ)" hiện 200000 thay vì 200.000.
         var page = await SignedInPageAsync();
-        await page.GotoAsync(_baseUrl + "/purchasing?form=1");
+        await page.GotoAsync(BaseUrl + "/purchasing?form=1");
 
         var input = page.Locator("input[name='Form.Lines[0].SupplementalDuty']");
         await input.FillAsync(string.Empty);
@@ -106,7 +83,7 @@ public sealed class BrowserSmokeTests : IAsyncLifetime
     {
         // Một script ô tiền cho mọi trang: Danh mục trước đây chỉ nhóm khi rời ô và thêm chữ " VNĐ" vào ô.
         var page = await SignedInPageAsync();
-        await page.GotoAsync(_baseUrl + "/catalog?add=true");
+        await page.GotoAsync(BaseUrl + "/catalog?add=true");
 
         var input = page.Locator("#Form_CostPrice");
         await input.FillAsync(string.Empty);
@@ -123,7 +100,7 @@ public sealed class BrowserSmokeTests : IAsyncLifetime
     public async Task Header_StaysAtTheTop_WhenThePageScrolls()
     {
         var page = await SignedInPageAsync(height: 600);
-        await page.GotoAsync(_baseUrl + "/purchasing");
+        await page.GotoAsync(BaseUrl + "/purchasing");
         await page.EvaluateAsync("() => { document.querySelector('main').style.minHeight = '3000px'; window.scrollTo(0, 1500); }");
 
         var top = await page.EvaluateAsync<double>("() => document.querySelector('#app-content > header').getBoundingClientRect().top");
@@ -139,7 +116,7 @@ public sealed class BrowserSmokeTests : IAsyncLifetime
     {
         // UAT: thu nhỏ menu thì nội dung dính trái, hở khoảng trống bên phải.
         var page = await SignedInPageAsync(width: width);
-        await page.GotoAsync(_baseUrl + "/purchasing");
+        await page.GotoAsync(BaseUrl + "/purchasing");
         await page.ClickAsync("[data-sidebar-toggle]");
         await page.WaitForTimeoutAsync(400);
 
@@ -154,8 +131,8 @@ public sealed class BrowserSmokeTests : IAsyncLifetime
     [InlineData(1024)]
     public async Task ReceiveButtonAndCloseCheckbox_StayOnOneRow_ButtonFirst(int width)
     {
-        var orders = _factory.Services.GetRequiredService<PurchaseDirectoryDouble>();
-        var catalog = _factory.Services.GetRequiredService<CatalogDirectoryDouble>();
+        var orders = Factory.Services.GetRequiredService<PurchaseDirectoryDouble>();
+        var catalog = Factory.Services.GetRequiredService<CatalogDirectoryDouble>();
         var item = CatalogItem.Create("SMOKE01", "Bồn", ProductCategory.SanitaryEquipment, "Toto", "Việt Nam", "Cái", null, null, null, null, 9m, 1m, 1m, 1m, 1m);
         catalog.Items.Add(item);
         var order = PurchaseOrder.TryCreate("PO-SMOKE-" + width, Guid.CreateVersion7(), Guid.CreateVersion7(), "CONT", "BL", "Hải Phòng", null, 25000m, 0.1m, [(item.Id, 4, 10m, 0m, 0m, 0m, 0m)])!;
@@ -164,7 +141,7 @@ public sealed class BrowserSmokeTests : IAsyncLifetime
         orders.Orders.Add(order);
 
         var page = await SignedInPageAsync(width: width);
-        await page.GotoAsync(_baseUrl + "/purchasing?order=" + order.Id);
+        await page.GotoAsync(BaseUrl + "/purchasing?order=" + order.Id);
 
         var button = await page.Locator("#receive-form button[type='submit']").BoundingBoxAsync();
         var checkbox = await page.Locator("#receive-form label").BoundingBoxAsync();
@@ -179,13 +156,13 @@ public sealed class BrowserSmokeTests : IAsyncLifetime
     public async Task ApprovingAnOrderFromAFilteredList_KeepsTheFilters()
     {
         // UAT: duyệt, nhận hàng tải lại trang mà mất bộ lọc. Đi trọn luồng thật: lọc, chọn đơn, bấm, xác nhận.
-        var orders = _factory.Services.GetRequiredService<PurchaseDirectoryDouble>();
+        var orders = Factory.Services.GetRequiredService<PurchaseDirectoryDouble>();
         var order = PurchaseOrder.TryCreate("PO-SMOKE-KEEP", Guid.CreateVersion7(), Guid.CreateVersion7(), "CONT", "BL", "Hải Phòng", null, 25000m, 0.1m, [(Guid.CreateVersion7(), 4, 10m, 0m, 0m, 0m, 0m)])!;
         Assert.True(order.TrySubmit());
         orders.Orders.Add(order);
 
         var page = await SignedInPageAsync();
-        await page.GotoAsync(_baseUrl + "/purchasing?q=PO-SMOKE-KEEP&status=PendingApproval&size=50&order=" + order.Id);
+        await page.GotoAsync(BaseUrl + "/purchasing?q=PO-SMOKE-KEEP&status=PendingApproval&size=50&order=" + order.Id);
         await page.ClickAsync("#order-workflow button:has-text('Duyệt đơn')");
         await page.ClickAsync("#confirm-ok");
         await page.WaitForURLAsync(url => url.Contains("notice=approved", StringComparison.Ordinal));
@@ -202,7 +179,7 @@ public sealed class BrowserSmokeTests : IAsyncLifetime
     {
         // UAT: lỗi lập phiếu kiểm kê hiện sau lớp phủ của hộp thoại, người dùng không thấy.
         var page = await SignedInPageAsync();
-        await page.GotoAsync(_baseUrl + "/inventory?view=stocktakes");
+        await page.GotoAsync(BaseUrl + "/inventory?view=stocktakes");
         await page.ClickAsync("#open-stocktake");
         await page.FillAsync("#stocktake-dialog input[name='Stocktake.CountedQuantity']", "3");
         await page.FillAsync("#stocktake-dialog input[name='Stocktake.Reason']", "đếm lại");

@@ -29,6 +29,12 @@ jobs:
       - name: Build (không cảnh báo)
         run: dotnet build Pancras.slnx --no-restore --warnaserror
 
+      - name: Cache trình duyệt Playwright (đổi phiên bản gói thì tải lại)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('tests/Pancras.Web.Tests/Pancras.Web.Tests.csproj') }}
+
       - name: Cài Chromium cho smoke test trình duyệt (Playwright)
         run: pwsh tests/Pancras.Web.Tests/bin/Debug/net10.0/playwright.ps1 install --with-deps chromium
 

@@ -26,6 +26,11 @@ jobs:
           global-json-file: global.json
       - run: dotnet restore Pancras.slnx
       - run: dotnet build Pancras.slnx --no-restore --warnaserror
+      - name: Cache trình duyệt Playwright (đổi phiên bản gói thì tải lại)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('tests/Pancras.Web.Tests/Pancras.Web.Tests.csproj') }}
       - run: pwsh tests/Pancras.Web.Tests/bin/Debug/net10.0/playwright.ps1 install --with-deps chromium
       - run: dotnet test Pancras.slnx --no-build --warnaserror --nologo
 
