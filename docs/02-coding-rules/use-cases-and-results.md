@@ -89,7 +89,7 @@ public sealed class CreateEmployeeCommandHandler( /* repositories, ILogger<...> 
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| Tên phương thức | 63 handler dùng `HandleAsync`; ngoại lệ `ListTransfersAsync`, `ListStocktakesAsync`, `ListLocationsAsync`, `ListItemsAsync`, `ListDisposalsAsync`, `ListCountriesAsync`, `ListAdjustmentsAsync`, `ExportAsync`... cần đổi hoặc tách |
+| Tên phương thức | 70 handler dùng `HandleAsync`. Ngoại lệ còn lại: `ListInventoryDocumentsHandler` (`ListTransferPageAsync`, `ListStockDocumentPageAsync`, `DescribeDocumentsAsync`, `ListLocationsAsync`, `ListAllLocationsAsync`, `ListItemsAsync`, `CountWaitingTransfersAsync`, `GetTransfersAsync`, `TransferNumbersAsync`, `PageContainingAsync`), `ListStockBalancesHandler.ExportAsync`, `ListCountriesAsync`, `CountUnseenAsync`, `CheckAsync`, `OpenAsync`, `ApplyAsync`; cần đổi hoặc tách thành handler riêng |
 | Kiểu trả về | Vài handler đọc trả thẳng `StockItemDetail?`, `SupplierCardPage` thay vì `Result` |
 
 ## Chờ chốt (chưa có hiệu lực)

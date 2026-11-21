@@ -92,12 +92,8 @@ else
                                     {
                                         @if (Model.CanReactivate)
                                         {
-                                            <form method="post" asp-page-handler="Reactivate" asp-route-id="@card.Id">
-                                                <input type="hidden" name="q" value="@Model.Search" />
-                                                <input type="hidden" name="status" value="@Model.Status" />
-                                                <input type="hidden" name="country" value="@Model.Country" />
-                                                <input type="hidden" name="page" value="@Model.CardPage.PageNumber" />
-                                                <partial name="_ListState" model="(Model.RequestedSize, Model.SortToken)" />
+                                            <form method="post" asp-antiforgery="true" action="@Model.ActionUrl("Reactivate")">
+                                                <input type="hidden" name="id" value="@card.Id" />
                                                 <button type="submit" class="rounded-lg px-3 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Active</button>
                                             </form>
                                         }
@@ -181,12 +177,7 @@ else
                 </svg>
             </a>
         </div>
-        <form method="post" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
-            <input type="hidden" name="q" value="@Model.Search" />
-            <input type="hidden" name="status" value="@Model.Status" />
-            <input type="hidden" name="country" value="@Model.Country" />
-            <input type="hidden" name="page" value="@Model.CardPage.PageNumber" />
-            <partial name="_ListState" model="(Model.RequestedSize, Model.SortToken)" />
+        <form method="post" asp-antiforgery="true" action="@Model.ActionUrl(null)" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
             <input type="hidden" asp-for="Form.Id" />
             <input type="hidden" asp-for="Form.Version" />
             <div class="mt-4">
@@ -259,12 +250,7 @@ else
             <h2 id="supplier-stop-title" class="text-base font-bold text-slate-900">Disable nhà cung cấp</h2>
             <a href="@Model.FilteredListUrl" class="text-slate-400" aria-label="Đóng">×</a>
         </div>
-        <form method="post" asp-page-handler="Stop" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
-            <input type="hidden" name="q" value="@Model.Search" />
-            <input type="hidden" name="status" value="@Model.Status" />
-            <input type="hidden" name="country" value="@Model.Country" />
-            <input type="hidden" name="page" value="@Model.CardPage.PageNumber" />
-            <partial name="_ListState" model="(Model.RequestedSize, Model.SortToken)" />
+        <form method="post" asp-antiforgery="true" action="@Model.ActionUrl("Stop")" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
             <input type="hidden" asp-for="StopId" />
             <p class="mt-3 text-sm text-slate-600"><span class="font-medium text-slate-900">@stop.Name</span> (@stop.Code) sẽ không còn xuất hiện khi lập đơn mua mới.</p>
             <ul class="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-600">

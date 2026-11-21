@@ -1,10 +1,21 @@
         (function () {
             document.getElementById("purchase-dialog")?.showModal();
-            // Đóng bằng Esc không đổi địa chỉ: bỏ ?form=1 để tải lại trang không mở lại hộp thoại.
+            // Đóng bằng Esc không đổi địa chỉ: bỏ form, edit, focus để tải lại trang không mở lại hộp thoại,
+            // nhưng giữ bộ lọc, trang, cỡ trang và đơn đang chọn (docs/03-ui-ux/components.md mục 10).
             document.getElementById("purchase-dialog")?.addEventListener("close", () => {
-                if (location.pathname === "/purchasing" && location.search.includes("form=1")) {
-                    history.replaceState(null, "", "/purchasing");
+                const query = new URLSearchParams(location.search);
+                if (location.pathname !== "/purchasing" || !(query.has("form") || query.has("edit"))) {
+                    return;
                 }
+
+                const editing = query.get("edit");
+                ["form", "edit", "focus"].forEach((name) => query.delete(name));
+                if (editing && !query.has("order")) {
+                    query.set("order", editing);
+                }
+
+                const rest = query.toString();
+                history.replaceState(null, "", "/purchasing" + (rest ? "?" + rest : ""));
             });
             const lineBody = document.getElementById("line-body");
             const chargeBody = document.getElementById("charge-body");
@@ -12,9 +23,8 @@
             const dong = (value) => money.format(Math.round(value)) + " VNĐ";
             const roundDong = (value) => Math.sign(value) * Math.round(Math.abs(value));
             const plainNumber = (input) => {
-                if (input.classList.contains("vnd")) {
-                    const digits = String(input.value).replace(/\D/g, "");
-                    return digits === "" ? 0 : Number(digits);
+                if (input.hasAttribute("data-vnd")) {
+                    return window.PancrasVnd.parse(input);
                 }
 
                 const value = Number(String(input.value).trim().replace(",", "."));
@@ -28,13 +38,9 @@
             const GROUP_ADJUST = 1, GROUP_LOGISTICS = 2, GROUP_DEDUCTIBLE = 3, GROUP_NONDEDUCTIBLE = 4;
             const BY_FOB = 1, BY_QUANTITY = 2, BY_WEIGHT = 3, BY_VOLUME = 4, BY_MANUAL = 5;
 
+            // Ô tiền định dạng bằng vnd-input.js dùng chung; ở đây chỉ định dạng lại các dòng vừa thêm hoặc vừa tính.
             function formatVndInputs() {
-                document.querySelectorAll(".vnd").forEach((input) => {
-                    const formatted = money.format(plainNumber(input));
-                    if (input.value !== formatted) {
-                        input.value = formatted;
-                    }
-                });
+                window.PancrasVnd.formatAll();
             }
 
             function reindexLines() {
@@ -278,11 +284,9 @@
             // Cảnh báo khi rời form mà còn dữ liệu chưa lưu (đóng bằng ×, Hủy, hoặc tải lại trang).
             let dirty = false;
             form.addEventListener("input", () => { dirty = true; });
+            // Số tiền gửi lên dạng số thô do vnd-input.js lo (sự kiện formdata).
             form.addEventListener("submit", () => {
                 dirty = false;
-                document.querySelectorAll(".vnd").forEach((input) => {
-                    input.value = String(plainNumber(input));
-                });
             });
             window.addEventListener("beforeunload", (event) => {
                 if (dirty) {

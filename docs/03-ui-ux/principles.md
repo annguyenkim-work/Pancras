@@ -27,7 +27,7 @@
 
 | Nguyên tắc | Hiện trạng | Việc cần làm |
 | --- | --- | --- |
-| 12 (toast) | Toast cho kết quả sau POST; lỗi của Kho là `_Notice` trong trang vì phải giữ hộp thoại và dữ liệu đã nhập | Giữ nguyên trừ khi chủ dự án muốn đổi |
+| 12 (toast) | Toast cho kết quả và lỗi sau POST bấm trong trang; lỗi của hộp thoại đang mở là `_Notice` bên trong hộp thoại (giữ dữ liệu đã nhập), không có banner đầu trang | Đúng nguyên tắc; giữ test vị trí lỗi |
 
 ## Quyết định đã chốt (2026-11-16)
 

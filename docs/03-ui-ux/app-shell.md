@@ -9,7 +9,7 @@
 - **`_Layout`** cho mọi trang trong ứng dụng; **`_AuthLayout`** cho trang đăng nhập và xác thực hai bước (không sidebar, nền `bg-slate-100`).
 - Cả hai nạp `_Head` (font, CSS, favicon) và dùng `lang="vi"`.
 - Nền app `bg-slate-100`, chữ `text-slate-900`, font `font-sans` (xem [design-tokens.md](design-tokens.md)).
-- Vùng nội dung `max-w-7xl`, padding `p-4 sm:p-6 lg:p-8`; trên mobile thêm `pt-20` để tránh thanh trên cùng cố định.
+- Vùng nội dung `mx-auto w-full max-w-screen-2xl lg:min-w-[40rem]` (căn giữa, có độ rộng tối thiểu và tối đa trên laptop/desktop; không dùng `max-w-*` mà thiếu `mx-auto`, vì thu nhỏ menu sẽ làm nội dung dính trái), padding `p-4 sm:p-6 lg:p-8`; trên mobile thêm `pt-20` để tránh thanh trên cùng cố định.
 
 ## 2. Sidebar
 
@@ -32,6 +32,7 @@
 - **Desktop** (từ 1024px): thanh trắng `h-16 border-b border-slate-200`: bên trái breadcrumb **`PancrasERP / <Tiêu đề trang>`** (lấy từ `ViewData["Title"]`); bên phải tên nhân viên (liên kết `/profile`), thẻ vai trò `rounded-full bg-sky-50 text-sky-700`, nút **Đăng xuất** (nút phụ, cỡ nhỏ).
 - **Mobile** (dưới 1024px): thanh cố định trên cùng `h-14`: hamburger, logo + PancrasERP, liên kết **Hồ sơ**, nút **Đăng xuất**.
 - Header không chứa bộ chọn kho, Xuất CSV hay In PDF; các thao tác đó nằm trong từng trang (xem [principles.md](principles.md) về nguồn chuẩn là code hiện tại).
+- **Header desktop cá» Äá»nh á» Äáº§u mÃ n hÃ¬nh khi cuá»n trang** (`sticky top-0 z-30`); thanh mobile ÄÃ£ `fixed`. Test: `SidebarCollapseTests`.
 - Shell (sidebar, header, thanh mobile) mang class `no-print`.
 
 ## 4. Trang chủ

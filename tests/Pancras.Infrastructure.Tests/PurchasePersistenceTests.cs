@@ -1,7 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging.Abstractions;
-using Pancras.Application.Catalog;
-using Pancras.Application.Purchasing;
 using Pancras.Domain.Purchasing;
 using Pancras.Infrastructure.Persistence;
 

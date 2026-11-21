@@ -1,6 +1,6 @@
+using Microsoft.Extensions.Logging;
 using Pancras.Application.Auditing;
 using Pancras.Application.Common;
-using Microsoft.Extensions.Logging;
 using Pancras.Domain.Employees;
 using Pancras.Domain.Inventory;
 
@@ -176,9 +176,9 @@ public sealed class ListInventoryDocumentsHandler(
 
     /// <summary>
     /// Một trang của tab Kiểm kê và điều chỉnh (kiểm kê, rồi điều chỉnh, rồi hủy; mỗi loại mới nhất trước), đếm và cắt trong database.
-    /// <paramref name="focus"/> (phiếu mở từ thông báo) thì trả đúng trang chứa phiếu đó.
+    /// <paramref name="focus"/> (phiếu mở từ thông báo) thì trả đúng trang chứa phiếu đó nếu phiếu khớp <paramref name="filter"/>; phiếu không khớp thì hiện danh sách theo bộ lọc.
     /// </summary>
-    public async Task<StockDocumentPage> ListStockDocumentPageAsync(EmployeeActor actor, int pageNumber, int pageSize, Guid? focus, CancellationToken cancellationToken)
+    public async Task<StockDocumentPage> ListStockDocumentPageAsync(EmployeeActor actor, int pageNumber, int pageSize, Guid? focus, StockDocumentFilter filter, CancellationToken cancellationToken)
     {
         if (!InventoryAccess.CanOperate(actor.Role))
         {
@@ -186,12 +186,12 @@ public sealed class ListInventoryDocumentsHandler(
         }
 
         var scope = InventoryAccess.Scope(actor);
-        var counts = await repository.CountStockDocumentsAsync(scope, cancellationToken);
-        var position = focus is Guid id ? await repository.LocateStockDocumentAsync(scope, id, cancellationToken) : null;
+        var counts = await repository.CountStockDocumentsAsync(scope, filter, cancellationToken);
+        var position = focus is Guid id ? await repository.LocateStockDocumentAsync(scope, id, filter, cancellationToken) : null;
         var window = StockDocumentWindow.Compute(counts, pageNumber, PageSizes.Normalize(pageSize), position);
-        var stocktakes = await StocktakeRowsAsync(actor, await repository.ListStocktakesAsync(scope, window.Stocktakes, cancellationToken), cancellationToken);
-        var adjustments = await AdjustmentRowsAsync(actor, await repository.ListAdjustmentsAsync(scope, window.Adjustments, cancellationToken), cancellationToken);
-        var disposals = await DisposalRowsAsync(actor, await repository.ListDisposalsAsync(scope, window.Disposals, cancellationToken), cancellationToken);
+        var stocktakes = await StocktakeRowsAsync(actor, await repository.ListStocktakesAsync(scope, window.Stocktakes, filter, cancellationToken), cancellationToken);
+        var adjustments = await AdjustmentRowsAsync(actor, await repository.ListAdjustmentsAsync(scope, window.Adjustments, filter, cancellationToken), cancellationToken);
+        var disposals = await DisposalRowsAsync(actor, await repository.ListDisposalsAsync(scope, window.Disposals, filter, cancellationToken), cancellationToken);
         return new StockDocumentPage(stocktakes, adjustments, disposals, counts.Total, window.Page);
     }
 

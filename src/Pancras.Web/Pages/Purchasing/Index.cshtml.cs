@@ -112,40 +112,76 @@ public class IndexModel(
         OrdersTotal,
         (page, size) => OrdersUrl(page, size));
 
-    private string OrdersUrl(int page, int size)
+    private string OrdersUrl(int page, int size) => ListState(OrderQuery(Selected?.Id, []), page, size).ToString();
+
+    /// <summary>Link tới một đơn (hoặc một thao tác trên đơn) mà vẫn giữ bộ lọc, cỡ trang và trang của danh sách đang xem.</summary>
+    public string OrderUrl(Guid orderId, params (string Name, string? Value)[] extra) => ListState(OrderQuery(orderId, extra), OrdersPageNumber).ToString();
+
+    /// <summary>Nút "Tạo đơn": mở form lập đơn mà vẫn giữ bộ lọc, trang và cỡ trang đang xem.</summary>
+    public string NewOrderUrl => ListState(new ListQuery("/purchasing").Add("form", "1"), OrdersPageNumber).ToString();
+
+    /// <summary>Nút đóng form lập/sửa đơn (×, Quay lại): về danh sách đang lọc, đang sửa đơn nào thì mở lại đơn đó.</summary>
+    public string CloseFormUrl => ListState(OrderQuery(EditingId ?? Selected?.Id, []), OrdersPageNumber).ToString();
+
+    /// <summary>
+    /// Địa chỉ của form thao tác trên trang (duyệt, nhận hàng, lưu đơn...): thao tác cộng bộ lọc, trang và cỡ trang đang xem,
+    /// để sau khi xử lý quay lại đúng danh sách đó (docs/03-ui-ux/components.md mục 10).
+    /// </summary>
+    public string ActionUrl(string handler) => ListState(new ListQuery("/purchasing"), OrdersPageNumber).WithHandler(handler);
+
+    /// <summary>Địa chỉ quay lại sau một thao tác POST: danh sách đang lọc (đọc từ query của form) và đơn vừa thao tác.</summary>
+    private string BackTo(Guid? orderId, params (string Name, string? Value)[] extra) => ListState(OrderQuery(orderId, extra), ListPage).ToString();
+
+    /// <summary>
+    /// Thao tác POST bị từ chối: câu lỗi hiện bằng toast góc dưới phải (người dùng đang ở giữa trang vẫn thấy), rồi quay lại đúng
+    /// danh sách đang lọc với đơn vừa thao tác. Mọi lỗi sau POST của trang đi qua đây (docs/03-ui-ux/components.md mục 7).
+    /// </summary>
+    private RedirectResult Rejected(Guid? orderId, PurchaseError error, IReadOnlyList<object>? issues = null)
     {
-        var parts = new List<string>();
-        if (Selected is not null)
-        {
-            parts.Add("order=" + Selected.Id.ToString("D"));
-        }
-
-        if (!string.IsNullOrWhiteSpace(Search))
-        {
-            parts.Add("q=" + Uri.EscapeDataString(Search.Trim()));
-        }
-
-        if (SupplierFilter is Guid supplier)
-        {
-            parts.Add("supplier=" + supplier.ToString("D"));
-        }
-
-        if (size != Pancras.Application.Common.PageSizes.Default)
-        {
-            parts.Add("size=" + size);
-        }
-
-        if (page > 1)
-        {
-            parts.Add("pageNumber=" + page);
-        }
-
-        return parts.Count == 0 ? "/purchasing" : "/purchasing?" + string.Join("&", parts);
+        TempData.Toast(PurchaseErrorMessages.Describe(error, issues), ToastLevel.Error);
+        return Redirect(BackTo(orderId));
     }
+
+    private static ListQuery OrderQuery(Guid? orderId, (string Name, string? Value)[] extra)
+    {
+        var query = new ListQuery("/purchasing").Add("order", orderId);
+        foreach (var (name, value) in extra)
+        {
+            query.Add(name, value);
+        }
+
+        return query;
+    }
+
+    private ListQuery ListState(ListQuery query, int page, int? size = null) => query
+        .Add("q", Search)
+        .Add("supplier", SupplierFilter)
+        .Add("status", StatusFilter?.ToString())
+        .Add("size", size ?? ListPageSize, Pancras.Application.Common.PageSizes.Default)
+        .AddPage("pageNumber", page);
 
     /// <summary>Lọc đơn theo nhà cung cấp (link từ danh bạ nhà cung cấp).</summary>
     [BindProperty(SupportsGet = true, Name = "supplier")]
     public Guid? SupplierFilter { get; set; }
+
+    /// <summary>Lọc đơn theo trạng thái (tên giá trị của PurchaseStatus, ví dụ Approved); trống hoặc không hợp lệ là mọi trạng thái.</summary>
+    [BindProperty(SupportsGet = true, Name = "status")]
+    public string? StatusToken { get; set; }
+
+    public PurchaseStatus? StatusFilter =>
+        Enum.TryParse<PurchaseStatus>(StatusToken, ignoreCase: true, out var parsed) && Enum.IsDefined(parsed) ? parsed : null;
+
+    /// <summary>Các trạng thái chọn được ở ô lọc, theo thứ tự luồng đơn.</summary>
+    public static IReadOnlyList<PurchaseStatus> FilterStatuses { get; } =
+    [
+        PurchaseStatus.Draft,
+        PurchaseStatus.PendingApproval,
+        PurchaseStatus.Approved,
+        PurchaseStatus.InTransit,
+        PurchaseStatus.PartiallyReceived,
+        PurchaseStatus.Received,
+        PurchaseStatus.Cancelled
+    ];
 
     public PurchaseOrderDetail? Selected { get; private set; }
 
@@ -173,7 +209,7 @@ public class IndexModel(
     [BindProperty]
     public PurchaseForm Form { get; set; } = PurchaseForm.Create();
 
-    public async Task OnGetAsync(Guid? id, Guid? order, Guid? formula, string? form, string? notice, string? error, Guid? edit)
+    public async Task OnGetAsync(Guid? id, Guid? order, Guid? formula, string? form, string? notice, Guid? edit)
     {
         // Kho không lập hay sửa đơn: bỏ qua ?form và ?edit để họ không thấy form (handler cũng chặn).
         if (!CanManage)
@@ -205,12 +241,6 @@ public class IndexModel(
         if (noticeText is not null)
         {
             TempData.Toast(noticeText);
-        }
-        if (!string.IsNullOrEmpty(error) && Enum.TryParse<PurchaseError>(error, out var parsed) && parsed != PurchaseError.None)
-        {
-            // Lỗi của thao tác POST đã chuyển trang: hiện bằng toast góc dưới phải để người dùng đang ở giữa trang vẫn thấy
-            // (banner đầu trang nằm ngoài tầm nhìn). ErrorMessage chỉ còn dùng cho lỗi trong form khi lưu đơn.
-            TempData.Toast(PurchaseErrorMessages.For(parsed), ToastLevel.Error);
         }
 
         var selected = order is Guid orderId && orderId != Guid.Empty ? orderId : id;
@@ -350,14 +380,14 @@ public class IndexModel(
             return Page();
         }
 
-        return Redirect($"/purchasing?order={orderId}&notice=updated");
+        return Redirect(BackTo(orderId, ("notice", "updated")));
     }
 
     public async Task<IActionResult> OnPostUploadAsync(Guid orderId, AttachmentKind kind, IFormFile? file)
     {
         if (file is null || file.Length == 0)
         {
-            return Redirect($"/purchasing?order={orderId}&error={PurchaseError.AttachmentInvalid}");
+            return Rejected(orderId, PurchaseError.AttachmentInvalid);
         }
 
         await using var content = file.OpenReadStream();
@@ -365,8 +395,8 @@ public class IndexModel(
             new UploadPurchaseAttachmentCommand { Actor = Actor, PurchaseOrderId = orderId, Kind = kind, FileName = file.FileName, Content = content },
             HttpContext.RequestAborted);
         return result.IsFailure
-            ? Redirect($"/purchasing?order={orderId}&error={result.Error}")
-            : Redirect($"/purchasing?order={orderId}&notice=attachment-added");
+            ? Rejected(orderId, result.Error, result.Issues)
+            : Redirect(BackTo(orderId, ("notice", "attachment-added")));
     }
 
     public async Task<IActionResult> OnGetDownloadAsync(Guid id)
@@ -387,8 +417,8 @@ public class IndexModel(
     {
         var result = await deleteAttachment.HandleAsync(attachmentId, Actor, HttpContext.RequestAborted);
         return result.IsFailure
-            ? Redirect($"/purchasing?order={orderId}&error={result.Error}")
-            : Redirect($"/purchasing?order={orderId}&notice=attachment-deleted");
+            ? Rejected(orderId, result.Error, result.Issues)
+            : Redirect(BackTo(orderId, ("notice", "attachment-deleted")));
     }
 
     public async Task<IActionResult> OnPostCreateAsync()
@@ -423,7 +453,7 @@ public class IndexModel(
             return Page();
         }
 
-        return Redirect($"/purchasing?order={result.Value}&notice=created");
+        return Redirect(BackTo(result.Value, ("notice", "created")));
     }
 
     public async Task<IActionResult> OnPostReceiveAsync(Guid orderId, bool closeOrder, string? note, Dictionary<Guid, int>? actuals)
@@ -431,7 +461,7 @@ public class IndexModel(
         var detail = await getOrder.HandleAsync(orderId, Actor, HttpContext.RequestAborted);
         if (detail is null)
         {
-            return Redirect($"/purchasing?order={orderId}&error={PurchaseError.InvalidOrder}");
+            return Rejected(orderId, PurchaseError.InvalidOrder);
         }
 
         var posted = actuals ?? new Dictionary<Guid, int>();
@@ -444,10 +474,10 @@ public class IndexModel(
             HttpContext.RequestAborted);
         if (result.IsFailure)
         {
-            return Redirect($"/purchasing?order={orderId}&error={result.Error}");
+            return Rejected(orderId, result.Error, result.Issues);
         }
 
-        return Redirect($"/purchasing?order={orderId}&notice=received");
+        return Redirect(BackTo(orderId, ("notice", "received")));
     }
 
     /// <summary>Gửi duyệt, duyệt, trả về nháp, đánh dấu hàng đang về, hủy. Trả về nháp và hủy phải có lý do.</summary>
@@ -456,7 +486,7 @@ public class IndexModel(
         var result = await changeStatus.HandleAsync(new ChangePurchaseStatusCommand(orderId, Actor, action, note), HttpContext.RequestAborted);
         if (result.IsFailure)
         {
-            return Redirect($"/purchasing?order={orderId}&error={result.Error}");
+            return Rejected(orderId, result.Error, result.Issues);
         }
 
         var notice = action switch
@@ -467,7 +497,7 @@ public class IndexModel(
             PurchaseStatusAction.MarkInTransit => "in-transit",
             _ => "cancelled"
         };
-        return Redirect($"/purchasing?order={orderId}&notice={notice}");
+        return Redirect(BackTo(orderId, ("notice", notice)));
     }
 
     /// <summary>Điều chỉnh chi phí sau khi đơn đã nhận đủ (hóa đơn về muộn). Số tiền có dấu: dương tăng giá vốn, âm giảm.</summary>
@@ -477,21 +507,21 @@ public class IndexModel(
             new AdjustPurchaseCostCommand { Actor = Actor, PurchaseOrderId = orderId, Label = label, Amount = amount, Method = method, Reason = reason },
             HttpContext.RequestAborted);
         return result.IsFailure
-            ? Redirect($"/purchasing?order={orderId}&error={result.Error}")
-            : Redirect($"/purchasing?order={orderId}&notice=cost-adjusted");
+            ? Rejected(orderId, result.Error, result.Issues)
+            : Redirect(BackTo(orderId, ("notice", "cost-adjusted")));
     }
 
     public async Task<IActionResult> OnPostExportAsync(Guid orderId)
     {
         if (orderId == Guid.Empty)
         {
-            return Redirect("/purchasing");
+            return Redirect(BackTo(null));
         }
 
         var result = await exportOrder.HandleAsync(orderId, Actor, HttpContext.RequestAborted);
         if (result.IsFailure)
         {
-            return Redirect($"/purchasing?error={result.Error}");
+            return Rejected(null, result.Error, result.Issues);
         }
 
         var export = result.Value!;
@@ -516,7 +546,7 @@ public class IndexModel(
     private async Task LoadAsync(Guid? id, Guid? formula)
     {
         var cancellationToken = HttpContext.RequestAborted;
-        var list = await listOrders.HandleAsync(Actor, new PurchaseListFilter(SupplierFilter, Search, ListPage, ListPageSize), cancellationToken);
+        var list = await listOrders.HandleAsync(Actor, new PurchaseListFilter(SupplierFilter, Search, ListPage, ListPageSize, StatusFilter), cancellationToken);
         HasAnyOrders = list.HasAny;
         Orders = list.Items;
         OrdersTotal = list.Total;

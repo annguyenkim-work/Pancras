@@ -55,5 +55,8 @@ public enum PurchaseError
     Forbidden,
 
     /// <summary>Đơn đã hủy nên không nhận thêm file đính kèm.</summary>
-    OrderCancelled
+    OrderCancelled,
+
+    /// <summary>Có dòng nhận nhiều hơn số còn phải nhận. Chi tiết nằm ở <c>Issues</c> (<see cref="Pancras.Application.Purchasing.ReceiptExcess"/>).</summary>
+    ReceiptExceedsOrdered
 }

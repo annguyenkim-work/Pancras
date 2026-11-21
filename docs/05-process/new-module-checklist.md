@@ -32,7 +32,7 @@
 - [ ] Đăng ký DI (handler, repository) trong `Program.cs`
 - [ ] `<Module>Access` trong Domain, `CanX` trong PageModel, view chỉ đọc `Model.CanX`
 - [ ] Mục menu (danh sách dữ liệu), trang 403 cho người không có quyền
-- [ ] Giao diện theo chuẩn UI; danh sách có phân trang 20/50
+- [ ] Giao diện theo chuẩn UI; danh sách có phân trang 20/50; đi hết [ui-checklist.md](../03-ui-ux/ui-checklist.md) (bộ lọc liệt kê đủ trong docs module, ô tiền `data-vnd`, lỗi đúng nơi, giữ trạng thái danh sách, bố cục menu thu nhỏ)
 - [ ] Test tự động (Domain, Application, Web phân quyền) và test case thủ công
 - [ ] Cập nhật `00-overview/product.md` (trạng thái module)
 

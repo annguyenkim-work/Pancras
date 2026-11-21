@@ -54,14 +54,11 @@ dotnet build Pancras.slnx --warnaserror
 dotnet test Pancras.slnx --warnaserror --nologo
 ```
 
-Ghi chú: đổi class UI thì thêm `npm run build:css`. Chưa có CI; dự định thêm GitHub Actions (build + test `--warnaserror`) về sau.
+Ghi chú: đổi class UI thì thêm `npm run build:css`. CI: `.github/workflows/ci.yml` build và test `--warnaserror` mọi push và pull request (kể cả smoke test trình duyệt).
 
 ## Nợ lệch so với quy tắc
 
-| Vấn đề | Hiện trạng |
-| --- | --- |
-| Tên nhánh | Nhánh hiện tại `dev/annk/feature/Sprint1/Login&Warehouse` có ký tự `&` và cấp con `Sprint1`; đổi tên khi tiện |
-| CI | Chưa có |
+Không còn mục nào.
 
 ## Quyết định đã chốt (2026-11-16)
 

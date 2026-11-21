@@ -1,5 +1,5 @@
-using Pancras.Application.Auditing;
 using Microsoft.Extensions.Logging;
+using Pancras.Application.Auditing;
 using Pancras.Application.Locations;
 using Pancras.Domain.Employees;
 

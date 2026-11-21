@@ -48,6 +48,7 @@ dotnet test Pancras.slnx --warnaserror --nologo                 # một dự án
 ```
 
 - `Pancras.Infrastructure.Tests` chạy trên PostgreSQL thật: cần **Docker** (Testcontainers tự khởi động container) hoặc đặt biến môi trường `PANCRAS_TEST_POSTGRES` (chuỗi kết nối tới máy chủ PostgreSQL local; chỉ tạo/xóa database `pancras_test_*`). Chi tiết ở [testing.md](../02-coding-rules/testing.md) mục 4.
+- **Cách chạy test khuyên dùng:** `./scripts/test.ps1` (build `--warnaserror` rồi test cả solution). Script tự lấy chuỗi kết nối PostgreSQL local từ user-secrets cho `Infrastructure.Tests` khi chưa đặt `PANCRAS_TEST_POSTGRES`, không in chuỗi ra màn hình; máy có Docker thì không cần. Chạy riêng: `./scripts/test.ps1 -Project Web -Filter Category=Browser`.
 - **Dừng `Pancras.Web.exe` (cổng 5010) trước khi build lại**; ứng dụng đang chạy khóa tệp build.
 - Sửa class giao diện thì chạy `npm run build:css` trong `src/Pancras.Web` (hoặc `npm run watch:css` khi đang làm), rồi commit `site.css`.
 - Ảnh sản phẩm tải lên lưu ở `src/Pancras.Web/wwwroot/uploads/` (không vào git). Chứng từ đính kèm lưu ở thư mục cấu hình `Storage:AttachmentsPath` (không cấu hình thì dùng đường dẫn mặc định); `App_Data/` cũng không vào git.

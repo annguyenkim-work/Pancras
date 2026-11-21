@@ -73,3 +73,5 @@ Thành phần: tiêu đề "Xin chào, <tên>", khối "Lối tắt".
 | UI-06 | P2 | Dấu vết (ai tạo, ai sửa, lúc nào) | Hiện ở các bảng có cột "Dấu vết"; giờ theo giờ Việt Nam | ☐ |
 | UI-07 | P3 | Chrome / Edge / Firefox | Hành vi giống nhau | ☐ |
 | UI-08 | P2 | Bấm đúp nút lưu/duyệt/nhận hàng | Chỉ ghi 1 lần | ☐ |
+| UI-09 | P1 | Thu nhỏ và mở rộng menu ở màn 1024 và 1920 | Nội dung căn giữa, không dính trái, không hở khoảng trống bất thường; có độ rộng tối thiểu | ☐ |
+| UI-10 | P1 | Mọi ô tiền VNĐ ở mọi form (Danh mục, Mua hàng, Kho): gõ số lớn, tab ra, mở lại | Luôn dạng `1.234.567`; USD, phần trăm, số lượng không bị nhóm sai | ☐ |

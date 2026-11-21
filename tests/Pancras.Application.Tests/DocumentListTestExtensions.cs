@@ -10,11 +10,11 @@ internal static class DocumentListTestExtensions
         (await handler.ListTransferPageAsync(actor, new TransferListRequest(PageSize: 50), cancellationToken)).Rows;
 
     public static async Task<IReadOnlyList<StocktakeRow>> ListStocktakesAsync(this ListInventoryDocumentsHandler handler, EmployeeActor actor, CancellationToken cancellationToken) =>
-        (await handler.ListStockDocumentPageAsync(actor, 1, 50, null, cancellationToken)).Stocktakes;
+        (await handler.ListStockDocumentPageAsync(actor, 1, 50, null, new StockDocumentFilter(), cancellationToken)).Stocktakes;
 
     public static async Task<IReadOnlyList<AdjustmentRow>> ListAdjustmentsAsync(this ListInventoryDocumentsHandler handler, EmployeeActor actor, CancellationToken cancellationToken) =>
-        (await handler.ListStockDocumentPageAsync(actor, 1, 50, null, cancellationToken)).Adjustments;
+        (await handler.ListStockDocumentPageAsync(actor, 1, 50, null, new StockDocumentFilter(), cancellationToken)).Adjustments;
 
     public static async Task<IReadOnlyList<DisposalRow>> ListDisposalsAsync(this ListInventoryDocumentsHandler handler, EmployeeActor actor, CancellationToken cancellationToken) =>
-        (await handler.ListStockDocumentPageAsync(actor, 1, 50, null, cancellationToken)).Disposals;
+        (await handler.ListStockDocumentPageAsync(actor, 1, 50, null, new StockDocumentFilter(), cancellationToken)).Disposals;
 }

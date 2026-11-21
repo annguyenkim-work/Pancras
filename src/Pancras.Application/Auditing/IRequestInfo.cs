@@ -1,5 +1,3 @@
-using Pancras.Domain.Auditing;
-
 namespace Pancras.Application.Auditing;
 
 /// <summary>Thông tin yêu cầu hiện tại, do lớp Web cung cấp.</summary>

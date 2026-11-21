@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging.Abstractions;
-using Pancras.Application.Auditing;
 using Pancras.Application.Common;
 using Pancras.Application.Purchasing;
 using Pancras.Domain.Auditing;

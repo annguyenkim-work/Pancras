@@ -1,7 +1,9 @@
-using Pancras.Domain.Notifications;
 using Pancras.Application.Inventory;
 using Pancras.Domain.Catalog;
 using Pancras.Domain.Inventory;
+using Pancras.Domain.Notifications;
+
+using Pancras.Tests.Shared;
 
 namespace Pancras.Application.Tests;
 
@@ -263,48 +265,29 @@ internal sealed class FakeInventoryStore : IInventoryRepository, Pancras.Applica
     public Task<IReadOnlyList<TransferSlip>> FindTransfersAsync(System.Linq.Expressions.Expression<Func<TransferSlip, bool>> visible, IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<TransferSlip>>(TransferSource().Where(visible.Compile()).Where(slip => ids.Contains(slip.Id)).ToArray());
 
-    public Task<StockDocumentCounts> CountStockDocumentsAsync(Guid? scope, CancellationToken cancellationToken) =>
-        Task.FromResult(new StockDocumentCounts(
-            ScopedStocktakes(scope).Count(), ScopedAdjustments(scope).Count(), ScopedDisposals(scope).Count()));
+    public Task<StockDocumentCounts> CountStockDocumentsAsync(Guid? scope, StockDocumentFilter filter, CancellationToken cancellationToken) =>
+        Task.FromResult(FakeStockDocuments.Count(Stocktakes, Adjustments, Disposals, scope, filter));
 
-    public Task<IReadOnlyList<StocktakeSheet>> ListStocktakesAsync(Guid? scope, StockDocumentRange range, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<StocktakeSheet>>(ScopedStocktakes(scope).Skip(range.Skip).Take(range.Take).ToArray());
+    public Task<IReadOnlyList<StocktakeSheet>> ListStocktakesAsync(Guid? scope, StockDocumentRange range, StockDocumentFilter filter, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<StocktakeSheet>>(FakeStockDocuments.Stocktakes(Stocktakes, scope, filter).Skip(range.Skip).Take(range.Take).ToArray());
 
-    public Task<IReadOnlyList<QuantityAdjustment>> ListAdjustmentsAsync(Guid? scope, StockDocumentRange range, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<QuantityAdjustment>>(ScopedAdjustments(scope).Skip(range.Skip).Take(range.Take).ToArray());
+    public Task<IReadOnlyList<QuantityAdjustment>> ListAdjustmentsAsync(Guid? scope, StockDocumentRange range, StockDocumentFilter filter, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<QuantityAdjustment>>(FakeStockDocuments.Adjustments(Adjustments, scope, filter).Skip(range.Skip).Take(range.Take).ToArray());
 
-    public Task<IReadOnlyList<DisposalSlip>> ListDisposalsAsync(Guid? scope, StockDocumentRange range, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<DisposalSlip>>(ScopedDisposals(scope).Skip(range.Skip).Take(range.Take).ToArray());
+    public Task<IReadOnlyList<DisposalSlip>> ListDisposalsAsync(Guid? scope, StockDocumentRange range, StockDocumentFilter filter, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<DisposalSlip>>(FakeStockDocuments.Disposals(Disposals, scope, filter).Skip(range.Skip).Take(range.Take).ToArray());
 
-    public Task<StockDocumentPosition?> LocateStockDocumentAsync(Guid? scope, Guid id, CancellationToken cancellationToken)
-    {
-        var stocktake = ScopedStocktakes(scope).Select(sheet => sheet.Id).ToList().IndexOf(id);
-        var adjustment = ScopedAdjustments(scope).Select(item => item.Id).ToList().IndexOf(id);
-        var disposal = ScopedDisposals(scope).Select(slip => slip.Id).ToList().IndexOf(id);
-        return Task.FromResult(
-            stocktake >= 0 ? new StockDocumentPosition(StockDocumentKind.Stocktake, stocktake)
-            : adjustment >= 0 ? new StockDocumentPosition(StockDocumentKind.Adjustment, adjustment)
-            : disposal >= 0 ? new StockDocumentPosition(StockDocumentKind.Disposal, disposal)
-            : (StockDocumentPosition?)null);
-    }
+    public Task<StockDocumentPosition?> LocateStockDocumentAsync(Guid? scope, Guid id, StockDocumentFilter filter, CancellationToken cancellationToken) =>
+        Task.FromResult(FakeStockDocuments.Locate(Stocktakes, Adjustments, Disposals, scope, filter, id));
 
     public Task<(IReadOnlyList<StocktakeSheet> Stocktakes, IReadOnlyList<QuantityAdjustment> Adjustments, IReadOnlyList<DisposalSlip> Disposals)> FindStockDocumentsAsync(
         Guid? scope,
         IReadOnlyCollection<Guid> ids,
         CancellationToken cancellationToken) =>
         Task.FromResult<(IReadOnlyList<StocktakeSheet>, IReadOnlyList<QuantityAdjustment>, IReadOnlyList<DisposalSlip>)>((
-            ScopedStocktakes(scope).Where(sheet => ids.Contains(sheet.Id)).ToArray(),
-            ScopedAdjustments(scope).Where(item => ids.Contains(item.Id)).ToArray(),
-            ScopedDisposals(scope).Where(slip => ids.Contains(slip.Id)).ToArray()));
-
-    private IEnumerable<StocktakeSheet> ScopedStocktakes(Guid? scope) =>
-        StocktakeSource().Where(sheet => scope is not Guid only || sheet.StockLocationId == only).OrderByDescending(sheet => sheet.Id);
-
-    private IEnumerable<QuantityAdjustment> ScopedAdjustments(Guid? scope) =>
-        AdjustmentSource().Where(item => scope is not Guid only || item.StockLocationId == only).OrderByDescending(item => item.Id);
-
-    private IEnumerable<DisposalSlip> ScopedDisposals(Guid? scope) =>
-        DisposalSource().Where(slip => scope is not Guid only || slip.StockLocationId == only).OrderByDescending(slip => slip.Id);
+            FakeStockDocuments.Stocktakes(Stocktakes, scope).Where(sheet => ids.Contains(sheet.Id)).ToArray(),
+            FakeStockDocuments.Adjustments(Adjustments, scope).Where(item => ids.Contains(item.Id)).ToArray(),
+            FakeStockDocuments.Disposals(Disposals, scope).Where(slip => ids.Contains(slip.Id)).ToArray()));
 
     private static DateTimeOffset CreatedAt(Guid id)
     {
@@ -321,11 +304,8 @@ internal sealed class FakeInventoryStore : IInventoryRepository, Pancras.Applica
 
     private IEnumerable<TransferSlip> TransferSource() => Transfers;
 
-    private IEnumerable<StocktakeSheet> StocktakeSource() => Stocktakes;
 
-    private IEnumerable<QuantityAdjustment> AdjustmentSource() => Adjustments;
 
-    private IEnumerable<DisposalSlip> DisposalSource() => Disposals;
 
     private IEnumerable<string> ItemText(Guid itemId) =>
         Items.Where(item => item.Id == itemId).SelectMany(item => new[] { item.Code, item.Name });

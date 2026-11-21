@@ -244,7 +244,7 @@
 
                         if (flow.CanAttach)
                         {
-                            <form method="post" asp-antiforgery="true" action="/inventory?handler=AttachTransferFile" enctype="multipart/form-data" class="flex flex-wrap items-center gap-2">
+                            <form method="post" asp-antiforgery="true" action="@Model.TransferActionUrl("AttachTransferFile")" enctype="multipart/form-data" class="flex flex-wrap items-center gap-2">
                                 <input type="hidden" name="DocumentId" value="@slip.Id" />
                                 <input type="hidden" name="view" value="transfers" />
                                 <input type="file" name="files" multiple accept="image/*,.pdf,.jpg,.jpeg,.png,.xlsx,.docx" class="text-xs text-slate-600" />
@@ -280,7 +280,7 @@
                         {
                             <details class="rounded-xl border border-slate-200 p-4">
                                 <summary class="cursor-pointer text-sm font-bold text-slate-700">Sửa phiếu đề nghị</summary>
-                                <form method="post" asp-antiforgery="true" action="/inventory?handler=UpdateTransfer" class="mt-3 space-y-3">
+                                <form method="post" asp-antiforgery="true" action="@Model.TransferActionUrl("UpdateTransfer")" class="mt-3 space-y-3">
                                     <input type="hidden" name="DocumentId" value="@slip.Id" />
                                     <input type="hidden" name="view" value="transfers" />
                                     <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -326,7 +326,7 @@
 
                         if (flow.CanReceive)
                         {
-                            <form method="post" asp-antiforgery="true" action="/inventory?handler=ReceiveTransfer" enctype="multipart/form-data" data-confirm data-confirm-title="Xác nhận đã nhận hàng" data-confirm-message="Tồn kho nơi nhận sẽ tăng theo số thực nhận bạn nhập. Số liệu này không sửa lại được." class="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/40 p-4">
+                            <form method="post" asp-antiforgery="true" action="@Model.TransferActionUrl("ReceiveTransfer")" enctype="multipart/form-data" data-confirm data-confirm-title="Xác nhận đã nhận hàng" data-confirm-message="Tồn kho nơi nhận sẽ tăng theo số thực nhận bạn nhập. Số liệu này không sửa lại được." class="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/40 p-4">
                                 <input type="hidden" name="DocumentId" value="@slip.Id" />
                                 <input type="hidden" name="view" value="transfers" />
                                 <h3 class="text-sm font-bold text-emerald-800">Kiểm nhận hàng</h3>
@@ -356,7 +356,7 @@
 
                         if (flow.CanResolve)
                         {
-                            <form method="post" asp-antiforgery="true" action="/inventory?handler=ResolveTransfer" data-confirm data-confirm-title="Xác nhận đã xử lý chênh lệch" data-confirm-message="Phiếu sẽ được đóng sau khi xác nhận." class="space-y-2 rounded-xl border border-amber-200 bg-amber-50/40 p-4">
+                            <form method="post" asp-antiforgery="true" action="@Model.TransferActionUrl("ResolveTransfer")" data-confirm data-confirm-title="Xác nhận đã xử lý chênh lệch" data-confirm-message="Phiếu sẽ được đóng sau khi xác nhận." class="space-y-2 rounded-xl border border-amber-200 bg-amber-50/40 p-4">
                                 <input type="hidden" name="DocumentId" value="@slip.Id" />
                                 <input type="hidden" name="view" value="transfers" />
                                 <label class="block text-sm font-bold text-amber-900">Xử lý chênh lệch (Kế toán / Giám đốc)
@@ -375,7 +375,7 @@
                                 }
                                 @if (flow.CanDecide)
                                 {
-                                    <form method="post" asp-antiforgery="true" action="/inventory?handler=DecideTransfer" data-confirm class="flex flex-wrap gap-2">
+                                    <form method="post" asp-antiforgery="true" action="@Model.TransferActionUrl("DecideTransfer")" data-confirm class="flex flex-wrap gap-2">
                                         <input type="hidden" name="DocumentId" value="@slip.Id" />
                                         <input type="hidden" name="view" value="transfers" />
                                         <input type="hidden" name="reason" value="" />
@@ -385,7 +385,7 @@
                                 }
                                 @if (flow.CanShip)
                                 {
-                                    <form method="post" asp-antiforgery="true" action="/inventory?handler=ShipTransfer" data-confirm data-confirm-title="Xuất kho phiếu @slipCode" data-confirm-message="Tồn @slip.SourceName giảm ngay theo số lượng trên phiếu và hàng chuyển sang trạng thái đang vận chuyển." data-confirm-label="Xuất kho" class="flex flex-wrap items-center gap-2">
+                                    <form method="post" asp-antiforgery="true" action="@Model.TransferActionUrl("ShipTransfer")" data-confirm data-confirm-title="Xuất kho phiếu @slipCode" data-confirm-message="Tồn @slip.SourceName giảm ngay theo số lượng trên phiếu và hàng chuyển sang trạng thái đang vận chuyển." data-confirm-label="Xuất kho" class="flex flex-wrap items-center gap-2">
                                         <input type="hidden" name="DocumentId" value="@slip.Id" />
                                         <input type="hidden" name="view" value="transfers" />
                                         <input name="sealNumber" maxlength="100" placeholder="Số seal niêm phong" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm" />
@@ -395,7 +395,7 @@
                                 }
                                 @if (flow.CanReturn)
                                 {
-                                    <form method="post" asp-antiforgery="true" action="/inventory?handler=ReturnTransfer" data-confirm data-confirm-title="Trả hàng về kho xuất" data-confirm-message="Hàng đang vận chuyển sẽ được hoàn về tồn của @slip.SourceName và phiếu đóng lại. Nhập lý do trả hàng." data-reason="required" data-confirm-label="Trả hàng" data-confirm-tone="danger">
+                                    <form method="post" asp-antiforgery="true" action="@Model.TransferActionUrl("ReturnTransfer")" data-confirm data-confirm-title="Trả hàng về kho xuất" data-confirm-message="Hàng đang vận chuyển sẽ được hoàn về tồn của @slip.SourceName và phiếu đóng lại. Nhập lý do trả hàng." data-reason="required" data-confirm-label="Trả hàng" data-confirm-tone="danger">
                                         <input type="hidden" name="DocumentId" value="@slip.Id" />
                                         <input type="hidden" name="view" value="transfers" />
                                         <input type="hidden" name="reason" value="" />
@@ -404,7 +404,7 @@
                                 }
                                 @if (flow.CanCancel)
                                 {
-                                    <form method="post" asp-antiforgery="true" action="/inventory?handler=CancelTransfer" data-confirm data-confirm-title="Hủy phiếu @slipCode" data-confirm-message="Phiếu sẽ đóng lại và phần hàng đang giữ (nếu đã duyệt) được nhả. Nhập lý do hủy." data-reason="required" data-confirm-label="Hủy phiếu" data-confirm-tone="danger">
+                                    <form method="post" asp-antiforgery="true" action="@Model.TransferActionUrl("CancelTransfer")" data-confirm data-confirm-title="Hủy phiếu @slipCode" data-confirm-message="Phiếu sẽ đóng lại và phần hàng đang giữ (nếu đã duyệt) được nhả. Nhập lý do hủy." data-reason="required" data-confirm-label="Hủy phiếu" data-confirm-tone="danger">
                                         <input type="hidden" name="DocumentId" value="@slip.Id" />
                                         <input type="hidden" name="view" value="transfers" />
                                         <input type="hidden" name="reason" value="" />

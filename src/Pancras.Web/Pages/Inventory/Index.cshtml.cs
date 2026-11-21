@@ -7,8 +7,8 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Pancras.Application.Common;
 using Pancras.Application.Inventory;
 using Pancras.Domain.Inventory;
-using Pancras.Web.Security;
 using Pancras.Web.Formatting;
+using Pancras.Web.Security;
 
 namespace Pancras.Web.Pages.Inventory;
 
@@ -106,6 +106,13 @@ public class IndexModel(
 
     public bool ShowStocktakeDialog { get; private set; }
 
+    public bool ShowAdjustmentDialog { get; private set; }
+
+    public bool ShowDisposalDialog { get; private set; }
+
+    /// <summary>Có modal lập phiếu (chuyển kho, kiểm kê, điều chỉnh, hủy) đang mở lại sau khi bị từ chối; lỗi hiện trong modal đó.</summary>
+    public bool ShowAnyDocumentDialog => ShowTransferDialog || ShowStocktakeDialog || ShowAdjustmentDialog || ShowDisposalDialog;
+
     [BindProperty(SupportsGet = true, Name = "bp")]
     public int BalancePage { get; set; } = 1;
 
@@ -120,24 +127,13 @@ public class IndexModel(
     public Pancras.Web.Formatting.PagerModel BalancePager =>
         new(CurrentBalancePage, BalancePageSize, Groups.Count, (page, size) => BalancesUrl(page, size));
 
-    private string BalancesUrl(int page, int size)
-    {
-        var parts = new List<string>();
-        Add(parts, "q", Search);
-        Add(parts, "location", Location);
-        Add(parts, "category", Category);
-        if (size != Pancras.Application.Common.PageSizes.Default)
-        {
-            parts.Add("size=" + size.ToString(CultureInfo.InvariantCulture));
-        }
+    private string BalancesUrl(int page, int size) =>
+        BalanceFilters(new ListQuery("/inventory"))
+            .Add("size", size, Pancras.Application.Common.PageSizes.Default)
+            .AddPage("bp", page)
+            .ToString();
 
-        if (page > 1)
-        {
-            parts.Add("bp=" + page.ToString(CultureInfo.InvariantCulture));
-        }
-
-        return parts.Count == 0 ? "/inventory" : "/inventory?" + string.Join('&', parts);
-    }
+    private ListQuery BalanceFilters(ListQuery query) => query.Add("q", Search).Add("location", Location).Add("category", Category);
 
     [BindProperty(SupportsGet = true, Name = "sp")]
     public int StocktakePage { get; set; } = 1;
@@ -149,24 +145,42 @@ public class IndexModel(
     /// <summary>Kiểm kê, điều chỉnh và phiếu hủy gộp thành một danh sách phân trang 20/50 (đếm và cắt trong database). Chỉ nạp ở tab Kiểm kê.</summary>
     public StockDocumentPage StocktakeSlice { get; private set; } = new([], [], [], 0, 1);
 
+    public int StocktakePageSize => Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
+
     public Pancras.Web.Formatting.PagerModel StocktakePager =>
         new(StocktakeSlice.Page, Pancras.Web.Formatting.PagerModel.SizeFrom(Request), StocktakeSlice.Total, (page, size) => StocktakesUrl(page, size));
 
-    private static string StocktakesUrl(int page, int size)
-    {
-        var parts = new List<string> { "view=stocktakes" };
-        if (size != Pancras.Application.Common.PageSizes.Default)
-        {
-            parts.Add("size=" + size.ToString(CultureInfo.InvariantCulture));
-        }
+    /// <summary>Loại phiếu đang lọc ở tab Kiểm kê và điều chỉnh: <c>kk</c>, <c>dc</c>, <c>hy</c>; giá trị khác là tất cả.</summary>
+    [BindProperty(SupportsGet = true, Name = "type")]
+    public string? DocumentType { get; set; }
 
-        if (page > 1)
-        {
-            parts.Add("sp=" + page.ToString(CultureInfo.InvariantCulture));
-        }
+    /// <summary>Mã phiếu đang tìm ở tab Kiểm kê và điều chỉnh (ví dụ <c>KK-1A2B3C4D</c> hoặc một đoạn của mã).</summary>
+    [BindProperty(SupportsGet = true, Name = "code")]
+    public string? DocumentCode { get; set; }
 
-        return "/inventory?" + string.Join('&', parts);
-    }
+    private const int DocumentCodeMaxLength = 20;
+
+    public StockDocumentFilter DocumentFilter => new(StockDocumentFilter.ParseKind(DocumentType), DocumentCode is { } code ? code.Trim()[..Math.Min(code.Trim().Length, DocumentCodeMaxLength)] : null);
+
+    public bool HasDocumentFilter => DocumentFilter.IsActive;
+
+    /// <summary>Tab Kiểm kê và điều chỉnh: tab, bộ lọc, cỡ trang và trang. Một nơi duy nhất cho mọi link và form POST của tab.</summary>
+    private ListQuery StocktakesQuery(int page, int size) => new ListQuery("/inventory")
+        .Add("view", "stocktakes")
+        .Add("type", StockDocumentFilter.KindToken(DocumentFilter.Kind))
+        .Add("code", DocumentFilter.Code)
+        .Add("size", size, Pancras.Application.Common.PageSizes.Default)
+        .AddPage("sp", page);
+
+    private string StocktakesUrl(int page, int size) => StocktakesQuery(page, size).ToString();
+
+    /// <summary>Địa chỉ của form ở tab Kiểm kê (lập, duyệt phiếu): gửi kèm bộ lọc và trang để sau khi xử lý quay lại đúng danh sách.</summary>
+    public string StocktakeActionUrl(string handler) => StocktakesQuery(StocktakeSlice.Page, StocktakePageSize).WithHandler(handler);
+
+    public string StocktakeFilterResetUrl => new ListQuery("/inventory")
+        .Add("view", "stocktakes")
+        .Add("size", StocktakePageSize, Pancras.Application.Common.PageSizes.Default)
+        .ToString();
 
     /// <summary>Cỡ trang danh sách phiếu chuyển: 20 hoặc 50 (query `size`).</summary>
     public int TransferPageSize => Pancras.Web.Formatting.PagerModel.SizeFrom(Request);
@@ -360,7 +374,7 @@ public class IndexModel(
         }
 
         View = "transfers";
-        return Redirect(PageUrl(includeItem: false));
+        return Redirect(TransfersBackTo(created.Value));
     }
 
     /// <summary>Sửa phiếu đề nghị khi chưa được duyệt.</summary>
@@ -449,7 +463,7 @@ public class IndexModel(
         }
 
         View = "transfers";
-        return Redirect(PageUrl(includeItem: false));
+        return Redirect(TransfersBackTo(DocumentId));
     }
 
     /// <summary>Lưu các file đính kèm cho phiếu hiện tại; trả về kết quả lỗi nếu một file bị từ chối, null nếu xong.</summary>
@@ -580,34 +594,35 @@ public class IndexModel(
             : Task.FromResult<IActionResult>(Forbid());
 
     /// <summary>Địa chỉ trang Chuyển kho với bộ lọc hiện tại, đổi một vài tham số (null thì bỏ tham số đó).</summary>
-    public string TransferUrl(string? quick = null, int? page = null, bool keepFilters = true, int? size = null)
+    /// <summary>
+    /// Địa chỉ của form thao tác ở tab Chuyển kho (lập, sửa, duyệt, xuất, nhận, trả, hủy, xử lý chênh lệch, đính kèm): thao tác cộng
+    /// lọc nhanh, bộ lọc, trang và cỡ trang đang xem, để sau khi xử lý quay lại đúng danh sách (docs/03-ui-ux/components.md mục 10).
+    /// </summary>
+    public string TransferActionUrl(string handler) => TransferQuery(TransferQuick, CurrentTransferPage, keepFilters: true, TransferPageSize).WithHandler(handler);
+
+    /// <summary>Danh sách chuyển kho đang lọc (đọc từ query của form vừa gửi), mở sẵn phiếu vừa thao tác.</summary>
+    private string TransfersBackTo(Guid slipId) =>
+        TransferQuery(TransferQuick, TransferPage, keepFilters: true, TransferPageSize).Add("open", slipId).ToString();
+
+    public string TransferUrl(string? quick = null, int? page = null, bool keepFilters = true, int? size = null) =>
+        TransferQuery(quick, page, keepFilters, size).ToString();
+
+    private ListQuery TransferQuery(string? quick, int? page, bool keepFilters, int? size)
     {
-        var parts = new List<string> { "view=transfers" };
+        var query = new ListQuery("/inventory").Add("view", "transfers");
         if (keepFilters)
         {
-            Add(parts, "ts", TransferStatusFilter);
-            Add(parts, "tl", TransferLocation);
-            Add(parts, "tq", TransferSearch);
-            Add(parts, "tfrom", TransferFrom);
-            Add(parts, "tto", TransferTo);
+            query.Add("ts", TransferStatusFilter).Add("tl", TransferLocation).Add("tq", TransferSearch).Add("tfrom", TransferFrom).Add("tto", TransferTo);
         }
 
-        if (!string.IsNullOrEmpty(quick) && quick != "all")
+        if (quick != "all")
         {
-            parts.Add("tf=" + Uri.EscapeDataString(quick));
+            query.Add("tf", quick);
         }
 
-        if (size is { } pageSize && pageSize != Pancras.Application.Common.PageSizes.Default)
-        {
-            parts.Add("size=" + pageSize.ToString(CultureInfo.InvariantCulture));
-        }
-
-        if (page is > 1)
-        {
-            parts.Add("tp=" + page.Value.ToString(CultureInfo.InvariantCulture));
-        }
-
-        return "/inventory?" + string.Join('&', parts);
+        return query
+            .Add("size", size ?? Pancras.Application.Common.PageSizes.Default, Pancras.Application.Common.PageSizes.Default)
+            .AddPage("tp", page ?? 1);
     }
 
     public string ViewUrl(string view) =>
@@ -682,7 +697,12 @@ public class IndexModel(
         if (view == "transfers" && DocumentId != Guid.Empty)
         {
             // Mở lại phiếu vừa thao tác để người dùng thấy trạng thái mới và lịch sử.
-            return Redirect(TransferUrl(keepFilters: false) + "&open=" + DocumentId.ToString("D"));
+            return Redirect(TransfersBackTo(DocumentId));
+        }
+
+        if (view == "stocktakes")
+        {
+            return Redirect(StocktakesUrl(StocktakePage, Pancras.Web.Formatting.PagerModel.SizeFrom(Request)));
         }
 
         return Redirect(PageUrl(includeItem: false));
@@ -733,13 +753,15 @@ public class IndexModel(
         }
 
         View = "stocktakes";
-        return Redirect(PageUrl(includeItem: false));
+        return Redirect(StocktakesUrl(StocktakePage, StocktakePageSize));
     }
 
     private async Task<IActionResult> FailStockDocumentAsync(StockDocumentKind kind, StockError error, string? detail, CancellationToken cancellationToken)
     {
         ErrorMessage = StockErrorMessages.Describe(error, detail);
         ShowStocktakeDialog = kind == StockDocumentKind.Stocktake;
+        ShowAdjustmentDialog = kind == StockDocumentKind.Adjustment;
+        ShowDisposalDialog = kind == StockDocumentKind.Disposal;
         View = "stocktakes";
         await LoadAsync(cancellationToken);
         return Page();
@@ -798,7 +820,7 @@ public class IndexModel(
         else if (ActiveView == "stocktakes")
         {
             StocktakeSlice = await documentsHandler.ListStockDocumentPageAsync(
-                Actor, StocktakePage, Pancras.Web.Formatting.PagerModel.SizeFrom(Request), FocusDocument, cancellationToken);
+                Actor, StocktakePage, Pancras.Web.Formatting.PagerModel.SizeFrom(Request), FocusDocument, DocumentFilter, cancellationToken);
         }
 
         PlaceCodes = BuildPlaceCodes(AllLocations);
@@ -940,37 +962,19 @@ public class IndexModel(
 
     private string BuildUrl(string view, string? item, string? kind, string? place, int? page, int? size)
     {
-        var parts = new List<string>();
+        var query = new ListQuery("/inventory");
         if (!string.Equals(view, "balances", StringComparison.Ordinal))
         {
-            parts.Add("view=" + Uri.EscapeDataString(view));
+            query.Add("view", view);
         }
 
-        Add(parts, "q", Search);
-        Add(parts, "location", Location);
-        Add(parts, "category", Category);
-        Add(parts, "item", item);
-        Add(parts, "kind", kind);
-        Add(parts, "place", place);
-        if (page is > 1)
-        {
-            parts.Add("historyPage=" + page.Value.ToString(CultureInfo.InvariantCulture));
-        }
-
-        if (size is 20 or 50)
-        {
-            parts.Add("size=" + size.Value.ToString(CultureInfo.InvariantCulture));
-        }
-
-        return parts.Count == 0 ? "/inventory" : "/inventory?" + string.Join('&', parts);
-    }
-
-    private static void Add(List<string> parts, string name, string? value)
-    {
-        if (!string.IsNullOrWhiteSpace(value))
-        {
-            parts.Add(name + "=" + Uri.EscapeDataString(value.Trim()));
-        }
+        return BalanceFilters(query)
+            .Add("item", item)
+            .Add("kind", kind)
+            .Add("place", place)
+            .AddPage("historyPage", page ?? 1)
+            .Add("size", size is 20 or 50 ? size.Value.ToString(CultureInfo.InvariantCulture) : null)
+            .ToString();
     }
 
     private sealed record BalancePoint(Guid Item, Guid Location, int OnHand, int Available);

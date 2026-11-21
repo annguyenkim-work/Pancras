@@ -1,4 +1,3 @@
-using Pancras.Web.Security;
 using System.Globalization;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
@@ -10,6 +9,7 @@ using Pancras.Application.Inventory;
 using Pancras.Domain.Catalog;
 using Pancras.Web.Catalog;
 using Pancras.Web.Formatting;
+using Pancras.Web.Security;
 
 namespace Pancras.Web.Pages.Catalog;
 
@@ -100,15 +100,7 @@ public class IndexModel(
 
     public string PriceUrl(Guid id) => BuildUrl(ItemPage.PageNumber, priceId: id);
 
-    public string ExportUrl
-    {
-        get
-        {
-            var parts = FilterParts();
-            var query = parts.Count == 0 ? string.Empty : "&" + string.Join('&', parts);
-            return "/catalog?handler=Export" + query;
-        }
-    }
+    public string ExportUrl => Filters(new ListQuery("/catalog")).WithHandler("Export");
 
     public async Task<IActionResult> OnGetAsync(Guid? detail, Guid? prices, bool add, CancellationToken cancellationToken)
     {
@@ -390,68 +382,42 @@ public class IndexModel(
         ErrorMessages = CatalogErrorMessages.Describe(error, issues, code);
     }
 
-    private string BuildUrl(int page, Guid? detailId = null, Guid? priceId = null, bool add = false, int? size = null, string? sortToken = null)
+    private string BuildUrl(int page, Guid? detailId = null, Guid? priceId = null, bool add = false, int? size = null, string? sortToken = null) =>
+        ListState(new ListQuery("/catalog").Add("detail", detailId).Add("prices", priceId).Add("add", add), page, size, sortToken).ToString();
+
+    /// <summary>Địa chỉ form thao tác (lưu, giá, Active/Disable): thao tác cộng bộ lọc, sắp xếp, cỡ trang và trang đang xem.</summary>
+    public string ActionUrl(string? handler) => ListState(new ListQuery("/catalog"), ItemPage.PageNumber).WithHandler(handler);
+
+    private ListQuery ListState(ListQuery query, int page, int? size = null, string? sortToken = null)
     {
-        var parts = new List<string>();
-        if (detailId is Guid detail)
-        {
-            parts.Add("detail=" + detail.ToString("D"));
-        }
-
-        if (priceId is Guid price)
-        {
-            parts.Add("prices=" + price.ToString("D"));
-        }
-
-        if (add)
-        {
-            parts.Add("add=true");
-        }
-
-        parts.AddRange(FilterParts());
+        Filters(query);
         var order = CatalogOrdering.Parse(sortToken ?? SortToken);
         if (order != CatalogOrdering.Parse(null))
         {
-            parts.Add("sort=" + order.Token);
+            query.Add("sort", order.Token);
         }
 
-        var pageSize = size ?? RequestedSize;
-        if (pageSize != Pancras.Application.Common.PageSizes.Default)
-        {
-            parts.Add("size=" + pageSize.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        }
-
-        if (page > 1)
-        {
-            parts.Add("page=" + page.ToString(CultureInfo.InvariantCulture));
-        }
-
-        return parts.Count == 0 ? "/catalog" : "/catalog?" + string.Join('&', parts);
+        return query.Add("size", size ?? RequestedSize, Pancras.Application.Common.PageSizes.Default).AddPage("page", page);
     }
 
-    private List<string> FilterParts()
+    private ListQuery Filters(ListQuery query)
     {
         var filter = CurrentFilter();
-        var parts = new List<string>();
         if (filter.Category is ProductCategory category)
         {
-            parts.Add("category=" + ProductCategoryToken.From(category));
+            query.Add("category", ProductCategoryToken.From(category));
         }
-        else if (filter.CategoryRejected && !string.IsNullOrWhiteSpace(CategoryToken))
+        else if (filter.CategoryRejected)
         {
-            parts.Add("category=" + Uri.EscapeDataString(CategoryToken.Trim()));
+            query.Add("category", CategoryToken);
         }
 
-        if (filter.Term is not null)
-        {
-            parts.Add("q=" + Uri.EscapeDataString(filter.Term));
-        }
-
+        query.Add("q", filter.Term);
         if (filter.Status != CatalogStatusFilter.Active)
         {
-            parts.Add("status=" + filter.Status.ToString().ToLowerInvariant());
+            query.Add("status", filter.Status.ToString().ToLowerInvariant());
         }
 
-        return parts;
+        return query;
     }
 }

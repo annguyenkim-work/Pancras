@@ -171,4 +171,34 @@ public class ReceivePurchaseOrderCommandHandlerTests
         Assert.Equal(PurchaseStatus.Received, order.Status);
         Assert.Equal(10, order.Lines[0].ReceivedQuantity);
     }
+    [Fact]
+    public async Task Receive_MoreThanStillToReceive_IsRejectedEvenWhenClosing_AndNamesTheItem()
+    {
+        var item = CatalogItem.Create("SP11", "Chậu", ProductCategory.SanitaryEquipment, "Toto", "Việt Nam", "Cái", null, null, null, null, 9m, 1m, 1m, 1m, 1m);
+        var warehouse = StockLocation.Create("Kho F", StockLocationKind.Warehouse);
+        var catalog = new FakeCatalogRepository();
+        catalog.Items.Add(item);
+        var inventory = new FakeInventoryStore();
+        var orders = new FakePurchaseStore();
+        var order = PurchaseOrder.TryCreate("PO-11", Guid.CreateVersion7(), warehouse.Id, "CONT", null, null, null, 1m, 0m, [(item.Id, 10, 100m, 0m, 0m, 0m, 0m)])!;
+        orders.Orders.Add(order);
+        order.Approve();
+        var handler = new ReceivePurchaseOrderCommandHandler(orders, inventory, catalog, inventory, NullLogger<ReceivePurchaseOrderCommandHandler>.Instance);
+        var lineId = order.Lines[0].Id;
+
+        var partial = await handler.HandleAsync(
+            new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant, new Dictionary<Guid, int> { [lineId] = 4 }, false),
+            CancellationToken.None);
+        Assert.True(partial.IsSuccess);
+
+        var closing = await handler.HandleAsync(
+            new ReceivePurchaseOrderCommand(order.Id, TestActors.Accountant, new Dictionary<Guid, int> { [lineId] = 7 }, true, "thừa hàng"),
+            CancellationToken.None);
+
+        Assert.Equal(PurchaseError.ReceiptExceedsOrdered, closing.Error);
+        Assert.Equal(new ReceiptExcess("SP11", 7, 6), Assert.Single(closing.IssuesOf<ReceiptExcess>()));
+        Assert.Equal(PurchaseStatus.PartiallyReceived, order.Status);
+        Assert.Equal(4, order.Lines[0].ReceivedQuantity);
+        Assert.Equal(4, inventory.Balances.Sum(balance => balance.OnHand));
+    }
 }

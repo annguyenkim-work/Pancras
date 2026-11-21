@@ -133,19 +133,6 @@ public sealed class StockBalance
         return true;
     }
 
-    public bool TryReceiveTransfer(int quantity)
-    {
-        if (quantity <= 0 || InTransit < quantity || (long)OnHand + quantity > int.MaxValue)
-        {
-            return false;
-        }
-
-        InTransit -= quantity;
-        OnHand += quantity;
-        Version++;
-        return true;
-    }
-
     /// <summary>Nhận hàng chuyển: bỏ phần đang chuyển đã xuất, cộng số thực nhận (có thể khác số xuất).</summary>
     public bool TryReceiveActual(int shipped, int actual)
     {

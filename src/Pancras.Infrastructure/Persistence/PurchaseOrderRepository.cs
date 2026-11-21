@@ -23,6 +23,11 @@ public sealed class PurchaseOrderRepository(PancrasDbContext context) : IPurchas
             query = query.Where(order => order.SupplierId == supplierId);
         }
 
+        if (filter.Status is PurchaseStatus status)
+        {
+            query = query.Where(order => order.Status == status);
+        }
+
         if (!string.IsNullOrWhiteSpace(filter.Term))
         {
             var pattern = InventoryTextSearch.ContainsPattern(filter.Term);

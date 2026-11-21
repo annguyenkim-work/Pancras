@@ -1,5 +1,5 @@
-using Pancras.Domain.Suppliers;
 using Pancras.Domain.Employees;
+using Pancras.Domain.Suppliers;
 
 namespace Pancras.Domain.Tests;
 

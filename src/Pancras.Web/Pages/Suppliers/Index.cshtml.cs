@@ -1,11 +1,11 @@
-using Pancras.Domain.Suppliers;
-using Pancras.Web.Formatting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Pancras.Application.Common;
 using Pancras.Application.Suppliers;
 using Pancras.Domain.Employees;
+using Pancras.Domain.Suppliers;
+using Pancras.Web.Formatting;
 using Pancras.Web.Security;
 
 namespace Pancras.Web.Pages.Suppliers;
@@ -319,61 +319,32 @@ public class IndexModel(
         Countries = await listHandler.ListCountriesAsync(Actor, cancellationToken);
     }
 
-    private string BuildUrl(int page, Guid? edit = null, Guid? stopId = null, bool add = false, int? size = null, string? sortToken = null)
+    private string BuildUrl(int page, Guid? edit = null, Guid? stopId = null, bool add = false, int? size = null, string? sortToken = null) =>
+        ListState(new ListQuery("/suppliers").Add("edit", edit).Add("stop", stopId).Add("add", add), page, size, sortToken).ToString();
+
+    /// <summary>Địa chỉ form thao tác (thêm, sửa, ngừng, hợp tác lại): thao tác cộng bộ lọc, sắp xếp, cỡ trang và trang đang xem.</summary>
+    public string ActionUrl(string? handler) => ListState(new ListQuery("/suppliers"), CardPage.PageNumber).WithHandler(handler);
+
+    private ListQuery ListState(ListQuery query, int page, int? size = null, string? sortToken = null)
     {
         var filter = Filter;
-        var parts = new List<string>();
-        if (edit is Guid id)
-        {
-            parts.Add("edit=" + id.ToString("D"));
-        }
-
-        if (stopId is Guid stop)
-        {
-            parts.Add("stop=" + stop.ToString("D"));
-        }
-
-        if (add)
-        {
-            parts.Add("add=true");
-        }
-
-        if (filter.Term is not null)
-        {
-            parts.Add("q=" + Uri.EscapeDataString(filter.Term));
-        }
-
+        query.Add("q", filter.Term);
         if (filter.Status == SupplierStatusFilter.Inactive)
         {
-            parts.Add("status=inactive");
+            query.Add("status", "inactive");
         }
         else if (filter.Status == SupplierStatusFilter.All)
         {
-            parts.Add("status=all");
+            query.Add("status", "all");
         }
 
-        if (filter.Country is not null)
-        {
-            parts.Add("country=" + Uri.EscapeDataString(filter.Country));
-        }
-
+        query.Add("country", filter.Country);
         var order = SupplierOrdering.Parse(sortToken ?? SortToken);
         if (order != SupplierOrdering.Parse(null))
         {
-            parts.Add("sort=" + order.Token);
+            query.Add("sort", order.Token);
         }
 
-        var pageSize = size ?? RequestedSize;
-        if (pageSize != Pancras.Application.Common.PageSizes.Default)
-        {
-            parts.Add("size=" + pageSize.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        }
-
-        if (page > 1)
-        {
-            parts.Add("page=" + page.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        }
-
-        return parts.Count == 0 ? "/suppliers" : "/suppliers?" + string.Join('&', parts);
+        return query.Add("size", size ?? RequestedSize, Pancras.Application.Common.PageSizes.Default).AddPage("page", page);
     }
 }

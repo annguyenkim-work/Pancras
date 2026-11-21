@@ -1,7 +1,6 @@
 using System.Globalization;
 using Pancras.Application.Catalog;
 using Pancras.Application.Common;
-using Pancras.Domain.Catalog;
 
 namespace Pancras.Web.Formatting;
 

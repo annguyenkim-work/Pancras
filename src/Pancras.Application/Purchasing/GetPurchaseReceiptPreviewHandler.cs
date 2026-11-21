@@ -1,6 +1,4 @@
-using Microsoft.Extensions.Logging;
 using Pancras.Application.Inventory;
-using Pancras.Application.Suppliers;
 using Pancras.Domain.Employees;
 using Pancras.Domain.Purchasing;
 

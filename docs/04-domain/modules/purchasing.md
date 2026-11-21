@@ -64,9 +64,10 @@ Mỗi dòng, `T` = tỷ giá của đơn:
 ## 4. Nhận hàng và giá vốn bình quân
 
 - Nhận theo **số thực nhận từng dòng**, có thể nhiều lần.
-- **Lần chưa phải cuối:** mỗi món vào kho theo giá vốn dự toán (đơn giá vốn dòng); **không nhận quá số đặt**.
-- **Lần cuối:** phần giá vốn còn lại của dòng dồn hết vào số nhận lần này, nên **tổng giá vốn vào kho đúng bằng giá vốn dòng** dù nhận thiếu hay thừa. Dòng không nhận thêm nhưng đã nhận trước đó thì phần còn lại dồn vào hàng đã nhận; dòng không nhận món nào thì không vào tồn kho.
-- **Lần cuối lệch số đặt phải có ghi chú lý do.** Đơn đã `Received` không nhận thêm được.
+- **Không bao giờ nhận quá số đặt** (chủ dự án chốt 2026-11-21): mọi lần nhận, kể cả lần cuối và khi đánh dấu "Đóng đơn dù nhận thiếu", số nhận lần này của mỗi dòng tối đa bằng **số còn phải nhận** (số đặt − đã nhận). Vượt thì bị từ chối (`ReceiptExceedsOrdered`), không đổi tồn hay đơn; toast lỗi nêu mã mặt hàng, số đã nhập và số còn phải nhận. Ô "SL nhận lần này" có `max` bằng số còn phải nhận.
+- **Lần chưa phải cuối:** mỗi món vào kho theo giá vốn dự toán (đơn giá vốn dòng).
+- **Lần cuối:** phần giá vốn còn lại của dòng dồn hết vào số nhận lần này, nên **tổng giá vốn vào kho đúng bằng giá vốn dòng** dù nhận thiếu. Dòng không nhận thêm nhưng đã nhận trước đó thì phần còn lại dồn vào hàng đã nhận; dòng không nhận món nào thì không vào tồn kho.
+- **Lần cuối nhận thiếu (đóng đơn khi chưa đủ) phải có ghi chú lý do.** Đơn đã `Received` không nhận thêm được.
 - **Giá vốn bình quân gia quyền** trên **tổng tồn mọi địa điểm**, làm tròn đồng (`AwayFromZero`): `(tồn × giá hiện tại + số nhận × đơn giá vốn lần nhận) ÷ (tồn + số nhận)`. Hết tồn thì lấy đơn giá lần nhận.
 - Nhận hàng ghi `StockMovement` loại `Receipt` tại **kho nhận của đơn**; thủ kho và Trưởng Showroom/Kho nhận đúng đơn về kho mình.
 - Nhận hàng là một giao dịch trọn vẹn; lưu thất bại thì hoàn lại cả đơn lẫn tồn (`UndoReceipt`).
@@ -103,4 +104,4 @@ Dùng cho hóa đơn về muộn, tờ khai điều chỉnh:
 
 Các mục từ review 14/11/2026 chưa xác minh trạng thái trong code, chờ rà khi làm lại module:
 - Nối đơn mua với công nợ phải trả nhà cung cấp và thanh toán.
-- Lọc danh sách đơn theo trạng thái/kho/ngày (phân trang 20/50 đã có).
+- Lọc danh sách đơn theo kho nhận và ngày (phân trang 20/50, ô tìm kiếm và lọc theo trạng thái đã có; trạng thái dùng `?status=`, giá trị lạ coi như không lọc, giữ nguyên khi chọn đơn, chuyển trang và sau thao tác).

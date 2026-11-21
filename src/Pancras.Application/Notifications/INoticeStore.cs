@@ -1,5 +1,4 @@
 using Pancras.Domain.Notifications;
-using Pancras.Domain.Inventory;
 
 namespace Pancras.Application.Notifications;
 

@@ -1,9 +1,9 @@
-using Pancras.Web.Formatting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Pancras.Application.Common;
 using Pancras.Application.Employees;
+using Pancras.Web.Formatting;
 using Pancras.Web.Security;
 using QRCoder;
 

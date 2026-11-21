@@ -1,10 +1,10 @@
-using Pancras.Domain.Notifications;
-using Pancras.Domain.Auditing;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Auditing;
 using Pancras.Application.Common;
 using Pancras.Application.Employees;
+using Pancras.Domain.Auditing;
 using Pancras.Domain.Inventory;
+using Pancras.Domain.Notifications;
 
 namespace Pancras.Application.Inventory;
 

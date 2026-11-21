@@ -1,6 +1,0 @@
-@model (int Size, string? Sort)
-<input type="hidden" name="size" value="@Model.Size" />
-@if (!string.IsNullOrEmpty(Model.Sort))
-{
-    <input type="hidden" name="sort" value="@Model.Sort" />
-}

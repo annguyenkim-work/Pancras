@@ -1,4 +1,3 @@
-using Pancras.Application.Catalog;
 using Pancras.Application.Common;
 using Pancras.Web.Formatting;
 

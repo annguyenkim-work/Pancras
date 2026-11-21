@@ -20,7 +20,7 @@
             }
             @if (Model.CanManage)
             {
-                <a href="/purchasing?form=1" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">+ Tạo Đơn Mua Hàng &amp; Container</a>
+                <a href="@Model.NewOrderUrl" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">+ Tạo Đơn Mua Hàng &amp; Container</a>
             }
         </div>
     </div>
@@ -36,7 +36,16 @@
             {
                 <input type="hidden" name="supplier" value="@supplierFilter" />
             }
-            <input name="q" value="@Model.Search" type="search" placeholder="Tìm theo mã đơn, nhà cung cấp, container, B/L, cảng..." aria-label="Tìm kiếm đơn mua" class="w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" />
+            <div class="flex flex-col gap-3 sm:flex-row">
+                <input name="q" value="@Model.Search" type="search" placeholder="Tìm theo mã đơn, nhà cung cấp, container, B/L, cảng..." aria-label="Tìm kiếm đơn mua" class="w-full border px-3 py-2 rounded-lg border-slate-300 text-sm focus:border-sky-600 focus:outline-none" />
+                <select name="status" aria-label="Lọc theo trạng thái" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-600 focus:outline-none sm:w-56">
+                    <option value="">Mọi trạng thái</option>
+                    @foreach (var status in Pancras.Web.Pages.Purchasing.IndexModel.FilterStatuses)
+                    {
+                        <option value="@status" selected="@(Model.StatusFilter == status)">@Pancras.Web.Pages.Purchasing.IndexModel.StatusLabel(status)</option>
+                    }
+                </select>
+            </div>
         </form>
         @if (Model.SupplierFilter is not null)
         {
@@ -53,7 +62,7 @@
 {
     @if (Model.HasAnyOrders)
     {
-        <partial name="_EmptyState" model='new EmptyStateModel("Không có đơn mua khớp từ khóa.", "Thử mã đơn, nhà cung cấp, số container hoặc B/L khác.")' />
+        <partial name="_EmptyState" model='new EmptyStateModel("Không có đơn mua khớp bộ lọc.", "Thử từ khóa khác (mã đơn, nhà cung cấp, số container, B/L) hoặc đổi trạng thái.")' />
     }
     else
     {
@@ -75,7 +84,7 @@ else
             @foreach (var card in Model.Orders)
             {
                 var selected = Model.Selected?.Id == card.Id;
-                <a href="/purchasing?order=@card.Id" class="block rounded-xl border bg-white p-4 @(selected ? "border-sky-500 shadow-sm" : "border-slate-200")">
+                <a href="@Model.OrderUrl(card.Id)" class="block rounded-xl border bg-white p-4 @(selected ? "border-sky-500 shadow-sm" : "border-slate-200")">
                     <div class="flex items-start justify-between gap-2">
                         <p class="font-mono text-sm font-bold text-slate-900">@card.Code <span class="font-sans font-medium text-slate-500">@card.LineCount mặt hàng</span></p>
                         <span class="shrink-0 @Badge.Frame @Pancras.Web.Pages.Purchasing.IndexModel.StatusClass(card.Status)">@Pancras.Web.Pages.Purchasing.IndexModel.StatusLabel(card.Status)</span>

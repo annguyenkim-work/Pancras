@@ -167,5 +167,9 @@ Quy tắc chung:
 | DOC-02 | P1 | 2 người thao tác cùng mặt hàng, cùng kho, gần như cùng lúc (duyệt kiểm kê + xuất chuyển kho) | Một bên bị từ chối với thông báo rõ; tồn cuối khớp với đúng 1 thao tác thành công; không âm | ☐ |
 | DOC-03 | P1 | Sau toàn bộ file này: mở tab Tra cứu tồn | Không có số âm; cộng dồn lịch sử từng mặt hàng = tồn hiện tại | ☐ |
 | DOC-04 | P1 | `/audit` | Có dòng duyệt kiểm kê / điều chỉnh / hủy | ☐ |
-| DOC-05 | P2 | Hộp thoại lập phiếu khi lỗi | Mở lại, dữ liệu còn (trừ file phải chọn lại) | ☐ |
-| DOC-06 | P2 | Gửi form thiếu token chống giả mạo | 400 | ☐ |
+| DOC-05 | P1 | Hộp thoại lập phiếu khi lỗi | Mở lại, dữ liệu còn (trừ file phải chọn lại) | ☐ |
+| DOC-06 | P1 | Lập phiếu kiểm kê, điều chỉnh, hủy với số liệu sai (số đếm âm, vượt tồn, thiếu lý do) | Hộp thoại mở lại với lỗi hiện **trong hộp thoại**, không có banner phía sau lớp phủ; kho, mặt hàng, số lượng, lý do còn nguyên | ☐ |
+| DOC-07 | P2 | Gửi form thiếu token chống giả mạo | 400 | ☐ |
+| DOC-08 | P1 | Tab Kiểm kê và điều chỉnh: chọn loại phiếu Kiểm kê, Điều chỉnh, Hủy lần lượt | Chỉ hiện phiếu đúng loại; số phiếu và phân trang tính theo bộ lọc; "Tất cả" hiện đủ ba loại | ☐ |
+| DOC-09 | P1 | Nhập mã phiếu đầy đủ (ví dụ `KK-1A2B3C4D`), nhập một phần (`1A2B`), nhập sai (`ZZZ`) | Đầy đủ: đúng phiếu đó; một phần: các phiếu có mã chứa đoạn đó (không phân biệt hoa thường); sai: trạng thái rỗng "Không có phiếu khớp bộ lọc" và nút "Bỏ lọc" | ☐ |
+| DOC-10 | P1 | Lọc loại phiếu và mã, sang trang 2, duyệt một phiếu chờ duyệt; lập một phiếu kiểm kê, điều chỉnh, hủy mới | Sau mỗi thao tác danh sách vẫn giữ loại, mã và trang | ☐ |

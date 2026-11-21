@@ -1,11 +1,9 @@
-using Pancras.Domain.Notifications;
 using System.Net;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
-using Pancras.Application.Employees;
 using Pancras.Domain.Employees;
-using Pancras.Domain.Inventory;
+using Pancras.Domain.Notifications;
 using Pancras.Web.Pages.Notifications;
 
 namespace Pancras.Web.Tests;
@@ -117,11 +115,4 @@ public class NotificationsPageTests : IClassFixture<PancrasWebFactory>
         Assert.Equal($"/inventory?view=stocktakes&doc={documentId:D}#document-{documentId:D}", IndexModel.TargetOf(adjustment));
         Assert.Equal("/notifications", IndexModel.TargetOf(null));
     }
-}
-
-internal sealed class NoticeStoreDouble : Pancras.Application.Notifications.INoticeStore
-{
-    public Task AddAsync(Notification notice, CancellationToken cancellationToken) => Task.CompletedTask;
-
-    public Task RemoveForDocumentAsync(Guid documentId, CancellationToken cancellationToken) => Task.CompletedTask;
 }

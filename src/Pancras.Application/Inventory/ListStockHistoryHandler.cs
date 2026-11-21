@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using Pancras.Domain.Inventory;
 
 namespace Pancras.Application.Inventory;
 

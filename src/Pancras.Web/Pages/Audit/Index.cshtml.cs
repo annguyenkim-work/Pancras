@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Pancras.Application.Auditing;
 using Pancras.Domain.Auditing;
-using Pancras.Domain.Employees;
+using Pancras.Web.Formatting;
 
 namespace Pancras.Web.Pages.Audit;
 
@@ -62,37 +62,17 @@ public class IndexModel(ListAuditHandler list) : PageModel
 
     private string PageUrl(string? cursor, bool backward, int size, string? sort = null)
     {
-        var parts = new List<string>();
         var order = sort ?? Sort.Token;
-        if (order != "-time")
-        {
-            parts.Add("sort=" + order);
-        }
-
-        Add(parts, "q", Search);
-        Add(parts, "actor", Actor);
-        Add(parts, "action", ActionCode);
-        Add(parts, "target", Target);
-        Add(parts, "from", From?.ToString("yyyy-MM-dd"));
-        Add(parts, "to", To?.ToString("yyyy-MM-dd"));
-        if (size != Pancras.Application.Common.PageSizes.Default)
-        {
-            parts.Add("size=" + size);
-        }
-
-        if (cursor is not null)
-        {
-            parts.Add((backward ? "before=" : "after=") + cursor);
-        }
-
-        return parts.Count == 0 ? "/audit" : "/audit?" + string.Join('&', parts);
-    }
-
-    private static void Add(List<string> parts, string name, string? value)
-    {
-        if (!string.IsNullOrWhiteSpace(value))
-        {
-            parts.Add(name + "=" + Uri.EscapeDataString(value.Trim()));
-        }
+        return new ListQuery("/audit")
+            .Add("sort", order == "-time" ? null : order)
+            .Add("q", Search)
+            .Add("actor", Actor)
+            .Add("action", ActionCode)
+            .Add("target", Target)
+            .Add("from", From?.ToString("yyyy-MM-dd"))
+            .Add("to", To?.ToString("yyyy-MM-dd"))
+            .Add("size", size, Pancras.Application.Common.PageSizes.Default)
+            .Add(backward ? "before" : "after", cursor)
+            .ToString();
     }
 }

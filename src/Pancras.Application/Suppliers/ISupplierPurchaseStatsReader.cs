@@ -1,6 +1,3 @@
-using Pancras.Domain.Employees;
-using Pancras.Domain.Suppliers;
-
 namespace Pancras.Application.Suppliers;
 
 public interface ISupplierPurchaseStatsReader

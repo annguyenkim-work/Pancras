@@ -20,7 +20,7 @@ public sealed class ListPurchaseOrdersHandler(
     {
         var costVisible = PurchaseAccess.CanViewCost(actor);
         var page = await orders.ListPageAsync(
-            new PurchaseOrderQuery(PurchaseAccess.Visible(actor), filter?.SupplierId, filter?.Term?.Trim()),
+            new PurchaseOrderQuery(PurchaseAccess.Visible(actor), filter?.SupplierId, filter?.Term?.Trim(), filter?.Status),
             filter?.PageNumber ?? 1,
             filter?.PageSize ?? Pancras.Application.Common.PageSizes.Default,
             cancellationToken);
@@ -50,7 +50,12 @@ public sealed class ListPurchaseOrdersHandler(
 }
 
 /// <summary>Bộ lọc và vị trí trang của danh sách đơn mua (cỡ trang 20 hoặc 50).</summary>
-public sealed record PurchaseListFilter(Guid? SupplierId = null, string? Term = null, int PageNumber = 1, int PageSize = Pancras.Application.Common.PageSizes.Default);
+public sealed record PurchaseListFilter(
+    Guid? SupplierId = null,
+    string? Term = null,
+    int PageNumber = 1,
+    int PageSize = Pancras.Application.Common.PageSizes.Default,
+    PurchaseStatus? Status = null);
 
 /// <summary>Các dòng của một trang đơn mua, tổng số đơn khớp bộ lọc, số trang đã dùng, còn đơn nào xem được không và Id đơn đầu danh sách.</summary>
 public sealed record PurchaseOrderListPage(IReadOnlyList<PurchaseOrderSummary> Items, int Total, int PageNumber, bool HasAny, Guid? FirstId);

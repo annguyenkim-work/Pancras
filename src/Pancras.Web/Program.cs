@@ -1,13 +1,12 @@
-using Pancras.Application.Notifications;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Pancras.Application.Catalog;
 using Pancras.Application.Employees;
 using Pancras.Application.Inventory;
 using Pancras.Application.Locations;
+using Pancras.Application.Notifications;
 using Pancras.Application.Purchasing;
 using Pancras.Application.Suppliers;
 using Pancras.Infrastructure.Identity;

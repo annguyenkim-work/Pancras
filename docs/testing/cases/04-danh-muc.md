@@ -18,6 +18,8 @@ Thành phần màn hình:
 | CAT-03 | P2 | Lọc ngành + từ khóa → sang trang 2 | Bộ lọc được giữ khi chuyển trang | ☐ |
 | CAT-04 | P2 | Cột tiền | Dạng `1.234.567 VNĐ`, căn phải | ☐ |
 | CAT-05 | P2 | Sản phẩm chưa có ảnh | Hiện ô giữ chỗ, không vỡ bảng | ☐ |
+| CAT-06 | P1 | Lọc ngành + trạng thái + từ khóa, sang trang 2, bấm Ngừng bán rồi Kích hoạt lại | Sau mỗi thao tác quay về đúng danh sách đang lọc, cùng trang; không về bộ lọc mặc định | ☐ |
+| CAT-07 | P1 | Thêm hoặc sửa giá trong khi đang lọc | Sau khi lưu danh sách vẫn giữ bộ lọc | ☐ |
 | CAT-06 | P2 | Xuất file khi đang lọc | File chỉ chứa dòng khớp bộ lọc; mở được bằng Excel, tiếng Việt không lỗi font | ☐ |
 | CAT-07 | P2 | Bấm "Chi tiết" | Hộp thoại hiện đủ thông tin; đóng được | ☐ |
 

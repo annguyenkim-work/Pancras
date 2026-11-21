@@ -36,8 +36,6 @@ public sealed class TransferLine
 
     internal void RecordReceived(int quantity) => ReceivedQuantity = quantity;
 
-    internal void ClearReceived() => ReceivedQuantity = null;
-
     internal static TransferLine Create(Guid transferSlipId, Guid catalogItemId, int quantity) =>
         new()
         {

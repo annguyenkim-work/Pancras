@@ -23,9 +23,6 @@ public static class InventoryRoles
     public static bool IsShowroomLead(string? role) =>
         string.Equals(role, Employees.EmployeeRole.ShowroomWarehouseLead, StringComparison.Ordinal);
 
-    public static bool IsDirector(string? role) =>
-        string.Equals(role, Employees.EmployeeRole.Director, StringComparison.Ordinal);
-
     public static bool IsFinance(string? role) =>
         string.Equals(role, Employees.EmployeeRole.Admin, StringComparison.Ordinal)
         || string.Equals(role, Employees.EmployeeRole.Director, StringComparison.Ordinal)

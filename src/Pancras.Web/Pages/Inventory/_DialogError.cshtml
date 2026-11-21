@@ -1,0 +1,7 @@
+@using Pancras.Web.Formatting
+@model string?
+@* Câu lỗi của hộp thoại đang mở lại: nằm trong thân hộp thoại, không hiện ở đầu trang (docs/03-ui-ux/components.md mục 3). Truyền null khi hộp thoại này không phải hộp thoại bị từ chối. *@
+@if (!string.IsNullOrEmpty(Model))
+{
+    <div class="mb-1"><partial name="_Notice" model="new NoticeModel(Model, ToastLevel.Error)" /></div>
+}

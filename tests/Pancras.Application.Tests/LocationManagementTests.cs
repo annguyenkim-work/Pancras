@@ -1,5 +1,5 @@
-using Pancras.Application.Common;
 using Microsoft.Extensions.Logging.Abstractions;
+using Pancras.Application.Common;
 using Pancras.Application.Locations;
 using Pancras.Domain.Employees;
 using Pancras.Domain.Inventory;

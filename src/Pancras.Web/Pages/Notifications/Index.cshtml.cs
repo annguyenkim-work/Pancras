@@ -1,11 +1,10 @@
-using Pancras.Application.Notifications;
-using Pancras.Domain.Notifications;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Pancras.Application.Inventory;
+using Pancras.Application.Notifications;
 using Pancras.Domain.Inventory;
+using Pancras.Domain.Notifications;
 
 namespace Pancras.Web.Pages.Notifications;
 

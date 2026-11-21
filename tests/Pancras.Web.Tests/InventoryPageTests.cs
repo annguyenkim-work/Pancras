@@ -1,15 +1,16 @@
-using Pancras.Domain.Notifications;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Pancras.Application.Catalog;
-using Pancras.Application.Employees;
 using Pancras.Application.Inventory;
 using Pancras.Domain.Catalog;
 using Pancras.Domain.Employees;
 using Pancras.Domain.Inventory;
+using Pancras.Domain.Notifications;
+
+using Pancras.Tests.Shared;
 
 namespace Pancras.Web.Tests;
 
@@ -61,6 +62,116 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
         Assert.Contains("Kiểm Kê Kho Định Kỳ", stocktakes, StringComparison.Ordinal);
         Assert.Contains("Chưa có biên bản kiểm kê.", stocktakes, StringComparison.Ordinal);
         Assert.Contains("Lập Biên Bản Kiểm Kê", stocktakes, StringComparison.Ordinal);
+    }
+
+    private static StocktakeSheet Sheet(Guid location, Guid item) =>
+        StocktakeSheet.TryCreate(EmployeeRole.WarehouseKeeper, location, item, 5, 4, "đếm lại", "BB-01", null, out var sheet) == StockDecision.Accepted ? sheet! : throw new InvalidOperationException();
+
+    [Fact]
+    public async Task StocktakeTab_FiltersByDocumentType_AndByCode_KeepingTheFilterInLinksAndForms()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        var location = Guid.CreateVersion7();
+        var sheet = Sheet(location, Guid.CreateVersion7());
+        inventory.Stocktakes.Add(sheet);
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+
+        var all = Decode(await (await client.GetAsync("/inventory?view=stocktakes")).Content.ReadAsStringAsync());
+        Assert.Contains("id=\"stocktake-filter\"", all, StringComparison.Ordinal);
+        Assert.Contains("name=\"type\"", all, StringComparison.Ordinal);
+        Assert.Contains("name=\"code\"", all, StringComparison.Ordinal);
+        Assert.Contains(Pancras.Domain.Inventory.StockDocumentCode.Of("KK", sheet.Id), all, StringComparison.Ordinal);
+
+        var kindOnly = Decode(await (await client.GetAsync("/inventory?view=stocktakes&type=dc")).Content.ReadAsStringAsync());
+        Assert.DoesNotContain(Pancras.Domain.Inventory.StockDocumentCode.Of("KK", sheet.Id), kindOnly, StringComparison.Ordinal);
+        Assert.Contains("Không có phiếu khớp bộ lọc.", kindOnly, StringComparison.Ordinal);
+        Assert.Contains("Bỏ lọc", kindOnly, StringComparison.Ordinal);
+
+        var byCode = Decode(await (await client.GetAsync("/inventory?view=stocktakes&type=kk&code=" + Pancras.Domain.Inventory.StockDocumentCode.Of("kk", sheet.Id).ToLowerInvariant())).Content.ReadAsStringAsync());
+        Assert.Contains(Pancras.Domain.Inventory.StockDocumentCode.Of("KK", sheet.Id), byCode, StringComparison.Ordinal);
+
+        // Form duyệt phiếu gửi kèm bộ lọc để sau khi duyệt quay lại đúng danh sách.
+        Assert.Matches(@"action=""/inventory\?handler=ApproveStocktake&view=stocktakes&type=kk&code=[^""]*""", byCode);
+
+        var unknownType = Decode(await (await client.GetAsync("/inventory?view=stocktakes&type=abc")).Content.ReadAsStringAsync());
+        Assert.Contains(Pancras.Domain.Inventory.StockDocumentCode.Of("KK", sheet.Id), unknownType, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task InventoryActionForms_CarryTheTabFilters()
+    {
+        // Lỗi UAT: thao tác chuyển kho và lập phiếu tải lại trang mà mất bộ lọc.
+        using var client = _factory.CreateClient(NoRedirect);
+        Reset();
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+
+        var transfers = Decode(await (await client.GetAsync("/inventory?view=transfers&ts=Pending&tq=abc&size=50")).Content.ReadAsStringAsync());
+        var request = Regex.Match(transfers, @"<form[^>]*action=""(/inventory\?handler=RequestTransfer[^""]*)""").Groups[1].Value;
+        Assert.Contains("view=transfers", request, StringComparison.Ordinal);
+        Assert.Contains("ts=Pending", request, StringComparison.Ordinal);
+        Assert.Contains("tq=abc", request, StringComparison.Ordinal);
+        Assert.Contains("size=50", request, StringComparison.Ordinal);
+
+        var stocktakes = Decode(await (await client.GetAsync("/inventory?view=stocktakes&type=kk&code=1A&size=50")).Content.ReadAsStringAsync());
+        var create = Regex.Match(stocktakes, @"<form[^>]*action=""(/inventory\?handler=CreateStocktake[^""]*)""").Groups[1].Value;
+        Assert.Contains("view=stocktakes", create, StringComparison.Ordinal);
+        Assert.Contains("type=kk", create, StringComparison.Ordinal);
+        Assert.Contains("code=1A", create, StringComparison.Ordinal);
+        Assert.Contains("size=50", create, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ATransferAction_ReturnsToTheFilteredTransferList_WithTheSlipOpen()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+        var me = _factory.Services.GetRequiredService<FakeEmployeeRepository>().Employees.Single(employee => employee.Code == "admin");
+        var slip = TransferSlip.Create(Guid.CreateVersion7(), Guid.CreateVersion7(), "chuyển thử", [(Guid.CreateVersion7(), 1)], me.Id)!;
+        inventory.Transfers.Add(slip);
+        var token = await TokenAsync(client, "/inventory?view=transfers");
+
+        var response = await client.PostAsync(
+            "/inventory?handler=CancelTransfer&view=transfers&ts=Pending&tq=abc&tp=2&size=50",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["__RequestVerificationToken"] = token,
+                ["DocumentId"] = slip.Id.ToString(),
+                ["reason"] = "không cần nữa"
+            }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        var location = response.Headers.Location!.OriginalString;
+        Assert.Contains("view=transfers", location, StringComparison.Ordinal);
+        Assert.Contains("ts=Pending", location, StringComparison.Ordinal);
+        Assert.Contains("tq=abc", location, StringComparison.Ordinal);
+        Assert.Contains("tp=2", location, StringComparison.Ordinal);
+        Assert.Contains("size=50", location, StringComparison.Ordinal);
+        Assert.Contains("open=" + slip.Id, location, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task StocktakeTab_ListsAdjustmentsAndDisposals_AndFiltersThemByType()
+    {
+        // Kho giả trước đây luôn trả rỗng cho phiếu điều chỉnh và phiếu hủy, nên trang chưa từng được test với hai loại này.
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        var location = Guid.CreateVersion7();
+        var item = Guid.CreateVersion7();
+        var adjustment = QuantityAdjustment.TryRecordTransferVariance(Guid.CreateVersion7(), location, item, -1, "thiếu khi nhận", "CK-000001")!;
+        Assert.Equal(StockDecision.Accepted, DisposalSlip.TryCreate(location, item, 1, "vỡ", "BB-02", null, EmployeeRole.WarehouseKeeper, out var disposal));
+        inventory.Adjustments.Add(adjustment);
+        inventory.Disposals.Add(disposal!);
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+
+        var all = Decode(await (await client.GetAsync("/inventory?view=stocktakes")).Content.ReadAsStringAsync());
+        var adjustmentsOnly = Decode(await (await client.GetAsync("/inventory?view=stocktakes&type=dc")).Content.ReadAsStringAsync());
+
+        Assert.Contains("id=\"document-" + adjustment.Id + "\"", all, StringComparison.Ordinal);
+        Assert.Contains("id=\"document-" + disposal!.Id + "\"", all, StringComparison.Ordinal);
+        Assert.Contains("id=\"document-" + adjustment.Id + "\"", adjustmentsOnly, StringComparison.Ordinal);
+        Assert.DoesNotContain("id=\"document-" + disposal.Id + "\"", adjustmentsOnly, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -183,6 +294,44 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains(message, text, StringComparison.Ordinal);
+        Assert.Empty(inventory.Stocktakes);
+    }
+
+    [Theory]
+    [InlineData("stocktake", "CreateStocktake", "Stocktake")]
+    [InlineData("adjustment", "CreateAdjustment", "Adjustment")]
+    [InlineData("disposal", "CreateDisposal", "Disposal")]
+    public async Task ARejectedStockDocument_ReopensItsOwnDialog_WithTheErrorInsideAndTheTypedValuesKept(string kind, string handler, string prefix)
+    {
+        // Lỗi UAT: lưu biên bản/phiếu lỗi thì modal đóng, lỗi hiện ngoài trang và các ô đã nhập bị mất.
+        using var client = _factory.CreateClient(NoRedirect);
+        var inventory = Reset();
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+        var token = await TokenAsync(client, "/inventory?view=stocktakes");
+        var fields = new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = token,
+            [prefix + ".StockLocationId"] = string.Empty,
+            [prefix + ".CatalogItemId"] = string.Empty,
+            [prefix + ".Reason"] = "lý do thử",
+            [prefix + ".DocumentRef"] = "CT-123"
+        };
+        if (kind == "stocktake")
+        {
+            fields["Stocktake.CountedQuantity"] = "abc";
+        }
+
+        var response = await client.PostAsync("/inventory?handler=" + handler, new FormUrlEncodedContent(fields));
+        var html = Decode(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains($"data-show-{kind}-dialog=\"true\"", html, StringComparison.Ordinal);
+        var dialog = Regex.Match(html, $"<dialog id=\"{kind}-dialog\".*?</dialog>", RegexOptions.Singleline).Value;
+        var alert = Regex.Match(dialog, "role=\"alert\"[^>]*>\\s*<p[^>]*>(.*?)</p>", RegexOptions.Singleline).Groups[1].Value.Trim();
+        Assert.False(string.IsNullOrEmpty(alert), "Lỗi phải hiện bên trong modal.");
+        Assert.Single(Regex.Matches(html, Regex.Escape(alert)));
+        Assert.Contains("value=\"lý do thử\"", dialog, StringComparison.Ordinal);
+        Assert.Contains("value=\"CT-123\"", dialog, StringComparison.Ordinal);
         Assert.Empty(inventory.Stocktakes);
     }
 
@@ -585,6 +734,11 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
         inventory.Locations.Clear();
         inventory.Transfers.Clear();
         inventory.TransferEvents.Clear();
+        inventory.Stocktakes.Clear();
+        inventory.Adjustments.Clear();
+        inventory.Disposals.Clear();
+        inventory.Balances.Clear();
+        inventory.Movements.Clear();
         var employees = _factory.Services.GetRequiredService<FakeEmployeeRepository>();
         employees.Employees.Clear();
         return inventory;
@@ -615,281 +769,4 @@ public class InventoryPageTests : IClassFixture<PancrasWebFactory>
         AllowAutoRedirect = false,
         HandleCookies = true
     };
-}
-
-internal sealed class InventoryDirectoryDouble : IInventoryRepository
-{
-    public List<StockBalanceRow> Rows { get; } = [];
-
-    public List<StockBalance> Balances { get; } = [];
-
-    public List<StockLocation> Locations { get; } = [];
-
-    public List<TransferSlip> Transfers { get; } = [];
-
-    public List<StockMovement> Movements { get; } = [];
-
-    public List<StockLocation> DeletedLocations { get; } = [];
-
-    public Task<IReadOnlyList<StockLocation>> ListDeletedLocationsAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<StockLocation>>(DeletedLocations.ToArray());
-
-    public Task<IReadOnlyList<StockLocation>> ListLocationsAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<StockLocation>>(Locations.ToArray());
-
-    public Task<IReadOnlyList<StockItemChoice>> ListItemChoicesAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<StockItemChoice>>([]);
-
-    public Task<IReadOnlyList<StockBalanceRow>> ListBalancesAsync(ListStockBalancesQuery filter, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<StockBalanceRow>>(Rows.Where(filter.Matches).ToArray());
-
-    public Task<int> SumOnHandAsync(Guid catalogItemId, CancellationToken cancellationToken) =>
-        Task.FromResult(Balances.Where(balance => balance.CatalogItemId == catalogItemId).Sum(balance => balance.OnHand));
-
-    public Task<StockBalance?> FindBalanceForUpdateAsync(Guid catalogItemId, Guid stockLocationId, CancellationToken cancellationToken) =>
-        Task.FromResult(Balances.FirstOrDefault(balance => balance.CatalogItemId == catalogItemId && balance.StockLocationId == stockLocationId));
-
-    public Task AddBalanceAsync(StockBalance balance, CancellationToken cancellationToken)
-    {
-        Balances.Add(balance);
-        return Task.CompletedTask;
-    }
-
-    public Task AddTransferAsync(TransferSlip slip, CancellationToken cancellationToken)
-    {
-        Transfers.Add(slip);
-        return Task.CompletedTask;
-    }
-
-    public Task<Guid?> FindTransferIdByRequestKeyAsync(Guid requestKey, Guid requestedById, CancellationToken cancellationToken) =>
-        Task.FromResult<Guid?>(null);
-
-    public Task<TransferSlip?> FindTransferForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult<TransferSlip?>(null);
-
-    public Task<TransferSlip?> FindTransferReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
-        FindTransferForUpdateAsync(id, cancellationToken);
-
-    public List<TransferEvent> TransferEvents { get; } = [];
-
-    public Task AddTransferEventAsync(TransferEvent transferEvent, CancellationToken cancellationToken)
-    {
-        TransferEvents.Add(transferEvent);
-        return Task.CompletedTask;
-    }
-
-    public Task<IReadOnlyDictionary<Guid, int>> ListTransferNumbersAsync(IReadOnlyCollection<Guid> transferSlipIds, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyDictionary<Guid, int>>(Transfers.Where(slip => transferSlipIds.Contains(slip.Id)).ToDictionary(slip => slip.Id, slip => slip.Number));
-
-    public Task<IReadOnlyList<TransferEvent>> ListTransferEventsAsync(IReadOnlyCollection<Guid> transferSlipIds, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<TransferEvent>>(TransferEvents.Where(item => transferSlipIds.Contains(item.TransferSlipId)).ToArray());
-
-    public Task<StockItemProfile?> FindItemProfileAsync(Guid catalogItemId, CancellationToken cancellationToken) =>
-        Task.FromResult<StockItemProfile?>(null);
-
-    public Task<IReadOnlyList<StockBalanceRow>> ListItemBalancesAsync(Guid catalogItemId, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<StockBalanceRow>>(Rows.Where(row => row.CatalogItemId == catalogItemId).ToArray());
-
-    public Task<IReadOnlyList<StockMovement>> ListItemMovementsAsync(Guid catalogItemId, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<StockMovement>>([]);
-
-    public Task AddMovementAsync(StockMovement movement, CancellationToken cancellationToken)
-    {
-        Movements.Add(movement);
-        return Task.CompletedTask;
-    }
-
-    public Task<IReadOnlyList<StockMovement>> ListHistoryAsync(Guid catalogItemId, Guid stockLocationId, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<StockMovement>>([]);
-
-    public List<StocktakeSheet> Stocktakes { get; } = [];
-
-    public Task AddStocktakeAsync(StocktakeSheet sheet, CancellationToken cancellationToken)
-    {
-        Stocktakes.Add(sheet);
-        return Task.CompletedTask;
-    }
-
-    public Task<StocktakeSheet?> FindStocktakeForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult<StocktakeSheet?>(null);
-
-    public Task AddAdjustmentAsync(QuantityAdjustment adjustment, CancellationToken cancellationToken) => Task.CompletedTask;
-
-    public Task<QuantityAdjustment?> FindAdjustmentForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult<QuantityAdjustment?>(null);
-
-    public Task AddDisposalAsync(DisposalSlip slip, CancellationToken cancellationToken) => Task.CompletedTask;
-
-    public Task<DisposalSlip?> FindDisposalForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult<DisposalSlip?>(null);
-
-    public Task<Guid?> FindDocumentLocationAsync(StockDocumentKind kind, Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult<Guid?>(null);
-
-    // Bản trong bộ nhớ của các truy vấn trang (cùng ngữ nghĩa với InventoryRepository: lọc, sắp xếp, cắt trang).
-    public Task<TransferPage> ListTransfersPageAsync(TransferListQuery query, int pageNumber, int pageSize, CancellationToken cancellationToken)
-    {
-        var visible = TransferSource().Where(query.Visible.Compile()).ToList();
-        IEnumerable<TransferSlip> rows = visible;
-        if (query.Waiting is { } waiting)
-        {
-            rows = rows.Where(waiting.Compile());
-        }
-
-        if (query.Status is TransferStatus status)
-        {
-            rows = rows.Where(slip => slip.Status == status);
-        }
-
-        if (query.LocationId is Guid place)
-        {
-            rows = rows.Where(slip => slip.SourceLocationId == place || slip.DestinationLocationId == place);
-        }
-
-        if (!string.IsNullOrWhiteSpace(query.Term))
-        {
-            var term = query.Term.Trim();
-            rows = rows.Where(slip => StockDocumentCode.ForTransfer(slip.Number).Contains(term, StringComparison.OrdinalIgnoreCase)
-                || slip.Lines.Any(line => ItemText(line.CatalogItemId).Any(text => text.Contains(term, StringComparison.OrdinalIgnoreCase))));
-        }
-
-        if (query.CreatedFrom is DateTimeOffset from)
-        {
-            rows = rows.Where(slip => CreatedAt(slip.Id) >= from);
-        }
-
-        if (query.CreatedBefore is DateTimeOffset before)
-        {
-            rows = rows.Where(slip => CreatedAt(slip.Id) < before);
-        }
-
-        var matching = rows
-            .OrderBy(slip => slip.Status is TransferStatus.Requested or TransferStatus.Approved or TransferStatus.InTransit or TransferStatus.ReceivedWithDiscrepancy ? 0 : 1)
-            .ThenByDescending(slip => slip.Id)
-            .ToList();
-        var size = Math.Max(1, pageSize);
-        var page = Math.Clamp(pageNumber, 1, Math.Max(1, (matching.Count + size - 1) / size));
-        return Task.FromResult(new TransferPage(matching.Skip((page - 1) * size).Take(size).ToArray(), matching.Count, page, visible.Count > 0));
-    }
-
-    public Task<int> CountTransfersAsync(System.Linq.Expressions.Expression<Func<TransferSlip, bool>> predicate, CancellationToken cancellationToken) =>
-        Task.FromResult(TransferSource().Count(predicate.Compile()));
-
-    public Task<IReadOnlyList<TransferSlip>> FindTransfersAsync(System.Linq.Expressions.Expression<Func<TransferSlip, bool>> visible, IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<TransferSlip>>(TransferSource().Where(visible.Compile()).Where(slip => ids.Contains(slip.Id)).ToArray());
-
-    public Task<StockDocumentCounts> CountStockDocumentsAsync(Guid? scope, CancellationToken cancellationToken) =>
-        Task.FromResult(new StockDocumentCounts(
-            ScopedStocktakes(scope).Count(), ScopedAdjustments(scope).Count(), ScopedDisposals(scope).Count()));
-
-    public Task<IReadOnlyList<StocktakeSheet>> ListStocktakesAsync(Guid? scope, StockDocumentRange range, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<StocktakeSheet>>(ScopedStocktakes(scope).Skip(range.Skip).Take(range.Take).ToArray());
-
-    public Task<IReadOnlyList<QuantityAdjustment>> ListAdjustmentsAsync(Guid? scope, StockDocumentRange range, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<QuantityAdjustment>>(ScopedAdjustments(scope).Skip(range.Skip).Take(range.Take).ToArray());
-
-    public Task<IReadOnlyList<DisposalSlip>> ListDisposalsAsync(Guid? scope, StockDocumentRange range, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<DisposalSlip>>(ScopedDisposals(scope).Skip(range.Skip).Take(range.Take).ToArray());
-
-    public Task<StockDocumentPosition?> LocateStockDocumentAsync(Guid? scope, Guid id, CancellationToken cancellationToken)
-    {
-        var stocktake = ScopedStocktakes(scope).Select(sheet => sheet.Id).ToList().IndexOf(id);
-        var adjustment = ScopedAdjustments(scope).Select(item => item.Id).ToList().IndexOf(id);
-        var disposal = ScopedDisposals(scope).Select(slip => slip.Id).ToList().IndexOf(id);
-        return Task.FromResult(
-            stocktake >= 0 ? new StockDocumentPosition(StockDocumentKind.Stocktake, stocktake)
-            : adjustment >= 0 ? new StockDocumentPosition(StockDocumentKind.Adjustment, adjustment)
-            : disposal >= 0 ? new StockDocumentPosition(StockDocumentKind.Disposal, disposal)
-            : (StockDocumentPosition?)null);
-    }
-
-    public Task<(IReadOnlyList<StocktakeSheet> Stocktakes, IReadOnlyList<QuantityAdjustment> Adjustments, IReadOnlyList<DisposalSlip> Disposals)> FindStockDocumentsAsync(
-        Guid? scope,
-        IReadOnlyCollection<Guid> ids,
-        CancellationToken cancellationToken) =>
-        Task.FromResult<(IReadOnlyList<StocktakeSheet>, IReadOnlyList<QuantityAdjustment>, IReadOnlyList<DisposalSlip>)>((
-            ScopedStocktakes(scope).Where(sheet => ids.Contains(sheet.Id)).ToArray(),
-            ScopedAdjustments(scope).Where(item => ids.Contains(item.Id)).ToArray(),
-            ScopedDisposals(scope).Where(slip => ids.Contains(slip.Id)).ToArray()));
-
-    private IEnumerable<StocktakeSheet> ScopedStocktakes(Guid? scope) =>
-        StocktakeSource().Where(sheet => scope is not Guid only || sheet.StockLocationId == only).OrderByDescending(sheet => sheet.Id);
-
-    private IEnumerable<QuantityAdjustment> ScopedAdjustments(Guid? scope) =>
-        AdjustmentSource().Where(item => scope is not Guid only || item.StockLocationId == only).OrderByDescending(item => item.Id);
-
-    private IEnumerable<DisposalSlip> ScopedDisposals(Guid? scope) =>
-        DisposalSource().Where(slip => scope is not Guid only || slip.StockLocationId == only).OrderByDescending(slip => slip.Id);
-
-    private static DateTimeOffset CreatedAt(Guid id)
-    {
-        Span<byte> bytes = stackalloc byte[16];
-        id.TryWriteBytes(bytes, bigEndian: true, out _);
-        long milliseconds = 0;
-        for (var i = 0; i < 6; i++)
-        {
-            milliseconds = (milliseconds << 8) | bytes[i];
-        }
-
-        return DateTimeOffset.FromUnixTimeMilliseconds(milliseconds);
-    }
-
-    private IEnumerable<TransferSlip> TransferSource() => Transfers;
-
-    private static IEnumerable<StocktakeSheet> StocktakeSource() => [];
-
-    private static IEnumerable<QuantityAdjustment> AdjustmentSource() => [];
-
-    private static IEnumerable<DisposalSlip> DisposalSource() => [];
-
-    private IEnumerable<string> ItemText(Guid itemId) =>
-        Rows.Where(row => row.CatalogItemId == itemId).SelectMany(row => new[] { row.Code, row.Name });
-
-    public Task AddNoticeAsync(Notification notice, CancellationToken cancellationToken) => Task.CompletedTask;
-
-    public List<Notification> Notices { get; } = [];
-
-    public Task<NoticePage> ListNoticesPageAsync(Guid recipientEmployeeId, int pageNumber, int pageSize, CancellationToken cancellationToken)
-    {
-        var mine = Notices.Where(notice => notice.RecipientEmployeeId == recipientEmployeeId)
-            .OrderByDescending(notice => notice.CreatedAt).ToArray();
-        return Task.FromResult(new NoticePage(mine.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToArray(), mine.Length));
-    }
-
-    public Task<int> CountUnseenNoticesAsync(Guid recipientEmployeeId, CancellationToken cancellationToken) =>
-        Task.FromResult(Notices.Count(notice => notice.RecipientEmployeeId == recipientEmployeeId && !notice.Seen));
-
-    public Task<Notification?> FindNoticeForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult<Notification?>(null);
-
-    public Task RemoveNoticesAsync(Guid documentId, CancellationToken cancellationToken) => Task.CompletedTask;
-
-}
-
-internal sealed class TransferAttachmentDouble : ITransferAttachmentRepository
-{
-    public Task<IReadOnlyList<TransferAttachment>> ListAsync(Guid transferSlipId, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<TransferAttachment>>([]);
-
-    public Task<TransferAttachment?> FindAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult<TransferAttachment?>(null);
-
-    public Task<IReadOnlyDictionary<Guid, IReadOnlyList<TransferAttachment>>> ListForSlipsAsync(IReadOnlyCollection<Guid> transferSlipIds, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyDictionary<Guid, IReadOnlyList<TransferAttachment>>>(new Dictionary<Guid, IReadOnlyList<TransferAttachment>>());
-
-    public Task AddAsync(TransferAttachment attachment, CancellationToken cancellationToken) => Task.CompletedTask;
-}
-
-internal sealed class StockDocumentAttachmentDouble : IStockDocumentAttachmentRepository
-{
-    public Task<IReadOnlyList<StockDocumentAttachment>> ListAsync(StockDocumentKind kind, Guid documentId, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<StockDocumentAttachment>>([]);
-
-    public Task<StockDocumentAttachment?> FindAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult<StockDocumentAttachment?>(null);
-
-    public Task<IReadOnlyDictionary<Guid, IReadOnlyList<StockDocumentAttachment>>> ListForDocumentsAsync(IReadOnlyCollection<Guid> documentIds, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyDictionary<Guid, IReadOnlyList<StockDocumentAttachment>>>(new Dictionary<Guid, IReadOnlyList<StockDocumentAttachment>>());
-
-    public Task AddAsync(StockDocumentAttachment attachment, CancellationToken cancellationToken) => Task.CompletedTask;
 }

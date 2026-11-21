@@ -1,9 +1,8 @@
-using Pancras.Domain.Notifications;
 using Microsoft.Extensions.Logging.Abstractions;
 using Pancras.Application.Notifications;
 using Pancras.Application.Purchasing;
 using Pancras.Domain.Employees;
-using Pancras.Domain.Inventory;
+using Pancras.Domain.Notifications;
 using Pancras.Domain.Purchasing;
 
 namespace Pancras.Application.Tests;

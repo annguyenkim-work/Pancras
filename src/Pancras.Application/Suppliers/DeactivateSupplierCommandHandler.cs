@@ -1,9 +1,9 @@
-using Pancras.Domain.Suppliers;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Auditing;
 using Pancras.Application.Common;
 using Pancras.Domain.Auditing;
 using Pancras.Domain.Employees;
+using Pancras.Domain.Suppliers;
 
 namespace Pancras.Application.Suppliers;
 

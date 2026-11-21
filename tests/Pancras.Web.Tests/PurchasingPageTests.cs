@@ -3,8 +3,11 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Pancras.Application.Purchasing;
+using Pancras.Application.Common;
+using Pancras.Domain.Catalog;
 using Pancras.Domain.Employees;
 using Pancras.Domain.Purchasing;
+using Pancras.Web.Pages.Purchasing;
 
 namespace Pancras.Web.Tests;
 
@@ -169,28 +172,267 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         Assert.DoesNotContain("<dialog open", html, StringComparison.Ordinal);
     }
 
-    [Theory]
-    [InlineData("InvalidReceiptQuantity", "Số thực nhận không hợp lệ.")]
-    [InlineData("NotReceivable", "chưa nhận hàng được")]
-    public async Task ARejectedAction_ShowsItsReasonAsAnErrorToast_NotAsABannerAtTheTopOfThePage(string error, string text)
+    [Fact]
+    public async Task ARejectedAction_ShowsItsReasonAsAnErrorToast_NotAsABannerAtTheTopOfThePage()
     {
         // Lỗi UAT: nhận hàng bị từ chối, trang tải lại mà người dùng (đang ở giữa trang) không thấy lỗi vì banner nằm ở đầu trang.
+        // Mọi lỗi sau POST đi một đường: toast ghi ngay khi xử lý, địa chỉ không mang tham số error=.
         using var client = _factory.CreateClient(NoRedirect);
-        Reset();
+        var orders = Reset();
+        var order = NewOrder("PO-DRAFT", Guid.CreateVersion7());
+        orders.Orders.Add(order);
         await SignInAsync(client);
 
-        var html = await (await client.GetAsync("/purchasing?error=" + error)).Content.ReadAsStringAsync();
+        var response = await client.PostAsync("/purchasing?handler=Receive", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = await TokenAsync(client, order.Id),
+            ["orderId"] = order.Id.ToString()
+        }));
+        var location = response.Headers.Location!.OriginalString;
+        var html = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync(location)).Content.ReadAsStringAsync());
 
-        var toast = System.Text.RegularExpressions.Regex.Match(html, "<div[^>]*data-tone=\"rose\"[^>]*>.*?</div>", System.Text.RegularExpressions.RegexOptions.Singleline);
+        Assert.DoesNotContain("error=", location, StringComparison.Ordinal);
+        var toast = Regex.Match(html, "<div[^>]*data-tone=\"rose\"[^>]*>.*?</div>", RegexOptions.Singleline);
         Assert.True(toast.Success, "Lỗi phải hiện bằng toast đỏ (góc dưới phải).");
-        Assert.Contains(text, System.Net.WebUtility.HtmlDecode(toast.Value), StringComparison.Ordinal);
-        Assert.Single(System.Text.RegularExpressions.Regex.Matches(System.Net.WebUtility.HtmlDecode(html), System.Text.RegularExpressions.Regex.Escape(text)));
+        Assert.Contains("chưa nhận hàng được", toast.Value, StringComparison.Ordinal);
+        Assert.Single(Regex.Matches(html, Regex.Escape("chưa nhận hàng được")));
+    }
+
+    [Fact]
+    public async Task ReceivingMoreThanStillToReceive_IsRejected_WithAToastNamingTheItem_AndTheInputCapsTheQuantity()
+    {
+        // Chủ dự án chốt 2026-11-21: không bao giờ nhận quá số đặt, kể cả khi đóng đơn.
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var catalog = _factory.Services.GetRequiredService<CatalogDirectoryDouble>();
+        var item = CatalogItem.Create("SPVUOT", "Bồn", ProductCategory.SanitaryEquipment, "Toto", "Việt Nam", "Cái", null, null, null, null, 9m, 1m, 1m, 1m, 1m);
+        catalog.Items.Add(item);
+        var order = PurchaseOrder.TryCreate("PO-VUOT", Guid.CreateVersion7(), Guid.CreateVersion7(), "CONT", null, null, null, 1m, 0m, [(item.Id, 4, 10m, 0m, 0m, 0m, 0m)])!;
+        Assert.True(order.TrySubmit());
+        Assert.True(order.TryApprove());
+        orders.Orders.Add(order);
+        await SignInAsync(client);
+
+        var page = await (await client.GetAsync("/purchasing?order=" + order.Id)).Content.ReadAsStringAsync();
+        Assert.Matches(@"name=""actuals\[" + order.Lines[0].Id + @"\]""[^>]*max=""4""", page);
+        var token = Regex.Match(page, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+
+        var response = await client.PostAsync("/purchasing?handler=Receive", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = token,
+            ["orderId"] = order.Id.ToString(),
+            ["closeOrder"] = "true",
+            ["note"] = "thừa hàng",
+            ["actuals[" + order.Lines[0].Id + "]"] = "6"
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal(PurchaseStatus.Approved, order.Status);
+
+        var after = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync(response.Headers.Location!.OriginalString)).Content.ReadAsStringAsync());
+        var toast = Regex.Match(after, "<div[^>]*data-tone=\"rose\"[^>]*>.*?</div>", RegexOptions.Singleline).Value;
+        Assert.Contains("SPVUOT", toast, StringComparison.Ordinal);
+        Assert.Contains("6", toast, StringComparison.Ordinal);
+        Assert.Contains("còn phải nhận 4", toast, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ExceedsOrderedMessage_NamesItemAndLimit_FromTheTypedDetail()
+    {
+        Assert.Equal(
+            "Mặt hàng SP01: nhập 12 nhưng chỉ còn phải nhận 10. Không được nhận quá số đặt; sửa số thực nhận rồi thử lại.",
+            PurchaseErrorMessages.Describe(PurchaseError.ReceiptExceedsOrdered, [new ReceiptExcess("SP01", 12, 10)]));
+        Assert.Equal(
+            "Có mặt hàng nhận nhiều hơn số còn phải nhận. Không được nhận quá số đặt; sửa số thực nhận rồi thử lại.",
+            PurchaseErrorMessages.Describe(PurchaseError.ReceiptExceedsOrdered));
+    }
+
+    [Fact]
+    public async Task ActionsOnAnOrder_ReturnToTheSameFilteredList()
+    {
+        // Lỗi UAT: duyệt, nhận hàng (một phần, đủ) tải lại trang mà mất bộ lọc.
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var order = NewOrder("PO-KEEP", Guid.CreateVersion7());
+        orders.Orders.Add(order);
+        await SignInAsync(client);
+        const string list = "q=PO-KEEP&status=Draft&size=50";
+
+        var page = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?order=" + order.Id + "&" + list)).Content.ReadAsStringAsync());
+        var action = Regex.Match(page, @"<form[^>]*action=""(/purchasing\?handler=ChangeStatus[^""]*)""").Groups[1].Value;
+        Assert.Contains("q=PO-KEEP", action, StringComparison.Ordinal);
+        Assert.Contains("status=Draft", action, StringComparison.Ordinal);
+        Assert.Contains("size=50", action, StringComparison.Ordinal);
+        var token = Regex.Match(page, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+
+        var response = await client.PostAsync(action, new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = token,
+            ["orderId"] = order.Id.ToString(),
+            ["action"] = ((int)PurchaseStatusAction.Submit).ToString()
+        }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        var location = response.Headers.Location!.OriginalString;
+        Assert.Contains("order=" + order.Id, location, StringComparison.Ordinal);
+        Assert.Contains("notice=submitted", location, StringComparison.Ordinal);
+        Assert.Contains("q=PO-KEEP", location, StringComparison.Ordinal);
+        Assert.Contains("status=Draft", location, StringComparison.Ordinal);
+        Assert.Contains("size=50", location, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ARejectedReceipt_AlsoReturnsToTheSameFilteredList()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var order = NewOrder("PO-KEEP2", Guid.CreateVersion7());
+        orders.Orders.Add(order);
+        await SignInAsync(client);
+
+        var response = await client.PostAsync("/purchasing?handler=Receive&q=PO-KEEP2&status=Approved&pageNumber=2", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = await TokenAsync(client, order.Id),
+            ["orderId"] = order.Id.ToString()
+        }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        var location = response.Headers.Location!.OriginalString;
+        Assert.DoesNotContain("error=", location, StringComparison.Ordinal);
+        Assert.Contains("q=PO-KEEP2", location, StringComparison.Ordinal);
+        Assert.Contains("status=Approved", location, StringComparison.Ordinal);
+        Assert.Contains("pageNumber=2", location, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task NewOrderAndFormCloseLinks_KeepTheFilteredList()
+    {
+        // Rà toàn bộ (2026-11-21): nút "Tạo đơn" và nút đóng form (×, Quay lại) đưa về /purchasing trần, mất bộ lọc.
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var order = NewOrder("PO-LINK", Guid.CreateVersion7());
+        orders.Orders.Add(order);
+        await SignInAsync(client);
+
+        var list = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?q=PO&status=Draft&size=50")).Content.ReadAsStringAsync());
+        Assert.Contains("href=\"/purchasing?form=1&q=PO&status=Draft&size=50\"", list, StringComparison.Ordinal);
+
+        var create = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?form=1&q=PO&status=Draft&size=50")).Content.ReadAsStringAsync());
+        var closeLinks = Regex.Matches(create, @"<a href=""([^""]*)"" data-leave").Select(match => match.Groups[1].Value).ToArray();
+        Assert.Equal(2, closeLinks.Length);
+        Assert.All(closeLinks, href => Assert.EndsWith("q=PO&status=Draft&size=50", href, StringComparison.Ordinal));
+
+        var edit = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?edit=" + order.Id + "&q=PO&status=Draft")).Content.ReadAsStringAsync());
+        var editClose = Regex.Matches(edit, @"<a href=""([^""]*)"" data-leave").Select(match => match.Groups[1].Value).ToArray();
+        Assert.All(editClose, href => Assert.Equal("/purchasing?order=" + order.Id + "&q=PO&status=Draft", href));
+    }
+
+    [Fact]
+    public async Task OpeningAnOrderFromTheFilteredList_KeepsTheFilters()
+    {
+        // Lỗi UAT: lọc danh sách rồi bấm một đơn để xem chi tiết thì bộ lọc bị mất.
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var location = Guid.CreateVersion7();
+        orders.Orders.Add(NewOrder("PO-AA", location));
+        orders.Orders.Add(NewOrder("PO-AB", location));
+        await SignInAsync(client);
+
+        var html = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?q=PO&size=50")).Content.ReadAsStringAsync());
+
+        var links = System.Text.RegularExpressions.Regex.Matches(html, "<a href=\"(/purchasing\\?order=[^\"]*)\" class=\"block rounded-xl").Select(match => match.Groups[1].Value).Distinct().ToArray();
+        Assert.Equal(2, links.Length);
+        Assert.All(links, link =>
+        {
+            Assert.Contains("q=PO", link, StringComparison.Ordinal);
+            Assert.Contains("size=50", link, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
+    public async Task OrderList_CanBeFilteredByStatus_AndKeepsTheStatusWhenOpeningAnOrder()
+    {
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var location = Guid.CreateVersion7();
+        var draft = NewOrder("PO-DRAFT", location);
+        var approved = NewOrder("PO-APPROVED", location);
+        Assert.True(approved.TrySubmit());
+        Assert.True(approved.TryApprove());
+        orders.Orders.Add(draft);
+        orders.Orders.Add(approved);
+        await SignInAsync(client);
+
+        var html = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?status=Approved")).Content.ReadAsStringAsync());
+
+        Assert.Contains("PO-APPROVED", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("PO-DRAFT", html, StringComparison.Ordinal);
+        Assert.Contains("<option value=\"Approved\" selected", html, StringComparison.Ordinal);
+        Assert.Contains("<option value=\"\">Mọi trạng thái</option>", html, StringComparison.Ordinal);
+        var card = System.Text.RegularExpressions.Regex.Match(html, "<a href=\"(/purchasing\\?order=[^\"]*)\" class=\"block rounded-xl").Groups[1].Value;
+        Assert.Contains("status=Approved", card, StringComparison.Ordinal);
+        var unknown = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?status=Nonsense")).Content.ReadAsStringAsync());
+        Assert.Contains("PO-DRAFT", unknown, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task OrderDetail_PutsTheStatusInTheTitleRow_AndGivesEveryActionTheSameSize()
+    {
+        // UAT: trạng thái phải nằm cạnh mã đơn (sát phải) và các nút thao tác cùng chiều cao, cùng độ rộng, đủ chữ, tối đa 2 hàng.
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var order = NewOrder("PO-BTN", Guid.CreateVersion7());
+        Assert.True(order.TrySubmit());
+        Assert.True(order.TryApprove());
+        orders.Orders.Add(order);
+        await SignInAsync(client);
+
+        var html = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?order=" + order.Id)).Content.ReadAsStringAsync());
+
+        var title = html.IndexOf("PO-BTN ·", StringComparison.Ordinal);
+        var badge = html.IndexOf("Đã duyệt</span>", title, StringComparison.Ordinal);
+        var actions = html.IndexOf("id=\"order-actions\"", StringComparison.Ordinal);
+        Assert.True(title > 0 && badge > title && actions > badge, "Huy hiệu trạng thái phải đứng ngay sau mã đơn, trước khối nút thao tác.");
+        var toolbar = html[actions..html.IndexOf("DANH SÁCH MẶT HÀNG", actions, StringComparison.Ordinal)];
+        var controls = System.Text.RegularExpressions.Regex.Matches(toolbar, "<(?:button type=\"submit\"|a href=\"/purchasing\\?[^\"]*edit=)[^>]*class=\"([^\"]*)\"")
+            .Select(match => match.Groups[1].Value).ToArray();
+        Assert.True(controls.Length >= 5, "Xuất CSV, Sửa đơn, Nhập kho, Hàng đang về, Hủy đơn.");
+        Assert.All(controls, classes =>
+        {
+            Assert.Contains("h-10", classes, StringComparison.Ordinal);
+            Assert.Contains("whitespace-nowrap", classes, StringComparison.Ordinal);
+            Assert.DoesNotContain("py-2", classes, StringComparison.Ordinal);
+        });
+        // Các nút thường cùng độ rộng; riêng nút Nhập kho có nhãn dài nên rộng theo chữ.
+        Assert.Equal(1, controls.Count(classes => !classes.Contains("w-44", StringComparison.Ordinal)));
+    }
+
+
+    [Fact]
+    public async Task ReceiveForm_KeepsTheReceiveButtonAndTheCloseCheckboxTogether_ButtonFirst()
+    {
+        // UAT: nút Nhập kho đứng trước, ô "Đóng đơn dù nhận thiếu" đứng sau, cùng một khối không tách dòng.
+        using var client = _factory.CreateClient(NoRedirect);
+        var orders = Reset();
+        var order = NewOrder("PO-RCV", Guid.CreateVersion7());
+        Assert.True(order.TrySubmit());
+        Assert.True(order.TryApprove());
+        orders.Orders.Add(order);
+        await SignInAsync(client);
+
+        var html = System.Net.WebUtility.HtmlDecode(await (await client.GetAsync("/purchasing?order=" + order.Id)).Content.ReadAsStringAsync());
+
+        var form = System.Text.RegularExpressions.Regex.Match(html, "<form id=\"receive-form\"[^>]*class=\"([^\"]*)\".*?</form>", System.Text.RegularExpressions.RegexOptions.Singleline);
+        Assert.True(form.Success);
+        Assert.Contains("flex-nowrap", form.Groups[1].Value, StringComparison.Ordinal);
+        var button = form.Value.IndexOf("Nhập Kho & Cập Nhật Giá Vốn", StringComparison.Ordinal);
+        var checkbox = form.Value.IndexOf("name=\"closeOrder\"", StringComparison.Ordinal);
+        Assert.True(button > 0 && checkbox > button, "Nút nhập kho phải đứng trước ô đóng đơn dù nhận thiếu.");
     }
 
     [Fact]
     public async Task TheOtherTaxInput_IsAMoneyInput_LikeTheChargeAmounts()
     {
-        // Lỗi UAT: ô "Thuế khác (VNĐ)" hiện số thô 200000 thay vì 200.000 vì thiếu lớp vnd (script định dạng tiền chỉ xử lý ô có lớp này).
+        // Lỗi UAT: ô "Thuế khác (VNĐ)" hiện số thô 200000 thay vì 200.000 vì thiếu hook data-vnd (script định dạng tiền chỉ xử lý ô có thuộc tính này).
         using var client = _factory.CreateClient(NoRedirect);
         Reset();
         await SignInAsync(client);
@@ -201,7 +443,7 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         Assert.True(input.Success, "Phải có ô Thuế khác của dòng đầu.");
         var classes = System.Text.RegularExpressions.Regex.Match(input.Value, "class=\"([^\"]*)\"").Groups[1].Value.Split(' ');
         Assert.Contains("line-other", classes);
-        Assert.Contains("vnd", classes);
+        Assert.Contains("data-vnd=", input.Value, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -266,7 +508,8 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         var response = await client.PostAsync("/purchasing?handler=Upload", Multipart(token, order.Id, "virus.pdf", "MZ-not-a-pdf"u8.ToArray()));
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-        Assert.Contains("error=AttachmentInvalid", response.Headers.Location?.OriginalString, StringComparison.Ordinal);
+        Assert.Contains("order=" + order.Id, response.Headers.Location?.OriginalString, StringComparison.Ordinal);
+        Assert.Contains("File không hợp lệ", System.Net.WebUtility.HtmlDecode(await (await client.GetAsync(response.Headers.Location!.OriginalString)).Content.ReadAsStringAsync()), StringComparison.Ordinal);
         Assert.Empty(files.Items);
         Assert.Empty(files.Files);
     }
@@ -552,88 +795,4 @@ public class PurchasingPageTests : IClassFixture<PancrasWebFactory>
         AllowAutoRedirect = false,
         HandleCookies = true
     };
-}
-
-internal sealed class AttachmentDouble : IPurchaseAttachmentRepository, IAttachmentStorage
-{
-    public List<PurchaseAttachment> Items { get; } = [];
-
-    public Dictionary<string, byte[]> Files { get; } = [];
-
-    public Task<IReadOnlyList<PurchaseAttachment>> ListAsync(Guid purchaseOrderId, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<PurchaseAttachment>>(Items.Where(item => item.PurchaseOrderId == purchaseOrderId).ToArray());
-
-    public Task<PurchaseAttachment?> FindAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult(Items.FirstOrDefault(item => item.Id == id));
-
-    public Task AddAsync(PurchaseAttachment attachment, CancellationToken cancellationToken)
-    {
-        Items.Add(attachment);
-        return Task.CompletedTask;
-    }
-
-    public Task RemoveAsync(Guid id, CancellationToken cancellationToken)
-    {
-        Items.RemoveAll(item => item.Id == id);
-        return Task.CompletedTask;
-    }
-
-    public async Task SaveAsync(string storedName, Stream content, CancellationToken cancellationToken)
-    {
-        using var copy = new MemoryStream();
-        await content.CopyToAsync(copy, cancellationToken);
-        Files[storedName] = copy.ToArray();
-    }
-
-    public Task<Stream?> OpenReadAsync(string storedName, CancellationToken cancellationToken) =>
-        Task.FromResult<Stream?>(Files.TryGetValue(storedName, out var bytes) ? new MemoryStream(bytes) : null);
-
-    public Task DeleteAsync(string storedName, CancellationToken cancellationToken)
-    {
-        Files.Remove(storedName);
-        return Task.CompletedTask;
-    }
-}
-
-internal sealed class PurchaseDirectoryDouble : IPurchaseOrderRepository
-{
-    public List<PurchaseOrder> Orders { get; } = [];
-
-    public Task<IReadOnlyList<PurchaseShipmentKey>> ListShipmentKeysAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<PurchaseShipmentKey>>(Orders.Select(order => new PurchaseShipmentKey(order.Id, order.Code, order.ContainerNumber, order.BillOfLading, order.Status)).ToArray());
-
-    public Task<PurchaseOrderPage> ListPageAsync(PurchaseOrderQuery filter, int pageNumber, int pageSize, CancellationToken cancellationToken)
-    {
-        var visible = Orders.Where(filter.Visible.Compile()).OrderByDescending(order => order.Id).ToList();
-        var term = filter.Term?.Trim();
-        var matching = visible
-            .Where(order => filter.SupplierId is null || order.SupplierId == filter.SupplierId)
-            .Where(order => string.IsNullOrEmpty(term)
-                || new[] { order.Code, order.ContainerNumber, order.BillOfLading, order.Port, order.SupplierName }
-                    .Any(text => text.Contains(term, StringComparison.OrdinalIgnoreCase)))
-            .ToList();
-        var size = Math.Max(1, pageSize);
-        var page = Math.Clamp(pageNumber, 1, Math.Max(1, (matching.Count + size - 1) / size));
-        return Task.FromResult(new PurchaseOrderPage(
-            matching.Skip((page - 1) * size).Take(size).ToArray(),
-            matching.Count,
-            page,
-            visible.Count > 0,
-            matching.Count == 0 ? null : matching[0].Id));
-    }
-
-    public Task<PurchaseOrder?> FindReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult(Orders.FirstOrDefault(order => order.Id == id));
-
-    public Task<PurchaseOrder?> FindForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
-        FindReadOnlyAsync(id, cancellationToken);
-
-    public Task<bool> NormalizedCodeExistsAsync(string normalizedCode, CancellationToken cancellationToken) =>
-        Task.FromResult(Orders.Any(order => order.NormalizedCode == normalizedCode));
-
-    public Task AddAsync(PurchaseOrder order, CancellationToken cancellationToken)
-    {
-        Orders.Add(order);
-        return Task.CompletedTask;
-    }
 }

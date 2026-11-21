@@ -16,7 +16,7 @@
         </div>
         @if (Model.CanManage)
         {
-            <a href="/locations?form=1" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Thêm kho/showroom</a>
+            <a href="@Model.FormUrl" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Thêm kho/showroom</a>
         }
     </div>
     @if (Model.HasAny)
@@ -65,8 +65,9 @@ else
                         {
                             <td class="px-3 py-3">
                                 <div class="flex items-center justify-end gap-2">
-                                    <a href="/locations?edit=@location.Id" class="rounded-lg px-3 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Sửa</a>
-                                    <form method="post" asp-page-handler="Disable" asp-route-id="@location.Id" data-confirm data-confirm-title="Disable kho/showroom" data-confirm-message="Disable kho/showroom này? Địa điểm sẽ bị ẩn khỏi danh sách, lịch sử vẫn được giữ." data-confirm-label="Disable" data-confirm-tone="danger">
+                                    <a href="@Model.EditUrl(location.Id)" class="rounded-lg px-3 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Sửa</a>
+                                    <form method="post" asp-antiforgery="true" action="@Model.ActionUrl("Disable")" data-confirm data-confirm-title="Disable kho/showroom" data-confirm-message="Disable kho/showroom này? Địa điểm sẽ bị ẩn khỏi danh sách, lịch sử vẫn được giữ." data-confirm-label="Disable" data-confirm-tone="danger">
+                                        <input type="hidden" name="id" value="@location.Id" />
                                         <button type="submit" class="px-3 py-1.5 text-sm font-medium rounded-lg text-rose-700 hover:bg-rose-50">Disable</button>
                                     </form>
                                 </div>
@@ -85,9 +86,9 @@ else
     <dialog id="location-dialog" data-autoshow class="m-auto !flex w-[min(28rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
         <div class="flex shrink-0 items-center justify-between gap-3 px-6 pt-6">
             <h2 class="text-lg font-bold">Thêm kho/showroom</h2>
-            <a href="/locations" class="text-slate-400" aria-label="Đóng">×</a>
+            <a href="@Model.ListUrl" class="text-slate-400" aria-label="Đóng">×</a>
         </div>
-        <form method="post" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
+        <form method="post" asp-antiforgery="true" action="@Model.ActionUrl(null)" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
             @if (Model.Error != LocationError.None)
             {
                 <div class="mt-3"><partial name="_Notice" model="new NoticeModel(IndexModel.ErrorText(Model.Error), ToastLevel.Error)" /></div>
@@ -102,7 +103,7 @@ else
                 </label>
             </div>
             <div class="mt-4 flex justify-end gap-2">
-                <a href="/locations" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Quay lại</a>
+                <a href="@Model.ListUrl" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Quay lại</a>
                 <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Lưu</button>
             </div>
         </form>
@@ -114,9 +115,9 @@ else
     <dialog id="location-edit-dialog" data-autoshow class="m-auto !flex w-[min(28rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50">
         <div class="flex shrink-0 items-center justify-between gap-3 px-6 pt-6">
             <h2 class="text-lg font-bold">Sửa kho/showroom</h2>
-            <a href="/locations" class="text-slate-400" aria-label="Đóng">×</a>
+            <a href="@Model.ListUrl" class="text-slate-400" aria-label="Đóng">×</a>
         </div>
-        <form method="post" asp-page-handler="Update" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
+        <form method="post" asp-antiforgery="true" action="@Model.ActionUrl("Update")" class="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
             <input type="hidden" asp-for="Edit.Id" />
             <input type="hidden" asp-for="Edit.Version" />
             @if (Model.ManageError is not null)
@@ -133,7 +134,7 @@ else
                 </label>
             </div>
             <div class="mt-4 flex justify-end gap-2">
-                <a href="/locations" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Quay lại</a>
+                <a href="@Model.ListUrl" class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Quay lại</a>
                 <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">Lưu</button>
             </div>
         </form>

@@ -4,7 +4,6 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Pancras.Application.Catalog;
-using Pancras.Application.Employees;
 using Pancras.Domain.Catalog;
 using Pancras.Domain.Employees;
 using Pancras.Domain.Inventory;
@@ -194,6 +193,37 @@ public class CatalogPageTests : IClassFixture<PancrasWebFactory>
     }
 
     [Fact]
+    public async Task ActivatingAnItem_ReturnsToTheSameFilteredList()
+    {
+        // Lỗi UAT: sau khi Disable/Active, bộ lọc (từ khóa, trạng thái, ngành...) bị đưa về mặc định.
+        using var client = _factory.CreateClient(NoRedirect);
+        var repository = Reset();
+        var item = CatalogItem.Create("SP-OFF", "Vòi cũ", ProductCategory.SanitaryEquipment, "Toto", "Việt Nam", "Cái", 1m, null, null, null, 1m, 1m, 1m, 1m, 1m);
+        item.Deactivate();
+        repository.Items.Add(item);
+        await SignInAsync(client, EmployeeRole.Admin, "admin");
+        var list = Decode(await (await client.GetAsync("/catalog?status=disabled&q=v%C3%B2i&category=" + ProductCategoryToken.Sanitary + "&size=50")).Content.ReadAsStringAsync());
+
+        var form = Regex.Match(list, "<form[^>]*handler=SetActive[^>]*>.*?</form>", RegexOptions.Singleline).Value;
+        Assert.NotEmpty(form);
+        var fields = Regex.Matches(form, "<input[^>]*>")
+            .Select(tag => tag.Value)
+            .Where(tag => tag.Contains("type=\"hidden\"", StringComparison.Ordinal))
+            .ToDictionary(
+                tag => Regex.Match(tag, "name=\"([^\"]+)\"").Groups[1].Value,
+                tag => System.Net.WebUtility.HtmlDecode(Regex.Match(tag, "value=\"([^\"]*)\"").Groups[1].Value));
+        var action = System.Net.WebUtility.HtmlDecode(Regex.Match(form, "action=\"([^\"]*)\"").Groups[1].Value);
+        var posted = await client.PostAsync(action, new FormUrlEncodedContent(fields));
+
+        Assert.Equal(HttpStatusCode.Redirect, posted.StatusCode);
+        var location = posted.Headers.Location!.OriginalString;
+        Assert.Contains("status=disabled", location, StringComparison.Ordinal);
+        Assert.Contains("q=", location, StringComparison.Ordinal);
+        Assert.Contains("category=" + ProductCategoryToken.Sanitary, location, StringComparison.Ordinal);
+        Assert.Contains("size=50", location, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Create_RejectsAPriceAboveTheColumn_OnTheForm()
     {
         using var client = _factory.CreateClient(NoRedirect);
@@ -327,53 +357,4 @@ public class CatalogPageTests : IClassFixture<PancrasWebFactory>
         AllowAutoRedirect = false,
         HandleCookies = true
     };
-}
-
-internal sealed class CatalogDirectoryDouble : ICatalogItemRepository
-{
-    public List<CatalogItem> Items { get; } = [];
-
-    public Task<CatalogSlice> ListAsync(ListCatalogItemsQuery filter, int pageNumber, int pageSize, CancellationToken cancellationToken)
-    {
-        var ordered = Matching(filter);
-        var size = pageSize < 1 ? Pancras.Application.Common.PageSizes.Default : pageSize;
-        var totalPages = ordered.Count == 0 ? 1 : (ordered.Count + size - 1) / size;
-        var number = Math.Clamp(pageNumber < 1 ? 1 : pageNumber, 1, totalPages);
-        IReadOnlyList<CatalogItem> page = ordered.Skip((number - 1) * size).Take(size).ToList();
-        return Task.FromResult(new CatalogSlice(page, ordered.Count, number));
-    }
-
-    public Task<IReadOnlyList<CatalogItem>> ListMatchingAsync(ListCatalogItemsQuery filter, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<CatalogItem>>(Matching(filter));
-
-    public Task<CatalogItem?> GetVisibleReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult(Items.FirstOrDefault(item => item.Id == id && !item.IsCombo));
-
-    public Task<CatalogItem?> GetVisibleForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
-        GetVisibleReadOnlyAsync(id, cancellationToken);
-
-    public Task<CatalogItem?> GetByIdReadOnlyAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult(Items.FirstOrDefault(item => item.Id == id));
-
-    public Task<bool> NormalizedCodeExistsAsync(string normalizedCode, CancellationToken cancellationToken) =>
-        Task.FromResult(Items.Any(item => item.NormalizedCode == normalizedCode));
-
-    public Task AddAsync(CatalogItem item, CancellationToken cancellationToken)
-    {
-        Items.Add(item);
-        return Task.CompletedTask;
-    }
-
-    public Task<IReadOnlyDictionary<Guid, CatalogItemMeasure>> ListMeasuresAsync(
-        IReadOnlyCollection<Guid> ids,
-        CancellationToken cancellationToken)
-    {
-        IReadOnlyDictionary<Guid, CatalogItemMeasure> rows = Items
-            .Where(item => ids.Contains(item.Id))
-            .ToDictionary(item => item.Id, item => new CatalogItemMeasure(item.Id, item.WeightKg, item.VolumeM3));
-        return Task.FromResult(rows);
-    }
-
-    private List<CatalogItem> Matching(ListCatalogItemsQuery filter) =>
-        Items.Where(filter.Matches).OrderBy(item => item.Name).ThenBy(item => item.Code).ToList();
 }

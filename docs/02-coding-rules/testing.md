@@ -29,7 +29,7 @@ Test Domain, Application và Web không được phụ thuộc cơ sở dữ li�
 1. **Mọi handler mới:** có test thành công, test cho **từng mã lỗi** nó có thể trả, và test thiếu quyền.
 2. **Mọi bất biến Domain** (tồn không âm, luôn còn Admin hoạt động, mỗi kho một Trưởng...) có test ở `Domain.Tests`.
 3. **Sửa lỗi:** viết test tái hiện lỗi trước, thấy nó fail, rồi mới sửa. Test hồi quy đặt cạnh test của handler liên quan.
-4. **Trang có phân quyền:** test ở `Web.Tests` rằng vai không được phép **không thấy nút** và **bị chặn khi POST trực tiếp**, và dữ liệu nhạy cảm không nằm trong HTML trả về.
+. **Test giao diện kiểm vị trí và hành vi, không chỉ sự có mặt:** lỗi phải nằm **trong** `<dialog>` hoặc toast (không chỉ "có trong trang"); link và redirect phải chứa đủ tham số lọc; lớp CSS dùng phải có trong `site.css`. Tự kiểm: bỏ tính năng đi mà test vẫn xanh thì test yếu. Hộp thoại lập phiếu thì test theo từng loại phiếu (theory), không chỉ một loại.
 
 ## 4. Cơ sở dữ liệu trong test
 
@@ -42,13 +42,15 @@ Test Domain, Application và Web không được phụ thuộc cơ sở dữ li�
 
 ## 5. Luật viết thành test quét mã nguồn
 
-Đã có: `NoNativeDialogTests` quét `.cshtml`, cấm `confirm()/alert()/prompt()`.
+Đã có: `NoNativeDialogTests` quét `.cshtml`, cấm `confirm()/alert()/prompt()`; `UiStandardsTests` quét nút (đọc cả class trong biến Razor `const string`); `MoneyInputsTests` quét ô tiền VNĐ phải có `data-vnd` (USD, phần trăm, số lượng không nằm trong danh sách tên trường tiền VNĐ); `SidebarCollapseTests` kiểm khung nội dung căn giữa có min/max width.
 
 Quy tắc đã chốt, **làm sau** khi dọn nợ UI (chưa tự động hóa ở thời điểm này):
 
 - Domain/Application không tham chiếu ASP.NET/EF Core; Web không dùng Infrastructure ngoài `Program.cs`.
 - `.cshtml` không dùng `IsInRole`, không `onclick` inline, không dùng class màu ngoài palette.
 - Tiền không `ToString` tự do ở trang; chỉ dùng hàm chung (`VndMoney`).
+
+- **Regex trong test quét viết bằng chuỗi nguyên văn** (`@"..."`, nháy kép gấp đôi): trong chuỗi thường `""` là ký tự xóa lùi, không phải ranh giới từ, nên test không bao giờ khớp và xanh giả (đã xảy ra với `UiStandardsTests`). Mỗi test quét phải có ít nhất một ca chứng minh nó **tìm được** đối tượng (đếm số mẫu quét được, hoặc một test đối chứng).
 
 Test quét mã nguồn mới sẽ đỏ ngay với nợ hiện có, nên cần danh sách ngoại lệ tạm có hạn xử lý.
 
@@ -59,15 +61,31 @@ dotnet test Pancras.slnx --warnaserror --nologo
 dotnet test tests/Pancras.Domain.Tests --filter "FullyQualifiedName~SomeTest"
 ```
 
+- Trên máy dev dùng `./scripts/test.ps1` (xem [local-setup.md](../06-operations/local-setup.md)): build sạch rồi test, tự đặt `PANCRAS_TEST_POSTGRES` từ user-secrets.
 - Mỗi lần gọi `dotnet test` chỉ truyền một đường dẫn dự án (hai csproj cùng lúc lỗi MSB1008).
 - Không để cảnh báo biên dịch (`--warnaserror`).
+
+## 6b. Test double
+
+- `Pancras.Web.Tests/TestDoubles/`: máy chủ test dùng chung (`PancrasWebFactory`) và mọi test double của test trang, mỗi module một file. Không khai báo double ở cuối file test của trang.
+- `tests/Shared/`: phần logic giả dùng chung cho nhiều project test (ví dụ `FakeStockDocuments` lọc phiếu kho giống repository thật), liên kết vào từng project bằng `<Compile Include="../Shared/**/*.cs" .../>`. Sửa một chỗ cho mọi project; không chép lại logic lọc vào từng double.
+- Double phải giữ dữ liệu thật như repository (thêm thì lưu, tìm để sửa thì trả bản đã lưu); trả rỗng hoặc `null` cố định làm test không phủ được luồng.
+
+## 7. Smoke test trình duyệt (Playwright)
+
+Chủ dự án duyệt 2026-11-21 (gói `Microsoft.Playwright`).
+
+- Nằm trong `Pancras.Web.Tests`, lớp có `[Trait("Category", "Browser")]`. App chạy thật trên Kestrel (cổng ngẫu nhiên, `WebApplicationFactory.UseKestrel`) với cùng các test double như test trang, nên **không cần DB, không cần tài khoản thật**; đăng nhập bằng nhân viên giả tạo trong test.
+- Trình duyệt: Windows dùng Microsoft Edge có sẵn (`channel: msedge`), máy khác dùng Chromium của Playwright. CI cài Chromium trước khi chạy test (`playwright.ps1 install --with-deps chromium`). Đổi bằng biến môi trường `PANCRAS_BROWSER_CHANNEL` (`msedge`, `chrome`, hoặc `chromium`).
+- Chỉ viết smoke test cho hành vi mà test HTML không thấy được: JS định dạng, vị trí và kích thước trên màn hình, hộp thoại mở, cuộn trang. Mỗi lỗi UAT loại này thêm một smoke test.
+- Server Kestrel và trình duyệt dùng chung cho cả lớp (`BrowserFixture`); mỗi test mở một browser context riêng. CI cache thư mục trình duyệt theo phiên bản gói (`actions/cache`).
+- Chạy riêng: `dotnet test tests/Pancras.Web.Tests --filter Category=Browser`.
 
 ## Nợ lệch so với quy định
 
 | Vấn đề | Hiện trạng |
 | --- | --- |
-| CLAUDE.md thiếu | Chỉ liệt kê 3 dự án test, thiếu `Infrastructure.Tests` |
-| Test quét mã nguồn | Mới có `NoNativeDialogTests` |
+| Test quét mã nguồn | Đã có `NoNativeDialogTests`, `UiStandardsTests`, `MoneyInputsTests`, `ListStateLinksTests`, `ListStateFormsTests`, `SidebarCollapseTests`. Chưa có test quét `IsInRole` trong view, `onclick` inline, màu ngoài palette, `ToString` tiền tự do (mục 5) |
 | Tên test hồi quy | `ManualRetestRegressionTests` đặt theo đợt test thủ công, không theo handler; chuyển test về file của handler khi chạm tới |
 | Đủ mã lỗi | Chưa rà từng enum lỗi xem handler nào chưa có test cho mã lỗi nào |
 

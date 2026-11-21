@@ -25,7 +25,6 @@ public class FormattingTests
 
         Assert.Equal("17/11/2026 03:30", VietnamTime.Format(utc));
         Assert.Equal("2026-11-17 03:30", VietnamTime.Format(utc, "yyyy-MM-dd HH:mm"));
-        Assert.Equal(new DateOnly(2026, 11, 17), VietnamTime.DateOf(utc));
     }
 }
 

@@ -11,9 +11,9 @@
     <dialog id="purchase-dialog" class="m-auto w-[min(72rem,calc(100%-2rem))] max-h-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50 open:flex">
         <div class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
             <h2 class="text-lg font-bold text-slate-900">@(Model.EditingId is null ? "Lập Phiếu Mua Hàng & Container Nhập Khẩu (Nhiều Mặt Hàng)" : "Sửa Đơn Mua Hàng (chưa nhập kho)")</h2>
-            <a href="/purchasing" data-leave class="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-2xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Đóng">×</a>
+            <a href="@Model.CloseFormUrl" data-leave class="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-2xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Đóng">×</a>
         </div>
-        <form method="post" asp-page-handler="@(Model.EditingId is null ? "Create" : "Update")" id="purchase-draft" class="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+        <form method="post" asp-antiforgery="true" action="@Model.ActionUrl(Model.EditingId is null ? "Create" : "Update")" id="purchase-draft" class="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
             @if (!string.IsNullOrEmpty(Model.ErrorMessage))
             {
                 <div class="mb-3"><partial name="_Notice" model='new NoticeModel(Model.ErrorMessage, ToastLevel.Error, null, "form-error")' /></div>
@@ -51,7 +51,7 @@
                 <label class="flex flex-col justify-between gap-1 text-sm">
                     <span>Tỷ giá (VNĐ / USD)</span>
                     <span class="relative block">
-                        <input name="Form.ExchangeRate" value="@Model.Form.ExchangeRate.ToString("0", CultureInfo.InvariantCulture)" id="rate" inputmode="numeric" class="vnd draft w-full rounded-lg border border-slate-300 py-2 pl-3 pr-8" />
+                        <input name="Form.ExchangeRate" value="@Model.Form.ExchangeRate.ToString("0", CultureInfo.InvariantCulture)" id="rate" data-vnd="true" inputmode="numeric" class="draft w-full rounded-lg border border-slate-300 py-2 pl-3 pr-8" />
                         <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-slate-500">VNĐ</span>
                     </span>
                 </label>
@@ -104,7 +104,7 @@
                                 <td class="px-3 py-2"><input name="Form.Lines[@index].Quantity" value="@line.Quantity.ToString(CultureInfo.InvariantCulture)" class="line-qty draft w-20 rounded-lg border border-slate-300 px-2 py-2" /></td>
                                 <td class="px-3 py-2"><input name="Form.UnitPrices[@index]" value="@unitPrice.ToString("0.####", CultureInfo.InvariantCulture)" class="line-unit draft w-24 rounded-lg border border-slate-300 px-2 py-2" /></td>
                                 <td class="px-3 py-2"><input name="Form.DutyPercents[@index]" value="@dutyPercent.ToString("0.####", CultureInfo.InvariantCulture)" class="line-duty draft w-16 rounded-lg border border-amber-200 bg-amber-50 px-2 py-2" /></td>
-                                <td class="px-3 py-2"><input name="Form.Lines[@index].SupplementalDuty" value="@line.SupplementalDuty.ToString("0", CultureInfo.InvariantCulture)" inputmode="numeric" class="line-other vnd draft w-28 rounded-lg border border-slate-300 px-2 py-2" /></td>
+                                <td class="px-3 py-2"><input name="Form.Lines[@index].SupplementalDuty" value="@line.SupplementalDuty.ToString("0", CultureInfo.InvariantCulture)" inputmode="numeric" data-vnd="true" class="line-other draft w-28 rounded-lg border border-slate-300 px-2 py-2" /></td>
                                 <td class="out-unit px-3 py-2 text-right font-bold tabular-nums">0 VNĐ</td>
                                 <td class="py-2 text-right">
                                     <button type="button" class="remove-line rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600" aria-label="Xóa mặt hàng" title="Xóa mặt hàng">
@@ -233,7 +233,7 @@
             <div class="sticky -bottom-5 z-10 -mx-5 -mb-5 mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-3 sm:-mx-6 sm:px-6">
                 <p class="text-sm text-slate-600">Giá vốn hàng nhập <strong id="f-landed" class="text-base text-emerald-700">0 VNĐ</strong> <span class="mx-1 text-slate-300">|</span> Tổng thực chi <strong id="f-cash" class="text-base text-slate-900">0 VNĐ</strong></p>
                 <div class="flex gap-2">
-                    <a href="/purchasing" data-leave class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Quay lại</a>
+                    <a href="@Model.CloseFormUrl" data-leave class="rounded-lg px-4 py-2 text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-60">Quay lại</a>
                     <button type="submit" class="rounded-lg px-4 py-2 text-sm font-bold bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-60">@(Model.EditingId is null ? "Lưu Đơn Mua Hàng & Container" : "Lưu thay đổi")</button>
                 </div>
             </div>

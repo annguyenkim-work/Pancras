@@ -1,4 +1,3 @@
-using Pancras.Application.Common;
 using Pancras.Domain.Catalog;
 
 namespace Pancras.Application.Catalog;

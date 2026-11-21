@@ -1,7 +1,7 @@
-using Pancras.Domain.Notifications;
 using Pancras.Application.Auditing;
 using Pancras.Application.Employees;
 using Pancras.Domain.Inventory;
+using Pancras.Domain.Notifications;
 
 namespace Pancras.Application.Inventory;
 

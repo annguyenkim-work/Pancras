@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Pancras.Application.Catalog;
-using Pancras.Application.Common;
 using Pancras.Domain.Catalog;
 
 namespace Pancras.Application.Tests;

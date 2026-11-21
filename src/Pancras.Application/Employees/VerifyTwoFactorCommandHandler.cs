@@ -1,4 +1,3 @@
-using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Pancras.Application.Auditing;
 using Pancras.Application.Common;

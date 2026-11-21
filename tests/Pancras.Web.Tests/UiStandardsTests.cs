@@ -11,15 +11,38 @@ public class UiStandardsTests
         Directory.EnumerateFiles(PagesDirectory, "*.cshtml", SearchOption.AllDirectories)
             .Select(file => (Path.GetRelativePath(PagesDirectory, file), File.ReadAllText(file)));
 
+    /// <summary>Thay @tên bằng giá trị của `const string tên = "..."` khai báo trong cùng file, để class nằm trong biến Razor vẫn bị quét (U10).</summary>
+    private static string ExpandConsts(string text, string classes)
+    {
+        foreach (Match constant in Regex.Matches(text, @"const string (\w+) = ""([^""]*)"";"))
+        {
+            classes = Regex.Replace(classes, "@" + constant.Groups[1].Value + @"\b", constant.Groups[2].Value);
+        }
+
+        return classes;
+    }
+
+    [Fact]
+    public void ScanPatterns_ActuallyFindButtonsDialogsAndTables()
+    {
+        // Test đối chứng: các test quét ở trên từng xanh giả vì regex không khớp gì (xem testing.md mục 5).
+        var views = Views().ToArray();
+
+        Assert.True(views.Sum(view => Regex.Matches(view.Text, @"<(?:button|a)\b[^>]*?\bclass=""([^""]*)""").Count) > 50);
+        Assert.True(views.Sum(view => Regex.Matches(view.Text, @"<dialog\b[^>]*?\bclass=""([^""]*)""").Count) > 5);
+        Assert.True(views.Sum(view => Regex.Matches(view.Text, @"<thead class=""([^""]*)""").Count) > 3);
+        Assert.True(views.Sum(view => Regex.Matches(view.Text, @"<t[dh]\b[^>]*?\bclass=""([^""]*)""").Count) > 50);
+    }
+
     [Fact]
     public void SolidButtons_UseTheStandardSizeWeightAndHover()
     {
         var offenders = new List<string>();
         foreach (var (file, text) in Views())
         {
-            foreach (Match match in Regex.Matches(text, "<(?:button|a)\b[^>]*?\bclass=\"([^\"]*)\""))
+            foreach (Match match in Regex.Matches(text, @"<(?:button|a)\b[^>]*?\bclass=""([^""]*)"""))
             {
-                var classes = match.Groups[1].Value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var classes = ExpandConsts(text, match.Groups[1].Value).Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 if (classes.Any(c => c.Contains('@')) || classes.Contains("rounded-full") || !classes.Contains("text-white"))
                 {
                     continue;
@@ -34,6 +57,7 @@ public class UiStandardsTests
                 var standard = classes.Contains("rounded-lg") && classes.Contains("font-bold")
                     && classes.Any(c => c.StartsWith("hover:bg-", StringComparison.Ordinal))
                     && (classes.Contains("px-4") && classes.Contains("py-2") && classes.Contains("text-sm")
+                        || classes.Contains("h-10") && classes.Contains("whitespace-nowrap") && classes.Contains("text-sm") && (classes.Contains("px-4") || classes.Contains("px-5"))
                         || classes.Contains("px-3") && classes.Contains("py-1.5") && classes.Contains("text-xs"));
                 if (!standard)
                 {
@@ -52,7 +76,7 @@ public class UiStandardsTests
         var offenders = new List<string>();
         foreach (var (file, text) in Views())
         {
-            foreach (Match match in Regex.Matches(text, "<dialog\b[^>]*?\bclass=\"([^\"]*)\""))
+            foreach (Match match in Regex.Matches(text, @"<dialog\b[^>]*?\bclass=""([^""]*)"""))
             {
                 var classes = match.Groups[1].Value;
                 if (classes.Contains('@'))
@@ -60,7 +84,7 @@ public class UiStandardsTests
                     continue;
                 }
 
-                var width = Regex.Match(classes, @"w-[min(([d.]+rem),").Groups[1].Value;
+                var width = Regex.Match(classes, @"w-\[min\(([\d.]+rem),").Groups[1].Value;
                 if (!allowed.Contains(width) || !classes.Contains("flex-col") || classes.Contains("max-h-[90vh]"))
                 {
                     offenders.Add(file + ": " + classes);
@@ -77,7 +101,7 @@ public class UiStandardsTests
         var offenders = new List<string>();
         foreach (var (file, text) in Views())
         {
-            foreach (Match match in Regex.Matches(text, "<thead class=\"([^\"]*)\""))
+            foreach (Match match in Regex.Matches(text, @"<thead class=""([^""]*)"""))
             {
                 if (!match.Groups[1].Value.Contains("bg-slate-50") && !match.Groups[1].Value.Contains('@'))
                 {
@@ -85,7 +109,7 @@ public class UiStandardsTests
                 }
             }
 
-            foreach (Match match in Regex.Matches(text, "<t[dh]\b[^>]*?\bclass=\"([^\"]*)\""))
+            foreach (Match match in Regex.Matches(text, @"<t[dh]\b[^>]*?\bclass=""([^""]*)"""))
             {
                 var classes = match.Groups[1].Value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 if (classes.Contains("px-4") || (classes.Any(c => c.StartsWith("pr-", StringComparison.Ordinal)) && !classes.Any(c => c.StartsWith("px-", StringComparison.Ordinal))))
