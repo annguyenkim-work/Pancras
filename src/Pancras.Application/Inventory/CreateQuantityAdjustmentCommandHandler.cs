@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Pancras.Application.Auditing;
 using Pancras.Application.Common;
 using Pancras.Application.Employees;
 using Pancras.Domain.Inventory;
@@ -10,7 +11,10 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
     IInventoryRepository repository,
     IUnitOfWork unitOfWork,
     IEmployeeRepository employees,
-    ILogger<CreateQuantityAdjustmentCommandHandler> logger)
+    ILogger<CreateQuantityAdjustmentCommandHandler> logger,
+    TimeProvider? clock = null,
+    Pancras.Application.Auditing.IAuditLog? audit = null,
+    Pancras.Application.Auditing.IRequestInfo? request = null)
 {
     public async Task<Result<Guid, StockError>> HandleAsync(CreateQuantityAdjustmentCommand command, CancellationToken cancellationToken)
     {
@@ -49,6 +53,7 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
 
         await repository.AddAdjustmentAsync(adjustment, cancellationToken);
         await NotifyFinanceAsync(adjustment, cancellationToken);
+        audit.Stage(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.AdjustmentRequested, "adjustment", adjustment.Id.ToString("D"), null);
         if (await scope.CommitAsync(cancellationToken) != SaveOutcome.Saved)
         {
             logger.LogWarning("Quantity adjustment commit failed for {CatalogItemId}.", command.CatalogItemId);
@@ -101,6 +106,9 @@ public sealed class CreateQuantityAdjustmentCommandHandler(
         {
             await repository.AddBalanceAsync(balance, cancellationToken);
         }
+
+        // Ghi thẳng (Admin, Giám đốc, Kế toán) là lập và duyệt trong một lần: ghi như một lần duyệt.
+        audit.Stage(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.AdjustmentApproved, "adjustment", adjustment.Id.ToString("D"), null);
 
         if (await scope.CommitAsync(cancellationToken) != SaveOutcome.Saved)
         {

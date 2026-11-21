@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Pancras.Application.Auditing;
 using Pancras.Application.Common;
 using Pancras.Domain.Inventory;
 
@@ -8,7 +9,10 @@ public sealed class CreateDisposalSlipCommandHandler(
     IInventoryRepository repository,
     IUnitOfWork unitOfWork,
     ApproveDisposalSlipCommandHandler approveHandler,
-    ILogger<CreateDisposalSlipCommandHandler> logger)
+    ILogger<CreateDisposalSlipCommandHandler> logger,
+    TimeProvider? clock = null,
+    Pancras.Application.Auditing.IAuditLog? audit = null,
+    Pancras.Application.Auditing.IRequestInfo? request = null)
 {
     public async Task<Result<Guid, StockError>> HandleAsync(CreateDisposalSlipCommand command, CancellationToken cancellationToken)
     {
@@ -51,6 +55,7 @@ public sealed class CreateDisposalSlipCommandHandler(
         }
 
         await repository.AddDisposalAsync(slip, cancellationToken);
+        audit.Stage(clock ?? TimeProvider.System, request, null, null, Pancras.Domain.Auditing.AuditActions.DisposalRequested, "disposal", slip.Id.ToString("D"), null);
         if (await scope.CommitAsync(cancellationToken) != SaveOutcome.Saved)
         {
             logger.LogWarning("Disposal slip commit failed for {CatalogItemId}.", command.CatalogItemId);
